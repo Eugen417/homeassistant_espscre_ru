@@ -45,6 +45,13 @@ KINDS = {
     'climate-range-halves': ('climate.halves', 'heat_cool', {'current_temperature': 21.5, 'target_temp_low': 19.5, 'target_temp_high': 23,
                                                              'target_temp_step': 0.5, 'hvac_modes': ['off', 'heat_cool'], 'min_temp': 7,
                                                              'max_temp': 35, 'supported_features': 442}, ()),
+    # A thermostat's modes on their own and under its -/+ (firmware 0.19.0: one bar, climate_tile::bar_room), six of them.
+    'climate-modes': ('climate.modes', 'cool', {'current_temperature': 73, 'target_temp_low': 61, 'target_temp_high': 75,
+                                                'hvac_modes': ['off', 'cool', 'heat_cool', 'auto', 'dry', 'fan_only'],
+                                                'min_temp': 45, 'max_temp': 95, 'target_temp_step': 1, 'supported_features': 442}, ()),
+    'climate-both': ('climate.both', 'heat', {'current_temperature': 20.5, 'temperature': 21.5,
+                                              'hvac_modes': ['off', 'heat', 'cool', 'heat_cool', 'auto', 'dry', 'fan_only'],
+                                              'min_temp': 7, 'max_temp': 35, 'target_temp_step': 0.5, 'supported_features': 387}, ()),
     'media': ('media_player.audit', 'playing', {'media_title': 'A remarkably long title for a song that keeps going on',
                                                'media_artist': 'An artist with a long name as well', 'volume_level': 0.3,
                                                'supported_features': 8321599}, ()),
@@ -88,9 +95,14 @@ def sizes(grid):
     return out
 
 
+# The control a kind is laid out with where it is not its type's default.
+CONTROLS = {'climate-modes': 'mode', 'climate-both': 'setpoint_mode'}
+
+
 def message(kind, size, name, display=None):
     entity, state, attrs, _ = KINDS[kind]
-    tile = {'entity': entity, 'name': name, 'slot': 0, 'options': {'size': size, **({'display': display} if display else {})}}
+    options = {'size': size, **({'display': display} if display else {}), **({'controls': CONTROLS[kind]} if kind in CONTROLS else {})}
+    tile = {'entity': entity, 'name': name, 'slot': 0, 'options': options}
     return {'entity': entity, 'name': name, 'state': state, 'a': attrs, 'o': screen_options(tile, attrs, state) or {}, 'slot': 0}
 
 

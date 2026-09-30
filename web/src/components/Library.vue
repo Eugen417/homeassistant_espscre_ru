@@ -179,6 +179,9 @@ watch(() => [state.insertAt, state.insertKey], () => {
 const resizing = ref(false);
 let drag: { y: number; h: number } | null = null;
 function grab(e: PointerEvent) {
+  // Dragging the edge selects nothing on the page it passes over.
+  e.preventDefault();
+  document.body.style.userSelect = "none";
   drag = { y: e.clientY, h: state.libraryOpen ? height.value : HEAD };
   resizing.value = true;
   (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -195,6 +198,7 @@ function release() {
   if (!drag) return;
   drag = null;
   resizing.value = false;
+  document.body.style.userSelect = "";
   localStorage.setItem(HEIGHT_KEY, String(Math.round(height.value)));
 }
 function onResizeKey(e: KeyboardEvent) {

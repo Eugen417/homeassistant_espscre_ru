@@ -135,14 +135,13 @@ int main() {
   radio.supported=feature::MEDIA_PAUSE;assert(key_action(radio,MEDIA_PLAY_PAUSE).service=="media_player.media_pause");
   radio.state="idle";assert(keys_for(radio,keys)==1&&keys[0].disabled);assert(!key_action(radio,MEDIA_PLAY_PAUSE).valid());
 
-  // Climate: Home Assistant's modes in its own order, as many as the row holds; "…" opens the card when they don't fit.
+  // Climate: one mode bar for "Mode" and for "Temperature and mode" (firmware 0.19.0), never a row of keys.
   Tile ac = make("climate.ac", "cool"); ac.edit_extra().hvac_modes = "[\"off\",\"heat_cool\",\"cool\",\"heat\",\"fan_only\",\"dry\"]"; ac.controls = "mode"; ac.current = 21.5f; ac.target = 20; ac.step = 1;
-  assert(keys_for(ac, keys) == 3);
-  assert(keys[0].arg == "off" && keys[1].arg == "heat_cool" && keys[2].command == OPEN_CARD && !keys[0].checked);
+  assert(panel_kind(ac) == "mode" && !is_key_row(panel_kind(ac)) && keys_for(ac, keys) == 0);
+  assert(panel_available(ac));
   std::array<Key, 6> mode_row;
-  assert(climate_mode_keys(ac, mode_row) == 6 && mode_row[2].arg == "cool" && mode_row[2].checked && mode_row[5].arg == "dry");
-  assert(climate_mode_keys(ac, mode_row, 4) == 4 && mode_row[2].arg == "cool" && mode_row[3].command == OPEN_CARD);
-  // The tile's mode bar (firmware 0.3.3): heat and cool first, never off, the current mode always shown.
+  // The mode bar (firmware 0.3.3): heat and cool first, never off (the tile's circle switches it), the current mode
+  // always shown.
   assert(climate_bar_keys(ac, mode_row) == 5 && mode_row[0].arg == "heat" && mode_row[1].arg == "cool" && mode_row[1].checked);
   assert(mode_row[2].arg == "heat_cool" && mode_row[3].arg == "dry" && mode_row[4].arg == "fan_only");
   for (unsigned i = 0; i < 5; ++i) assert(mode_row[i].arg != "off");
@@ -154,8 +153,10 @@ int main() {
   Tile radiator = ac; radiator.edit_extra().hvac_modes = "[\"off\",\"heat\"]";
   assert(climate_bar_keys(radiator, mode_row) == 0);
   assert(climate_bar_keys(ac, mode_row, 1) == 0);
+  // A device with one mode besides off has no bar, so "Mode" draws nothing for it; two modes make a bar.
+  assert(!panel_available(radiator));
   Tile three = ac; three.edit_extra().hvac_modes = "[\"off\",\"heat\",\"cool\"]";
-  assert(keys_for(three, keys) == 3 && keys[2].arg == "cool" && keys[2].checked);
+  assert(panel_available(three) && climate_bar_keys(three, mode_row) == 2 && mode_row[1].arg == "cool" && mode_row[1].checked);
   Action mode = key_action(ac, HVAC_MODE, "heat");
   assert(!key_action(ac, OPEN_CARD).valid());
   assert(mode.service == "climate.set_hvac_mode" && mode.key == "hvac_mode" && mode.value == "heat");
@@ -229,7 +230,7 @@ int main() {
   // Panel kinds.
   Tile lamp = make("light.lamp", "on"); lamp.controls = "brightness";
   assert(is_slider(panel_kind(lamp)) && !is_key_row(panel_kind(lamp)));
-  assert(is_key_row("playback") && is_key_row("mode") && !is_key_row("setpoint"));
+  assert(is_key_row("playback") && !is_key_row("mode") && !is_key_row("setpoint"));
 
   // Climate mode colours follow Home Assistant; anything else is grey.
   assert(mode_color("heat") == 0xFF6F22 && mode_color("cool") == 0x2196F3 && mode_color("off") == 0x9E9E9E);

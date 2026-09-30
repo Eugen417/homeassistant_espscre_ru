@@ -345,6 +345,8 @@ struct Widgets {
   // a slider or a toggle. Objects are rebuilt only when the control set changes.
   lv_obj_t *panel{}; std::string panel_mode; bool panel_dirty=false, panel_full=false, panel_tall=false; int panel_w=0; uint16_t panel_layout_w=0,panel_layout_h=0;
   std::array<lv_obj_t *,3> keys{}, key_icons{}; std::array<int,3> key_commands{}; std::array<std::string,3> key_args; std::array<int,3> key_checked{};
+  // A thermostat's mode bar as its panel ("Mode", firmware 0.19.0): its segments, on the panel's track (pill).
+  std::array<lv_obj_t *,climate_tile::SEGMENTS> segments{};
   lv_obj_t *pill{}, *pill_value{}, *knob{}, *control_slider{}; int knob_on=-1;
   lv_color_t panel_accent{}, panel_text{};
   // Busy sheet: a translucent white cover with a small spinner while a command is under way.
@@ -4856,6 +4858,13 @@ inline void render_sunpath(Widgets &w,const Tile &t,bool large,int width,int hei
 
 // ---- Direct controls on wide cards (Home Assistant entity-row style) ----
 struct PanelMetrics { int key_w, key_h, radius, gap, pill_w, pill_key, slider_w, slider_h, toggle_w, toggle_h, run_pad, text_gap, ext; };
+// A thermostat's mode bar in a panel ("Mode"): a finger is the panel's key, the reach of one hand the look's.
+inline climate_tile::Metrics bar_metrics(const PanelMetrics &m,bool large){
+  climate_tile::Metrics cm;cm.large=large;cm.touch=m.key_h;cm.gap=m.gap;cm.max_width=ui::control_max_width();
+  return cm;
+}
+inline void draw_mode_bar(Widgets &w,const Tile &t,lv_obj_t *parent,lv_obj_t *&track,lv_obj_t **segments,climate_tile::Rect bar,
+                          int room,const climate_tile::Metrics &cm,bool large);
 inline PanelMetrics panel_metrics(bool large) {
   return large ? PanelMetrics{ui::px(60), ui::px(46), ui::px(14), ui::px(8), ui::px(196), ui::px(52), ui::px(140), ui::px(44), ui::px(76), ui::px(40), ui::px(22), ui::px(8), ui::px(4)} : PanelMetrics{ui::px(40), ui::px(34), ui::px(9), ui::px(4), ui::px(128), ui::px(36), ui::px(90), ui::px(30), ui::px(48), ui::px(26), ui::px(14), ui::px(6), ui::px(6)};
 }
@@ -4880,7 +4889,7 @@ inline void end_panel(Widgets &w) {
   if(!w.panel)return;
   hide_panel(w);
   if(!w.panel_mode.empty()){
-    lv_obj_clean(w.panel);w.keys.fill(nullptr);w.key_icons.fill(nullptr);w.key_checked.fill(-1);
+    lv_obj_clean(w.panel);w.keys.fill(nullptr);w.key_icons.fill(nullptr);w.key_checked.fill(-1);w.segments.fill(nullptr);
     w.pill=w.pill_value=w.knob=w.control_slider=nullptr;w.knob_on=-1;w.panel_mode.clear();
   }
 }
@@ -4925,22 +4934,23 @@ inline void range_chip(Widgets &w,const Tile &t,int x,int y,int cw,int ch,int fa
   if(mini_icon_font&&(int)lv_font_get_line_height(lv_obj_get_style_text_font(icon,LV_PART_MAIN))>ch-ui::px(6))set_font(icon,mini_icon_font);
   const int icon_w=lv_font_get_line_height(lv_obj_get_style_text_font(icon,LV_PART_MAIN)),pad=ui::px(6);
   const std::string text=tile_controls::format_value(tile_controls::range_end(t,t.range_end),tile_controls::edit_step(t),"°");
-  // Measured by the widest temperature this thermostat can show, so the face stays the same from tap to tap.
+  // Measured by the widest temperature this thermostat can show, as a single temperature is by its number: the face
+  // stays the same from tap to tap, and the icon never makes the number smaller.
   const std::string widest=tile_controls::widest_setpoint(t);
   const lv_font_t *face=nullptr;
   for(const auto *candidate:faces){
     if(!candidate||!face_covers(candidate,widest))continue;
     face=candidate;
-    if((int)lv_font_get_line_height(candidate)<=face_h&&icon_w+pad/2+text_width(widest,candidate)+pad<=cw)break;
+    if((int)lv_font_get_line_height(candidate)<=face_h&&text_width(widest,candidate)+pad<=cw)break;
   }
   if(!face)face=lv_obj_get_style_text_font(value,LV_PART_MAIN);
   set_font(value,face);label(value,text);
   lv_obj_set_pos(chip,x,y);lv_obj_set_size(chip,std::max(1,cw),std::max(1,ch));
   // The number may stand taller than the chip, as the single number stands in its pill: it is not cut at the chip's edge.
   lv_obj_add_flag(chip,LV_OBJ_FLAG_OVERFLOW_VISIBLE);
-  // Too narrow for the icon beside the number: the number alone, in the colour of its end.
+  // No room for the icon beside the widest number: the number alone, in the colour of its end, on every tap alike.
   const int tw=text_width(text,face);
-  const bool with_icon=icon_w+pad/2+tw+pad<=cw;
+  const bool with_icon=icon_w+pad/2+text_width(widest,face)+pad<=cw;
   set_hidden(icon,!with_icon);
   set_color(value,LV_STYLE_TEXT_COLOR,with_icon?theme::color(theme::INK):lv_color_hex(tile_controls::mode_color(end)));
   const int left=std::max(0,(cw-(with_icon?icon_w+pad/2:0)-tw)/2);
@@ -5013,6 +5023,8 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
     end_panel(w);w.panel_mode=mode;w.panel_full=w.full;w.panel_tall=taller;w.panel_dirty=true;
     if(tile_controls::is_key_row(mode)){
       for(unsigned n=0;n<3;++n){panel_key(w,n,w.panel,m,key_w,m.key_h,false);panel_icon(w,n,icon_font);}
+    }else if(mode=="mode"){
+      // Drawn per render (draw_mode_bar): the track and a segment per mode, as many as its width holds.
     }else if(mode=="setpoint"||mode=="stepper"){
       w.pill=panel_obj(w.panel,false);lv_obj_set_size(w.pill,fill,m.key_h+2);
       lv_obj_set_style_radius(w.pill,LV_RADIUS_CIRCLE,0);lv_obj_set_style_bg_opa(w.pill,LV_OPA_COVER,0);
@@ -5024,12 +5036,14 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
       w.pill_value=lv_label_create(w.pill);lv_obj_remove_flag(w.pill_value,LV_OBJ_FLAG_CLICKABLE);
       lv_obj_set_style_text_font(w.pill_value,text_font,0);lv_obj_set_style_text_align(w.pill_value,LV_TEXT_ALIGN_CENTER,0);
       lv_label_set_long_mode(w.pill_value,LV_LABEL_LONG_CLIP);
-      // A thermostat's range (firmware 0.19.0): a chip over the number, the end the -/+ move with its heat or cool icon;
-      // a tap switches it. The third key of the panel, on the panel above the pill, so the pill's own children stay.
+      // A thermostat's range (firmware 0.19.0): in the number's place the end the -/+ move, its heat or cool icon before
+      // the temperature, on the pill as a single temperature stands there; a tap switches it and lights it up while
+      // the finger is down. The third key of the panel, on the panel above the pill, so the pill's own children stay.
       if(t.domain()=="climate"){
-        panel_key(w,2,w.panel,m,m.pill_key,m.key_h,false);panel_icon(w,2,icon_font);
+        panel_key(w,2,w.panel,m,m.pill_key,m.key_h,true);panel_icon(w,2,icon_font);
         auto *value=lv_label_create(w.keys[2]);lv_obj_remove_flag(value,LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_set_style_radius(w.keys[2],LV_RADIUS_CIRCLE,0);lv_obj_add_flag(w.keys[2],LV_OBJ_FLAG_HIDDEN);
+        set_color(w.keys[2],LV_STYLE_BG_COLOR,theme::color(theme::STEPPER_KEY),LV_STATE_PRESSED);
+        lv_obj_add_flag(w.keys[2],LV_OBJ_FLAG_HIDDEN);
       }
       lv_obj_set_size(w.pill_value,std::max(1,fill-2*m.pill_key),lv_font_get_line_height(text_font));
       lv_obj_set_pos(w.pill_value,m.pill_key,(m.key_h+2-lv_font_get_line_height(text_font))/2);
@@ -5080,6 +5094,17 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
       set_checked(n,keys[n].checked);set_disabled(n,keys[n].disabled);
     }
     panel_w=count?count*key_w+(count-1)*m.gap:0;
+  }else if(mode=="mode"){
+    // A thermostat's modes (firmware 0.19.0): the bar under its -/+ in "Temperature and mode", with the same rule for
+    // how many fit (climate_tile::bar_room) and the same modes (climate_bar_keys). Over the card's reach on a card of
+    // more than one row or the whole page, a finger per segment beside the name on a card of one row.
+    const auto cm=bar_metrics(m,large);
+    const bool stretches=w.full||taller;
+    const int reach=std::min(keys_room,ui::control_max_width());
+    std::array<tile_controls::Key,climate_tile::SEGMENTS> modes;
+    const int room=climate_tile::bar_room(cm,reach,(int)tile_controls::climate_bar_keys(t,modes));
+    panel_w=climate_tile::bar_width(cm,reach,room,stretches);panel_h=cm.touch;
+    if(panel_w)draw_mode_bar(w,t,w.panel,w.pill,w.segments.data(),{0,0,panel_w,panel_h},room,cm,large);
   }else if(mode=="setpoint"||mode=="stepper"){
     float shown=std::isfinite(t.edit_value)?t.edit_value:tile_controls::edit_target(t);
     std::string suffix=d=="climate"?"°":screen_text::unit_suffix(t.unit);
@@ -5136,7 +5161,7 @@ inline void style_panel(Widgets &w,const Tile &t,lv_color_t accent,lv_color_t te
   for(unsigned n=0;n<3;++n){
     auto *key=w.keys[n];if(!key)continue;
     bool in_pill=w.pill && lv_obj_get_parent(key)==w.pill;
-    if(n==2&&w.pill&&w.panel_mode=="setpoint"){   // a range's chip (range_chip): a white segment on the pill
+    if(n==2&&w.pill&&w.panel_mode=="setpoint"){   // a range's chip (range_chip): no fill of its own, grey while pressed
       set_color(key,LV_STYLE_BG_COLOR,theme::color(theme::CARD));set_color(key,LV_STYLE_BG_COLOR,theme::color(theme::STEPPER_KEY_PRESSED),LV_STATE_PRESSED);
       continue;
     }
@@ -5145,7 +5170,7 @@ inline void style_panel(Widgets &w,const Tile &t,lv_color_t accent,lv_color_t te
     set_color(key,LV_STYLE_BG_COLOR,w.key_args[n]=="off" && w.panel_mode=="mode"?theme::color(theme::OFF):accent,LV_STATE_CHECKED);
     if(w.key_icons[n])set_color(w.key_icons[n],LV_STYLE_TEXT_COLOR,w.key_checked[n]==1?theme::color(theme::ON_ACCENT):text);
   }
-  if(w.pill){set_color(w.pill,LV_STYLE_BG_COLOR,theme::color(theme::TRACK));set_color(w.pill_value,LV_STYLE_TEXT_COLOR,text);}
+  if(w.pill){set_color(w.pill,LV_STYLE_BG_COLOR,theme::color(theme::TRACK));if(w.pill_value)set_color(w.pill_value,LV_STYLE_TEXT_COLOR,text);}
   if(w.control_slider){
     bool on=fresh() && t.slider_active();
     lv_color_t fill=on?accent:theme::color(theme::OFF);
@@ -5359,35 +5384,42 @@ inline void cover_tile_key_event(lv_event_t *e){
   const auto call=tile_controls::key_action(t,keys[part%3].command);
   if(!call.service.empty())action(call.service,t.entity,call.key,call.value);
 }
-// A climate's mode keys under its setpoint (firmware 0.3.1+): the same guard and the same press as a key-row panel.
-// The row holds as many keys as the card's width fits (parts 4..9); the key is found by its place in that row.
-constexpr int CLIMATE_MODE_PARTS=6;
+// A thermostat's mode bar (firmware 0.3.3): under its -/+ on a card of "Temperature and mode" (the tall card's parts
+// 2 and 4..9) and on its own as the panel of "Mode" (the panel's pill and segments, firmware 0.19.0). One bar, one
+// drawing, one press: a segment says its place in the bar, and the bar's modes are climate_bar_keys for the room it
+// holds, so the press finds the mode the segment shows.
+constexpr int CLIMATE_MODE_PARTS=climate_tile::SEGMENTS;
+// The segments of the bar a card shows: its panel's for "Mode", its tall card's otherwise.
+inline lv_obj_t *const *mode_bar_segments(const Widgets &w){
+  if(w.panel_mode=="mode")return w.segments.data();
+  return w.extra_mode=="tall"?&w.parts[4]:nullptr;
+}
 inline void climate_mode_key_event(lv_event_t *e){
-  const unsigned slot=(uintptr_t)lv_event_get_user_data(e);
+  const unsigned code=(uintptr_t)lv_event_get_user_data(e),slot=code/16,n=code%16;
   if(slot>=widgets.size())return;
-  auto &w=widgets[slot];if(w.index>=model.count||w.extra_mode!="tall")return;
-  auto *target=(lv_obj_t*)lv_event_get_target(e);int n=-1,room=0;
-  for(int i=0;i<CLIMATE_MODE_PARTS;++i){auto *p=w.parts[4+i];if(p&&!lv_obj_has_flag(p,LV_OBJ_FLAG_HIDDEN)){if(p==target)n=room;++room;}}
+  auto &w=widgets[slot];if(w.index>=model.count)return;
+  auto *const *segments=mode_bar_segments(w);if(!segments)return;
+  unsigned room=0;
+  for(int i=0;i<CLIMATE_MODE_PARTS;++i)if(segments[i]&&!lv_obj_has_flag(segments[i],LV_OBJ_FLAG_HIDDEN))++room;
   auto &t=model.tiles[w.index];const uint32_t now=esphome::millis();
-  if(n<0||!enabled||!fresh()||!t.available()||t.waiting(now)||!tile_controls::climate_modes_selected(t))return;
+  if(n>=room||!enabled||!fresh()||!t.available()||t.waiting(now)||t.domain()!="climate")return;
   std::array<tile_controls::Key,CLIMATE_MODE_PARTS> keys;
-  if(n>=(int)tile_controls::climate_bar_keys(t,keys,room))return;
+  if(n>=tile_controls::climate_bar_keys(t,keys,room))return;
   if(!allowed(now,700+slot*8+n,"control "+std::to_string(slot)))return;
   if(keys[n].command==tile_controls::OPEN_CARD){active_index=w.index;show_detail(w.index);return;}
   const auto a=tile_controls::press_key(t,keys[n].command,keys[n].arg);
   if(a.valid())action(a.service,t.entity,a.key,a.value);
 }
-// One segment of a thermostat tile's mode bar: the mode's icon, its word where the bar has room, and the mode it
-// is in filled in Home Assistant's colour for it with a white icon on it.
-inline void mode_segment(Widgets &w,unsigned i,climate_tile::Rect r,const tile_controls::Key &k,bool words,const lv_font_t *glyphs,
-                         const lv_font_t *text,bool ready,int slot){
-  auto *&p=w.parts[i];
+// One segment of a thermostat's mode bar: the mode's icon, its word where the bar has room, and the mode it is in
+// filled in Home Assistant's colour for it with a white icon on it. `code`: its card's slot * 16 and its place.
+inline void mode_segment(lv_obj_t *&p,lv_obj_t *parent,unsigned code,climate_tile::Rect r,const tile_controls::Key &k,bool words,
+                         const lv_font_t *glyphs,const lv_font_t *text,bool ready){
   if(!p){
-    p=lv_obj_create(w.extra);lv_obj_remove_style_all(p);lv_obj_set_style_radius(p,LV_RADIUS_CIRCLE,0);
+    p=lv_obj_create(parent);lv_obj_remove_style_all(p);lv_obj_set_style_radius(p,LV_RADIUS_CIRCLE,0);
     lv_obj_set_style_bg_opa(p,LV_OPA_COVER,LV_STATE_PRESSED);lv_obj_set_style_opa(p,LV_OPA_40,LV_STATE_DISABLED);
     lv_obj_add_flag(p,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(p,LV_OBJ_FLAG_SCROLLABLE);
     for(int c=0;c<2;++c){auto *label=lv_label_create(p);lv_obj_remove_flag(label,LV_OBJ_FLAG_CLICKABLE);}
-    lv_obj_add_event_cb(p,climate_mode_key_event,LV_EVENT_SHORT_CLICKED,(void*)(uintptr_t)slot);
+    lv_obj_add_event_cb(p,climate_mode_key_event,LV_EVENT_SHORT_CLICKED,(void*)(uintptr_t)code);
   }
   lv_obj_set_pos(p,r.x,r.y);lv_obj_set_size(p,r.w,r.h);lv_obj_remove_flag(p,LV_OBJ_FLAG_HIDDEN);
   const bool mode=k.command==tile_controls::HVAC_MODE;
@@ -5408,6 +5440,29 @@ inline void mode_segment(Widgets &w,unsigned i,climate_tile::Rect r,const tile_c
     const int th=lv_font_get_line_height(text);lv_obj_set_pos(word,x0+gh+space,(r.h-th)/2);lv_obj_set_size(word,tw,th);
   }
   if(ready)lv_obj_remove_state(p,LV_STATE_DISABLED);else lv_obj_add_state(p,LV_STATE_DISABLED);
+}
+// The whole bar in `bar` of `parent`: its track, and a segment per mode climate_bar_keys picks for `room`, with words
+// beside the icons where every segment has room for its own ("Heat", "Cool", "Auto"). Segments past them hide.
+inline void draw_mode_bar(Widgets &w,const Tile &t,lv_obj_t *parent,lv_obj_t *&track,lv_obj_t **segments,climate_tile::Rect bar,
+                          int room,const climate_tile::Metrics &cm,bool large){
+  if(!track){track=lv_obj_create(parent);lv_obj_remove_style_all(track);lv_obj_set_style_bg_opa(track,LV_OPA_COVER,0);
+    lv_obj_set_style_radius(track,LV_RADIUS_CIRCLE,0);lv_obj_remove_flag(track,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(track,LV_OBJ_FLAG_SCROLLABLE);}
+  lv_obj_set_pos(track,bar.x,bar.y);lv_obj_set_size(track,bar.w,bar.h);lv_obj_remove_flag(track,LV_OBJ_FLAG_HIDDEN);
+  set_color(track,LV_STYLE_BG_COLOR,theme::color(theme::TRACK));
+  std::array<tile_controls::Key,CLIMATE_MODE_PARTS> modes;
+  const unsigned count=tile_controls::climate_bar_keys(t,modes,std::max(0,room));
+  const auto seg=climate_tile::segments(cm,bar,(int)count);
+  const lv_font_t *glyphs=mini_icon_font?mini_icon_font:w.icon_font;
+  bool words=count>0;
+  for(unsigned n=0;n<count&&words;++n)
+    words=modes[n].command!=tile_controls::HVAC_MODE||seg[n].w>=lv_font_get_line_height(glyphs)+ui::px(large?26:14)+
+          text_width(tile_controls::climate_mode_text(modes[n].arg),w.value_font);
+  const unsigned slot=&w-widgets.data();
+  const bool ready=fresh()&&t.available()&&!t.waiting(esphome::millis());
+  for(unsigned n=0;n<(unsigned)CLIMATE_MODE_PARTS;++n){
+    if(n<count)mode_segment(segments[n],parent,slot*16+n,seg[n],modes[n],words,glyphs,w.value_font,ready);
+    else if(segments[n])lv_obj_add_flag(segments[n],LV_OBJ_FLAG_HIDDEN);
+  }
 }
 inline cover_tile::Layout cover_tile_layout(const Tile &t,tall_tile::Rect body,int touch,int gap,int caption){
   // Capability, not freshness, decides the layout: while HA reconnects the same keys stay, greyed out (ready below).
@@ -5625,25 +5680,7 @@ inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
         set_color(now_line,LV_STYLE_TEXT_COLOR,theme::color(theme::MUTED));
         lv_obj_set_pos(now_line,cl.caption_box.x-area.x,cl.caption_box.y-area.y);lv_obj_set_size(now_line,cl.caption_box.w,cl.caption_box.h);
       }
-      if(!cl.bar.empty()){
-        const unsigned count=tile_controls::climate_bar_keys(t,modes,cl.room);
-        auto *&track=w.parts[2];
-        if(!track){track=lv_obj_create(w.extra);lv_obj_remove_style_all(track);lv_obj_set_style_bg_opa(track,LV_OPA_COVER,0);
-          lv_obj_set_style_radius(track,LV_RADIUS_CIRCLE,0);lv_obj_remove_flag(track,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(track,LV_OBJ_FLAG_SCROLLABLE);}
-        lv_obj_set_pos(track,cl.bar.x,cl.bar.y);lv_obj_set_size(track,cl.bar.w,cl.bar.h);lv_obj_remove_flag(track,LV_OBJ_FLAG_HIDDEN);
-        set_color(track,LV_STYLE_BG_COLOR,theme::color(theme::TRACK));
-        const auto seg=climate_tile::segments(cm,cl.bar,(int)count);
-        const lv_font_t *glyphs=mini_icon_font?mini_icon_font:w.icon_font;
-        // Words beside the icons where every segment has room for its own: "Heat", "Cool", "Auto".
-        bool words=count>0;
-        for(unsigned n=0;n<count&&words;++n)
-          words=modes[n].command!=tile_controls::HVAC_MODE||seg[n].w>=lv_font_get_line_height(glyphs)+ui::px(large?26:14)+
-                text_width(tile_controls::climate_mode_text(modes[n].arg),w.value_font);
-        const int slot=&w-widgets.data();
-        const bool ready=fresh()&&t.available()&&!t.waiting(esphome::millis());
-        for(unsigned n=0;n<count;++n)
-          mode_segment(w,4+n,seg[n],modes[n],words,glyphs,w.value_font,ready,slot);
-      }
+      if(!cl.bar.empty())draw_mode_bar(w,t,w.extra,w.parts[2],&w.parts[4],cl.bar,cl.room,cm,large);
       return true;
     }
     w.hand_r=0;hide_panel(w);

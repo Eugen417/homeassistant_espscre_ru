@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { availableControl, controlKeys } from '../src/model/tall-controls';
+import { barKeys, availableControl, controlKeys } from '../src/model/tall-controls';
 
 it('shows exactly the supported media subset within the chosen group', () => {
   for (let flags = 0; flags < 64; flags++) {
@@ -34,10 +34,16 @@ it('keeps unsupported saved slider/setpoint choices inert', () => {
   expect(availableControl('light', null, 'on', { supported_color_modes: ['brightness'] })).toBe('');
 });
 it('limits modes to real choices and disables selects with fewer than two options', () => {
-  expect(controlKeys('climate', 'mode', 'cool', { hvac_modes: ['fan_only', 'cool', 'off'] }).map(k => k.mode)).toEqual(['fan_only', 'cool', 'off']);
+  // A thermostat's modes are its mode bar (tile_controls::climate_bar_keys, firmware 0.19.0): heat and cool first, never
+  // off (the tile's circle switches it), the mode it is in always shown, "…" in the last place.
+  expect(controlKeys('climate', 'mode', 'cool', { hvac_modes: ['fan_only', 'cool', 'off'] }).map(k => k.mode)).toEqual(['cool', 'fan_only']);
   const six = { hvac_modes: ['off', 'heat_cool', 'cool', 'heat', 'fan_only', 'dry'] };
-  expect(controlKeys('climate', 'mode', 'cool', six).map(k => k.mode ?? k.icon)).toEqual(['off', 'heat_cool', 'dots-horizontal']);
-  expect(controlKeys('climate', 'mode', 'cool', six, 6).map(k => k.mode)).toEqual(six.hvac_modes);
+  expect(controlKeys('climate', 'mode', 'cool', six).map(k => k.mode ?? k.icon)).toEqual(['heat', 'cool', 'dots-horizontal']);
+  expect(barKeys(six, 'cool').map(k => k.mode)).toEqual(['heat', 'cool', 'heat_cool', 'dry', 'fan_only']);
+  expect(barKeys(six, 'cool', 2).map(k => k.mode)).toEqual(['heat', 'cool']);
+  expect(barKeys(six, 'dry', 3).map(k => k.mode ?? k.icon)).toEqual(['heat', 'dry', 'dots-horizontal']);
+  expect(barKeys({ hvac_modes: ['off', 'heat'] }, 'heat')).toEqual([]);
+  expect(barKeys(six, 'cool', 1)).toEqual([]);
   expect(controlKeys('select', 'stepper', 'Eco', { options: ['Eco'] }).every(k => k.disabled)).toBe(true);
 });
 

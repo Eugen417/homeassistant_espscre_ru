@@ -57,7 +57,7 @@ struct Action { std::string service, key, value; std::string key2 = {}, value2 =
 using runtime_tiles::Tile;
 
 // Panel kinds: keys (a row of pill buttons), stepper (-/+ pill), slider, toggle, run.
-inline bool is_key_row(const std::string &c) { return c == "buttons" || c == "mode" || c == "playback" || c == "chevrons"; }
+inline bool is_key_row(const std::string &c) { return c == "buttons" || c == "playback" || c == "chevrons"; }
 inline bool is_slider(const std::string &c) { return c == "volume" || c == "brightness" || c == "speed" || c == "position" || c == "slider"; }
 // The slider "a small slider on the tile" asks for, per domain: what a light, a fan, a blind, a player or a
 // number has to slide. A double-width card draws it as the panel's slider beside the name; a domain without
@@ -520,22 +520,6 @@ inline Action cover_position_action(const Tile &t,int raw,bool tilt) {
   return tilt?Action{"cover.set_cover_tilt_position","tilt_position",std::to_string(percent)}
              :Action{"cover.set_cover_position","position",std::to_string(100-percent)};
 }
-// A climate's mode keys: the modes Home Assistant lists for this device, in its order, as many as `room` holds.
-// When they do not all fit, the last key is "…" and opens the card, which has every mode (firmware 0.3.1+).
-template <size_t N> inline unsigned climate_mode_keys(const Tile &t, std::array<Key, N> &out, unsigned room = N) {
-  room = std::min<unsigned>(room, N);
-  const auto modes = list_values(t.extra().hvac_modes, 8);
-  const bool more = modes.size() > room;
-  const unsigned shown = more ? (room ? room - 1 : 0) : (unsigned) modes.size();
-  const std::string current = lower_case(t.state);
-  unsigned n = 0;
-  for (unsigned i = 0; i < shown; ++i) {
-    const std::string mode = lower_case(modes[i]);
-    out[n++] = Key{mode_icon(mode), HVAC_MODE, mode, current == mode, false};
-  }
-  if (more && room) out[n++] = Key{glyph::MORE, OPEN_CARD, "", false, false};
-  return n;
-}
 // A thermostat tile's mode bar (firmware 0.3.3): heat and cool before the rest, so an airco shows both ways it can go
 // and not only the first Home Assistant lists; never off, which the tile's circle switches; and the mode it is in
 // always among them. When the modes do not all fit, the last place is "…" and opens the card with every mode; a bar
@@ -595,8 +579,6 @@ inline unsigned keys_for(const Tile &t, std::array<Key, 3> &out, uint32_t now = 
     if (t.supported & feature::MEDIA_PREVIOUS) add(glyph::PREVIOUS, MEDIA_PREVIOUS);
     if (t.supported & (feature::MEDIA_PLAY | feature::MEDIA_PAUSE)) add(t.state == "playing" ? glyph::PAUSE : glyph::PLAY, MEDIA_PLAY_PAUSE, !(t.supported & (t.state == "playing" ? feature::MEDIA_PAUSE : feature::MEDIA_PLAY)));
     if (t.supported & feature::MEDIA_NEXT) add(glyph::NEXT, MEDIA_NEXT);
-  } else if (c == "mode") {
-    n = climate_mode_keys(t, out);
   } else if (c == "chevrons") {
     // Nothing to step through is not a state that can lag: without two options there is no next one.
     add(glyph::LEFT, SELECT_PREVIOUS, t.extra().options.size() < 2);
@@ -808,6 +790,8 @@ inline bool panel_available(const Tile &t) {
   if(!t.available())return false;
   const auto mode=panel_kind(t),domain=t.domain();
   if(is_key_row(mode)){std::array<Key,3> keys;return keys_for(t,keys)>0;}
+  // A thermostat's modes are its mode bar (climate_bar_keys), the same one as under its -/+ (firmware 0.19.0).
+  if(mode=="mode"){std::array<Key,6> keys;return domain=="climate"&&climate_bar_keys(t,keys)>0;}
   if(mode=="brightness")return domain=="light"&&light_dims(t);
   if(mode=="speed")return domain=="fan"&&(t.supported&feature::FAN_SPEED);
   if(mode=="position")return domain=="cover"&&(t.supported&feature::COVER_POSITION);

@@ -101,9 +101,10 @@ export function scrollsAlong(element: Element | null, axis: "x" | "y") {
   const overflow = getComputedStyle(element)[axis === "x" ? "overflowX" : "overflowY"];
   return more && (overflow === "auto" || overflow === "scroll");
 }
-// What a drag near an edge scrolls, per axis (app 0.2.78). A wide window scrolls the canvas both ways. At 960 px and
-// narrower (a phone, also in the Home Assistant app) the canvas grows with its content: the row of pages scrolls
-// sideways and the page itself up and down, so a tile can still reach page 2 and beyond.
+// What a drag near an edge scrolls, per axis (app 0.2.78). The row of pages scrolls sideways on its own (on every width
+// since app 0.4.32, so the toolbar above it stays), and the canvas up and down; at 960 px and narrower (a phone, also in
+// the Home Assistant app) the canvas grows with its content and the page itself scrolls up and down, so a tile can
+// still reach page 2 and beyond.
 export function dragScrollers(doc: Document): { x: Element | null; y: Element | null } {
   const pages = doc.querySelector(".pages"), canvas = doc.querySelector(".canvas");
   return {

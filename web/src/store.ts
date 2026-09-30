@@ -6,7 +6,7 @@ import { api, getJson, send, setCsrf } from "./api";
 import { andList, editorLanguage, languageMeta, loadLanguage, type NumberMarks, pickLanguage, STYLE_MARKS, t } from "./i18n";
 import { entriesOf, effectiveControls, isFull, isWide, newTile, pageOrder, pagePlaces, pageTarget, reorderTitles, retargetedPage, sizeOf, supportsFirmware as supportsVersion } from "./model/layout";
 import { agoText, barMetricsFor, clockText, dateText, itemKey, type ItemView, whenBarFontsLoad } from "./model/topbar";
-import { pillMetrics } from "./model/ui-scale";
+import { pillMetrics, uiScale } from "./model/ui-scale";
 import { createLayout, dimensions, type Size, versionAtLeast } from "./model/layout";
 import { validPreviewShape, type PreviewProfile } from "./model/preview";
 import renderer from "./wasm/renderer.json";
@@ -245,6 +245,9 @@ export const deviceStyle = computed(() => {
     "--pill-key": `${(pill.key * glass).toFixed(2)}px`,
     "--face-watch": `${(watch * glass).toFixed(2)}px`,
     "--face-text": `${(text * glass).toFixed(2)}px`,
+    // A range's chip (runtime_tiles range_chip): its icon is a key's icon, beside the number with the glass's gap.
+    "--chip-icon": `${((("fonts" in shape ? shape.fonts?.icon_mini : undefined) ?? (uiScale(shape).large ? 26 : 18)) * glass).toFixed(2)}px`,
+    "--chip-pad": `${(uiScale(shape).px(6) * glass).toFixed(2)}px`,
     "--screen-aspect": `${shape.width} / ${shape.height}`,
     "--screen-columns": String(state.documentGrid?.columns ?? shape.columns),
     "--screen-rows": String(state.documentGrid?.rows ?? shape.rows),

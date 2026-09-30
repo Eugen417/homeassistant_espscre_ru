@@ -153,8 +153,12 @@ describe("TileCard", () => {
     const target = placed({ entity: 'climate.a', name: 'Climate', slot: 0, options: { size: 'tall', controls: 'setpoint' } });
     expect(target.find('.target b').text()).toBe('21°');
     expect(target.find('.tall-setpoint .st').text()).toBe('Now 24°');
+    state.liveStates['climate.a'].a.hvac_modes = ['off', 'heat', 'cool', 'dry'];
     const modes = placed({ entity: 'climate.a', name: 'Climate', slot: 0, options: { size: 'square', controls: 'mode' } });
-    expect(modes.findAll('.ctl .key')).toHaveLength(2);
+    // "Mode" on a taller card is the same bar as under the -/+ of "Temperature and mode".
+    expect(modes.findAll('.ctl .mode-bar .seg').map((s) => s.classes('on'))).toEqual([false, true, false]);
+    const both = placed({ entity: 'climate.a', name: 'Climate', slot: 0, options: { size: 'square', controls: 'setpoint_mode' } });
+    expect(both.findAll('.mode-bar .seg')).toHaveLength(3);
   });
 
   it("writes a thermostat set to a range as Home Assistant does, with the chip for its end between - and + (firmware 0.19.0)", () => {
@@ -195,9 +199,14 @@ describe("TileCard", () => {
 
   it("draws a wide card's keys as the screen does for that entity, not a fixed set (app 0.4.32)", () => {
     state.inventory.controls!.climate = { default: 'setpoint', choices: [] };
-    state.liveStates['climate.m'] = { state: 'heat', word: 'Heat', a: { supported_features: 1, hvac_modes: ['off', 'heat'], temperature: 20 } };
+    state.liveStates['climate.m'] = { state: 'heat', word: 'Heat', a: { supported_features: 1, hvac_modes: ['off', 'heat', 'cool'], temperature: 20 } };
     const modes = placed({ entity: 'climate.m', name: 'Modes', slot: 0, options: { size: 'wide', controls: 'mode' } });
-    expect(modes.findAll('.ctl .key')).toHaveLength(2);   // off and heat, its own modes; the fixed row always had three
+    // Its mode bar, as the screen draws it: heat and cool, its own modes; off is the tile's circle.
+    expect(modes.findAll('.ctl .mode-bar .seg')).toHaveLength(2);
+    expect(modes.find('.mode-bar .seg.on').exists()).toBe(true);
+    state.liveStates['climate.m'].a.hvac_modes = ['off', 'heat'];
+    // One mode besides off makes no bar.
+    expect(placed({ entity: 'climate.m', name: 'Modes', slot: 0, options: { size: 'wide', controls: 'mode' } }).findAll('.mode-bar .seg')).toHaveLength(0);
     state.inventory.controls!.vacuum = { default: 'buttons', choices: [] };
     state.liveStates['vacuum.v'] = { state: 'docked', word: 'Docked', a: { supported_features: 8192 | 8 } };
     const vacuum = placed({ entity: 'vacuum.v', name: 'Robot', slot: 0, options: { size: 'wide', controls: 'buttons' } });
@@ -382,6 +391,19 @@ describe("Library: the drawer along the bottom, with every domain in one column 
     document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true, bubbles: true, cancelable: true }));
     expect(state.search).toBe("l");
     field.remove();
+    library.unmount();
+  });
+
+  it("selects nothing on the page while its edge is dragged", async () => {
+    const library = mount(Library, { attachTo: document.body });
+    const grip = library.find(".lib-grip").element as HTMLElement;
+    grip.setPointerCapture = () => {};
+    const down = Object.assign(new Event("pointerdown", { bubbles: true, cancelable: true }), { clientY: 400, pointerId: 1 });
+    grip.dispatchEvent(down);
+    expect(down.defaultPrevented).toBe(true);
+    expect(document.body.style.userSelect).toBe("none");
+    grip.dispatchEvent(new Event("pointerup", { bubbles: true }));
+    expect(document.body.style.userSelect).toBe("");
     library.unmount();
   });
 

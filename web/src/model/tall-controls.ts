@@ -30,13 +30,25 @@ export function controlKeys(domain: string, kind: string, state: string, a: Attr
   } else if (kind === 'stepper' && domain.endsWith('select')) {
     add('chevron-left', (a.options?.length || 0) < 2); add('chevron-right', (a.options?.length || 0) < 2);
   } else if (kind === 'mode') {
-    // Home Assistant's own modes for this device, in its order; "…" (the card) when they do not all fit (firmware 0.3.1+).
-    const icons: Record<string, string> = { off: 'power', heat: 'fire', cool: 'snowflake', heat_cool: 'sun-snowflake-variant', auto: 'thermostat-auto', dry: 'water-percent', fan_only: 'fan' };
-    const modes: string[] = Array.isArray(a.hvac_modes) ? a.hvac_modes.slice(0, 8).map((m: unknown) => String(m).toLowerCase()) : [];
-    const more = modes.length > room;
-    for (const mode of modes.slice(0, more ? room - 1 : room)) keys.push({ icon: icons[mode] || 'fan', mode });
-    if (more && room) keys.push({ icon: 'dots-horizontal' });
+    keys.push(...barKeys(a, state, room));
   }
+  return keys;
+}
+const MODE_ICONS: Record<string, string> = { off: 'power', heat: 'fire', cool: 'snowflake', heat_cool: 'sun-snowflake-variant', auto: 'thermostat-auto', dry: 'water-percent', fan_only: 'fan' };
+/** A thermostat's mode bar (tile_controls::climate_bar_keys), for "Mode" and under the -/+ of "Temperature and mode":
+ * heat and cool before the rest, never off (the tile's circle switches it), the mode it is in always among them; "…"
+ * (the card) in the last place when they do not all fit, two modes rather than one and a "…" in a bar for two. None for
+ * a device with fewer than two modes, or a bar with room for fewer than two. */
+export function barKeys(a: Attributes, state: string, room = 6): ControlKey[] {
+  const listed: string[] = Array.isArray(a.hvac_modes) ? a.hvac_modes.slice(0, 8).map((m: unknown) => String(m).toLowerCase()) : [];
+  const modes = ['heat', 'cool', 'heat_cool', 'auto', 'dry', 'fan_only'].filter((mode) => listed.includes(mode));
+  room = Math.min(room, 6);
+  if (modes.length < 2 || room < 2) return [];
+  const more = modes.length > room, shown = !more ? modes.length : room === 2 ? 2 : room - 1;
+  const pick = modes.slice(0, shown), current = String(state).toLowerCase();
+  if (modes.includes(current) && !pick.includes(current)) pick[pick.length - 1] = current;
+  const keys: ControlKey[] = pick.map((mode) => ({ icon: MODE_ICONS[mode] || 'fan', mode }));
+  if (more && shown < room) keys.push({ icon: 'dots-horizontal' });
   return keys;
 }
 // `range`: the screen draws a thermostat's range on its -/+ (its firmware's climate_range, 0.19.0+); an older one gets a

@@ -65,10 +65,11 @@ The editor, calmer and quicker to use, and a screen that says what is wrong when
 - The screen's log says when it shows the Wi-Fi message and when the pages come back (firmware 0.19.0).
 - **A thermostat that keeps the room between two temperatures works** (firmware 0.19.0), such as one in Heat/Cool. Its
   tile no longer shows the raw `heat_cool`: as on Home Assistant's own tile it says its state and the room's
-  temperature, "Heat/Cool · 22°". Between its - and + stands a chip with the end they move, a flame for the heating's
-  and a snowflake for the cooling's, and its temperature. A tap on the chip switches ends, and both ends go to Home
-  Assistant together. The chip's number is as large as a single temperature, or a size smaller where the widest
-  temperature the thermostat can reach would not fit, so it keeps its size from one tap to the next. Its card shows
+  temperature, "Heat/Cool · 22°". Between its - and + stands the end they move: its temperature, as large as a single
+  temperature stands there, with a flame for the heating's end or a snowflake for the cooling's before it where there
+  is room, or on its own in that end's colour. A tap on it switches ends, and both ends go to Home Assistant together.
+  The number is sized by the widest temperature the thermostat can reach, so it keeps its size from one tap to the
+  next. Its card shows
   both ends side by side, as Home Assistant's thermostat card does: tap one and - and + move it. A thermostat with a
   single temperature is unchanged; one that has both follows Home Assistant and uses the single one when it reports
   it. A screen that is not updated yet leaves the - and + off such a thermostat, instead of sending a single
@@ -81,6 +82,14 @@ The editor, calmer and quicker to use, and a screen that says what is wrong when
   them, measured by the board's own fonts, and a wide tile's keys as the screen draws them for that entity, only the
   modes a thermostat has and only the keys a vacuum or a blind can use, in place of a fixed row of three.
 - A click on a page between its tiles, or on the line above it with its name ("Page 3"), opens the page's settings.
+- **A thermostat's modes are one bar** (firmware 0.19.0): "Mode" on its own is the same bar as under the - and + of
+  "Temperature and mode", on every size. It holds as many modes as the card's width fits, heat and cool first and the
+  mode it is in always among them, and "…" opens the card for the rest. Off is the tile's circle, as on Home
+  Assistant's own tile. It used to show two modes and "…" whatever the room.
+- The editor draws the mode bar and a range's temperature at the screen's own sizes, worked out from the board's
+  spacing, so it shows as many modes as the screen does.
+- The editor's toolbar stays where it is while you scroll along the pages, and dragging the edge of the library no
+  longer selects text on the page.
 - Tested: tools/check.sh (with the new layout audit and the tile catalogue's checks), the firmware of the CYD, the 4-inch
   Guition and the 7-inch Waveshare with ESPHome 2026.9.0 and 2026.6.2, and of the 10.1-inch Guition with 2026.9.0 and
   2026.8.0, the oldest it takes (CYD 90.6 %, 8.2 KB more than 0.4.31). The update as it reaches people, on a Guition
