@@ -309,6 +309,16 @@ a:hover { text-decoration: underline; }
 .tile.wide .ctl.fill { width: var(--tile-fill); }
 .tile.wide .ctl.fill .range, .tile.wide .ctl.fill .stp { flex: 1; min-width: 0; }
 .tile.wide .ctl.fill .stp { justify-content: space-between; }
+/* The -/+ pill of a wide card at the screen's own size (model/ui-scale.ts, runtime_tiles stepper_keys): its height,
+   white round keys inset in the grey, and the number in the largest face that fits between them, watch_value first. */
+.tile.wide .ctl.fill .stp { container-type: inline-size; height: var(--pill-h); padding: 0 var(--pill-in); gap: var(--pill-in); border-radius: 999px; }
+.tile.wide .ctl.fill .stp > .mdi { flex: none; display: grid; place-items: center; width: var(--pill-key); height: var(--pill-key); border-radius: 50%; background: #fff; font-size: calc(var(--pill-key) * .55); }
+.tile.wide .ctl.fill .stp > b, .tile.wide .ctl.fill .stp .range-chip b { font-weight: 500; line-height: 1; white-space: nowrap;
+  font-size: min(var(--face-watch), max(var(--face-text), calc((100cqw - 2 * var(--pill-key) - 4 * var(--pill-in)) / 2.3))); }
+.tile.wide .ctl.fill .stp .range-chip { height: var(--pill-key); margin: 0; }
+.tile.wide .ctl.fill .stp .range-chip .end-icon { font-size: calc(var(--pill-key) * .6); }
+/* Inside the chip (its own container): the room beside its icon, as range_chip measures it. */
+.tile.wide .ctl.fill .stp .range-chip b { font-size: min(var(--face-watch), max(var(--face-text), calc((100cqw - var(--pill-key) * .6 - 2 * var(--pill-in)) / 1.5))); }
 .tile .ctl { flex: none; display: flex; align-items: center; gap: 4px; color: #1b1b1b; }
 .tile .tog { width: 30px; height: 17px; border-radius: 9px; background: #2196f3; position: relative; }
 .tile .tog::after { content: ""; position: absolute; top: 2px; right: 2px; width: 13px; height: 13px; border-radius: 50%; background: #fff; }

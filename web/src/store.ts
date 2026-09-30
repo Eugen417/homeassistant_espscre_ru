@@ -6,6 +6,7 @@ import { api, getJson, send, setCsrf } from "./api";
 import { andList, editorLanguage, languageMeta, loadLanguage, type NumberMarks, pickLanguage, STYLE_MARKS, t } from "./i18n";
 import { entriesOf, effectiveControls, isFull, isWide, newTile, pageOrder, pagePlaces, pageTarget, reorderTitles, retargetedPage, sizeOf, supportsFirmware as supportsVersion } from "./model/layout";
 import { agoText, barMetricsFor, clockText, dateText, itemKey, type ItemView, whenBarFontsLoad } from "./model/topbar";
+import { pillMetrics } from "./model/ui-scale";
 import { createLayout, dimensions, type Size, versionAtLeast } from "./model/layout";
 import { validPreviewShape, type PreviewProfile } from "./model/preview";
 import renderer from "./wasm/renderer.json";
@@ -234,7 +235,16 @@ export const deviceStyle = computed(() => {
   // the mockup a pixel taller than the rest. Every board lying down lands on a whole number anyway.
   const width = shape.width >= shape.height ? Math.min(560, (MOCKUP_SIDE * shape.width) / shape.height) : MOCKUP_SIDE;
   const rounded = Math.round(width * 10) / 10;
+  // The glass in editor pixels, and the -/+ pill at the size the screen draws it (model/ui-scale.ts).
+  const glass = rounded / shape.width, pill = pillMetrics(shape);
+  const [watch, text] = [pill.faces[0] ?? 22, pill.faces[1] ?? pill.faces[0] ?? 14];
   return {
+    "--glass": String(glass),
+    "--pill-h": `${(pill.height * glass).toFixed(2)}px`,
+    "--pill-in": `${(pill.inset * glass).toFixed(2)}px`,
+    "--pill-key": `${(pill.key * glass).toFixed(2)}px`,
+    "--face-watch": `${(watch * glass).toFixed(2)}px`,
+    "--face-text": `${(text * glass).toFixed(2)}px`,
     "--screen-aspect": `${shape.width} / ${shape.height}`,
     "--screen-columns": String(state.documentGrid?.columns ?? shape.columns),
     "--screen-rows": String(state.documentGrid?.rows ?? shape.rows),

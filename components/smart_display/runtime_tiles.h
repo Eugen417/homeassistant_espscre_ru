@@ -4908,8 +4908,9 @@ inline lv_obj_t *panel_icon(Widgets &w,unsigned n,const lv_font_t *font) {
 // finger's reach through their click area, which covers the pill's inset.
 // The chip of a thermostat's range between its - and + (firmware 0.19.0), in the room (x, y, cw, ch) the number would
 // take: the icon of the end they move, heat or cool, in that mode's colour, and its temperature in the largest of
-// `faces` that fits with a digit to spare. Without a range the chip hides and the number shows.
-inline void range_chip(Widgets &w,const Tile &t,int x,int y,int cw,int ch,std::initializer_list<const lv_font_t *> faces){
+// `faces` whose line is no taller than `face_h` (the pill's, as the single number's) and fits beside the icon. No digit
+// to spare, as the single number keeps: every tap lays the tile out again. Without a range the chip hides.
+inline void range_chip(Widgets &w,const Tile &t,int x,int y,int cw,int ch,int face_h,std::initializer_list<const lv_font_t *> faces){
   auto *chip=w.keys[2];
   if(!chip||t.domain()!="climate")return;
   const bool range=tile_controls::climate_range(t);
@@ -4928,14 +4929,16 @@ inline void range_chip(Widgets &w,const Tile &t,int x,int y,int cw,int ch,std::i
   for(const auto *candidate:faces){
     if(!candidate||!face_covers(candidate,text))continue;
     face=candidate;
-    if((int)lv_font_get_line_height(candidate)<=ch&&text_width(text+"8",candidate)+icon_w+3*pad<=cw)break;
+    if((int)lv_font_get_line_height(candidate)<=face_h&&icon_w+pad/2+text_width(text,candidate)+pad<=cw)break;
   }
   if(!face)face=lv_obj_get_style_text_font(value,LV_PART_MAIN);
   set_font(value,face);label(value,text);
   lv_obj_set_pos(chip,x,y);lv_obj_set_size(chip,std::max(1,cw),std::max(1,ch));
+  // The number may stand taller than the chip, as the single number stands in its pill: it is not cut at the chip's edge.
+  lv_obj_add_flag(chip,LV_OBJ_FLAG_OVERFLOW_VISIBLE);
   // Too narrow for the icon beside the number: the number alone, in the colour of its end.
   const int tw=text_width(text,face);
-  const bool with_icon=icon_w+pad/2+tw+2*pad<=cw;
+  const bool with_icon=icon_w+pad/2+tw+pad<=cw;
   set_hidden(icon,!with_icon);
   set_color(value,LV_STYLE_TEXT_COLOR,with_icon?theme::color(theme::INK):lv_color_hex(tile_controls::mode_color(end)));
   const int left=std::max(0,(cw-(with_icon?icon_w+pad/2:0)-tw)/2);
@@ -4950,7 +4953,7 @@ inline void stepper_keys(Widgets &w,int width,int height,const lv_font_t *text_f
     lv_obj_set_size(w.keys[n],d,d);lv_obj_set_pos(w.keys[n],n?width-in-d:in,in);
     lv_obj_set_style_bg_opa(w.keys[n],LV_OPA_COVER,0);lv_obj_set_ext_click_area(w.keys[n],in);center_icon(w.key_icons[n]);
   }
-  if(tile)range_chip(w,*tile,in+d+in,in,width-2*(in+d+in),d,{watch_value_font,text_font,small_font});
+  if(tile)range_chip(w,*tile,in+d+in,in,width-2*(in+d+in),d,height,{watch_value_font,text_font,small_font});
   // Measured with a digit to spare, so the number a tap on + makes still fits the face chosen here.
   const std::string widest=std::string(lv_label_get_text(w.pill_value))+"8";
   const int room=width-2*(d+in)-ui::px(4);
@@ -5609,7 +5612,7 @@ inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
       const lv_font_t *number=faces[cl.face];
       set_font(w.pill_value,number);
       lv_obj_set_pos(w.pill_value,cl.number.x-area.x,cl.number.y-area.y);lv_obj_set_size(w.pill_value,cl.number.w,cl.number.h);
-      range_chip(w,t,cl.number.x-area.x,cl.number.y-area.y,cl.number.w,cl.number.h,{number,watch_value_font,w.value_font});
+      range_chip(w,t,cl.number.x-area.x,cl.number.y-area.y,cl.number.w,cl.number.h,cl.number.h,{number,watch_value_font,w.value_font});
       // The "now" line lives in the pill beside the number (its fourth child), so the panel is one block.
       if(lv_obj_get_child_count(w.pill)<4){auto *line=lv_label_create(w.pill);lv_obj_remove_flag(line,LV_OBJ_FLAG_CLICKABLE);
         lv_label_set_long_mode(line,LV_LABEL_LONG_DOT);lv_obj_set_style_text_align(line,LV_TEXT_ALIGN_CENTER,0);}
