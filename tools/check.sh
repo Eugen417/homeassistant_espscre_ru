@@ -154,6 +154,15 @@ packages_current() { cd "$ROOT" && "$PYTHON" tools/check_packages.py; }
 # One card per cell of a board's grid: the files are written, not hand-kept (docs/RESPONSIVE.md).
 cells_current() { cd "$ROOT" && "$PYTHON" tools/generate_cells.py --check; }
 icons_current() { cd "$ROOT" && "$PYTHON" tools/generate_icons.py --check; }
+# The tile catalogue (docs/CATALOGUE.md): what each entity type can do, from catalogue/*.yaml to what the add-on, the
+# editor and the firmware read. With HA_CORE naming a home-assistant/core checkout, also Home Assistant's own facts
+# (catalogue/_ha.json) against its source; that needs Python 3.14, which Home Assistant's code is written in.
+catalogue_current() {
+  cd "$ROOT" && "$PYTHON" tools/generate_catalogue.py --check || return 1
+  if [[ -n ${HA_CORE:-} ]]; then
+    uv run -q --no-project --python 3.14 python tools/read_ha_source.py "$HA_CORE" --check || return 1
+  fi
+}
 # What every board looks like, as the manager reads it (screen_manager/app/boards.json from the board files).
 shapes_current() { cd "$ROOT" && "$PYTHON" tools/generate_board_shapes.py --check; }
 entries_current() { cd "$ROOT" && "$PYTHON" tools/generate_entries.py --check; }
@@ -397,6 +406,7 @@ if ((want_fast)); then
   run "Issue template boards" issue_templates_current
   run "Firmware numbers for what changed" firmware_numbers_raised
   run "Icons match tile_icons.py" icons_current
+  run "Tile catalogue" catalogue_current
   run "Translations" translations_check
   run "Editor: npm ci" editor_install
   if ((last_ok)); then

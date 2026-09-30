@@ -9,9 +9,12 @@ import re
 import secrets
 
 from i18n import english, screen_t, t
+import catalogue
 import tile_icons
 
-DOMAINS = frozenset('light switch input_boolean scene script climate vacuum fan cover sensor binary_sensor input_select select number input_number weather media_player button input_button sun timer person screen camera image alarm_control_panel lock automation'.split())
+# The entity types a tile shows, as the tile catalogue has them (catalogue/*.yaml, catalogue.py): a type exists here only
+# where it has a file there, which comes after the firmware's UI for it (docs/CATALOGUE.md).
+DOMAINS = catalogue.DOMAINS
 # Built-in cards without a Home Assistant entity; firmware 0.2.14+ renders them. The names in English: a screen gets them in
 # its language and the editor in its own (builtin_name, app 0.2.90).
 BUILTIN = {'screen.clock': 'Clock', 'screen.nightstand': 'Bedside clock', 'screen.settings': 'Settings', **{f'screen.page_{n}': f'Go to page {n}' for n in range(1, 9)}}
@@ -40,7 +43,6 @@ def builtin_name(entity, text=screen_t):
     if entity == 'screen.nightstand':
         return text('addon.screen.builtin.nightstand')
     return text('screen.settings.title' if entity == 'screen.settings' else 'addon.screen.builtin.clock')
-NEW_DOMAINS = frozenset('sun timer person screen'.split())
 # A camera or an image entity opens full screen on a Guition with firmware 0.2.57+ (camera_feed.py).
 CAMERA_DOMAINS = frozenset(('camera', 'image'))
 CAMERA_MIN_FIRMWARE = (0, 2, 57)
@@ -48,7 +50,7 @@ CAMERA_MIN_FIRMWARE = (0, 2, 57)
 LIVE_MIN_FIRMWARE = (0, 2, 77)
 # The paces a live tile may choose, in seconds (5 and 10 since app 0.3.13; every firmware with live pictures takes
 # 5 to 3600), and the one it has when it chose none.
-LIVE_REFRESH = (5, 10, 15, 30)
+LIVE_REFRESH = tuple(catalogue.of_type('camera')['picture']['refresh'])
 LIVE_REFRESH_DEFAULT = 15
 # A media tile's album cover in the icon's place ("display": "cover", app 0.2.92): the same strip, firmware from here.
 COVER_TILE_MIN_FIRMWARE = (0, 2, 78)
@@ -69,7 +71,7 @@ NIGHTSTAND_KEYS = 3
 KEY_HOLDERS = {NIGHTSTAND: NIGHTSTAND_KEYS}
 # A key's name under its circle can be hidden (`overlay`: "none", firmware 0.17.0+), as a picture's name on it can.
 KEY_OPTIONS = ('icon', 'tap', 'action', 'guard', 'overlay')
-KEY_DOMAINS = frozenset(DOMAINS - {'screen', 'camera', 'image'})
+KEY_DOMAINS = catalogue.key_domains()
 
 def is_key(tile):
     """A key of a bedside clock: a tile that stands under another instead of in a cell."""
@@ -118,7 +120,7 @@ ALARM_MIN_FIRMWARE = (0, 3, 3)
 # alarm panel's keypad for a code. Older firmware refuses the domain, so a layout with one waits for the update.
 LOCK_MIN_FIRMWARE = (0, 5, 0)
 # How far a lock's tile may go (the `guard` option): unlock after a second tap, or lock only.
-LOCK_GUARDS = ('confirm', 'lock_only')
+LOCK_GUARDS = tuple(catalogue.of_type('lock')['guards'])
 # An automation as a tile (GitHub #62): a tap switches it on or off and holding runs its actions, or with the tap option
 # `run` the other way round. Older firmware refuses the domain, so a layout with one waits for the update.
 AUTOMATION_MIN_FIRMWARE = (0, 7, 0)
@@ -147,14 +149,14 @@ def backgrounds():
     """TILE_BACKGROUNDS with their labels in the editor's language (app 0.2.90)."""
     return {name: {**item, 'label': t(f'addon.labels.backgrounds.{name}')} for name, item in TILE_BACKGROUNDS.items()}
 
-# Display modes per domain; everything else offers standard and watch (large value).
-DISPLAYS = {'weather': ('standard', 'watch', 'forecast'), 'sensor': ('standard', 'watch', 'graph'), 'screen': ('digital', 'analog', 'dial', 'flip'), 'sun': ('standard', 'watch', 'sunpath'),
-            'camera': ('standard', 'live'), 'image': ('standard', 'live'), 'media_player': ('standard', 'watch', 'cover')}
+# Display modes per domain, as the catalogue has them; a type that only has standard and watch (large value) is left out.
+DISPLAYS = {domain: tuple(catalogue.display_keys(domain)) for domain in sorted(DOMAINS)
+            if catalogue.display_keys(domain) != ['standard', 'watch']}
 # A live picture on a 1x2 or 2x2 tile fills the card (app 0.3.8, firmware 0.3.3): cut to fill it or whole on black, with
 # its name on it or nothing. The first choice of each is the default and is never stored.
-PICTURE_OPTIONS = {'fit': ('fill', 'contain'), 'overlay': ('name', 'none')}
-# Displays that only work on a double-width card.
-WIDE_ONLY = ('forecast', 'sunpath')
+PICTURE_OPTIONS = {key: tuple(catalogue.of_type('camera')['picture'][key]) for key in ('fit', 'overlay')}
+# Displays that only work on a double-width card (`wide` in the catalogue).
+WIDE_ONLY = tuple(sorted({item['key'] for entry in catalogue.TYPES.values() for item in entry['displays'] if item.get('wide')}))
 
 # ----- The grid of a screen's pages -----
 # A page is a grid of cells, and each screen has its own: two columns of three on the boards that shipped first,
@@ -383,28 +385,10 @@ def has_gaps(tiles, grid=DEFAULT_GRID):
 # Home Assistant's own entity rows. The first choice is what a wide card shows
 # when the tile has no explicit choice; 'none' keeps the plain card. The labels in English,
 # as the Claude skill writes them; the editor gets them in its language (controls_catalogue).
-CONTROLS = {
-    'climate': (('setpoint', 'Temperature − / +'), ('mode', 'Mode keys'), ('setpoint_mode', 'Temperature − / + and mode keys')),
-    'switch': (('toggle', 'On/off switch'),),
-    'input_boolean': (('toggle', 'On/off switch'),),
-    'automation': (('toggle', 'On/off switch'), ('run', 'Run button')),
-    'light': (('toggle', 'On/off switch'), ('brightness', 'Brightness slider')),
-    'fan': (('toggle', 'On/off switch'), ('speed', 'Speed slider')),
-    'vacuum': (('buttons', 'Start, stop, dock'),),
-    'cover': (('buttons', 'Open, stop, close'), ('position', 'Position slider'),
-              ('tilt', 'Slat tilt'), ('buttons_tilt', 'Open, stop, close and slat tilt'),
-              ('position_tilt', 'Position and slat tilt')),
-    'media_player': (('volume', 'Volume and mute'), ('playback', 'Previous, play/pause, next')),
-    'number': (('stepper', 'Value − / +'), ('slider', 'Slider')),
-    'input_number': (('stepper', 'Value − / +'), ('slider', 'Slider')),
-    'select': (('stepper', 'Previous / next choice'),),
-    'input_select': (('stepper', 'Previous / next choice'),),
-    'timer': (('buttons', 'Start/pause and cancel'),),
-    'scene': (('run', 'Activate button'),),
-    'script': (('run', 'Run button'),),
-    'button': (('run', 'Press button'),),
-    'input_button': (('run', 'Press button'),),
-}
+# The direct controls per type, as the catalogue has them, the default first, with their words in English (the Claude
+# skill writes them; the editor gets them in its language, controls_catalogue).
+CONTROLS = {domain: tuple((key, english(f'addon.labels.controls.{domain}.{key}')) for key in catalogue.control_keys(domain))
+            for domain in sorted(DOMAINS) if catalogue.control_keys(domain)}
 
 def controls_catalogue():
     """Editor choices per domain: the default first, then 'none'; labels in the editor's language (app 0.2.90)."""
@@ -413,21 +397,9 @@ def controls_catalogue():
             for domain, choices in CONTROLS.items()}
 
 def resolve_controls(tile):
-    """Control set a card shows on the screen, or None: only wide cards in the standard layout have room for one."""
-    options = tile.get('options', {})
-    domain = tile['entity'].split('.')[0]
-    # The album cover in the icon's place (app 0.2.92) is the standard layout with a picture: the controls stay.
-    if domain not in CONTROLS or options.get('size') not in ('wide', 'tall', 'square', 'full') and span_of(options.get('size')) is None or options.get('display', 'standard') not in ('standard', 'cover') or options.get('inline') == 'slider':
-        return None
-    # A full-page card is one big button unless a control was chosen for it; a wide card shows its usual one.
-    # A span one column wide is a taller tall card, one of several columns a larger square: the same defaults.
-    choice = options.get('controls', 'none' if options.get('size') in ('tall', 'full') or (span_of(options.get('size')) or (0,))[0] == 1 else CONTROLS[domain][0][0])
-    if domain == 'cover' and options.get('size') == 'wide':
-        choice = 'none' if choice == 'tilt' else choice.removesuffix('_tilt')
-    # A card one row high has room for one group: the setpoint (firmware 0.3.1 draws both on 1 x 2, 2 x 2 and full).
-    if choice == 'setpoint_mode' and options.get('size') == 'wide':
-        choice = 'setpoint'
-    return None if choice == 'none' else choice
+    """Control set a card shows on the screen, or None (catalogue.resolve_controls: the chosen one or its type's default,
+    and on a card one row high what fits there)."""
+    return catalogue.resolve_controls(tile, span_of)
 
 # Diagnostic entities every ESP Screens firmware exposes; the manager watches them for screens.
 # Firmware built before the English translation still registers the Dutch originals, so both
@@ -991,22 +963,16 @@ def min_firmware(layout):
     tiles = layout['tiles']
     domains = {t['entity'].split('.')[0] for t in tiles}
     options = [t.get('options', {}) for t in tiles]
-    gates = [
-        (any(o.get('controls') in ('tilt', 'buttons_tilt', 'position_tilt', 'setpoint_mode') for o in options), (0, 3, 1)),
-        ('alarm_control_panel' in domains, ALARM_MIN_FIRMWARE),
-        ('lock' in domains, LOCK_MIN_FIRMWARE),
-        ('automation' in domains, AUTOMATION_MIN_FIRMWARE),
+    # What each tile's type and chosen options ask (the catalogue: a type's `firmware`, an option's screen requirement
+    # without an `else`), and what the layout as a whole asks.
+    gates = [(True, version) for tile in tiles for version, _ in catalogue.gates(tile)] + [
         (any(t['entity'] == NIGHTSTAND or is_key(t) for t in tiles), NIGHTSTAND_MIN_FIRMWARE),
         (repeated_page_tiles(tiles), PAGE_TILE_REPEAT_MIN_FIRMWARE),
         (repeated_entities(tiles), ENTITY_REPEAT_MIN_FIRMWARE),
         (layout.get('title') == '', NO_TITLE_MIN_FIRMWARE),
         (len(tiles) > LEGACY_MAX_TILES or any(is_full(t) or page_target(t['entity']) for t in tiles), FULL_PAGE_MIN_FIRMWARE),
-        (any(o.get('display') == 'cover' for o in options), COVER_TILE_MIN_FIRMWARE),
-        (any(o.get('display') == 'live' for o in options), LIVE_MIN_FIRMWARE),
-        (bool(domains & set(CAMERA_DOMAINS)), CAMERA_MIN_FIRMWARE),
         (any(t['entity'] == 'screen.settings' for t in tiles), (0, 2, 44)),
         (any(o.get('background') == 'none' for o in options), (0, 2, 16)),
-        (bool(domains & set(NEW_DOMAINS)), (0, 2, 14)),
         (len(tiles) > FIRST_MAX_TILES, TWENTY_TILES_MIN_FIRMWARE),
     ]
     needed = [version for used, version in gates if used]
@@ -1531,8 +1497,8 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
             if is_key(tile) and set(options) - set(KEY_OPTIONS):
                 raise ValueError(t('addon.errors.layout.unknown_settings'))
             displays = DISPLAYS.get(domain, ('standard', 'watch'))
-            # Run its actions on a tap (firmware 0.7.0+) is an automation's alone.
-            taps = ('auto', 'detail', 'toggle', 'none', 'action') + (('run',) if domain == 'automation' else ())
+            # Every tile's taps and its type's own (run, an automation's alone: firmware 0.7.0+), from the catalogue.
+            taps = tuple(catalogue.taps(domain))
             choices = {'tap': taps, 'display': displays, 'inline': ('none', 'slider')}
             if 'size' in options and not is_size(options['size']):
                 raise ValueError(t('addon.errors.layout.invalid_setting', setting='size'))
@@ -2111,20 +2077,10 @@ def state_message(index, tile, states, extra=None, precision=None, entry=None, u
             **({'o': options} if options is not None else {}), **({'x': extra} if extra else {})}
 
 def drawn_controls(message, features):
-    """The controls a screen draws right for this tile (app 0.4.32), in place of ones it would get wrong: a thermostat
-    has its -/+ only with a temperature to set, a single one or a range (feature 1 or 2), and a range needs firmware
-    0.19.0 (its hello lists climate_range); before, the -/+ of such a thermostat drew "--" and stepped from the lowest
-    temperature. What it loses: the -/+ (the mode keys stay where they were asked for). `features`: the list the
-    screen's hello said, None where it is not known (the editor's preview, which runs the newest firmware)."""
-    if not message.get('entity', '').startswith('climate.'):
-        return message
-    options, flags = message.get('o'), (message.get('a') or {}).get('supported_features')
-    if not isinstance(options, dict) or not isinstance(flags, int) or options.get('controls') not in ('setpoint', 'setpoint_mode'):
-        return message
-    range_only = not flags & 1 and flags & 2
-    if not flags & 3 or (range_only and features is not None and 'climate_range' not in features):
-        options['controls'] = 'mode' if options['controls'] == 'setpoint_mode' else 'none'
-    return message
+    """The controls a screen draws right for this tile (app 0.4.32), in place of ones it would get wrong: what the entity
+    can draw and what the screen's hello says it draws (catalogue.drawn_controls). `features`: the list the screen's
+    hello said, None where it is not known (the editor's preview, which runs the newest firmware)."""
+    return catalogue.drawn_controls(message, features)
 
 def encode(message):
     """The message as the firmware parses it: compact JSON, at most 4096 bytes."""
