@@ -4925,11 +4925,13 @@ inline void range_chip(Widgets &w,const Tile &t,int x,int y,int cw,int ch,int fa
   if(mini_icon_font&&(int)lv_font_get_line_height(lv_obj_get_style_text_font(icon,LV_PART_MAIN))>ch-ui::px(6))set_font(icon,mini_icon_font);
   const int icon_w=lv_font_get_line_height(lv_obj_get_style_text_font(icon,LV_PART_MAIN)),pad=ui::px(6);
   const std::string text=tile_controls::format_value(tile_controls::range_end(t,t.range_end),tile_controls::edit_step(t),"°");
+  // Measured by the widest temperature this thermostat can show, so the face stays the same from tap to tap.
+  const std::string widest=tile_controls::widest_setpoint(t);
   const lv_font_t *face=nullptr;
   for(const auto *candidate:faces){
-    if(!candidate||!face_covers(candidate,text))continue;
+    if(!candidate||!face_covers(candidate,widest))continue;
     face=candidate;
-    if((int)lv_font_get_line_height(candidate)<=face_h&&icon_w+pad/2+text_width(text,candidate)+pad<=cw)break;
+    if((int)lv_font_get_line_height(candidate)<=face_h&&icon_w+pad/2+text_width(widest,candidate)+pad<=cw)break;
   }
   if(!face)face=lv_obj_get_style_text_font(value,LV_PART_MAIN);
   set_font(value,face);label(value,text);
@@ -5584,8 +5586,8 @@ inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
     std::array<tile_controls::Key,CLIMATE_MODE_PARTS> modes;
     const bool wanted=tile_controls::climate_modes_selected(t);
     const int want=wanted?(int)tile_controls::climate_bar_keys(t,modes):0;
-    // A range's chip carries an icon beside the number: two digits' room for it.
-    const std::string target=std::string(lv_label_get_text(w.pill_value))+(tile_controls::climate_range(t)?"88":"");
+    // A range's chip carries an icon beside the number (two digits' room for it) and is measured by its widest temperature.
+    const std::string target=tile_controls::climate_range(t)?tile_controls::widest_setpoint(t)+"88":std::string(lv_label_get_text(w.pill_value));
     climate_tile::Metrics cm;cm.large=large;cm.touch=touch;cm.gap=gap;cm.max_width=ui::control_max_width();
     const lv_font_t *faces[climate_tile::FACES]={setpoint_font,watch_value_font,control_font?control_font:w.title_font};
     for(int f=0;f<climate_tile::FACES;++f){

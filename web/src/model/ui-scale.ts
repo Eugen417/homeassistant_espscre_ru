@@ -20,3 +20,15 @@ export function pillMetrics(shape: Shape) {
   const fonts = shape.fonts || {};
   return { height, inset, key, faces: [fonts.watch_value, fonts.sublabel_big, fonts.sublabel].filter((size): size is number => Boolean(size)) };
 }
+
+/** A number's width in em as the screens' Roboto draws it: a digit .56, the degree sign .37, a minus .33, a decimal mark
+ * .27. Enough to pick among a board's faces as the firmware does, which measures the glyphs themselves. */
+export const textEms = (text: string) => [...text].reduce((sum, ch) => sum + (/\d/.test(ch) ? 0.56 : ch === "°" ? 0.37 : ch === "-" ? 0.33 : 0.27), 0);
+
+/** The widest temperature a thermostat's -/+ can show (tile_controls::widest_setpoint): as many 8s as its highest or
+ * lowest temperature has digits, with the decimal its step shows. The face measured by it keeps its size from tap to tap. */
+export function widestSetpoint(a: Record<string, any>) {
+  const minimum = Number.isFinite(Number(a.min_temp)) ? Number(a.min_temp) : 7, maximum = Number.isFinite(Number(a.max_temp)) ? Number(a.max_temp) : 35;
+  const reach = Math.max(Math.abs(minimum), Math.abs(maximum)), step = Number(a.target_temp_step) > 0 ? Number(a.target_temp_step) : 0.5;
+  return `${minimum < 0 ? "-" : ""}${"8".repeat(String(Math.trunc(reach)).length)}${step < 1 ? ".8" : ""}°`;
+}

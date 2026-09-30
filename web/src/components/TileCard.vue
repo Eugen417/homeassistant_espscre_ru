@@ -11,6 +11,7 @@ import { dimensions, sizeOf, inlineControlKind, displayName, effectiveControls, 
 import { clockText, glyph } from "../model/topbar";
 import { clock24, currentScreen, isCompact, supports, entityName, isSelected, liveOf, numberMarks, openTile, placeTile, removeTile, screenBuiltinName, screenText, state, tileIconCp, toast, unitSuffix } from "../store";
 import { modeColor, tilePalette, tileActive } from "../model/tile-palette";
+import { textEms, widestSetpoint } from "../model/ui-scale";
 import type { Tile } from "../types";
 import TileResize from "./TileResize.vue";
 import { availableControl, controlKeys } from "../model/tall-controls";
@@ -180,7 +181,7 @@ const rangeChip = computed(() => {
   const a = current.value?.a || {}, f = Number(a.supported_features || 0);
   if (domain.value !== "climate" || !rangeReady.value || (f & 1 && a.temperature != null) || !(f & 2) || a.target_temp_low == null || a.target_temp_high == null) return null;
   const digits = Number(a.target_temp_step || 0.5) >= 1 ? 0 : 1;
-  return { icon: "fire", color: modeColor("heat"), text: `${num(Number(a.target_temp_low).toFixed(digits))}°` };
+  return { icon: "fire", color: modeColor("heat"), text: `${num(Number(a.target_temp_low).toFixed(digits))}°`, ems: textEms(widestSetpoint(a)) };
 });
 // A thermostat's line as the screen writes it: with a control on the tile, what it is doing and the room's temperature
 // (tile_controls::status_text); without one the temperature it is set to, and otherwise Home Assistant's own tile line,
@@ -366,7 +367,7 @@ async function onKey(e: KeyboardEvent) {
       <span v-if="tile.options?.inline === 'slider'" class="mini-slider" :style="sliderStyle"></span>
       <span v-if="controls" class="ctl">
         <span v-if="controls === 'toggle'" class="tog" :class="{ off: !on }"></span>
-        <span v-else-if="controls === 'setpoint'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><span v-if="rangeChip" class="range-chip" :style="{ '--end': rangeChip.color }"><span class="mdi end-icon">{{ key(rangeChip.icon) }}</span><b>{{ rangeChip.text }}</b></span><b v-else>{{ setpoint }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
+        <span v-else-if="controls === 'setpoint'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><span v-if="rangeChip" class="range-chip" :style="{ '--end': rangeChip.color, '--chip-ems': rangeChip.ems }"><span class="mdi end-icon">{{ key(rangeChip.icon) }}</span><b>{{ rangeChip.text }}</b></span><b v-else :style="{ '--pill-ems': textEms(setpoint + '8') }">{{ setpoint }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
         <template v-else-if="controls === 'volume'"><span class="range" :style="volumeStyle"></span><span class="key mdi">{{ key("volume-high") }}</span></template>
         <template v-else-if="controls === 'playback'"><span class="key mdi">{{ key("skip-previous") }}</span><span class="key mdi">{{ key(on ? "pause" : "play") || key("play") }}</span><span class="key mdi">{{ key("skip-next") }}</span></template>
         <template v-else-if="controls === 'buttons' && domain === 'cover'"><span class="key mdi">{{ key("arrow-expand-horizontal") }}</span><span class="key mdi">{{ key("stop") }}</span><span class="key mdi">{{ key("arrow-collapse-horizontal") }}</span></template>
@@ -387,7 +388,7 @@ async function onKey(e: KeyboardEvent) {
       </span>
       <CoverTilePreview v-if="coverExtended" :primary="tallControls" :entity-state="current?.state || ''" :attributes="current?.a || {}" />
       <span v-else-if="domain === 'climate' && (tallControls === 'setpoint' || tallControls === 'setpoint_mode')" class="tall-setpoint">
-        <span class="target"><span class="key mdi">{{ key('minus') || '−' }}</span><span v-if="rangeChip" class="range-chip" :style="{ '--end': rangeChip.color }"><span class="mdi end-icon">{{ key(rangeChip.icon) }}</span><b>{{ rangeChip.text }}</b></span><b v-else>{{ setpoint }}</b><span class="key mdi">{{ key('plus') || '+' }}</span></span>
+        <span class="target"><span class="key mdi">{{ key('minus') || '−' }}</span><span v-if="rangeChip" class="range-chip" :style="{ '--end': rangeChip.color, '--chip-ems': rangeChip.ems }"><span class="mdi end-icon">{{ key(rangeChip.icon) }}</span><b>{{ rangeChip.text }}</b></span><b v-else>{{ setpoint }}</b><span class="key mdi">{{ key('plus') || '+' }}</span></span>
         <span class="st">{{ current?.a?.current_temperature !== undefined ? screenText('screen.climate.now', { value: `${num(current.a.current_temperature)}°` }) : status }}</span>
         <span v-if="modeKeys.length" class="ctl modes"><span v-for="(control, i) in modeKeys" :key="i" class="key mdi" :class="{ active: control.mode === current?.state }">{{ key(control.icon) }}</span></span>
       </span>
@@ -401,7 +402,7 @@ async function onKey(e: KeyboardEvent) {
         </span>
       <span v-if="tallControls" class="ctl" :class="{ playback: tallControls === 'playback' }">
         <span v-if="tallControls === 'toggle'" class="tog" :class="{ off: !on }"></span>
-        <span v-else-if="tallControls === 'setpoint'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><span v-if="rangeChip" class="range-chip" :style="{ '--end': rangeChip.color }"><span class="mdi end-icon">{{ key(rangeChip.icon) }}</span><b>{{ rangeChip.text }}</b></span><b v-else>{{ setpoint }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
+        <span v-else-if="tallControls === 'setpoint'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><span v-if="rangeChip" class="range-chip" :style="{ '--end': rangeChip.color, '--chip-ems': rangeChip.ems }"><span class="mdi end-icon">{{ key(rangeChip.icon) }}</span><b>{{ rangeChip.text }}</b></span><b v-else :style="{ '--pill-ems': textEms(setpoint + '8') }">{{ setpoint }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
         <template v-else-if="tallKeys.length"><span v-for="(control, i) in tallKeys" :key="i" class="key mdi" :class="{ primary: control.primary, disabled: control.disabled, active: control.mode === current?.state }">{{ key(control.icon) }}</span></template>
         <span v-else-if="tallControls === 'stepper'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><b>{{ bigValue }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
         <template v-else-if="tallControls === 'volume'"><span v-if="features & 4" class="range" :style="volumeStyle"></span><span v-if="features & 8" class="key mdi">{{ key(current?.a?.is_volume_muted ? 'volume-off' : 'volume-high') }}</span></template>
@@ -423,7 +424,7 @@ async function onKey(e: KeyboardEvent) {
       <span v-if="tile.options?.inline === 'slider'" class="mini-slider" :style="sliderStyle"></span>
       <span v-if="controls" class="ctl" :class="{ fill: fillsCell }">
         <span v-if="controls === 'toggle'" class="tog" :class="{ off: !on }"></span>
-        <span v-else-if="controls === 'setpoint'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><span v-if="rangeChip" class="range-chip" :style="{ '--end': rangeChip.color }"><span class="mdi end-icon">{{ key(rangeChip.icon) }}</span><b>{{ rangeChip.text }}</b></span><b v-else>{{ setpoint }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
+        <span v-else-if="controls === 'setpoint'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><span v-if="rangeChip" class="range-chip" :style="{ '--end': rangeChip.color, '--chip-ems': rangeChip.ems }"><span class="mdi end-icon">{{ key(rangeChip.icon) }}</span><b>{{ rangeChip.text }}</b></span><b v-else :style="{ '--pill-ems': textEms(setpoint + '8') }">{{ setpoint }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
         <template v-else-if="controls === 'stepper' && domain.endsWith('select')"><span class="key mdi">{{ key("chevron-left") }}</span><span class="key mdi">{{ key("chevron-right") }}</span></template>
         <span v-else-if="controls === 'stepper'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><b>{{ bigValue }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
         <template v-else-if="controls === 'mode'"><span class="key mdi">{{ key("power") }}</span><span class="key mdi">{{ key("fire") }}</span><span class="key mdi">{{ key("snowflake") }}</span></template>

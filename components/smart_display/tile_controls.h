@@ -720,6 +720,17 @@ inline Action choice_action(const Tile &t, char kind, const std::string &value) 
   return {"select.select_option", "option", value};
 }
 
+// The widest temperature a thermostat's -/+ can show (firmware 0.19.0), to measure a face by once: as many digits as its
+// highest or lowest temperature has, each an 8, with the decimal its step shows ("88.8°" for 7 to 35 in halves, "88°" for
+// 45 to 95 in wholes). A face chosen by it keeps its size from one tap to the next, a size smaller where need be.
+inline std::string widest_setpoint(const Tile &t) {
+  const float reach = std::max(std::fabs(std::isfinite(t.minimum) ? t.minimum : 0.0f), std::fabs(std::isfinite(t.maximum) ? t.maximum : 0.0f));
+  float eights = 8;
+  for (int whole = static_cast<int>(reach); whole >= 10; whole /= 10) eights = eights * 10 + 8;
+  const float step = edit_step(t);
+  if (step < 1) eights += 0.8f;
+  return (std::isfinite(t.minimum) && t.minimum < 0 ? "-" : "") + format_value(eights, step, "°");
+}
 // A value as a service call takes it: a point, and no trailing zeros ("21.5", "70").
 inline std::string format_number(float value) {
   char b[24]; snprintf(b, sizeof(b), "%.2f", value);

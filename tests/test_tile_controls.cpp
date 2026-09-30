@@ -181,6 +181,13 @@ int main() {
   Tile both = ecobee; both.supported = 3; assert(climate_range(both));
   both.target = 22; assert(!climate_range(both));           // a single target it reports comes first
   Tile single = ecobee; single.supported = 385; assert(!climate_range(single));
+  // The widest a thermostat's -/+ can show, to measure its face by once: 7 to 35 in halves, 45 to 95 in wholes, to 110.
+  Tile halves = make("climate.halves", "heat", 1); halves.minimum = 7; halves.maximum = 35; halves.step = 0.5f;
+  assert(widest_setpoint(halves) == "88.8°");
+  Tile wholes = make("climate.wholes", "heat", 1); wholes.minimum = 45; wholes.maximum = 95; wholes.step = 1;
+  assert(widest_setpoint(wholes) == "88°");
+  wholes.maximum = 110; assert(widest_setpoint(wholes) == "888°");
+  wholes.minimum = -20; wholes.maximum = 30; assert(widest_setpoint(wholes) == "-88°");
   // The room's temperature as Home Assistant sends it, not always with one decimal.
   assert(temperature_text(73) == "73°" && temperature_text(21.5f) == "21.5°" && temperature_text(21.25f) == "21.25°");
 
