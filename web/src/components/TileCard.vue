@@ -186,13 +186,13 @@ const rangeChip = computed(() => {
 });
 // A thermostat's line as the screen writes it: with a control on the tile, what it is doing and the room's temperature
 // (tile_controls::status_text); without one the temperature it is set to, and otherwise Home Assistant's own tile line,
-// its state and the room's temperature (runtime_tiles' value line). The room's temperature as Home Assistant sends it.
+// its state and the room's temperature (runtime_tiles' value line). Both temperatures as Home Assistant sends them.
 function climateLine(c: { state: string; a?: Record<string, any> }, word: string) {
   const a = c.a || {};
   const now = a.current_temperature != null ? ` · ${num(String(a.current_temperature))}°` : "";
   const doing = te(`screen.ha.hvac_action.${a.hvac_action}`) ? screenText(`screen.ha.hvac_action.${a.hvac_action}`) : "";
   if (controls.value && controls.value !== "none") return `${doing || word}${now}`;
-  if (c.state !== "off" && a.temperature != null) return `${num(Number(a.temperature).toFixed(1))}°`;
+  if (c.state !== "off" && a.temperature != null) return `${num(String(a.temperature))}°`;
   return `${word}${now}`;
 }
 // A scene, script or button has no state worth a word: its state is the moment it last ran.

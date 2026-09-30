@@ -5858,9 +5858,10 @@ inline void render_slot(size_t slot) {
   else if (d == "light" && t.state == "on" && tile_controls::effect_running(t.extra().effect)) value = t.extra().effect;
   else if (d == "light" && t.state == "on" && std::isfinite(t.brightness)) value = screen_text::percent(static_cast<int>(std::lround(std::clamp(t.brightness, 0.0f, 255.0f) * 100 / 255)));
   // An airco that is off says so, with the room's temperature when it knows it, as Home Assistant's tile does
-  // (firmware 0.2.71+); while it runs, the tile shows the temperature it is set to.
+  // (firmware 0.2.71+); while it runs, the tile shows the temperature it is set to, written as Home Assistant writes
+  // it: 68°, 21.5° (firmware 0.19.0; before, always one decimal).
   else if (d == "climate" && t.state == "off") { value = tile_controls::climate_mode_text(t.state); if (std::isfinite(t.current)) value += " · " + tile_controls::temperature_text(t.current); }
-  else if (d == "climate" && std::isfinite(t.target)) value = screen_text::decimal(t.target, 1) + "°";
+  else if (d == "climate" && std::isfinite(t.target)) value = tile_controls::temperature_text(t.target);
   // Without one temperature to reach (a range, dry, fan only) the line is Home Assistant's own tile line for a
   // thermostat, its state and the room's temperature (state-display: climate ["state", "current_temperature"]).
   else if (d == "climate") { value = tile_controls::climate_mode_text(tile_controls::lower_case(t.state)); if (std::isfinite(t.current)) value += " · " + tile_controls::temperature_text(t.current); }

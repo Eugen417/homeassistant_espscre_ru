@@ -172,6 +172,11 @@ describe("TileCard", () => {
     const single = placed({ entity: 'climate.b', name: 'Both', slot: 0, options: { size: 'tall', controls: 'setpoint' } });
     expect(single.find('.range-chip').exists()).toBe(false);
     expect(single.find('.target b').text()).toBe('20°');
+    // One set to a single temperature says it as Home Assistant sends it: 68°, 21.5°, never 68.0°.
+    state.liveStates['climate.s'] = { state: 'heat', word: 'Heat', a: { supported_features: 385, temperature: 68, current_temperature: 77 } };
+    expect(placed({ entity: 'climate.s', name: 'Single', slot: 0 }).find('.st').text()).toBe('68°');
+    state.liveStates['climate.s'].a.temperature = 21.5;
+    expect(placed({ entity: 'climate.s', name: 'Single', slot: 0 }).find('.st').text()).toBe('21.5°');
     state.liveStates['climate.d'] = { state: 'dry', word: 'Dry', a: { supported_features: 1, current_temperature: 21.5 } };
     expect(placed({ entity: 'climate.d', name: 'Dry', slot: 0 }).find('.st').text()).toBe('Dry · 21.5°');
   });
