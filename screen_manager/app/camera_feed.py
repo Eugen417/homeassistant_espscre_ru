@@ -20,6 +20,7 @@ import re
 import secrets
 import time
 
+import catalogue
 import tile_art
 import alert_layout
 from core import SHAPES, board_of, screen_firmware, shape_of
@@ -181,6 +182,15 @@ def can_show_cover(screen):
     return bool(screen) and board_of(screen) in BOXES and (screen_firmware(screen) or (0, 0, 0)) >= COVER_MIN_FIRMWARE
 
 
+# A map on a person tile (app 0.4.33): the firmware the catalogue names for it (catalogue/person.yaml).
+MAP_MIN_FIRMWARE = catalogue.parse_version(catalogue.option('person', 'displays', 'map')['screen']['firmware'])
+
+
+def can_show_map(screen):
+    """A paired screen whose board draws pictures and whose firmware takes a map in its page's strip."""
+    return bool(screen) and board_of(screen) in BOXES and (screen_firmware(screen) or (0, 0, 0)) >= MAP_MIN_FIRMWARE
+
+
 def can_show_live(screen):
     """A paired Guition with firmware that draws live pictures on camera tiles."""
     return bool(screen) and board_of(screen) in BOXES and (screen_firmware(screen) or (0, 0, 0)) >= LIVE_MIN_FIRMWARE
@@ -222,9 +232,20 @@ def live_request(request, atlas=False):
     # One entity may be on several tiles of a page (firmware 0.16.0+): each copy has its own square, in the list's order.
     if not 1 <= len(entities) <= (64 if atlas else LIVE_MAX_TILES) or len(colours) != len(entities):
         return None
-    if not LIVE_SIZES[0] <= size <= LIVE_SIZES[1] or not all(supported(e) or cover_supported(e) for e in entities) or not all(re.fullmatch(r'[0-9A-Fa-f]{6}', c) for c in colours):
+    # A person's tile is a map (app 0.4.33): what it shows comes from the saved tile alone (server.Manager.answer_live).
+    if not LIVE_SIZES[0] <= size <= LIVE_SIZES[1] or not all(supported(e) or cover_supported(e) or map_supported(e) for e in entities) or not all(re.fullmatch(r'[0-9A-Fa-f]{6}', c) for c in colours):
         return None
     return entities, size, [int(c, 16) for c in colours]
+
+
+def map_supported(entity):
+    """Whether an entity's tile may be a map (app 0.4.33): a person's."""
+    return isinstance(entity, str) and entity.startswith('person.')
+
+
+def live_dark(request):
+    """The look the screen asks its pictures in (`dark`, firmware 0.20.0+): a map is drawn in the screen's own colours."""
+    return str(request.get('dark') or '') == '1'
 
 
 def live_indexes(request, entities):
@@ -517,26 +538,42 @@ class CameraFeed:
             self.refresh(entity, watch)
         return watch.raw
 
-    async def live(self, entities, size, grounds, paces, wait=FIRST_FRAME_SECONDS, *, atlas=None, modes=None, compact=False):
+    async def live(self, entities, size, grounds, paces, wait=FIRST_FRAME_SECONDS, *, atlas=None, modes=None, compact=False, renders=None):
         """(etag, BMP, entities with '' where a camera has no snapshot) of the strip for a page's camera tiles at
-        `size` with `grounds` behind the corners and `paces` in seconds per tile, or None when no camera has one."""
-        raws = await asyncio.gather(*(self.live_one(entity, pace, wait) for entity, pace in zip(entities, paces)))
-        if all(raw is None for raw in raws):
+        `size` with `grounds` behind the corners and `paces` in seconds per tile, or None when no camera has one.
+
+        `renders` has, for the strip's n-th tile, a picture the app draws itself (a map, app 0.4.33) as (mark, draw):
+        `mark()` names what it would draw right now and stands where a camera's digest stands, `draw(width, height)` is
+        an awaitable of that picture at exactly its frame's size. The mark is asked on every load, so a link loaded
+        again after someone moved draws where they are then."""
+        renders = renders or [None] * len(entities)
+        marks = [render[0]() if render else None for render in renders]
+        raws = await asyncio.gather(*(self.live_one(entity, pace, wait) if not render else asyncio.sleep(0)
+                                      for entity, pace, render in zip(entities, paces, renders)))
+        if all(raw is None for raw, render in zip(raws, renders) if not render) and not any(renders):
             return None
-        digests = [self.watches[entity].digest if raw is not None else '' for entity, raw in zip(entities, raws)]
+        digests = [mark if render else (self.watches[entity].digest if raw is not None else '')
+                   for entity, raw, render, mark in zip(entities, raws, renders, marks)]
         key = ('live', size, tuple(grounds), tuple(digests), atlas, tuple(modes or ()), compact)
         tag = f'"{hashlib.sha1(repr(key).encode()).hexdigest()[:16]}-l{size}"'  # names the strip; not sent
         cached = self.strips.get(key)
         if cached is None:
             try:
+                frames = atlas[2] if atlas else ()
+                for n, render in enumerate(renders):
+                    if render:
+                        width, height = (frames[n][2], frames[n][3]) if n < len(frames) else (size, size)
+                        raws[n] = await render[1](width, height)
                 image = await asyncio.get_running_loop().run_in_executor(None, tile_art.encode, raws, grounds, atlas, modes, compact) if atlas else await asyncio.get_running_loop().run_in_executor(None, encode_live, raws, size, grounds, compact)
             except Exception as error:
                 LOG.info('The live pictures of %s cannot be read (%s)', ', '.join(entities), type(error).__name__)
                 return None
-            self.strips = {key: image}  # the last strip only: the next load makes another anyway
+            # A map drawn while some of its streets did not come is not kept: the next load asks for them again.
+            if not any(getattr(raw, 'info', {}).get('provisional') for raw, render in zip(raws, renders) if render):
+                self.strips = {key: image}  # the last strip only: the next load makes another anyway
         else:
             image = cached
-        return tag, image, [entity if raw is not None else '' for entity, raw in zip(entities, raws)]
+        return tag, image, [entity if raw is not None or render else '' for entity, raw, render in zip(entities, raws, renders)]
 
     # ----- covers -----
     # A media player's picture is fetched when a screen loads its cover link and Home Assistant's picture is another

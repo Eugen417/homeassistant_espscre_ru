@@ -1,5 +1,6 @@
 {
   "_comment": "The Material Design Icons the editor's own controls draw (app 0.3.19): name to codepoint, the same names Home Assistant uses. tools/generate_icons.py puts them in the editor's icon font and checks each codepoint against the font the screens are built from.",
+  "account-multiple-outline": "F000F",
   "alert-circle-outline": "F05D6",
   "arrow-down": "F0045",
   "arrow-left": "F004D",
@@ -20,6 +21,7 @@
   "content-copy": "F018F",
   "content-duplicate": "F0191",
   "crosshairs": "F01A3",
+  "crosshairs-gps": "F01A4",
   "database-search-outline": "F1636",
   "delete-outline": "F09E7",
   "dots-horizontal": "F01D8",

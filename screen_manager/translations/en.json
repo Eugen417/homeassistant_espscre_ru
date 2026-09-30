@@ -548,6 +548,8 @@
         "pages": "A screen has 1 page. | A screen has 1 to {n} pages.",
         "eight_pages": "These tiles don't fit on this screen's pages; remove a tile or make one smaller.",
         "camera_unsupported": "This screen cannot show camera pictures.",
+        "map_unsupported": "This screen cannot show a map.",
+        "map_entities": "A map shows at most {n} people, each once, beside the tile's own person.",
         "firmware_first": "Install screen firmware {version} or newer first for these tiles.",
         "entity_gone": "A chosen entity no longer exists. Look up the new entity.",
         "ids_too_long": "These tiles' entity IDs are too long together to fit in one message to the screen; remove a few tiles."
@@ -1491,7 +1493,8 @@
       "flip": "flip clock",
       "sunpath": "sun path",
       "live": "live picture",
-      "cover": "album cover"
+      "cover": "album cover",
+      "map": "map"
     },
     "sizes": {
       "single": "normal",
@@ -1530,6 +1533,9 @@
         "cover": "Album cover",
         "cover_hint": "The album cover of what plays in the icon's place, like Home Assistant's own tile; a player without a picture keeps its icon. A tap still opens the card.",
         "cover_needs_firmware": "The album cover on the tile needs firmware 0.2.78 or newer: press Update on the screen after saving.",
+        "map": "Map",
+        "map_hint": "Where this person and the people you add are, on a calm map drawn in the screen's colours. Home Assistant supplies the streets from OpenStreetMap; the screen only gets the picture, never a location. It is drawn again when someone moves.",
+        "map_needs_firmware": "A map needs firmware 0.20.0 or newer: press Update on the screen after saving.",
         "no_graph": "Home Assistant has no numbers for this entity, so the graph stays empty. Choose another display.",
         "no_forecast": "This weather service has no daily forecast in Home Assistant. Choose another display.",
         "tall_cover_hint": "Uses the album cover as a dimmed background. Without artwork the normal tile remains visible.",
@@ -1549,6 +1555,27 @@
           "label": "On the picture",
           "name": "Name",
           "none": "Nothing"
+        }
+      },
+      "map": {
+        "framing": {
+          "label": "Show",
+          "everyone": "Everyone",
+          "home": "Around home",
+          "person": "Around this person"
+        },
+        "distance": {
+          "label": "Distance",
+          "neighbourhood": "Neighborhood",
+          "street": "Street",
+          "town": "Town",
+          "region": "Region"
+        },
+        "with": {
+          "label": "Also on the map",
+          "hint": "The people shown beside this one, each with their own colour.",
+          "add": "Add a person",
+          "remove": "Remove {name}"
         }
       },
       "controls": {

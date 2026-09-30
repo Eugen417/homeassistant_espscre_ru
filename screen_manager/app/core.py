@@ -96,7 +96,7 @@ REF = 'main'
 # The shared firmware of this app release: packages/core.yaml's SCREEN_FIRMWARE_VERSION, what every board builds
 # unless its own board file went ahead with a fix for that board alone (firmware_target, docs/BOARD_RELEASES.md). The
 # middle number is the core: the feature gates below name a shared X.Y.0, so a feature always ships with a new core.
-FIRMWARE_VERSION = '0.19.0'
+FIRMWARE_VERSION = '0.20.0'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -156,6 +156,15 @@ DISPLAYS = {domain: tuple(catalogue.display_keys(domain)) for domain in sorted(D
 # A live picture on a 1x2 or 2x2 tile fills the card (app 0.3.8, firmware 0.3.3): cut to fill it or whole on black, with
 # its name on it or nothing. The first choice of each is the default and is never stored.
 PICTURE_OPTIONS = {key: tuple(catalogue.of_type('camera')['picture'][key]) for key in ('fit', 'overlay')}
+# A map on a person tile ("display": "map", app 0.4.33, docs/MAP.md): the app draws the card and it travels in the page's
+# picture strip like a live camera. How it frames its people and how far out it reaches; the first choice of each is the
+# default and is never stored. `map` lists who rides along beside the tile's own person, people and device trackers.
+# None of it reaches a screen (screen_options): the screen gets pixels, never a place.
+MAP_CARD = catalogue.of_type('person')['map']
+MAP_OPTIONS = {key: tuple(MAP_CARD[key]) for key in ('framing', 'distance')}
+MAP_DOMAINS = frozenset(MAP_CARD['with'])
+MAP_MAX_ENTITIES = MAP_CARD['max']
+MAP_OWN = ('map', *MAP_OPTIONS)
 # Displays that only work on a double-width card (`wide` in the catalogue).
 WIDE_ONLY = tuple(sorted({item['key'] for entry in catalogue.TYPES.values() for item in entry['displays'] if item.get('wide')}))
 
@@ -952,6 +961,18 @@ def repeated_page_tiles(tiles):
     pages = [tile['entity'] for tile in tiles if page_target(tile['entity'])]
     return len(pages) != len(set(pages))
 
+def map_entities(value, own):
+    """Who rides along on a map tile, checked: people and device trackers, each once, never the tile's own person, so
+    the card never draws more than MAP_MAX_ENTITIES. The list stays in the app (screen_options) and a map is drawn from
+    the saved tile alone (server.Manager.answer_live)."""
+    if not isinstance(value, list) or len(value) > MAP_MAX_ENTITIES - 1:
+        raise ValueError(t('addon.errors.layout.map_entities', n=MAP_MAX_ENTITIES))
+    for entity in value:
+        if not isinstance(entity, str) or not ACTION_NAME.fullmatch(entity) or entity.split('.')[0] not in MAP_DOMAINS \
+                or entity == own or value.count(entity) > 1:
+            raise ValueError(t('addon.errors.layout.map_entities', n=MAP_MAX_ENTITIES))
+    return list(value)
+
 def repeated_entities(tiles):
     """True when any other entity is on the screen more than once, as tiles or keys (firmware 0.16.0+)."""
     others = [tile['entity'] for tile in tiles if not page_target(tile['entity'])]
@@ -999,7 +1020,9 @@ TILE_RESULT_EVENT = 'esp_screens_tile_result'
 # pastel background.
 TILE_EVENT_OPTIONS = {'size': 'size', 'controls': 'controls', 'display': 'display', 'icon': 'icon',
                       'color': 'background', 'background': 'background', 'tap': 'tap', 'inline': 'inline',
-                      'history_hours': 'history_hours', 'refresh': 'refresh', 'fit': 'fit', 'overlay': 'overlay'}
+                      'history_hours': 'history_hours', 'refresh': 'refresh', 'fit': 'fit', 'overlay': 'overlay',
+                      # How a map frames its people (app 0.4.33); who is on it is the editor's.
+                      'framing': 'framing', 'distance': 'distance'}
 TILE_SIZES = {'full': 'full', 'fullscreen': 'full', 'full screen': 'full', 'full-screen': 'full', 'page': 'full', 'whole page': 'full',
               'wide': 'wide', 'double': 'wide', 'large': 'wide', 'big': 'wide',
               'single': 'single', 'small': 'single', 'normal': 'single', 'tall': 'tall', 'high': 'tall', 'square': 'square'}
@@ -1478,7 +1501,7 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
                 continue
         if 'options' in tile:
             options = tile['options']
-            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon', 'controls', 'action', 'refresh', 'sub', 'fit', 'overlay', 'guard'}:
+            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon', 'controls', 'action', 'refresh', 'sub', 'fit', 'overlay', 'guard', *MAP_OWN}:
                 raise ValueError(t('addon.errors.layout.unknown_settings'))
             # A navigation tile (screen.page_<n>, firmware 0.2.62+) has a name, an icon, a colour and a width; never the page.
             if page_target(tile['entity']):
@@ -1563,8 +1586,19 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
                     raise ValueError(t('addon.errors.layout.invalid_setting', setting='overlay'))
                 if options['overlay'] == PICTURE_OPTIONS['overlay'][0]:
                     options = {key: value for key, value in options.items() if key != 'overlay'}
-            elif set(options) & {'refresh', *PICTURE_OPTIONS}:
-                options = {key: value for key, value in options.items() if key not in ('refresh', *PICTURE_OPTIONS)}
+            # A map card (app 0.4.33) keeps who rides along and how it frames them, and whether its name is on it. It is
+            # drawn at its frame's own size and again only when someone moved, so it has no fit and no pace.
+            elif options.get('display') == 'map':
+                if 'map' in options:
+                    options = {**options, 'map': map_entities(options['map'], tile['entity'])}
+                allowed = {**MAP_OPTIONS, 'overlay': PICTURE_OPTIONS['overlay']}
+                for key, choices in allowed.items():
+                    if key in options and options[key] not in choices:
+                        raise ValueError(t('addon.errors.layout.invalid_setting', setting=key))
+                options = {key: value for key, value in options.items() if key not in ('fit', 'refresh') and
+                           not (key in allowed and value == allowed[key][0]) and not (key == 'map' and not value)}
+            elif set(options) & {'refresh', *PICTURE_OPTIONS, *MAP_OWN}:
+                options = {key: value for key, value in options.items() if key not in ('refresh', *PICTURE_OPTIONS, *MAP_OWN)}
             if options.get('display') == 'watch' and options.get('inline') == 'slider':
                 raise ValueError(t('addon.errors.layout.watch_or_slider'))
             if 'controls' in options:
@@ -1887,6 +1921,11 @@ def extras(tile, states, forecast=None, tz=None, hourly=None, now=None, device=N
     a light's effects page)."""
     domain = tile['entity'].split('.')[0]
     attrs = states.get(tile['entity'], {}).get('attributes', {})
+    # A map card carries only its movement mark (app 0.4.33): the screen asks for a new picture when it changes, so
+    # nothing polls and no place goes out (map_card.fingerprint).
+    if (tile.get('options') or {}).get('display') == 'map':
+        import map_card
+        return {'mk': map_card.fingerprint(tile, states)}
     if domain == 'light':
         # The effects page (app 0.2.83): the select and number entities of the light's device, named as Home Assistant
         # names them; the effect itself travels as the `effect` attribute.
@@ -1972,7 +2011,8 @@ def tile_icon(tile, attrs, state=None, entry=None):
 def screen_options(tile, attrs, state=None, entry=None):
     """Stored options on the wire; `icon` travels as the resolved codepoint (firmware 0.2.18+, ignored before)
     and `controls` only as the set the card really shows (firmware 0.2.19+, ignored before)."""
-    options = {k: v for k, v in tile.get('options', {}).items() if k not in ('icon', 'controls', 'action')}
+    # A map's own choices stay in the app: who is on it and how it frames them say where people are (app 0.4.33).
+    options = {k: v for k, v in tile.get('options', {}).items() if k not in ('icon', 'controls', 'action', *MAP_OWN)}
     icon = tile_icon(tile, attrs, state, entry)
     if icon:
         options['icon'] = icon

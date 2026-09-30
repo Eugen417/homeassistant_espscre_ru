@@ -548,6 +548,8 @@
         "pages": "Un écran a {n} page. | Un écran a de 1 à {n} pages.",
         "eight_pages": "Ces tuiles ne tiennent pas sur les pages de cet écran ; retirez une tuile ou réduisez-en une.",
         "camera_unsupported": "Cet écran ne peut pas afficher d'images de caméra.",
+        "map_unsupported": "Cet écran ne peut pas afficher de carte.",
+        "map_entities": "Une carte montre au plus {n} personnes, chacune une fois, à côté de la personne de la tuile.",
         "firmware_first": "Pour ces tuiles, installez d'abord le firmware {version} ou plus récent sur l'écran.",
         "entity_gone": "Une entité choisie n'existe plus. Cherchez la nouvelle entité.",
         "ids_too_long": "Ensemble, les ID d'entité de ces tuiles sont trop longs pour tenir dans un seul message à l'écran ; retirez quelques tuiles."
@@ -1491,7 +1493,8 @@
       "flip": "horloge à volets",
       "sunpath": "course du soleil",
       "live": "image en direct",
-      "cover": "pochette"
+      "cover": "pochette",
+      "map": "carte"
     },
     "sizes": {
       "single": "normale",
@@ -1530,6 +1533,9 @@
         "cover": "Pochette",
         "cover_hint": "La pochette de ce qui joue à la place de l'icône, comme la tuile de Home Assistant ; un lecteur sans image garde son icône. Un appui ouvre toujours la carte.",
         "cover_needs_firmware": "La pochette sur la tuile demande le firmware 0.2.78 ou plus récent : appuyez sur Mettre à jour sur l'écran après l'enregistrement.",
+        "map": "Carte",
+        "map_hint": "Où se trouvent cette personne et celles que vous ajoutez, sur une carte calme aux couleurs de l'écran. Home Assistant fournit les rues d'OpenStreetMap ; l'écran ne reçoit que l'image, jamais une position. Elle est redessinée quand quelqu'un se déplace.",
+        "map_needs_firmware": "Une carte nécessite le firmware 0.20.0 ou plus récent : appuyez sur Mettre à jour sur l'écran après l'enregistrement.",
         "no_graph": "Home Assistant n'a pas de valeurs numériques pour cette entité : le graphique reste donc vide. Choisissez un autre affichage.",
         "no_forecast": "Ce service météo n'a pas de prévisions journalières dans Home Assistant. Choisissez un autre affichage.",
         "tall_cover_hint": "",
@@ -1549,6 +1555,27 @@
           "label": "Sur l'image",
           "name": "Nom",
           "none": "Rien"
+        }
+      },
+      "map": {
+        "framing": {
+          "label": "Afficher",
+          "everyone": "Tout le monde",
+          "home": "Autour de la maison",
+          "person": "Autour de cette personne"
+        },
+        "distance": {
+          "label": "Distance",
+          "neighbourhood": "Quartier",
+          "street": "Rue",
+          "town": "Ville",
+          "region": "Région"
+        },
+        "with": {
+          "label": "Aussi sur la carte",
+          "hint": "Les personnes affichées à côté de celle-ci, chacune dans sa couleur.",
+          "add": "Ajouter une personne",
+          "remove": "Retirer {name}"
         }
       },
       "controls": {

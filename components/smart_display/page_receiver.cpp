@@ -687,6 +687,8 @@ std::string receive(const std::string &payload) {
     // A value of this entity the second line was set to: the finished line, or seconds for a moment in time.
     next.subtitle = string(extra["s"], 64);
     next.subtitle_at = extra["sm"].is<unsigned>() ? extra["sm"].as<unsigned>() : 0;
+    // A map card's movement mark (app 0.4.33): a hash, never a place. A changed mark is a changed picture.
+    next.map_mark = string(extra["mk"], 16);
     // An alarm panel (app 0.3.8+, firmware 0.3.3+): how it takes codes, who changed it, and a delay's end.
     if (tile.domain() == "alarm_control_panel") {
       next.code_format = string(a["code_format"], 8);

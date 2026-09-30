@@ -226,6 +226,11 @@
       },
       "tap": {
         "hold_light": "Hold the tile for brightness and colour, as far as the light has them."
+      },
+      "map": {
+        "distance": {
+          "neighbourhood": "Neighbourhood"
+        }
       }
     }
   },

@@ -301,3 +301,30 @@ static void test_clock_texts() {
   assert(clock_parts("7:8", v, 3) == 2 && v[0] == 7 && v[1] == 8 && v[2] == 9);
 }
 struct RunClockTexts { RunClockTexts() { test_clock_texts(); } } run_clock_texts;
+// A map card (firmware 0.20.0+): the app draws the whole frame and the tile takes it from the page's picture strip, as a
+// live camera does, so `pictured()` covers it and the card code stays the camera's.
+static void test_map_tile() {
+  using namespace runtime_tiles;
+  Tile t;
+  t.entity = "person.robin";
+  t.display = "map";
+  assert(t.is_map() && t.pictured() && !t.live() && !t.cover_tile());
+  // The tile's own entity is a person; a device tracker rides along inside the app, never as a tile of its own.
+  t.entity = "device_tracker.phone";
+  assert(!t.is_map() && !t.pictured());
+  t.entity = "camera.door";
+  assert(!t.is_map());
+  t.entity = "person.robin";
+  t.display = "standard";
+  assert(!t.is_map() && !t.pictured());
+  Tile camera;
+  camera.entity = "camera.door";
+  camera.display = "live";
+  assert(camera.live() && camera.pictured() && !camera.is_map());
+  // The movement mark rides in the tile's extras and is nothing on its own.
+  Tile marked;
+  assert(marked.extra().empty());
+  marked.edit_extra().map_mark = "a1b2c3";
+  assert(!marked.extra().empty() && marked.extra().map_mark == "a1b2c3");
+}
+struct RunMapTile { RunMapTile() { test_map_tile(); } } run_map_tile;

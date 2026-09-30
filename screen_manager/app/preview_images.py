@@ -17,8 +17,9 @@ async def answer(manager, data):
     fields = command.get('data')
     if command.get('service') != 'esphome.screen_camera' or command.get('event') is not True or command.get('templates'):
         raise ValueError('Only firmware image events are accepted.')
-    # `idx`: the tiles of a live strip by index (firmware 0.16.0+), which the preview does not need.
-    allowed = {'inbox', 'entity', 'tiles', 'idx', 'size', 'bg', 'session', 'rev', 'view', 'atlas'}
+    # `idx`: the tiles of a live strip by index (firmware 0.16.0+), which name a map's tile on the mockup; `dark`: the
+    # look a map is drawn in (firmware 0.20.0+).
+    allowed = {'inbox', 'entity', 'tiles', 'idx', 'size', 'bg', 'session', 'rev', 'view', 'atlas', 'dark'}
     if (not isinstance(fields, dict) or set(fields) - allowed or
             any(not isinstance(v, str) or len(v) > 8192 for v in fields.values()) or
             not re.fullmatch(r'[0-9a-f]{16}', fields.get('session', '')) or
@@ -40,8 +41,24 @@ async def answer(manager, data):
         if parsed is None:
             raise ValueError('Invalid image strip.')
         entities, size, grounds = parsed
-        paces = [0 if camera_feed.cover_supported(e) else camera_feed.LIVE_REFRESH_DEFAULT for e in entities]
+        paces = [0 if camera_feed.cover_supported(e) or camera_feed.map_supported(e) else camera_feed.LIVE_REFRESH_DEFAULT
+                 for e in entities]
         extra = {'compact': True, **({'atlas': atlas} if atlas else {})}
+        # A map (app 0.4.33) is drawn by the renderer a screen gets, from the mockup's own tile (the page it compiled
+        # last, firmware_preview), in the preview's look and at its pixels per inch.
+        if atlas and any(camera_feed.map_supported(e) for e in entities):
+            own = camera_feed.live_indexes(fields, entities) or []
+            placed = manager.preview_tiles
+            board = {'dpi': shape.get('dpi')} if isinstance(shape.get('dpi'), (int, float)) else None
+            renders = []
+            for n, e in enumerate(entities):
+                tile = placed[own[n]] if n < len(own) and own[n] < len(placed) and placed[own[n]]['entity'] == e else None
+                if camera_feed.map_supported(e):
+                    tile = tile if tile and (tile.get('options') or {}).get('display') == 'map' else {'entity': e, 'options': {'display': 'map'}}
+                    renders.append(manager.map_render(tile, board, camera_feed.live_dark(fields)))
+                else:
+                    renders.append(None)
+            extra['renders'] = renders
         found = await manager.camera.live(entities, size, grounds, paces, **extra)
         entity = fields['tiles']
         if found:

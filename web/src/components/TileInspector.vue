@@ -8,7 +8,7 @@ import { t } from "../i18n";
 import { beginFieldEdit, endFieldEdit } from '../store';
 import { ACTS_ON_TAP, domainInfo, entriesOf, holdHintKey, inlineControlKind, pageTarget, SLIDER_DOMAINS, SWITCHES_ON_TAP, TOGGLE_BEFORE } from "../model/layout";
 import { glyph } from "../model/topbar";
-import { controlOption, drawable, fits } from "../model/catalogue";
+import { controlOption, drawable, fits, ofType } from "../model/catalogue";
 import { currentScreen, automaticIcon, entityName, liveOf, openPage, openTile, screenBuiltinName, fullPage, loadSubtitleValues, setTileName, pictures, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
 import type { Tile } from "../types";
 import ActionPicker from "./ActionPicker.vue";
@@ -70,6 +70,8 @@ const displays = computed(() => {
     if (key === "graph") return !c || c.displays.includes("graph") || display.value === "graph";
     // The album cover on a media tile (app 0.2.92), on a board that draws pictures; the tile over the whole page has the card's big cover.
     if (key === "cover") return (pictures.value || display.value === "cover") && size.value !== "full";
+    // A map (app 0.4.33) is a picture the add-on draws: only on a board that draws pictures.
+    if (key === "map") return pictures.value || display.value === "map";
     return true;
   });
   return offer("display", keys.map((key) => [key, t(`editor.tile.display.${key}`)] as [string, string]), display.value);
@@ -80,7 +82,21 @@ const pictureCard = computed(() => display.value === "live");
 const cardFilled = computed(() => supports(0, 3, 7) || (taller.value && supports(0, 3, 3)));
 // A hint is a warning unless the screen's firmware already does what it describes.
 const clockFace = computed(() => clock.value && ["dial", "flip"].includes(display.value));
-const displayWarns = computed(() => !(display.value === "live" && cardFilled.value) && !(display.value === "cover" && supports(0, 2, 78)) && !(clockFace.value && supports(0, 3, 6)));
+const displayWarns = computed(() => !(display.value === "live" && cardFilled.value) && !(display.value === "cover" && supports(0, 2, 78)) &&
+  !(display.value === "map" && supports(0, 20, 0)) && !(clockFace.value && supports(0, 3, 6)));
+// A map card (app 0.4.33, docs/MAP.md): who rides along beside the tile's own person, how it frames them and how far a
+// fixed view reaches. The choices are the catalogue's (catalogue/person.yaml), the first of each the default.
+const MAP = ofType("person")?.map;
+const mapCard = computed(() => display.value === "map");
+const mapWith = computed(() => (props.tile.options?.map as string[] | undefined) ?? []);
+const mapFull = computed(() => mapWith.value.length >= (MAP?.max ?? 8) - 1);
+const mapOffered = computed(() => (state.inventory.entities || [])
+  .filter((item) => (MAP?.with ?? []).includes(item.id.split(".")[0]) && item.id !== props.tile.entity && !mapWith.value.includes(item.id))
+  .map((item) => [item.id, item.name || item.id] as [string, string]));
+const mapFraming = computed(() => current("framing", MAP?.framing[0]) as string);
+const mapChoices = (key: "framing" | "distance") => offer(key, (MAP?.[key] ?? []).map((value) => [value, t(`editor.tile.map.${key}.${value}`)] as [string, string]), current(key, MAP?.[key][0]));
+function addMapEntity(id: string) { if (id) setTileOption(props.tile, "map", [...mapWith.value, id]); }
+function removeMapEntity(id: string) { setTileOption(props.tile, "map", mapWith.value.filter((item) => item !== id)); }
 const pictureChoices = (key: "fit" | "overlay") => offer(key, rules.picture[key].map((value) => [value, t(`editor.tile.picture.${key}.${value}`)] as [string, string]), current(key, rules.picture[key][0]));
 const refreshChoices = computed(() => offer("refresh", rules.refresh.map((seconds) => [seconds, t("editor.tile.refresh.seconds", { n: seconds })] as [number, string]), refresh.value));
 const historyChoices = computed(() => offer("history_hours", [1, 6, 24].map((hours) => [hours, t("editor.tile.history.hours", hours)] as [number, string]), history.value));
@@ -89,6 +105,7 @@ const displayHint = computed(() => {
   if (c && display.value === "graph" && !c.displays.includes("graph")) return t("editor.tile.display.no_graph");
   if (c && display.value === "forecast" && !c.displays.includes("forecast")) return t("editor.tile.display.no_forecast");
   if (display.value === "live") return t(cardFilled.value ? "editor.tile.display.live_card_hint" : supports(0, 2, 77) ? "editor.tile.display.live_card_needs_firmware" : "editor.tile.display.live_needs_firmware");
+  if (display.value === "map") return t(supports(0, 20, 0) ? "editor.tile.display.map_hint" : "editor.tile.display.map_needs_firmware");
   if (display.value === "cover" && taller.value) return t("editor.tile.display.tall_cover_hint");
   if (display.value === "cover") return t(supports(0, 2, 78) ? "editor.tile.display.cover_hint" : "editor.tile.display.cover_needs_firmware");
   // The calm dial and the flip clock (firmware 0.3.6): an older screen shows the digital clock until it is updated.
@@ -285,7 +302,23 @@ const backgroundName = computed(() => state.inventory.backgrounds?.[props.tile.o
       <PropRow v-if="lookShown && pictureCard" :label="t('editor.tile.picture.fit.label')" icon="resize">
         <ChoiceField :choices="pictureChoices('fit')" :value="current('fit', 'fill')" :tile="tile" preview-key="fit" :aria-label="t('editor.tile.picture.fit.label')" @pick="(v) => setTileOption(tile, 'fit', v)" />
       </PropRow>
-      <PropRow v-if="lookShown && pictureCard" :label="t('editor.tile.picture.overlay.label')" icon="format-title">
+      <PropRow v-if="lookShown && mapCard" :label="t('editor.tile.map.framing.label')" icon="crosshairs-gps">
+        <ChoiceField :choices="mapChoices('framing')" :value="mapFraming" :tile="tile" preview-key="framing" :aria-label="t('editor.tile.map.framing.label')" @pick="(v) => setTileOption(tile, 'framing', v)" />
+      </PropRow>
+      <PropRow v-if="lookShown && mapCard && mapFraming !== 'everyone'" :label="t('editor.tile.map.distance.label')" icon="magnify-plus-outline">
+        <ChoiceField :choices="mapChoices('distance')" :value="current('distance', MAP?.distance[0])" :tile="tile" preview-key="distance" :aria-label="t('editor.tile.map.distance.label')" @pick="(v) => setTileOption(tile, 'distance', v)" />
+      </PropRow>
+      <PropRow v-if="lookShown && mapCard" :label="t('editor.tile.map.with.label')" icon="account-multiple-outline" :hint="t('editor.tile.map.with.hint')">
+        <div class="map-with">
+          <span v-for="item in mapWith" :key="item" class="map-person">
+            {{ entityName(item) }}
+            <button type="button" class="map-remove" :aria-label="t('editor.tile.map.with.remove', { name: entityName(item) })" @click="removeMapEntity(item)"><Icon name="close" /></button>
+          </span>
+          <UiSelect v-if="!mapFull && mapOffered.length" class="map-add" :model-value="''" :options="mapOffered"
+            :placeholder="t('editor.tile.map.with.add')" :aria-label="t('editor.tile.map.with.add')" @update:model-value="addMapEntity" />
+        </div>
+      </PropRow>
+      <PropRow v-if="lookShown && (pictureCard || mapCard)" :label="t('editor.tile.picture.overlay.label')" icon="format-title">
         <ChoiceField :choices="pictureChoices('overlay')" :value="current('overlay', 'name')" :tile="tile" preview-key="overlay" :aria-label="t('editor.tile.picture.overlay.label')" @pick="(v) => setTileOption(tile, 'overlay', v)" />
       </PropRow>
       <PropRow v-if="lookShown && domain === 'sensor'" :label="t('editor.tile.history.label')" icon="clock-outline">

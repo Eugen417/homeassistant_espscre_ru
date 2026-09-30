@@ -25,6 +25,7 @@ function inventory(): Inventory {
       { id: "climate.c", name: "Heating", state: "heat", area: "" }, { id: "scene.s", name: "Evening", state: "", area: "" },
       { id: "switch.s", name: "Fan", state: "off", area: "" }, { id: "number.n", name: "Volume", state: "3", area: "" },
       { id: "automation.a", name: "Curtains at sunset", state: "on", area: "" },
+      { id: "person.p", name: "Alex", state: "home", area: "" }, { id: "person.q", name: "Sam", state: "not_home", area: "" },
     ],
     builtin: [],
     icons: { groups: [], weather: { partlycloudy: "F0595", sunny: "F0599" }, sun: { below_horizon: "F0594" }, defaults: {}, fallback: "F0335", builtin: {}, controls: {} },
@@ -57,6 +58,11 @@ describe("the canonical options (tile-options.ts)", () => {
     expect(canonicalOptions("camera.door", { display: "live", fit: "fill", overlay: "name" })).toEqual({ display: "live" });
     expect(canonicalOptions("screen.page_2", { display: "watch", controls: "none", icon: "auto" })).toEqual({ icon: "auto" });
     expect(canonicalOptions("weather.home", { display: "forecast" })).toEqual({ display: "forecast", size: "wide" });
+    // A map (app 0.4.33) keeps its name choice, its framing and who rides along; defaults and an empty list are not stored.
+    expect(canonicalOptions("person.p", { display: "map", map: [], framing: "everyone", distance: "neighbourhood", overlay: "name" })).toEqual({ display: "map" });
+    expect(canonicalOptions("person.p", { display: "map", map: ["person.q"], framing: "home", distance: "street", overlay: "none" }))
+      .toEqual({ display: "map", map: ["person.q"], framing: "home", distance: "street", overlay: "none" });
+    expect(canonicalOptions("person.p", { display: "standard", map: ["person.q"], framing: "home", overlay: "none" })).toEqual({ display: "standard" });
   });
 
   it("offers Automatic after another second line, and Perform action", () => {
@@ -193,6 +199,8 @@ describe("the tile panel", () => {
     { entity: "screen.clock", name: "", slot: 0, options: { size: "wide" } }, { entity: "screen.settings", name: "", slot: 0 },
     { entity: "screen.page_2", name: "", slot: 0 }, { entity: "automation.a", name: "", slot: 0 },
     { entity: "automation.a", name: "", slot: 0, options: { size: "wide", tap: "run" } },
+    { entity: "person.p", name: "", slot: 0, options: { display: "map" } },
+    { entity: "person.p", name: "", slot: 0, options: { size: "square", display: "map", framing: "home", map: ["person.q"] } },
   ];
   it.each(kinds.map((tile) => [`${tile.entity} ${tile.options?.size || "single"}`, tile] as const))("saves every choice it shows: %s", async (_, kind) => {
     const tile: Tile = JSON.parse(JSON.stringify(kind));
@@ -213,5 +221,46 @@ describe("the tile panel", () => {
         panel.unmount();
       }
     }
+  });
+});
+
+describe("a map card in the panel (app 0.4.33)", () => {
+  it("offers a map on a board with pictures and saves who rides along", async () => {
+    const tile: Tile = { entity: "person.p", name: "", slot: 0 };
+    appendTiles(tile);
+    Object.assign(state.inventory.screens[0], { firmware: "0.20.0", pictures: true });
+    let panel = mount(TileInspector, { props: { tile: current(tile)! } });
+    expect(panel.text()).not.toContain("Also on the map");
+    const map = panel.findAll(".seg button").find((b) => b.text() === "Map");
+    expect(map).toBeDefined();
+    await map!.trigger("click");
+    panel.unmount();
+    panel = mount(TileInspector, { props: { tile: current(tile)! } });
+    expect(current(tile)!.options?.display).toBe("map");
+    expect(panel.text()).toContain("Also on the map");
+    // Everyone on the card: no distance to choose until the view is fixed on home or on the person.
+    expect(panel.text()).not.toContain("Distance");
+    await panel.findAll(".seg button").find((b) => b.text() === "Around home")!.trigger("click");
+    panel.unmount();
+    panel = mount(TileInspector, { props: { tile: current(tile)! } });
+    expect(panel.text()).toContain("Distance");
+    (panel.vm as any).addMapEntity("person.q");
+    await nextTick();
+    expect(current(tile)!.options).toMatchObject({ display: "map", framing: "home", map: ["person.q"] });
+    expect(() => validatePages(state.document!, state.documentGrid!)).not.toThrow();
+    const saved = state.document!.pages.flatMap((page) => page.tiles)[0];
+    expect(saved.appearance).toMatchObject({ display: "map", mapFraming: "home", mapEntities: ["person.q"] });
+    (panel.vm as any).removeMapEntity("person.q");
+    expect(current(tile)!.options?.map).toBeUndefined();
+    panel.unmount();
+  });
+
+  it("offers no map where the board draws no pictures", () => {
+    const tile: Tile = { entity: "person.p", name: "", slot: 0 };
+    appendTiles(tile);
+    Object.assign(state.inventory.screens[0], { board: "cyd", pictures: false, firmware: "0.20.0" });
+    const panel = mount(TileInspector, { props: { tile: current(tile)! } });
+    expect(panel.findAll(".seg button").some((b) => b.text() === "Map")).toBe(false);
+    panel.unmount();
   });
 });

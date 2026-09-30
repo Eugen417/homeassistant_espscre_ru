@@ -33,7 +33,7 @@ lights, the heating or the vacuum.
 
 **What.** Firmware for affordable panels, five of them today, from the 2.8-inch CYD to the 10.1-inch Guition, with
 tiles over up to eight pages, as many per page as the glass holds: lights, climate, blinds and curtains, the vacuum, media, the weather,
-history graphs, clocks and timers, your alarm with its keypad, and your cameras on every screen with room for pictures. A tile can take the whole page, one big switch you push without
+history graphs, clocks and timers, your alarm with its keypad, and your cameras and a map of where everyone is on every screen with room for pictures. A tile can take the whole page, one big switch you push without
 looking, and a tile can go to another page. An automation can put an alert on every screen when someone rings
 the bell, and a screen with room for pictures shows who is there with the doorbell camera's picture. A tap can run any
 action Home Assistant has for a tile, and Dark mode suits a screen beside the bed.
@@ -124,6 +124,15 @@ home fits on one page.
   <img src="docs/images/waveshare43-select-card.png" width="49%" alt="The select card of a washing machine on the 4.3-inch Waveshare: its programmes in two columns, Cotton eco checked, and page dots for the rest">
 </p>
 <p align="center"><sub>The weather with the coming days, and on a bigger tile the whole week with a bar from each day's low to its high. A thermostat has its − / + and a bar with a key per mode; an airco shows heat and cool first and the rest behind "…". A live camera on a taller tile fills the card with its picture and its name, or shows the whole picture. Your alarm is a tile in Home Assistant's colours, with a key for every mode and Home Assistant's keypad when the panel asks for a code; someone coming in wakes every screen with the keypad to disarm. A lock locks with one tap and asks for a second one before it unlocks; its card has Open door where the lock can open its latch, and Home Assistant's keypad when the lock asks for a code. A select, such as a washing machine's programme, opens a list with a check at the one it is on. On every screen with the memory for it, every page is built ahead and kept, so the next one is there the moment you turn to it. Rendered from the firmware's own LVGL code with a demo home.</sub></p>
+
+## Where everyone is
+
+<p align="center">
+  <img src="docs/images/guition-map.png" width="25%" alt="The 4-inch Guition with a map tile of two by two cells: the streets and canals of a city in soft greys, a marker with initials for each of four people, their first names beside them, and the tile's name Family at the bottom, above a lamp and a temperature">
+  <img src="docs/images/guition-map-dark.png" width="25%" alt="The same map over the whole page in Dark mode: dark streets, the four people in their own colours, and the name Family at the bottom">
+  <img src="docs/images/waveshare43-map.png" width="41%" alt="The 4.3-inch Waveshare with a tall map of the family and a wide map around home, where the people away from home are small markers at the edge pointing the way to them">
+</p>
+<p align="center"><sub>A person tile can be a map of where everyone on it is: framed around everyone, around home or around that person, on every tile size of a screen with room for pictures. ESP Screens draws it in the screen's own colours, light or dark, from Home Assistant's own map tiles, and draws it again only when someone moves; the screen gets a picture, never a location (<a href="docs/MAP.md">how</a>). Rendered from the firmware's own LVGL code with a made-up household; map data © OpenStreetMap contributors.</sub></p>
 
 ## A clock beside your bed
 

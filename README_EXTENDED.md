@@ -209,6 +209,10 @@ on the screen itself, and how updates work.
   four seconds, with the round back key; standby and **Back to page 1** close it. The same camera can bring its
   picture to an alert ([With a camera picture](#with-a-camera-picture)). The CYD has no memory for pictures and
   the editor doesn't offer it camera tiles. How the picture travels: [docs/CAMERA.md](docs/CAMERA.md).
+- **A map** on a person tile (app 0.4.33 / firmware 0.20.0): the streets around the people on the card, your
+  zones, and a marker with each person's initials, framed around everyone, around home or around that person.
+  ESP Screens draws it in the screen's own colours, light or dark, from Home Assistant's own map tiles, and the
+  screen gets a picture, never a location. It is drawn again when someone moves. [docs/MAP.md](docs/MAP.md).
 - **History card** for sensors, numbers, binary sensors, people, and switches, the way Home
   Assistant shows history: a line with an axis in round steps and clock times for numbers,
   with the highest and lowest moment, and a timeline with the time in each state for on/off,

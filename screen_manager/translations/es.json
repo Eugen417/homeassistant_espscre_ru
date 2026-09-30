@@ -548,6 +548,8 @@
         "pages": "Una pantalla tiene 1 página. | Una pantalla tiene de 1 a {n} páginas.",
         "eight_pages": "Estos mosaicos no caben en las páginas de esta pantalla; elimina un mosaico o haz uno más pequeño.",
         "camera_unsupported": "Esta pantalla no puede mostrar imágenes de cámara.",
+        "map_unsupported": "Esta pantalla no puede mostrar un mapa.",
+        "map_entities": "Un mapa muestra como máximo {n} personas, cada una una vez, junto a la persona del mosaico.",
         "firmware_first": "Para estos mosaicos, instala antes el firmware {version} o posterior en la pantalla.",
         "entity_gone": "Una de las entidades elegidas ya no existe. Busca la entidad nueva.",
         "ids_too_long": "Juntos, los ID de entidad de estos mosaicos son demasiado largos para caber en un mensaje a la pantalla; elimina algunos mosaicos."
@@ -1491,7 +1493,8 @@
       "flip": "reloj de paletas",
       "sunpath": "recorrido del sol",
       "live": "imagen en vivo",
-      "cover": "carátula"
+      "cover": "carátula",
+      "map": "mapa"
     },
     "sizes": {
       "single": "normal",
@@ -1530,6 +1533,9 @@
         "cover": "Carátula",
         "cover_hint": "La carátula de lo que suena en el lugar del icono, como en el propio mosaico de Home Assistant; un reproductor sin imagen conserva su icono. Un toque sigue abriendo la tarjeta.",
         "cover_needs_firmware": "La carátula en el mosaico necesita el firmware 0.2.78 o más reciente: pulsa Actualizar en la pantalla después de guardar.",
+        "map": "Mapa",
+        "map_hint": "Dónde están esta persona y las que añadas, en un mapa tranquilo con los colores de la pantalla. Home Assistant aporta las calles de OpenStreetMap; la pantalla solo recibe la imagen, nunca una ubicación. Se vuelve a dibujar cuando alguien se mueve.",
+        "map_needs_firmware": "Un mapa necesita el firmware 0.20.0 o posterior: pulsa Actualizar en la pantalla después de guardar.",
         "no_graph": "Home Assistant no tiene valores numéricos para esta entidad, así que el gráfico queda vacío. Elige otra presentación.",
         "no_forecast": "Este servicio meteorológico no tiene previsión diaria en Home Assistant. Elige otra presentación.",
         "tall_cover_hint": "",
@@ -1549,6 +1555,27 @@
           "label": "Sobre la imagen",
           "name": "Nombre",
           "none": "Nada"
+        }
+      },
+      "map": {
+        "framing": {
+          "label": "Mostrar",
+          "everyone": "Todos",
+          "home": "Alrededor de casa",
+          "person": "Alrededor de esta persona"
+        },
+        "distance": {
+          "label": "Distancia",
+          "neighbourhood": "Barrio",
+          "street": "Calle",
+          "town": "Ciudad",
+          "region": "Región"
+        },
+        "with": {
+          "label": "También en el mapa",
+          "hint": "Las personas que se muestran junto a esta, cada una con su propio color.",
+          "add": "Añadir una persona",
+          "remove": "Quitar a {name}"
         }
       },
       "controls": {

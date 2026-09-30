@@ -53,7 +53,8 @@ export function validatePageShape(layout: PageLayout) {
     for (const tile of page.tiles) {
       fields(tile, ['id', 'content', 'placement', 'appearance', 'interaction', 'children'], ['id', 'content', 'placement', 'appearance', 'interaction']);
       fields(tile.placement, ['row', 'column', 'columns', 'rows']);
-      fields(tile.appearance, ['label', 'presentation', 'display', 'icon', 'background', 'historyHours', 'refresh', 'subtitle', 'fit', 'overlay'], ['label']);
+      fields(tile.appearance, ['label', 'presentation', 'display', 'icon', 'background', 'historyHours', 'refresh', 'subtitle', 'fit', 'overlay',
+        'mapEntities', 'mapFraming', 'mapDistance'], ['label']);
       fields(tile.interaction, ['tap', 'inline', 'controls', 'action', 'guard'], []);
       const content = tile.content;
       fields(content, ['kind', 'entityId', 'name', 'target'], ['kind']);
@@ -107,7 +108,17 @@ export function validateCardOptions(tile: PageTile, entityId: string, size: stri
   if (a.refresh !== undefined && (a.display !== 'live' || !rules.refresh.includes(a.refresh))) fail('normalization');
   // How a live picture fills a taller card (app 0.3.8): only with the live picture, and a default is never stored.
   for (const [key, choices] of Object.entries(rules.picture) as [('fit' | 'overlay'), string[]][])
-    if (a[key] !== undefined && (a.display !== 'live' || !choices.includes(a[key]!) || a[key] === choices[0])) fail('normalization');
+    if (a[key] !== undefined && ((a.display !== 'live' && !(key === 'overlay' && a.display === 'map')) || !choices.includes(a[key]!) || a[key] === choices[0])) fail('normalization');
+  // A map card (app 0.4.33): its framing and distance, defaults never stored, and who rides along beside its person.
+  const map = ofType('person')?.map;
+  for (const [value, choices] of [[a.mapFraming, map?.framing ?? []], [a.mapDistance, map?.distance ?? []]] as [string | undefined, string[]][])
+    if (value !== undefined && (a.display !== 'map' || !choices.includes(value) || value === choices[0])) fail('normalization');
+  if (a.mapEntities !== undefined) {
+    const list = a.mapEntities;
+    if (a.display !== 'map' || !Array.isArray(list) || !list.length) fail('normalization');
+    if (list.length > (map?.max ?? 8) - 1 || new Set(list).size !== list.length ||
+        list.some((id) => typeof id !== 'string' || !matches(/^[a-z0-9_]+\.[a-z0-9_]+$/, id) || !(map?.with ?? []).includes(id.split('.')[0]) || id === entityId)) fail();
+  }
   if (a.subtitle !== undefined) {
     const sub = a.subtitle;
     if (typeof sub !== 'string' || bytes(sub) > 96 || sub === 'auto' ||

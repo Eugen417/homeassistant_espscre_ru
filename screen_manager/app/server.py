@@ -1,6 +1,6 @@
 """HA Ingress app. HA writes: text.set_value on discovered inboxes (or the screen_message action on firmware 0.2.33+), each screen's alert actions when an alert event for every screen fires, and one persistent notification when a nightly update stops."""
 import asyncio
-from collections import Counter
+from collections import Counter, OrderedDict
 import contextlib
 import ipaddress
 import json
@@ -22,6 +22,8 @@ from firmware import Firmware
 import ha_catalogue
 import light_effects
 import light_groups
+import map_card
+import map_tiles
 import tile_icons
 from updates import Updater
 
@@ -547,6 +549,23 @@ class HomeAssistant:
         own proxy first), or '' without one."""
         return media_cover(self.states.get(entity, {}).get('attributes', {}))
 
+    async def map_tile(self, z, x, y):
+        """One vector tile of Home Assistant's own map (`map_tiles`, app 0.4.33): a zoom and two whole numbers, never a
+        name or an entity, through Home Assistant, which fetches it from OpenStreetMap with its own identification."""
+        if any(type(n) is not int for n in (z, x, y)) or not 0 <= z <= map_card.VECTOR_MAX_ZOOM or \
+                not 0 <= x < (1 << z) or not 0 <= y < (1 << z):
+            raise ValueError('a tile outside the map')
+        async with self.session.get(f'{self.base}{map_tiles.PATH}/{z}/{x}/{y}.mvt',
+                                    headers={'Authorization': 'Bearer ' + self.token},
+                                    timeout=ClientTimeout(total=map_tiles.FETCH_SECONDS), allow_redirects=False) as response:
+            response.raise_for_status()
+            raw = bytearray()
+            async for chunk in response.content.iter_chunked(65536):
+                raw += chunk
+                if len(raw) > map_tiles.MAX_TILE_BYTES:
+                    raise ValueError('tile too large')
+            return bytes(raw)
+
     async def media_image(self, entity):
         """The cover of a media player (app 0.2.77), fetched only from trusted Home Assistant local routes or from a
         non-private external URL. We do not follow redirects, and we reject private/loopback addresses and path traversal
@@ -753,6 +772,12 @@ class Manager:
                                              fetch_cover=lambda entity: self.ha.media_image(entity),
                                              picture=lambda entity: self.ha.media_picture(entity))
         self.alert_cameras = {}
+        # The streets of the map cards (app 0.4.33): one tile source for every screen, through Home Assistant. And the
+        # last maps drawn, by their mark, frame and look: a screen in dark mode and one in light mode each have their
+        # own, and a page that loads again for its camera does not draw its map again.
+        self.map_source = map_tiles.TileSource(lambda z, x, y: self.ha.map_tile(z, x, y))
+        self.map_renders = OrderedDict()
+        self.preview_tiles = []
         # The action behind an alert's button (app 0.2.91): node -> (key, action, data) of the alert on that screen.
         self.alert_actions = {}
         self.store = LayoutStore(self.path, self.verified_grid)
@@ -1519,6 +1544,10 @@ class Manager:
             return tuple(vacuum_related(tile['entity'], self.device_entries(tile['entity']), self.ha.states).values())
         if tile['entity'].startswith('cover.'):
             return tuple(cover_related(tile['entity'], self.device_entries(tile['entity']), self.ha.states).values())
+        # A map (app 0.4.33) is drawn from everyone on it and the zones around them: a move or a zone's edit reaches
+        # its movement mark only through this.
+        if (tile.get('options') or {}).get('display') == 'map':
+            return tuple(map_card.shown(tile)[1:]) + tuple(e for e in self.ha.states if isinstance(e, str) and e.startswith('zone.'))
         if tile['entity'].startswith('light.'):
             # The selects and numbers of its device (effects page), and a group's lamps (lamp page, app 0.3.16).
             return (tuple(light_effects.related(tile['entity'], self.device_entries(tile['entity']), self.ha.states)) +
@@ -1561,6 +1590,9 @@ class Manager:
         # A CYD has no memory for camera images, whatever its firmware; say so before asking for an update.
         if any(t['entity'].split('.')[0] in CAMERA_DOMAINS for t in layout['tiles']) and board_of(screen) not in camera_feed.BOXES:
             raise ValueError(t('addon.errors.layout.camera_unsupported'))
+        # A map is a picture too (app 0.4.33).
+        if any((t.get('options') or {}).get('display') == 'map' for t in layout['tiles']) and board_of(screen) not in camera_feed.BOXES:
+            raise ValueError(t('addon.errors.layout.map_unsupported'))
         needed = self.needs_firmware(inbox, layout, screen)
         if needed:
             raise ValueError(t('addon.errors.layout.firmware_first', version=needed))
@@ -2215,7 +2247,9 @@ class Manager:
         # another. Authorize against any configured pictured tile, not the last
         # occurrence of an entity in the document.
         placed_tiles = self.layouts.get(inbox, {}).get('tiles', [])
-        pictured = lambda tile: (tile.get('options') or {}).get('display') in ('live', 'cover') and \
+        # A map (app 0.4.33) is a person's tile set to it, drawn here from that saved tile alone.
+        mapped = lambda tile: (tile.get('options') or {}).get('display') == 'map' and camera_feed.map_supported(tile['entity'])
+        pictured = lambda tile: mapped(tile) or (tile.get('options') or {}).get('display') in ('live', 'cover') and \
             ((tile.get('options') or {}).get('display') == 'cover') == camera_feed.cover_supported(tile['entity'])
         tiles = {}
         for tile in placed_tiles:
@@ -2237,11 +2271,23 @@ class Manager:
             (lambda n, entity: next((o for o in tiles[entity] if o.get('display') == 'live'), None))
         # How each picture fills its card (app 0.3.8).
         modes = camera_feed.picture_modes(screen, options_of, entities) if atlas else None
+        # The maps of the page (app 0.4.33), each its own saved tile, drawn in the look the screen is in.
+        renders = None
+        if any(camera_feed.map_supported(entity) for entity in entities):
+            if not atlas or not camera_feed.can_show_map(screen):
+                LOG.info('A map for %s: %s cannot draw one yet', ', '.join(entities), screen['name'])
+                return
+            placed = [placed_tiles[own[n]] if own is not None else next(t for t in placed_tiles if t['entity'] == entity and mapped(t))
+                      for n, entity in enumerate(entities)]
+            dark = camera_feed.live_dark(request)
+            shape = camera_feed.shape_of(screen)
+            renders = [self.map_render(tile, shape, dark) if mapped(tile) else None for tile in placed]
         url, listing = '', ','.join(entities)
         base = await camera_feed.base_url(self.ha.request)
         if base:
             # A screen whose decoder reads 8-bit colour gets a third of the bytes (app 0.3.8).
-            extra = {'compact': camera_feed.compact_pictures(screen), **({'atlas': atlas, 'modes': modes} if atlas else {})}
+            extra = {'compact': camera_feed.compact_pictures(screen), **({'atlas': atlas, 'modes': modes} if atlas else {}),
+                     **({'renders': renders} if renders else {})}
             found = await self.camera.live(entities, size, grounds, paces, **extra)
             if found:
                 listing = ','.join(found[2])
@@ -2251,6 +2297,39 @@ class Manager:
             LOG.warning('Live pictures: no address for this app on the LAN; set SCREEN_CAMERA_URL')
         await self.send_auxiliary(inbox, {'v': 1, 'op': 'camera', 't': 'live', 'e': listing, 'u': url}, action, request)
         LOG.info('Live pictures of %s on %s%s', ', '.join(entities), screen['name'], '' if url else ': no image')
+
+    # The maps kept drawn: a page's maps in both looks and the page before it.
+    MAP_RENDERS_KEPT = 12
+
+    def map_render(self, tile, shape, dark):
+        """(mark, draw) of one saved map tile for CameraFeed.live: the mark is its movement mark and the look, `draw`
+        reads Home Assistant's states and asks for the streets when it runs. A drawn card is kept by mark, frame and
+        look, so two screens in different looks each keep their own, and one whose streets did not all come is not."""
+        board = map_card.Board(shape)
+        look = 'd' if dark else 'l'
+
+        def mark():
+            # Without streets to be had it is another picture, so the one with streets replaces it when they come back.
+            return f'{map_card.fingerprint(tile, self.ha.states)}{look}{"" if self.map_source.available() else "-"}'
+
+        async def draw(width, height):
+            key = (mark(), width, height, board.scale, board.label)
+            if key in self.map_renders:
+                self.map_renders.move_to_end(key)
+                return self.map_renders[key]
+            view = map_card.view_for(tile, self.ha.states, (width, height), board)
+            wanted = view.tiles()
+            streets = await self.map_source.tiles(wanted)
+            image = await asyncio.get_running_loop().run_in_executor(
+                None, lambda: map_card.render_tile(tile, self.ha.states, (width, height), board, dark, streets))
+            if self.map_source.available() and len(streets) < len(wanted):
+                image.info['provisional'] = True
+            else:
+                self.map_renders[key] = image
+                while len(self.map_renders) > self.MAP_RENDERS_KEPT:
+                    self.map_renders.popitem(last=False)
+            return image
+        return mark, draw
 
     async def cover_message(self, entity, size, background):
         """The screen message with a link to a media player's cover at `size` with `background` behind the corners,
@@ -2916,6 +2995,8 @@ def create_app(manager, development=False):
         record = {'format': PAGE_FORMAT, 'sourceGrid': {'columns': columns, 'rows': rows},
                   'layout': validate_document(data.get('layout'), Grid(columns, rows))}
         tiles = compile_tiles(record['layout'], grid_of_record(record))
+        # The map tiles of the page on the mockup are drawn from these (preview_images), as a screen's from its saved ones.
+        manager.preview_tiles = tiles
         values = [await manager.tile_message(index, tile, lamps=True) for index, tile in enumerate(tiles)]
         bars = [manager.header_message({'header': {'items': bar_items(page)}})['items']
                 for page in record['layout']['pages']]

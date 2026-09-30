@@ -548,6 +548,8 @@
         "pages": "Ekran ma 1 stronę. | Ekran ma od 1 do {n} stron. | Ekran ma od 1 do {n} stron.",
         "eight_pages": "Te kafelki nie mieszczą się na stronach tego ekranu; usuń kafelek albo zmniejsz któryś z nich.",
         "camera_unsupported": "Ten ekran nie może pokazywać obrazu z kamery.",
+        "map_unsupported": "Ten ekran nie może pokazać mapy.",
+        "map_entities": "Mapa pokazuje najwyżej {n} osób, każdą raz, obok osoby z kafelka.",
         "firmware_first": "Dla tych kafelków najpierw zainstaluj na ekranie firmware {version} lub nowszy.",
         "entity_gone": "Wybrana encja już nie istnieje. Wyszukaj nową encję.",
         "ids_too_long": "Identyfikatory encji tych kafelków są razem za długie, by zmieścić się w jednej wiadomości do ekranu; usuń kilka kafelków."
@@ -1491,7 +1493,8 @@
       "flip": "zegar klapkowy",
       "sunpath": "tor słońca",
       "live": "obraz na żywo",
-      "cover": "okładka albumu"
+      "cover": "okładka albumu",
+      "map": "mapa"
     },
     "sizes": {
       "single": "normalny",
@@ -1530,6 +1533,9 @@
         "cover": "Okładka albumu",
         "cover_hint": "Okładka albumu tego, co gra, w miejscu ikony, jak na kafelku Home Assistant; odtwarzacz bez obrazu zachowuje ikonę. Dotknięcie nadal otwiera kartę.",
         "cover_needs_firmware": "Okładka albumu na kafelku wymaga firmware 0.2.78 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie.",
+        "map": "Mapa",
+        "map_hint": "Gdzie jest ta osoba i osoby, które dodasz, na spokojnej mapie w kolorach ekranu. Home Assistant dostarcza ulice z OpenStreetMap; ekran dostaje tylko obraz, nigdy lokalizację. Mapa jest rysowana od nowa, gdy ktoś się przemieści.",
+        "map_needs_firmware": "Mapa wymaga oprogramowania 0.20.0 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie.",
         "no_graph": "Home Assistant nie ma wartości liczbowych dla tej encji, więc wykres pozostanie pusty. Wybierz inny widok.",
         "no_forecast": "Ta usługa pogodowa nie ma prognozy dziennej w Home Assistant. Wybierz inny widok.",
         "tall_cover_hint": "",
@@ -1549,6 +1555,27 @@
           "label": "Na obrazie",
           "name": "Nazwa",
           "none": "Nic"
+        }
+      },
+      "map": {
+        "framing": {
+          "label": "Pokaż",
+          "everyone": "Wszyscy",
+          "home": "Wokół domu",
+          "person": "Wokół tej osoby"
+        },
+        "distance": {
+          "label": "Odległość",
+          "neighbourhood": "Okolica",
+          "street": "Ulica",
+          "town": "Miasto",
+          "region": "Region"
+        },
+        "with": {
+          "label": "Także na mapie",
+          "hint": "Osoby pokazane obok tej osoby, każda w swoim kolorze.",
+          "add": "Dodaj osobę",
+          "remove": "Usuń {name}"
         }
       },
       "controls": {

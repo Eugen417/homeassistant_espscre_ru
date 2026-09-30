@@ -164,7 +164,9 @@ def shapes():
                  'fonts': {name: int(values[key]) for name, key in (('watch_value', 'FONT_WATCH_VALUE_SIZE'),
                                                                    ('sublabel_big', 'FONT_SUBLABEL_BIG_SIZE'),
                                                                    ('sublabel', 'FONT_SUBLABEL_SIZE'),
-                                                                   ('icon_mini', 'FONT_ICON_MINI_SIZE'))},
+                                                                   ('icon_mini', 'FONT_ICON_MINI_SIZE'),
+                                                                   # A tile's name: the map card draws it (app 0.4.33).
+                                                                   ('label', 'FONT_LABEL_SIZE'))},
                  # The glass's grid in its own pixels (the look's GRID_MARGIN, GRID_GAP_X and TILE_PAD): the editor's
                  # mockup works out a card's width from them as runtime_tiles::cell_content_width does (app 0.4.32).
                  'spacing': {name: int(values[key]) for name, key in (('margin', 'GRID_MARGIN'), ('gap', 'GRID_GAP_X'),

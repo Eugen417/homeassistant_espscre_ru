@@ -1,0 +1,369 @@
+"""A map on a person tile (app 0.4.33, firmware 0.20.0, docs/MAP.md): the app reads Home Assistant's vector tiles, draws
+the card in the screen's own colours and sends it in the page's picture strip; the screen gets pixels, never a place."""
+from manager_fixtures import with_screen_grid, seed_layout
+import asyncio
+import gzip
+import importlib.util
+import io
+import json
+from pathlib import Path
+import sys
+import tempfile
+import unittest
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'screen_manager/app'))
+import camera_feed  # noqa: E402
+import map_card  # noqa: E402
+import map_tiles  # noqa: E402
+import vector_tiles  # noqa: E402
+from core import MAP_OPTIONS, min_firmware, screen_options, extras, validate_layout  # noqa: E402
+
+HAS_PIL = importlib.util.find_spec('PIL') is not None
+HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
+
+
+# ----- A vector tile, written the way the specification says, so the reader is tested against the format -----
+
+def varint(n):
+    out = bytearray()
+    while True:
+        byte = n & 0x7F
+        n >>= 7
+        out.append(byte | (0x80 if n else 0))
+        if not n:
+            return bytes(out)
+
+
+def field(number, wire, payload):
+    key = varint(number << 3 | wire)
+    return key + (varint(len(payload)) + payload if wire == 2 else varint(payload))
+
+
+def zigzag(n):
+    return (n << 1) ^ (n >> 31)
+
+
+def commands(parts, close):
+    out, x, y = [], 0, 0
+    for part in parts:
+        out.append(1 | 1 << 3)
+        out += [zigzag(part[0][0] - x), zigzag(part[0][1] - y)]
+        x, y = part[0]
+        rest = part[1:]
+        out.append(2 | len(rest) << 3)
+        for px, py in rest:
+            out += [zigzag(px - x), zigzag(py - y)]
+            x, y = px, py
+        if close:
+            out.append(7 | 1 << 3)
+    return out
+
+
+def layer(name, features, extent=4096):
+    """features: (geometry type, {key: string value}, parts)"""
+    keys, values, body = [], [], b''
+    for kind, tags, parts in features:
+        tag_ids = []
+        for key, value in tags.items():
+            if key not in keys:
+                keys.append(key)
+            if value not in values:
+                values.append(value)
+            tag_ids += [keys.index(key), values.index(value)]
+        packed = lambda items: b''.join(varint(i) for i in items)
+        feature = field(2, 2, packed(tag_ids)) + field(3, 0, kind) + field(4, 2, packed(commands(parts, kind == 3)))
+        body += field(2, 2, feature)
+    body += b''.join(field(3, 2, key.encode()) for key in keys)
+    body += b''.join(field(4, 2, field(1, 2, value.encode())) for value in values)
+    return field(3, 2, field(15, 0, 2) + field(1, 2, name.encode()) + body + field(5, 0, extent))
+
+
+SQUARE = [(0, 0), (4096, 0), (4096, 4096), (0, 4096)]
+TILE = (layer('water_polygons', [(3, {'kind': 'water'}, [[(1000, 1000), (3000, 1000), (3000, 3000), (1000, 3000)]])]) +
+        layer('streets', [(2, {'kind': 'primary'}, [[(0, 2048), (4096, 2048)]]),
+                          (2, {'kind': 'footway'}, [[(2048, 0), (2048, 4096)]])]) +
+        layer('addresses', [(1, {'housenumber': '12'}, [[(10, 10)]])]))
+
+
+class VectorTiles(unittest.TestCase):
+    def test_reads_the_layers_it_is_asked_for_gzipped_or_not(self):
+        for raw in (TILE, gzip.compress(TILE)):
+            tile = vector_tiles.decode(raw, map_card.LAYERS)
+            self.assertEqual(sorted(tile), ['streets', 'water_polygons'], 'a layer the card does not draw is skipped')
+            extent, streets = tile['streets']
+            self.assertEqual(extent, 4096)
+            self.assertEqual([f.tags['kind'] for f in streets], ['primary', 'footway'])
+            self.assertEqual(streets[0].parts, [[(0, 2048), (4096, 2048)]])
+            water, = tile['water_polygons'][1]
+            self.assertEqual(water.kind, vector_tiles.POLYGON)
+            self.assertEqual(water.parts[0][0], water.parts[0][-1], 'a closed ring ends where it starts')
+
+    def test_refuses_what_is_not_a_tile(self):
+        with self.assertRaises(Exception):
+            vector_tiles.decode(b'\x1a\xff\xff\xff\xff\x0f')
+
+
+# ----- What the card shows -----
+
+def zone(entity, name, lat, lon, radius, **extra):
+    return entity, {'state': '0', 'attributes': {'friendly_name': name, 'latitude': lat, 'longitude': lon, 'radius': radius, **extra}}
+
+
+def person(entity, name, state, lat=None, lon=None):
+    attributes = {'friendly_name': name}
+    if lat is not None:
+        attributes.update(latitude=lat, longitude=lon, gps_accuracy=10)
+    return entity, {'state': state, 'attributes': attributes}
+
+
+STATES = dict([
+    zone('zone.home', 'Home', 52.3587, 4.8682, 90),
+    zone('zone.office', 'Office', 52.3760, 4.8978, 140),
+    zone('zone.away', 'Away', 40.0, -3.0, 500, passive=True),
+    person('person.alex', 'Alex Morgan', 'home', 52.35878, 4.86835),
+    person('person.sam', 'Sam', 'Office', 52.37590, 4.89800),
+    person('person.jo', 'Jo', 'unknown'),
+])
+
+
+class Card(unittest.TestCase):
+    def test_zones_and_people(self):
+        zones = map_card.zones_of(STATES)
+        self.assertEqual([z.entity for z in zones], ['zone.home', 'zone.office'], 'home first; a passive zone is no place')
+        alex, sam, jo = map_card.people_of(['person.alex', 'person.sam', 'person.jo'], STATES)
+        self.assertEqual((alex.colour, sam.colour, jo.colour), (0, 1, 2), 'a colour per place on the card')
+        self.assertFalse(jo.placed)
+        self.assertEqual(map_card.zone_of(alex, zones).entity, 'zone.home')
+        self.assertEqual(map_card.initials('Alex Morgan'), 'AM')
+        self.assertEqual(map_card.initials('sam'), 'S')
+
+    def test_everyone_stays_inside_the_card_clear_of_its_name(self):
+        people = map_card.people_of(['person.alex', 'person.sam'], STATES)
+        zones = map_card.zones_of(STATES)
+        for size in ((218, 118), (448, 248), (448, 400)):
+            view = map_card.frame_view('everyone', 'neighbourhood', people, zones, size, people[0], (16, 44))
+            for p in people:
+                x, y = view.point(p.lat, p.lon)
+                self.assertTrue(0 <= x <= size[0] and 16 <= y <= size[1] - 44, (size, p.name, x, y))
+
+    def test_fixed_views_sit_on_home_or_on_the_person(self):
+        people = map_card.people_of(['person.sam', 'person.alex'], STATES)
+        zones = map_card.zones_of(STATES)
+        home = map_card.frame_view('home', 'street', people, zones, (300, 200))
+        self.assertEqual((round(home.lat, 4), round(home.lon, 4)), (52.3587, 4.8682))
+        self.assertEqual(home.zoom, map_card.DISTANCES['street'])
+        own = map_card.frame_view('person', 'town', people, zones, (300, 200), people[0])
+        self.assertEqual((own.lat, own.lon, own.zoom), (people[0].lat, people[0].lon, map_card.DISTANCES['town']))
+        # Nobody placed: the card sits on home.
+        nobody = map_card.people_of(['person.jo'], STATES)
+        self.assertEqual(map_card.frame_view('everyone', 'town', nobody, zones, (300, 200)).lat, 52.3587)
+
+    def test_a_view_asks_for_the_tiles_under_it_at_zoom_14_at_most(self):
+        view = map_card.View(52.3587, 4.8682, 16.5, (448, 400))
+        tiles = view.tiles()
+        self.assertTrue(tiles and all(z == 14 for z, _, _ in tiles))
+        self.assertLessEqual(len(tiles), 4)
+        self.assertEqual(map_card.View(52.3587, 4.8682, 12.3, (448, 400)).tile_zoom, 12)
+
+    def test_the_mark_follows_moves_not_drift(self):
+        tile = {'entity': 'person.alex', 'name': '', 'options': {'display': 'map', 'map': ['person.sam']}}
+        mark = map_card.fingerprint(tile, STATES)
+        self.assertRegex(mark, r'^[0-9a-f]{12}$')
+        self.assertNotIn('52', mark.replace(mark, ''), 'no place in the mark')
+        moved = dict(STATES)
+        moved['person.sam'] = person('person.sam', 'Sam', 'Office', 52.37591, 4.89801)[1]
+        self.assertEqual(map_card.fingerprint(tile, moved), mark, 'a metre of drift is no new picture')
+        moved['person.sam'] = person('person.sam', 'Sam', 'not_home', 52.3659, 4.8831)[1]
+        self.assertNotEqual(map_card.fingerprint(tile, moved), mark)
+        # The card's own choices and name are part of what it draws.
+        for options in ({'framing': 'home'}, {'distance': 'street', 'framing': 'person'}, {'overlay': 'none'}):
+            other = {**tile, 'options': {**tile['options'], **options}}
+            self.assertNotEqual(map_card.fingerprint(other, STATES), mark, options)
+        self.assertNotEqual(map_card.fingerprint({**tile, 'name': 'Family'}, STATES), mark)
+        zones = dict(STATES)
+        zones['zone.office'] = zone('zone.office', 'Office', 52.3760, 4.8978, 200)[1]
+        self.assertNotEqual(map_card.fingerprint(tile, zones), mark, 'a zone drawn larger is a new picture')
+
+    def test_the_board_sizes_what_is_drawn(self):
+        shapes = json.loads((ROOT / 'screen_manager/app/boards.json').read_text())
+        guition, waveshare = map_card.Board(shapes['guition']), map_card.Board(shapes['waveshare43'])
+        self.assertEqual((guition.scale, guition.label), (1.0, 18))
+        self.assertGreater(waveshare.scale, 1.2)
+        self.assertEqual(waveshare.label, shapes['waveshare43']['fonts']['label'])
+        self.assertEqual(map_card.Board(None).label, 18)
+
+
+@unittest.skipUnless(HAS_PIL, 'Pillow')
+class Drawing(unittest.TestCase):
+    def tile(self, **options):
+        return {'entity': 'person.alex', 'name': 'Family', 'options': {'display': 'map', 'map': ['person.sam'], **options}}
+
+    def test_a_card_is_exactly_its_frame_in_either_look(self):
+        board = map_card.Board(None)
+        tile = self.tile()
+        view = map_card.view_for(tile, STATES, (218, 118), board)
+        streets = {key: vector_tiles.decode(TILE, map_card.LAYERS) for key in view.tiles()}
+        light = map_card.render_tile(tile, STATES, (218, 118), board, False, streets)
+        dark = map_card.render_tile(tile, STATES, (218, 118), board, True, streets)
+        self.assertEqual((light.size, dark.size, light.mode), ((218, 118), (218, 118), 'RGB'))
+        # The ground is the screen's own: light land in the light look, dark in the dark one.
+        self.assertGreater(sum(light.getpixel((5, 60))), 600)
+        self.assertLess(sum(dark.getpixel((5, 60))), 150)
+        # The name's pill in the card's colour at the bottom left.
+        self.assertEqual(light.getpixel((14, 118 - 8 - 14)), (255, 255, 255))
+
+    def test_without_streets_or_a_name_it_still_draws(self):
+        board = map_card.Board(None)
+        image = map_card.render_tile(self.tile(overlay='none'), STATES, (160, 100), board, False, {})
+        self.assertEqual(image.size, (160, 100))
+        nobody = {'entity': 'person.jo', 'name': '', 'options': {'display': 'map'}}
+        self.assertEqual(map_card.render_tile(nobody, STATES, (160, 100), board, True, {}).size, (160, 100))
+
+
+# ----- What is saved, and what a screen gets -----
+
+class Layout(unittest.TestCase):
+    def save(self, options, entity='person.alex'):
+        return validate_layout({'title': 'Home', 'tiles': [{'entity': entity, 'name': '', 'options': options}]})['tiles'][0]
+
+    def test_a_map_keeps_its_choices_and_no_defaults(self):
+        tile = self.save({'display': 'map', 'map': ['person.sam'], 'framing': 'home', 'distance': 'street', 'overlay': 'none'})
+        self.assertEqual(tile['options'], {'display': 'map', 'map': ['person.sam'], 'framing': 'home', 'distance': 'street', 'overlay': 'none'})
+        tile = self.save({'display': 'map', 'map': [], 'framing': MAP_OPTIONS['framing'][0], 'distance': MAP_OPTIONS['distance'][0], 'overlay': 'name'})
+        self.assertEqual(tile['options'], {'display': 'map'}, 'defaults and an empty list are not stored')
+        # Another display drops what only a map keeps.
+        self.assertEqual(self.save({'display': 'standard', 'map': ['person.sam'], 'framing': 'home'})['options'], {'display': 'standard'})
+        self.assertEqual(min_firmware({'tiles': [tile]}), (0, 20, 0))
+
+    def test_who_rides_along_is_checked(self):
+        for bad in ({'framing': 'nowhere'}, {'distance': 'moon'}, {'map': 'person.sam'}, {'map': ['person.alex']},
+                    {'map': ['person.sam', 'person.sam']}, {'map': ['light.hall']}, {'map': [f'person.p{n}' for n in range(8)]}):
+            with self.assertRaises(ValueError, msg=bad):
+                self.save({'display': 'map', **bad})
+        with self.assertRaises(ValueError):
+            self.save({'display': 'map'}, entity='sensor.temperature')
+
+    def test_the_screen_gets_the_mark_and_never_a_place(self):
+        tile = self.save({'display': 'map', 'map': ['person.sam'], 'framing': 'home'})
+        options = screen_options(tile, STATES['person.alex']['attributes'], 'home')
+        self.assertEqual({k: v for k, v in options.items() if k != 'icon'}, {'display': 'map'})
+        extra = extras(tile, STATES)
+        self.assertEqual(list(extra), ['mk'])
+        self.assertEqual(extra['mk'], map_card.fingerprint(tile, STATES))
+        self.assertNotIn('52.', json.dumps([options, extra]))
+
+
+# ----- The streets through Home Assistant -----
+
+class Clock:
+    def __init__(self):
+        self.now = 1000.0
+
+    def __call__(self):
+        return self.now
+
+
+class Source(unittest.IsolatedAsyncioTestCase):
+    async def test_tiles_are_asked_once_and_kept(self):
+        asked = []
+
+        async def fetch(z, x, y):
+            asked.append((z, x, y))
+            return gzip.compress(TILE)
+        source = map_tiles.TileSource(fetch, Clock())
+        first = await source.tiles([(14, 8414, 5384), (14, 8415, 5384)])
+        again = await source.tiles([(14, 8414, 5384)])
+        self.assertEqual(len(first), 2)
+        self.assertEqual(asked, [(14, 8414, 5384), (14, 8415, 5384)])
+        self.assertIs(again[(14, 8414, 5384)], first[(14, 8414, 5384)])
+        # A tile outside the map is never asked for.
+        self.assertEqual(await source.tiles([(15, 0, 0), (14, -1, 0)]), {})
+        self.assertEqual(len(asked), 2)
+
+    async def test_a_home_assistant_without_tiles_is_left_alone_for_a_while(self):
+        asked, clock = [], Clock()
+
+        async def fetch(z, x, y):
+            asked.append((z, x, y))
+            raise ConnectionError('404')
+        source = map_tiles.TileSource(fetch, clock)
+        with self.assertLogs('map_tiles', 'INFO'):
+            self.assertEqual(await source.tiles([(14, 1, 1)]), {})
+        self.assertFalse(source.available())
+        self.assertEqual(await source.tiles([(14, 1, 1)]), {})
+        self.assertEqual(len(asked), 1)
+        clock.now += map_tiles.COOLDOWN
+        self.assertTrue(source.available())
+
+
+@unittest.skipUnless(HAS_PIL and HAS_AIOHTTP, 'Pillow and aiohttp')
+class Screens(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        camera_feed.base_url.__defaults__[0].clear()
+
+    async def test_a_screen_gets_its_map_in_its_own_look(self):
+        from test_camera import fake_ha, picture
+        from server import Manager
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as tmp:
+            ha = fake_ha(picture('JPEG', (900, 600)))
+            ha.states.update(STATES)
+            ha.states['sensor.d1_fw']['state'] = '0.20.0'
+            ha.states['sensor.d3_fw']['state'] = '0.19.0'
+
+            async def map_tile(z, x, y):
+                ha.log.append(('tile', (z, x, y)))
+                return TILE
+            ha.map_tile = map_tile
+            m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
+            layout = validate_layout({'title': 'Home', 'tiles': [
+                {'entity': 'person.alex', 'name': 'Family', 'options': {'display': 'map', 'map': ['person.sam']}},
+                {'entity': 'camera.max', 'name': '', 'options': {'display': 'live'}},
+                {'entity': 'person.sam', 'name': ''}]})
+            seed_layout(m, 'text.d1_tiles', layout)
+            seed_layout(m, 'text.d3_tiles', layout)
+            frames = json.dumps([[0, 0, 218, 118, 14, 0], [230, 0, 218, 118, 14, 0]])
+
+            async def ask(dark, tiles='person.alex,camera.max', idx='0,1', inbox='text.d1_tiles'):
+                ha.log.clear()
+                await m.answer_camera({'inbox': inbox, 'tiles': tiles, 'idx': idx, 'size': '54', 'bg': ','.join(['E7E7E7'] * len(tiles.split(','))),
+                                       'atlas': frames if ',' in tiles else json.dumps([[0, 0, 218, 118, 14, 0]]), 'dark': dark})
+                sent = [entry[2] for entry in ha.log if entry[0] == 'send']
+                if not sent or not sent[0]['u']:
+                    return None
+                status, raw, _ = await m.camera.serve(sent[0]['u'].rsplit('/', 1)[1][:-4])
+                self.assertEqual((status, sent[0]['e']), (200, tiles))
+                with Image.open(io.BytesIO(raw)) as image:
+                    return image.convert('RGB')
+            with self.assertLogs('screen_manager', 'INFO'):
+                light = await ask('0')
+            self.assertTrue(any(entry[0] == 'tile' for entry in ha.log), 'the streets come from Home Assistant')
+            with self.assertLogs('screen_manager', 'INFO'):
+                dark = await ask('1')
+            self.assertEqual(light.size, (448, 118))
+            self.assertGreater(sum(light.getpixel((6, 50))), 3 * sum(dark.getpixel((6, 50))), 'each look its own map')
+            self.assertEqual(len(m.map_renders), 2, 'a map kept per look')
+            # Asked again in the same look: drawn from what is kept, the streets not asked again.
+            with self.assertLogs('screen_manager', 'INFO'):
+                await ask('0')
+            self.assertFalse(any(entry[0] == 'tile' for entry in ha.log))
+            # A person on the page who is not a map tile, and a screen that cannot draw one yet: nothing.
+            for tiles, idx, inbox in (('person.sam', '2', 'text.d1_tiles'), ('person.alex', '0', 'text.d3_tiles')):
+                with self.assertLogs('screen_manager', 'INFO'):
+                    self.assertIsNone(await ask('0', tiles, idx, inbox))
+
+    async def test_a_screen_without_pictures_cannot_save_a_map(self):
+        from test_camera import fake_ha
+        from server import Manager
+        with tempfile.TemporaryDirectory() as tmp:
+            ha = fake_ha()
+            ha.states.update(STATES)
+            m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
+            with self.assertRaisesRegex(ValueError, 'map'):
+                m.save('text.d2_tiles', {'title': 'Desk', 'tiles': [
+                    {'entity': 'person.alex', 'name': '', 'options': {'display': 'map'}}]})
+
+
+if __name__ == '__main__':
+    unittest.main()

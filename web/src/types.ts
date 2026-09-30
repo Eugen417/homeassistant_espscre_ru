@@ -30,7 +30,8 @@ export type PageTile = {
   // A footprint is a rectangle. The renderer's capabilities decide which
   // rectangles it supports; the page's grid is never user-overridable.
   placement: { row: number; column: number; columns: number; rows: number };
-  appearance: { label: string; presentation?: "single" | "wide" | "tall" | "square" | "full" | `${number}x${number}`; display?: string; icon?: string; background?: string; historyHours?: number; refresh?: number; subtitle?: string; fit?: string; overlay?: string };
+  appearance: { label: string; presentation?: "single" | "wide" | "tall" | "square" | "full" | `${number}x${number}`; display?: string; icon?: string; background?: string; historyHours?: number; refresh?: number; subtitle?: string; fit?: string; overlay?: string;
+    mapEntities?: string[]; mapFraming?: string; mapDistance?: string };
   interaction: { tap?: string; inline?: string; controls?: string; action?: TileOptions["action"]; guard?: string };
   children?: ChildTile[];
 };

@@ -482,6 +482,12 @@ button.insp-sec-head:hover h3 { color: var(--ink); }
 .prop-note { grid-column: 1 / -1; padding: 2px 0 6px; display: grid; gap: 6px; }
 .prop.stack .prop-note { padding-top: 0; }
 .prop-note .sub-value, .prop-note .sub-text { margin: 0; }
+/* Who rides along on a map (app 0.4.33): one chip per person, the list to add one after them. */
+.map-with { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; width: 100%; }
+.map-person { display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 0 4px 0 10px; border-radius: 999px; font-size: 12.5px; font-weight: 500; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); }
+.map-remove { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: 13px; color: var(--muted); }
+.map-remove:hover { background: var(--line); color: var(--ink); }
+.map-with .map-add { flex: 1 1 140px; min-width: 0; }
 .gesture-note { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; color: var(--muted); line-height: 1.4; padding-left: 138px; }
 .gesture-note .ui-icon { font-size: 14px; margin-top: 1px; flex: none; }
 /* A longer list of choices: the current one in a field, the list under it. */

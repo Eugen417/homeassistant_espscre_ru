@@ -25,9 +25,10 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 18,
+   "label": 11,
    "sublabel": 11,
    "sublabel_big": 14,
    "watch_value": 22
@@ -80,9 +81,10 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 18,
+   "label": 11,
    "sublabel": 11,
    "sublabel_big": 14,
    "watch_value": 22
@@ -150,9 +152,10 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 26,
+   "label": 18,
    "sublabel": 16,
    "sublabel_big": 21,
    "watch_value": 38
@@ -225,9 +228,10 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 146,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 18,
+   "label": 11,
    "sublabel": 11,
    "sublabel_big": 14,
    "watch_value": 22
@@ -290,9 +294,10 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 26,
+   "label": 18,
    "sublabel": 16,
    "sublabel_big": 21,
    "watch_value": 38
@@ -375,9 +380,10 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 26,
+   "label": 18,
    "sublabel": 16,
    "sublabel_big": 21,
    "watch_value": 38
@@ -460,9 +466,10 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 25,
+   "label": 17,
    "sublabel": 16,
    "sublabel_big": 20,
    "watch_value": 37
@@ -545,9 +552,10 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 23,
+   "label": 16,
    "sublabel": 14,
    "sublabel_big": 18,
    "watch_value": 33
@@ -630,9 +638,10 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 23,
+   "label": 16,
    "sublabel": 14,
    "sublabel_big": 18,
    "watch_value": 33
@@ -715,9 +724,10 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 23,
+   "label": 16,
    "sublabel": 14,
    "sublabel_big": 18,
    "watch_value": 33
@@ -800,9 +810,10 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 133,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 20,
+   "label": 14,
    "sublabel": 13,
    "sublabel_big": 16,
    "watch_value": 30
@@ -875,9 +886,10 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 25,
+   "label": 17,
    "sublabel": 16,
    "sublabel_big": 20,
    "watch_value": 37
@@ -940,9 +952,10 @@
   "columns": 3,
   "dimmable": false,
   "dpi": 217,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 33,
+   "label": 23,
    "sublabel": 20,
    "sublabel_big": 27,
    "watch_value": 49
@@ -1025,9 +1038,10 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 26,
+   "label": 18,
    "sublabel": 16,
    "sublabel_big": 21,
    "watch_value": 38
@@ -1110,9 +1124,10 @@
   "columns": 4,
   "dimmable": false,
   "dpi": 133,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 20,
+   "label": 14,
    "sublabel": 13,
    "sublabel_big": 16,
    "watch_value": 30
@@ -1195,9 +1210,10 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 26,
+   "label": 18,
    "sublabel": 16,
    "sublabel_big": 21,
    "watch_value": 38
@@ -1275,9 +1291,10 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 18,
+   "label": 11,
    "sublabel": 11,
    "sublabel_big": 14,
    "watch_value": 22
@@ -1330,9 +1347,10 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 18,
+   "label": 11,
    "sublabel": 11,
    "sublabel_big": 14,
    "watch_value": 22
@@ -1400,9 +1418,10 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 26,
+   "label": 18,
    "sublabel": 16,
    "sublabel_big": 21,
    "watch_value": 38
@@ -1475,9 +1494,10 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 146,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 18,
+   "label": 11,
    "sublabel": 11,
    "sublabel_big": 14,
    "watch_value": 22
@@ -1540,9 +1560,10 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 26,
+   "label": 18,
    "sublabel": 16,
    "sublabel_big": 21,
    "watch_value": 38
@@ -1625,9 +1646,10 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 26,
+   "label": 18,
    "sublabel": 16,
    "sublabel_big": 21,
    "watch_value": 38
@@ -1710,9 +1732,10 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 25,
+   "label": 17,
    "sublabel": 16,
    "sublabel_big": 20,
    "watch_value": 37
@@ -1795,9 +1818,10 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 23,
+   "label": 16,
    "sublabel": 14,
    "sublabel_big": 18,
    "watch_value": 33
@@ -1880,9 +1904,10 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 23,
+   "label": 16,
    "sublabel": 14,
    "sublabel_big": 18,
    "watch_value": 33
@@ -1965,9 +1990,10 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 23,
+   "label": 16,
    "sublabel": 14,
    "sublabel_big": 18,
    "watch_value": 33
@@ -2045,9 +2071,10 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 18,
+   "label": 11,
    "sublabel": 11,
    "sublabel_big": 14,
    "watch_value": 22
@@ -2100,9 +2127,10 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 18,
+   "label": 11,
    "sublabel": 11,
    "sublabel_big": 14,
    "watch_value": 22
@@ -2170,9 +2198,10 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 26,
+   "label": 18,
    "sublabel": 16,
    "sublabel_big": 21,
    "watch_value": 38
@@ -2245,9 +2274,10 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 146,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 18,
+   "label": 11,
    "sublabel": 11,
    "sublabel_big": 14,
    "watch_value": 22
@@ -2310,9 +2340,10 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 26,
+   "label": 18,
    "sublabel": 16,
    "sublabel_big": 21,
    "watch_value": 38
@@ -2395,9 +2426,10 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 26,
+   "label": 18,
    "sublabel": 16,
    "sublabel_big": 21,
    "watch_value": 38
@@ -2480,9 +2512,10 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 25,
+   "label": 17,
    "sublabel": 16,
    "sublabel_big": 20,
    "watch_value": 37
@@ -2565,9 +2598,10 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 23,
+   "label": 16,
    "sublabel": 14,
    "sublabel_big": 18,
    "watch_value": 33
@@ -2650,9 +2684,10 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 23,
+   "label": 16,
    "sublabel": 14,
    "sublabel_big": 18,
    "watch_value": 33
@@ -2735,9 +2770,10 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 23,
+   "label": 16,
    "sublabel": 14,
    "sublabel_big": 18,
    "watch_value": 33
@@ -2820,9 +2856,10 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 133,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 20,
+   "label": 14,
    "sublabel": 13,
    "sublabel_big": 16,
    "watch_value": 30
@@ -2895,9 +2932,10 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 25,
+   "label": 17,
    "sublabel": 16,
    "sublabel_big": 20,
    "watch_value": 37
@@ -2960,9 +2998,10 @@
   "columns": 3,
   "dimmable": false,
   "dpi": 217,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 33,
+   "label": 23,
    "sublabel": 20,
    "sublabel_big": 27,
    "watch_value": 49
@@ -3045,9 +3084,10 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 26,
+   "label": 18,
    "sublabel": 16,
    "sublabel_big": 21,
    "watch_value": 38
@@ -3130,9 +3170,10 @@
   "columns": 4,
   "dimmable": false,
   "dpi": 133,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 20,
+   "label": 14,
    "sublabel": 13,
    "sublabel_big": 16,
    "watch_value": 30
@@ -3215,9 +3256,10 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 26,
+   "label": 18,
    "sublabel": 16,
    "sublabel_big": 21,
    "watch_value": 38
@@ -3300,9 +3342,10 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 133,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 20,
+   "label": 14,
    "sublabel": 13,
    "sublabel_big": 16,
    "watch_value": 30
@@ -3375,9 +3418,10 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 25,
+   "label": 17,
    "sublabel": 16,
    "sublabel_big": 20,
    "watch_value": 37
@@ -3440,9 +3484,10 @@
   "columns": 3,
   "dimmable": false,
   "dpi": 217,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 33,
+   "label": 23,
    "sublabel": 20,
    "sublabel_big": 27,
    "watch_value": 49
@@ -3525,9 +3570,10 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 26,
+   "label": 18,
    "sublabel": 16,
    "sublabel_big": 21,
    "watch_value": 38
@@ -3610,9 +3656,10 @@
   "columns": 4,
   "dimmable": false,
   "dpi": 133,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 20,
+   "label": 14,
    "sublabel": 13,
    "sublabel_big": 16,
    "watch_value": 30
@@ -3695,9 +3742,10 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.19.0",
+  "firmware": "0.20.0",
   "fonts": {
    "icon_mini": 26,
+   "label": 18,
    "sublabel": 16,
    "sublabel_big": 21,
    "watch_value": 38

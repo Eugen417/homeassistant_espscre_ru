@@ -6,3 +6,14 @@ firmware: 0.2.14   # the first firmware that draws this type
 displays:
   standard: {}
   watch: {}
+  # A map of where this person and the people with them are, drawn by the app as the card's picture (docs/MAP.md).
+  map:
+    screen: {pictures: true, firmware: 0.20.0}
+# How a map frames its people (everyone on it, around home, around this person), how far a fixed view reaches, whether
+# the tile's name is on it, and who may ride along beside the tile's own person: other people, eight in all.
+map:
+  framing: [everyone, home, person]
+  distance: [neighbourhood, street, town, region]
+  overlay: [name, none]
+  with: [person]
+  max: 8

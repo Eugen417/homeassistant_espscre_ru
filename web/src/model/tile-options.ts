@@ -8,17 +8,23 @@
 import rules from "./page-rules.json";
 import { isTallSize, isWideSize } from "./sizes";
 import { validateCardOptions } from "./page-validation";
+import { ofType } from "./catalogue";
 import type { PageTile, Tile, TileOptions } from "../types";
 
-const APPEARANCE = { display: "display", icon: "icon", background: "background", historyHours: "history_hours", refresh: "refresh", subtitle: "sub", fit: "fit", overlay: "overlay" } as const;
+const APPEARANCE = { display: "display", icon: "icon", background: "background", historyHours: "history_hours", refresh: "refresh", subtitle: "sub", fit: "fit", overlay: "overlay",
+  mapEntities: "map", mapFraming: "framing", mapDistance: "distance" } as const;
 const INTERACTION = ["tap", "inline", "controls", "action"] as const;
 const PICTURE_OWN = ["refresh", ...Object.keys(rules.picture)];
+// A map card's own choices (app 0.4.33); its name on the picture is the live picture's `overlay`.
+const MAP = ofType("person")?.map;
+const MAP_OWN = ["map", "framing", "distance"];
 
 // What a choice that asks a second step stands for while the inspector tries it: Perform action asks which action,
 // a value of the entity which value, words of your own the words. The step itself is checked when it is taken.
 const SAMPLE_ACTION = { action: "homeassistant.turn_on" };
 // The value an option means when it is not stored, where the add-on drops the stored one (core.validate_layout).
-export const DEFAULTS: Record<string, unknown> = { sub: "auto", fit: rules.picture.fit[0], overlay: rules.picture.overlay[0] };
+export const DEFAULTS: Record<string, unknown> = { sub: "auto", fit: rules.picture.fit[0], overlay: rules.picture.overlay[0],
+  framing: MAP?.framing[0], distance: MAP?.distance[0] };
 
 const pageTile = (entity: string) => /^screen\.page_\d+$/.test(entity);
 
@@ -34,7 +40,10 @@ export function canonicalOptions(entity: string, options: TileOptions = {}, key 
   if (out.tap !== "action") delete out.action;
   // A live picture's pace and fill belong to the live picture, and their defaults are not stored. A bedside clock's key
   // keeps whether its name shows (`overlay`, firmware 0.17.0), as a picture does.
-  if (out.display !== "live") for (const field of PICTURE_OWN) if (!(key && field === "overlay")) delete out[field];
+  if (out.display !== "live") for (const field of PICTURE_OWN) if (!((key || out.display === "map") && field === "overlay")) delete out[field];
+  // A map keeps who rides along and how it frames them; an empty list is no list, as the add-on stores it.
+  if (out.display !== "map") for (const field of MAP_OWN) delete out[field];
+  if (Array.isArray(out.map) && !out.map.length) delete out.map;
   for (const [key, value] of Object.entries(DEFAULTS)) if (out[key] === value) delete out[key];
   // A Go to page tile has a name, an icon, a colour and a width, nothing else.
   if (pageTile(entity)) for (const key of ["display", "inline", "controls", "history_hours"]) delete out[key];
@@ -51,6 +60,8 @@ export function coupledOptions(options: TileOptions = {}, key: string, value: un
   if (key === "inline" && value === "slider") { out.display = "standard"; if (controlled) out.controls = "none"; }
   if (key === "controls" && value === "none" && isTallSize(size)) out.inline = "none";
   if (key === "controls" && value !== "none") { if (out.display !== "cover") out.display = "standard"; out.inline = "none"; }
+  // A map is the whole card: no small slider, no controls on it.
+  if (key === "display" && value === "map") { delete out.inline; delete out.controls; }
   // Choosing an action is choosing Perform action.
   if (key === "action") out.tap = "action";
   return out;

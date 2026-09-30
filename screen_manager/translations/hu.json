@@ -548,6 +548,8 @@
         "pages": "Egy kijelzőn 1 oldal van. | Egy kijelzőn 1-{n} oldal lehet.",
         "eight_pages": "Ezek a csempék nem férnek el a kijelző oldalain; távolíts el egy csempét, vagy tegyél egyet kisebbre.",
         "camera_unsupported": "Ez a kijelző nem tud kameraképet megjeleníteni.",
+        "map_unsupported": "Ez a kijelző nem tud térképet mutatni.",
+        "map_entities": "Egy térkép legfeljebb {n} személyt mutat, mindegyiket egyszer, a csempe saját személye mellett.",
         "firmware_first": "Ezekhez a csempékhez előbb telepíts {version} vagy újabb kijelző-firmware-t.",
         "entity_gone": "Egy kiválasztott entitás már nem létezik. Keresd meg az újat.",
         "ids_too_long": "Ezeknek a csempéknek az entitásazonosítói együtt túl hosszúak ahhoz, hogy egy üzenetben elférjenek; távolíts el néhány csempét."
@@ -1491,7 +1493,8 @@
       "flip": "lapozós óra",
       "sunpath": "napút",
       "live": "élő kép",
-      "cover": "albumborító"
+      "cover": "albumborító",
+      "map": "térkép"
     },
     "sizes": {
       "single": "normál",
@@ -1530,6 +1533,9 @@
         "cover": "Albumborító",
         "cover_hint": "Az éppen szóló zene albumborítója az ikon helyén, mint a Home Assistant saját csempéjén; kép nélküli lejátszónál az ikon marad. Koppintásra továbbra is a kártya nyílik meg.",
         "cover_needs_firmware": "A csempén lévő albumborítóhoz 0.2.78 vagy újabb firmware kell: mentés után nyomd meg a Frissítés gombot a kijelzőnél.",
+        "map": "Térkép",
+        "map_hint": "Hol van ez a személy és akiket hozzáadsz, egy nyugodt térképen a kijelző színeiben. Az utcákat a Home Assistant adja az OpenStreetMapből; a kijelző csak a képet kapja, soha nem helyet. Újrarajzolódik, ha valaki elmozdul.",
+        "map_needs_firmware": "A térképhez 0.20.0 vagy újabb firmware kell: mentés után nyomd meg a Frissítés gombot a kijelzőnél.",
         "no_graph": "A Home Assistantban nincsenek számértékek ehhez az entitáshoz, így a grafikon üres marad. Válassz másik megjelenítést.",
         "no_forecast": "Ennek az időjárás-szolgáltatásnak nincs napi előrejelzése a Home Assistantban. Válassz másik megjelenítést.",
         "tall_cover_hint": "Az albumborítót sötétített háttérként használja. Borító nélkül a normál csempe látszik.",
@@ -1549,6 +1555,27 @@
           "label": "A képen",
           "name": "Név",
           "none": "Semmi"
+        }
+      },
+      "map": {
+        "framing": {
+          "label": "Mutat",
+          "everyone": "Mindenki",
+          "home": "Az otthon körül",
+          "person": "E személy körül"
+        },
+        "distance": {
+          "label": "Távolság",
+          "neighbourhood": "Környék",
+          "street": "Utca",
+          "town": "Város",
+          "region": "Régió"
+        },
+        "with": {
+          "label": "Szintén a térképen",
+          "hint": "Az e személy mellett mutatott emberek, mindegyik a saját színében.",
+          "add": "Személy hozzáadása",
+          "remove": "{name} eltávolítása"
         }
       },
       "controls": {

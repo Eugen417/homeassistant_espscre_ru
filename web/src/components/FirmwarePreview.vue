@@ -147,7 +147,7 @@ async function sendActions() {
 async function requestImage(request: Record<string, unknown>) {
   try {
     const packet = await send<Record<string, unknown>>('firmware-preview/image', 'POST', {
-      request, shape: { width: props.width, height: props.height },
+      request, shape: { width: props.width, height: props.height, ...(props.dpi ? { dpi: props.dpi } : {}) },
     }, { signal: downloads.signal });
     // The real decoder also guards the image view counter. Keep an old
     // layout/session response out of the current protocol sequence.

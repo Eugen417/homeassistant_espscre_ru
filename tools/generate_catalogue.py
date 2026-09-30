@@ -28,7 +28,7 @@ VERSION = re.compile(r'^\d+\.\d+\.\d+$')
 FIRST_TYPES = frozenset('alarm_control_panel automation binary_sensor button camera climate cover fan image input_boolean input_button '
                         'input_number input_select light lock media_player number person scene screen script select sensor sun switch '
                         'timer vacuum weather'.split())
-TOP = {'domain', 'firmware', 'displays', 'controls', 'inline', 'toggle', 'taps', 'guards', 'picture', 'key'}
+TOP = {'domain', 'firmware', 'displays', 'controls', 'inline', 'toggle', 'taps', 'guards', 'picture', 'map', 'key'}
 OPTION = {'needs', 'screen', 'sizes', 'wide', 'rows', 'of', 'one_row', 'fallback', 'range'}
 NEEDS = {'actions', 'features', 'history', 'attributes', 'unless'}
 SCREEN = {'firmware', 'feature', 'pictures', 'else'}
@@ -178,6 +178,13 @@ def normalise(tile, types, translations, facts):
         picture = data.get('picture')
         if picture is not None:
             check_keys(f'{where} picture', picture, {'fit', 'overlay', 'refresh'})
+        # A map card (app 0.4.33): its framings, distances and name choice, the first of each the default, and who may
+        # ride along on it (docs/MAP.md).
+        map_options = data.get('map')
+        if map_options is not None:
+            check_keys(f'{where} map', map_options, {'framing', 'distance', 'overlay', 'with', 'max'})
+            if 'map' not in displays:
+                fail(where, 'map options need the map display')
         domains[domain] = {
             'firmware': firmware,
             'key': bool(data.get('key', True)),
@@ -190,6 +197,7 @@ def normalise(tile, types, translations, facts):
             'taps': list(data.get('taps') or []),
             'guards': list(data.get('guards') or []),
             'picture': picture,
+            'map': map_options,
         }
     check_keys('catalogue/_tile.yaml', tile, {'taps', 'sizes', 'history_hours'})
     return {'version': 1, 'ha': facts['source'], 'tile': tile, 'domains': domains}

@@ -1,3 +1,21 @@
+## 0.4.33 (firmware 0.20.0)
+
+A map of where everyone is, drawn in your screen's own colours.
+
+- **A person tile can be a map.** Set its display to **Map** and it shows the streets around them, your zones, and a
+  marker with each person's initials in their own colour. **Show** frames everyone on the card, the area around home, or
+  the area around that person; with the last two, **Distance** picks street, neighborhood, town or region, and someone
+  outside the view is a small marker on the edge, pointing the way. **Also on the map** adds up to seven more people.
+  It works on every tile size, from one cell to the whole page, on every screen that draws pictures.
+- **Calm, and in your screen's colours.** The streets come from Home Assistant's own map (its `map_tiles` integration,
+  from OpenStreetMap) as plain data, and ESP Screens draws them itself: quiet greys and white streets, water and green in
+  soft tints, and strong colour only for the people. A screen in Dark mode gets a dark map, and each screen gets the look
+  it is in, also when two screens show the same card in different looks.
+- **Only when someone moves.** A map is drawn again when someone on it moves more than about 25 meters, changes state or a
+  zone changes, never on a clock. The screen gets a picture and never a location. docs/MAP.md has the details.
+- Thanks to @stevenhorner for the idea and the first version of a map card (discussion #105), which showed how it could
+  work: the framings, the people riding along and the movement mark come from it.
+
 ## 0.4.32 (firmware 0.19.0)
 
 The editor, calmer and quicker to use, and a screen that says what is wrong when it cannot reach its Wi-Fi.
