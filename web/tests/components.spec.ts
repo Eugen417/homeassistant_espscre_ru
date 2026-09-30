@@ -187,6 +187,17 @@ describe("TileCard", () => {
     } finally { screen.climate_range = before; }
   });
 
+  it("draws a wide card's keys as the screen does for that entity, not a fixed set (app 0.4.32)", () => {
+    state.inventory.controls!.climate = { default: 'setpoint', choices: [] };
+    state.liveStates['climate.m'] = { state: 'heat', word: 'Heat', a: { supported_features: 1, hvac_modes: ['off', 'heat'], temperature: 20 } };
+    const modes = placed({ entity: 'climate.m', name: 'Modes', slot: 0, options: { size: 'wide', controls: 'mode' } });
+    expect(modes.findAll('.ctl .key')).toHaveLength(2);   // off and heat, its own modes; the fixed row always had three
+    state.inventory.controls!.vacuum = { default: 'buttons', choices: [] };
+    state.liveStates['vacuum.v'] = { state: 'docked', word: 'Docked', a: { supported_features: 8192 | 8 } };
+    const vacuum = placed({ entity: 'vacuum.v', name: 'Robot', slot: 0, options: { size: 'wide', controls: 'buttons' } });
+    expect(vacuum.findAll('.ctl .key')).toHaveLength(2);   // start and stop: it cannot go back to its base
+  });
+
   it("shows a sensor's value with its unit and a light that is on as lit", () => {
     state.liveStates["sensor.t"] = { state: "21.4", word: null, a: { unit_of_measurement: "°C" } };
     state.liveStates["light.a"] = { state: "on", word: "On", a: { brightness: 128 } };

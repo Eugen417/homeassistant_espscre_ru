@@ -113,17 +113,18 @@ PAGE_BUTTONS_MIN_FIRMWARE = '0.2.69'
 HOME_BUTTON_MIN_FIRMWARE = '0.2.100'
 # Open a page from Home Assistant (esphome.<node>_show_page), the way a Go to page tile does.
 SHOW_PAGE_MIN_FIRMWARE = '0.2.87'
+# The first firmware of the three types below is the `firmware:` of their file in catalogue/, named here for the tests.
 # An alarm panel as a tile with its card and keypad (components/smart_display/alarm_panel.h); older firmware refuses the
 # domain, so a layout with one waits for the update.
-ALARM_MIN_FIRMWARE = (0, 3, 3)
+ALARM_MIN_FIRMWARE = catalogue.parse_version(catalogue.of_type('alarm_control_panel')['firmware'])
 # A lock as a tile with its card (components/smart_display/lock_panel.h): locks with one tap, unlocks after a second, the
 # alarm panel's keypad for a code. Older firmware refuses the domain, so a layout with one waits for the update.
-LOCK_MIN_FIRMWARE = (0, 5, 0)
+LOCK_MIN_FIRMWARE = catalogue.parse_version(catalogue.of_type('lock')['firmware'])
 # How far a lock's tile may go (the `guard` option): unlock after a second tap, or lock only.
 LOCK_GUARDS = tuple(catalogue.of_type('lock')['guards'])
 # An automation as a tile (GitHub #62): a tap switches it on or off and holding runs its actions, or with the tap option
 # `run` the other way round. Older firmware refuses the domain, so a layout with one waits for the update.
-AUTOMATION_MIN_FIRMWARE = (0, 7, 0)
+AUTOMATION_MIN_FIRMWARE = catalogue.parse_version(catalogue.of_type('automation')['firmware'])
 ATTRS = frozenset('brightness percentage current_position current_tilt_position current_temperature temperature target_temp_low target_temp_high current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hvac_action hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level is_volume_muted media_title options min max step temperature_unit supported_features device_class next_rising next_setting finishes_at duration remaining humidity wind_speed wind_speed_unit apparent_temperature fan_modes swing_modes fan_mode swing_mode effect code_format code_arm_required changed_by assumed_state'.split())
 # Attributes whose boolean value the screen needs; every other bool stays behind.
 BOOL_ATTRS = frozenset(['is_volume_muted', 'code_arm_required', 'assumed_state'])

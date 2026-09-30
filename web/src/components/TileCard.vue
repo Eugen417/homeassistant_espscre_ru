@@ -83,6 +83,10 @@ const tallControls = computed(() => availableControl(domain.value,
   props.tile.options?.inline === 'slider' ? inlineControlKind(domain.value) : controls.value,
   current.value?.state || '', current.value?.a || {}, rangeReady.value));
 const tallKeys = computed(() => controlKeys(domain.value, tallControls.value, current.value?.state || '', current.value?.a || {}));
+// The keys of a wide or full-page card's control, as the screen draws them for this entity (tile_controls::keys_for):
+// only what it supports, in its state, never a fixed set.
+const panelKeys = computed(() => controls.value && !['toggle', 'setpoint', 'volume', 'run', 'stepper', 'slider', 'brightness', 'speed', 'position'].includes(controls.value)
+  ? controlKeys(domain.value, controls.value, current.value?.state || '', current.value?.a || {}) : []);
 // As many mode keys as the screen fits: a wider card holds more (firmware 0.3.1 render_tall).
 const modeKeys = computed(() => tallControls.value === 'setpoint_mode' ? controlKeys('climate', 'mode', current.value?.state || '', current.value?.a || {}, shape.value.columns > 1 ? 5 : 3) : []);
 // An on/off card stands as one centred stack, like the built-in action cards (firmware 0.3.1 render_tall).
@@ -366,8 +370,7 @@ async function onKey(e: KeyboardEvent) {
         <span v-if="controls === 'toggle'" class="tog" :class="{ off: !on }"></span>
         <span v-else-if="controls === 'setpoint'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><span v-if="rangeChip" class="range-chip" :style="{ '--end': rangeChip.color, '--chip-ems': rangeChip.ems }"><span class="mdi end-icon">{{ key(rangeChip.icon) }}</span><b>{{ rangeChip.text }}</b></span><b v-else :style="{ '--pill-ems': textEms(setpoint + '8') }">{{ setpoint }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
         <template v-else-if="controls === 'volume'"><span class="range" :style="volumeStyle"></span><span class="key mdi">{{ key("volume-high") }}</span></template>
-        <template v-else-if="controls === 'playback'"><span class="key mdi">{{ key("skip-previous") }}</span><span class="key mdi">{{ key(on ? "pause" : "play") || key("play") }}</span><span class="key mdi">{{ key("skip-next") }}</span></template>
-        <template v-else-if="controls === 'buttons' && domain === 'cover'"><span class="key mdi">{{ key("arrow-expand-horizontal") }}</span><span class="key mdi">{{ key("stop") }}</span><span class="key mdi">{{ key("arrow-collapse-horizontal") }}</span></template>
+        <template v-else-if="panelKeys.length"><span v-for="(control, i) in panelKeys" :key="i" class="key mdi" :class="{ primary: control.primary, disabled: control.disabled, active: control.mode === current?.state }">{{ key(control.icon) }}</span></template>
         <span v-else-if="controls === 'run'" class="run">{{ runText }}</span>
         <span v-else class="range" :style="sliderStyle"></span>
       </span>
@@ -424,12 +427,8 @@ async function onKey(e: KeyboardEvent) {
         <span v-else-if="controls === 'setpoint'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><span v-if="rangeChip" class="range-chip" :style="{ '--end': rangeChip.color, '--chip-ems': rangeChip.ems }"><span class="mdi end-icon">{{ key(rangeChip.icon) }}</span><b>{{ rangeChip.text }}</b></span><b v-else :style="{ '--pill-ems': textEms(setpoint + '8') }">{{ setpoint }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
         <template v-else-if="controls === 'stepper' && domain.endsWith('select')"><span class="key mdi">{{ key("chevron-left") }}</span><span class="key mdi">{{ key("chevron-right") }}</span></template>
         <span v-else-if="controls === 'stepper'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><b>{{ bigValue }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
-        <template v-else-if="controls === 'mode'"><span class="key mdi">{{ key("power") }}</span><span class="key mdi">{{ key("fire") }}</span><span class="key mdi">{{ key("snowflake") }}</span></template>
+        <template v-else-if="panelKeys.length"><span v-for="(control, i) in panelKeys" :key="i" class="key mdi" :class="{ primary: control.primary, disabled: control.disabled, active: control.mode === current?.state }">{{ key(control.icon) }}</span></template>
         <template v-else-if="controls === 'volume'"><span class="range" :style="volumeStyle"></span><span class="key mdi">{{ key("volume-high") }}</span></template>
-        <template v-else-if="controls === 'playback'"><span class="key mdi">{{ key("skip-previous") }}</span><span class="key mdi">{{ key(on ? "pause" : "play") || key("play") }}</span><span class="key mdi">{{ key("skip-next") }}</span></template>
-        <template v-else-if="controls === 'buttons' && domain === 'cover'"><span class="key mdi">{{ key("arrow-expand-horizontal") }}</span><span class="key mdi">{{ key("stop") }}</span><span class="key mdi">{{ key("arrow-collapse-horizontal") }}</span></template>
-        <template v-else-if="controls === 'buttons' && domain === 'vacuum'"><span class="key mdi">{{ key("play") }}</span><span class="key mdi">{{ key("stop") }}</span><span class="key mdi">{{ key("home-map-marker") }}</span></template>
-        <template v-else-if="controls === 'buttons' && domain === 'timer'"><span class="key mdi">{{ key("play") }}</span><span class="key mdi">{{ key("close") }}</span></template>
         <span v-else-if="controls === 'run'" class="run">{{ runText }}</span>
         <span v-else class="range" :style="sliderStyle"></span>
       </span>
