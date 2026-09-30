@@ -234,6 +234,19 @@ class DeliveryTests(unittest.IsolatedAsyncioTestCase):
         self.sender.disconnected()
         self.assertFalse(self.sender.free_pages)
 
+    async def test_the_hello_says_what_else_it_takes_as_a_list_and_nothing_else_counts(self):
+        # Firmware 0.19.0 lists what it takes beyond the older flags (`features`); a value that happens to be 1 (applied is
+        # true, page 1, home 1) is no flag of it, or every change of it would send every tile again.
+        async def newer(message):
+            answer = await self.screen.send(message)
+            if message['op'] == 'hello': answer.update(features=['climate_range', 7], applied=True, page=1, home=1)
+            return answer
+        self.sender = Sender(newer)
+        await self.sync()
+        self.assertEqual(self.sender.features, {'climate_range'})
+        self.sender.disconnected()
+        self.assertEqual(self.sender.features, set())
+
     def setUp(self):
         self.record = migrate_legacy({"title": "Test", "pages": 2, "tiles": [
             {"entity": "light.test", "name": "Desk", "slot": 0, "options": {"size": "wide"}},

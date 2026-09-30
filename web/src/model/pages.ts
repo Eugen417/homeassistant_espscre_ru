@@ -8,7 +8,8 @@ import { t } from "../i18n";
 import type { ChildTile, HeaderItem, Layout, Page, PageGrid, PageLayout, PageTarget, PageTile, Tile, TileOptions } from "../types";
 import { spanOf, spanOffered } from "./sizes";
 
-import { dimensions, SIZES, type Size } from "./layout";
+import { dimensions, type Size } from "./layout";
+import { isSize } from "./sizes";
 import { validateCardOptions, validatePageShape } from './page-validation';
 import rules from './page-rules.json';
 
@@ -342,7 +343,7 @@ export function arrangeTiles(layout: PageLayout, grid: PageGrid, entries: { tile
         content = { kind: "builtin", name: tile.entity.slice(7) as "clock" | "nightstand" | "settings" };
       } else content = { kind: "entity", entityId: tile.entity };
       const size = options.size ?? "single";
-      if (!SIZES.includes(size as Size)) throw new Error(t("addon.errors.pages.size"));
+      if (!isSize(size)) throw new Error(t("addon.errors.pages.size"));
       const appearance: PageTile["appearance"] = { label: tile.name };
       if (size !== "single") appearance.presentation = size as Size;
       for (const [key, wire] of Object.entries(appearanceKeys)) {

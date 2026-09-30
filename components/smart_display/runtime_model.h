@@ -351,8 +351,10 @@ struct Tile {
   // A -/+ edit shows at once and is sent as one call after a short pause; the
   // value stays until Home Assistant reports it (or a timeout clears it).
   float edit_value = NAN; uint32_t edit_since = 0; bool edit_sent = false;
-  // A thermostat set to a range (firmware 0.19.0): edit_value is the low end then, and this the high end.
+  // A thermostat set to a range (firmware 0.19.0): edit_value is the low end then, and this the high end; range_end is
+  // the end its -/+ move, on the tile and on its card alike (tile_controls::RANGE_LOW, the heat, or RANGE_HIGH, the cool).
   float edit_high = NAN;
+  uint8_t range_end = 1;
   // Knob position a toggle shows while its command is under way.
   bool optimistic_on = false;
   // A slider the finger let go stays where it was put while the light fades towards it (firmware 0.2.60+): the value

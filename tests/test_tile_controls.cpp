@@ -437,7 +437,10 @@ int main() {
   limited.supported=4; assert(panel_available(limited));
   limited=make("fan.simple","on",0); limited.controls="speed"; assert(!panel_available(limited));
   limited.supported=1; assert(panel_available(limited));
-  limited=make("climate.range","heat_cool",2); limited.controls="setpoint"; assert(!panel_available(limited));
+  // A range thermostat has the -/+ too, with the chip for its end (firmware 0.19.0), as Home Assistant's tile has its target
+  // temperature feature for one; a thermostat without a temperature to set has none.
+  limited=make("climate.range","heat_cool",2); limited.controls="setpoint"; assert(panel_available(limited));
+  limited.supported=0; assert(!panel_available(limited));
   limited.supported=1; assert(panel_available(limited));
   limited=make("media_player.mute","playing",8); limited.controls="volume"; assert(panel_available(limited));
   limited.controls="playback"; assert(!panel_available(limited));

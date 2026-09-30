@@ -23,9 +23,12 @@ it('uses cover capabilities, direction and end stops and vacuum capabilities/sta
 it('keeps unsupported saved slider/setpoint choices inert', () => {
   for (const [domain, kind, attrs] of [
     ['light', 'brightness', { supported_color_modes: ['onoff'] }], ['fan', 'speed', { supported_features: 0 }],
-    ['cover', 'position', { supported_features: 3 }], ['climate', 'setpoint', { supported_features: 2 }],
+    ['cover', 'position', { supported_features: 3 }], ['climate', 'setpoint', { supported_features: 0 }],
   ] as const) expect(availableControl(domain, kind, 'on', attrs)).toBe('');
   expect(availableControl('climate', 'setpoint', 'heat', { supported_features: 1 })).toBe('setpoint');
+  // A thermostat with only a range has its -/+ with the chip (firmware 0.19.0+); an older screen draws it without them.
+  expect(availableControl('climate', 'setpoint', 'heat_cool', { supported_features: 2 })).toBe('setpoint');
+  expect(availableControl('climate', 'setpoint', 'heat_cool', { supported_features: 2 }, false)).toBe('');
   expect(availableControl('light', 'brightness', 'on', { supported_color_modes: ['rgbww'] })).toBe('brightness');
   expect(availableControl('media_player', 'playback', 'unavailable', { supported_features: 49 })).toBe('');
   expect(availableControl('light', null, 'on', { supported_color_modes: ['brightness'] })).toBe('');

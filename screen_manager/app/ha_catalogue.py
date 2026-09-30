@@ -184,9 +184,10 @@ def capabilities(entity_id, actions, state, services):
         displays.append('cover')
     controls = [key for key, requirements in CONTROLS.get(domain, {}).items()
                 if _fits(requirements, actions, attributes, services)
+                # A temperature to set: a single one (feature 1) or a range (feature 2, firmware 0.19.0's chip).
                 and not (domain == 'climate' and key == 'setpoint'
                          and isinstance(attributes.get('supported_features'), int)
-                         and not attributes['supported_features'] & 1)]
+                         and not attributes['supported_features'] & 3)]
     if domain == 'cover' and 'tilt' in controls:
         controls += [key + '_tilt' for key in ('buttons', 'position') if key in controls]
     if domain == 'climate' and 'setpoint' in controls and 'mode' in controls:

@@ -35,7 +35,9 @@ export function controlKeys(domain: string, kind: string, state: string, a: Attr
   }
   return keys;
 }
-export function availableControl(domain: string, kind: string | null, state: string, a: Attributes): string {
+// `range`: the screen draws a thermostat's range on its -/+ (its firmware's climate_range, 0.19.0+); an older one gets a
+// thermostat with only a range without them (core.drawn_controls), and so does its picture here.
+export function availableControl(domain: string, kind: string | null, state: string, a: Attributes, range = true): string {
   if (!kind || ['unavailable', 'unknown', ''].includes(state)) return '';
   if (domain === 'cover') kind = coverPrimary(kind);
   const f = Number(a.supported_features || 0);
@@ -45,7 +47,8 @@ export function availableControl(domain: string, kind: string | null, state: str
   if (kind === 'speed') return domain === 'fan' && f & 1 ? kind : '';
   if (kind === 'position') return domain === 'cover' && f & 4 ? kind : '';
   if (kind === 'volume') return domain === 'media_player' && f & 12 ? kind : '';
-  if (kind === 'setpoint' || kind === 'setpoint_mode') return domain === 'climate' && f & 1 ? kind : '';
+  // A single temperature (feature 1) or a range with its chip (feature 2, firmware 0.19.0).
+  if (kind === 'setpoint' || kind === 'setpoint_mode') return domain === 'climate' && (f & 1 || (f & 2 && range)) ? kind : '';
   if (kind === 'stepper' || kind === 'slider') return ['number', 'input_number'].includes(domain) ? kind : '';
   if (kind === 'toggle') return ['light', 'switch', 'input_boolean', 'automation', 'fan'].includes(domain) ? kind : '';
   if (kind === 'run') return ['scene', 'script', 'button', 'input_button', 'automation'].includes(domain) ? kind : '';

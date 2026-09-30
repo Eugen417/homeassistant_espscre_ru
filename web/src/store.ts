@@ -166,7 +166,7 @@ export function createVirtualScreen(name: string, profile: PreviewProfile) {
   const screen: Screen = {
     id, name: name.trim(), online: false, virtual: true, board, orientation,
     firmware: renderer.firmware, firmware_known: renderer.firmware, tile_limit: 64, full_page: true,
-    page_tiles_repeat: true, entity_tiles_repeat: true, no_title: true, in_sync: true, shape, layout: { title: name.trim(), tiles: [], pages: 1 },
+    page_tiles_repeat: true, entity_tiles_repeat: true, no_title: true, climate_range: true, in_sync: true, shape, layout: { title: name.trim(), tiles: [], pages: 1 },
     source_grid: sourceGrid, page_document: document, page_capability: 'ready',
     tile_sizes: previewTileSizes(shape),
   };

@@ -566,6 +566,10 @@ api:
                     root["tile_repeats"] = 1;
                     // Eight pages on every grid, at most 64 tiles over all of them (firmware 0.18.0+, app 0.4.30+).
                     root["free_pages"] = 1;
+                    // What this firmware takes beyond the flags above, as a list (firmware 0.19.0+, app 0.4.32+): a newer
+                    // option adds its name here. climate_range: a thermostat's range on its -/+, with the chip for its end.
+                    auto features = root["features"].to<JsonArray>();
+                    features.add("climate_range");
                     auto sizes = root["tile_sizes"].to<JsonArray>();
                     for (const auto &size : page_protocol::TILE_SIZES)
                       if (size.fits(runtime_tiles::grid.columns, runtime_tiles::grid.rows)) sizes.add(size.name);

@@ -28,7 +28,7 @@ from updates import Updater
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
 from core import alarm_extras, lock_extras, ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_choice, alert_data, choice_service, ALERT_CHOICE_ACTION, ALERT_CHOICE_MIN_FIRMWARE, parse_firmware, alert_reference, alert_screen_choice, alert_screen_names, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, entity_slug, extras, media_cover, media_extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, name_clash, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 from core import calibrate_entity, can_standby, dimmable, SETTING_ENTITIES, SETTING_RULES, STANDBY_KEYS, setting_action, setting_entities, setting_from_state, state_word
-from core import BOARD_KEYS, is_key
+from core import BOARD_KEYS, is_key, drawn_controls
 from core import (Grid, page_target, PAGE_TILE_REPEAT_MIN_FIRMWARE, ENTITY_REPEAT_MIN_FIRMWARE, ROTATION_MIN_FIRMWARE, SHAPES, firmware_features, grid_of, orientation_at,
                   packed_slots, run_tile_event, screen_firmware, shape_of, turns_of, version_text)
 import header_bar
@@ -1736,9 +1736,10 @@ class Manager:
         hourly = self.forecasts.get((entity, 'hourly'))
         return not entry or not hourly or time.monotonic() - min(entry[0], hourly[0]) > FORECAST_SECONDS
 
-    async def tile_message(self, index, tile, lamps=False):
+    async def tile_message(self, index, tile, lamps=False, features=None):
         """The state message of one tile: state, options, extras, and the history the background task holds. `lamps`:
-        the screen takes a light group's lamps (its hello said `group_lamps`, firmware 0.3.9+)."""
+        the screen takes a light group's lamps (its hello said `group_lamps`, firmware 0.3.9+). `features`: the other
+        flags its hello said (page_delivery), None where the screen's hello is not known."""
         forecast=hourly=None
         if tile['entity'].startswith('weather.') and hasattr(self.ha,'forecast'):
             entity = tile['entity']
@@ -1763,6 +1764,7 @@ class Manager:
         message=state_message(index,tile,self.ha.states,extra,
                               precision=header_bar.precision_of(entry) if tile['entity'].startswith('sensor.') else None,entry=entry,
                               units=getattr(self.ha,'units',None))
+        drawn_controls(message, features)
         # Home Assistant's word where the screen would show the raw state (firmware 0.2.58+ shows it).
         state=self.ha.states.get(tile['entity'],{})
         word=ha_catalogue.screen_word(tile['entity'],message['state'],state.get('attributes'),entry,getattr(self.ha,'state_words',None))
@@ -1909,7 +1911,8 @@ class Manager:
             reuse = not full and i < len(previous['states']) and tile['entity'] not in dirty and dirty.isdisjoint(self.related_entities(tile))
             if reuse and tile['entity'].startswith('weather.') and self.forecast_due(tile['entity']):
                 reuse = False
-            states.append(previous['states'][i] if reuse else await self.tile_message(i, tile))
+            # A screen on this route has no hello, and none of the flags a newer option needs.
+            states.append(previous['states'][i] if reuse else await self.tile_message(i, tile, features=frozenset()))
         outgoing = []
         if force or not previous or layout_msg != previous['layout']:
             outgoing.append(layout_msg)

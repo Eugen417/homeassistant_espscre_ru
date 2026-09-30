@@ -156,21 +156,35 @@ describe("TileCard", () => {
     expect(modes.findAll('.ctl .key')).toHaveLength(2);
   });
 
-  it("writes a thermostat set to a range as Home Assistant does: its state and the room on the line, both ends on its -/+", () => {
+  it("writes a thermostat set to a range as Home Assistant does, with the chip for its end between - and + (firmware 0.19.0)", () => {
     state.inventory.controls!.climate = { default: 'setpoint', choices: [] };
     state.liveStates['climate.r'] = { state: 'heat_cool', word: 'Heat/Cool', a: { supported_features: 442, current_temperature: 73, target_temp_low: 70, target_temp_high: 75, target_temp_step: 1 } };
     expect(placed({ entity: 'climate.r', name: 'Range', slot: 0 }).find('.st').text()).toBe('Heat/Cool · 73°');
+    // The wide tile's -/+ with the chip between them: the low end, heat, first.
+    const wide = placed({ entity: 'climate.r', name: 'Range', slot: 0, options: { size: 'wide', controls: 'setpoint' } });
+    expect(wide.find('.stp .range-chip b').text()).toBe('70°');
+    expect(wide.findAll('.stp > .mdi')).toHaveLength(2);
     // Both features: the range only while it reports no single temperature.
     state.liveStates['climate.b'] = { state: 'heat_cool', word: 'Heat/Cool', a: { supported_features: 3, current_temperature: 21, target_temp_low: 19, target_temp_high: 23.5, temperature: null } };
-    expect(placed({ entity: 'climate.b', name: 'Both', slot: 0, options: { size: 'tall', controls: 'setpoint' } }).find('.target b').text()).toBe('19.0 · 23.5');
-    // A wide tile's pill: both ends and no -/+, a tap opens the card (firmware 0.19.0).
-    const pill = placed({ entity: 'climate.b', name: 'Both', slot: 0, options: { size: 'wide', controls: 'setpoint' } });
-    expect(pill.find('.stp b').text()).toBe('19.0 · 23.5');
-    expect(pill.findAll('.stp .mdi')).toHaveLength(0);
+    expect(placed({ entity: 'climate.b', name: 'Both', slot: 0, options: { size: 'tall', controls: 'setpoint' } }).find('.range-chip b').text()).toBe('19.0°');
     state.liveStates['climate.b'].a.temperature = 20;
-    expect(placed({ entity: 'climate.b', name: 'Both', slot: 0, options: { size: 'tall', controls: 'setpoint' } }).find('.target b').text()).toBe('20°');
+    const single = placed({ entity: 'climate.b', name: 'Both', slot: 0, options: { size: 'tall', controls: 'setpoint' } });
+    expect(single.find('.range-chip').exists()).toBe(false);
+    expect(single.find('.target b').text()).toBe('20°');
     state.liveStates['climate.d'] = { state: 'dry', word: 'Dry', a: { supported_features: 1, current_temperature: 21.5 } };
     expect(placed({ entity: 'climate.d', name: 'Dry', slot: 0 }).find('.st').text()).toBe('Dry · 21.5°');
+  });
+  it("draws a range thermostat without its -/+ for a screen before firmware 0.19.0, as that screen gets it", () => {
+    state.inventory.controls!.climate = { default: 'setpoint', choices: [] };
+    state.liveStates['climate.r'] = { state: 'heat_cool', word: 'Heat/Cool', a: { supported_features: 442, current_temperature: 73, target_temp_low: 70, target_temp_high: 75 } };
+    const screen = state.inventory.screens[0];
+    const before = screen.climate_range;
+    screen.climate_range = false;
+    try {
+      const wide = placed({ entity: 'climate.r', name: 'Range', slot: 0, options: { size: 'wide', controls: 'setpoint' } });
+      expect(wide.find('.stp').exists()).toBe(false);
+      expect(wide.find('.range-chip').exists()).toBe(false);
+    } finally { screen.climate_range = before; }
   });
 
   it("shows a sensor's value with its unit and a light that is on as lit", () => {

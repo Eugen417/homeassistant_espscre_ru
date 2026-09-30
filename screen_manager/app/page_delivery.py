@@ -168,6 +168,7 @@ class Sender:
         self.tile_keys = False
         self.tile_repeats = False
         self.free_pages = False
+        self.features = set()
         self.structure, self.appearance = None, None
 
     def disconnected(self):
@@ -179,6 +180,7 @@ class Sender:
         self.tile_keys = False
         self.tile_repeats = False
         self.free_pages = False
+        self.features = set()
         self.structure, self.appearance = None, None
         self.phase = "waiting"
         self.failed_revision = self.failure = None
@@ -205,6 +207,10 @@ class Sender:
             self.tile_repeats = answer.get("tile_repeats") == 1
             # Eight pages on every grid (firmware 0.18.0+); before, as many as 64 tiles fill.
             self.free_pages = answer.get("free_pages") == 1
+            # What else the screen takes, the list of its hello (firmware 0.19.0+): a newer option needs one name there
+            # and none of its own here. climate_range: a thermostat's range on its -/+. The older flags above stay.
+            listed = answer.get("features")
+            self.features = {name for name in listed if isinstance(name, str)} if isinstance(listed, list) else set()
             return PROTOCOL
         # This is an answer from the running old firmware, not cached registry metadata.
         if isinstance(answer, dict) and answer.get("protocol") in (None, 1) and answer.get("status") == "Error: protocol version":

@@ -692,6 +692,8 @@ def tile_limit(version, grid=DEFAULT_GRID):
     if version >= FREE_PAGES_MIN_FIRMWARE: return grid.max_tiles
     return grid.legacy_pages * grid.slots if version >= FULL_PAGE_MIN_FIRMWARE else LEGACY_MAX_TILES if version >= TWENTY_TILES_MIN_FIRMWARE else FIRST_MAX_TILES
 
+CLIMATE_RANGE_MIN_FIRMWARE = (0, 19, 0)
+
 def firmware_features(version, grid=DEFAULT_GRID):
     """What the editor may offer a screen with firmware `version` (a tuple, or None): the tile limit, full-page and
     navigation tiles, the same navigation tile on several pages, any entity on several tiles and a screen without a
@@ -699,7 +701,9 @@ def firmware_features(version, grid=DEFAULT_GRID):
     version = version or (0, 0, 0)
     return {'tile_limit': tile_limit(version, grid), 'page_limit': page_limit(version, grid), 'full_page': version >= FULL_PAGE_MIN_FIRMWARE,
             'page_tiles_repeat': version >= PAGE_TILE_REPEAT_MIN_FIRMWARE,
-            'entity_tiles_repeat': version >= ENTITY_REPEAT_MIN_FIRMWARE, 'no_title': version >= NO_TITLE_MIN_FIRMWARE}
+            'entity_tiles_repeat': version >= ENTITY_REPEAT_MIN_FIRMWARE, 'no_title': version >= NO_TITLE_MIN_FIRMWARE,
+            # A thermostat with only a range on its -/+ (drawn_controls sends older screens the tile without them).
+            'climate_range': version >= CLIMATE_RANGE_MIN_FIRMWARE}
 
 def entity_slug(name):
     """The end of an entity id Home Assistant derives from an entity name (ASCII names)."""
@@ -2105,6 +2109,22 @@ def state_message(index, tile, states, extra=None, precision=None, entry=None, u
             'name': short(tile['name'] or attrs.get('friendly_name') or tile['entity'], 80),
             'state': short(rounded_state(state.get('state', 'unavailable'), precision) if tile['entity'].startswith('sensor.') else state.get('state', 'unavailable'), 160), 'a': bounded,
             **({'o': options} if options is not None else {}), **({'x': extra} if extra else {})}
+
+def drawn_controls(message, features):
+    """The controls a screen draws right for this tile (app 0.4.32), in place of ones it would get wrong: a thermostat
+    has its -/+ only with a temperature to set, a single one or a range (feature 1 or 2), and a range needs firmware
+    0.19.0 (its hello lists climate_range); before, the -/+ of such a thermostat drew "--" and stepped from the lowest
+    temperature. What it loses: the -/+ (the mode keys stay where they were asked for). `features`: the list the
+    screen's hello said, None where it is not known (the editor's preview, which runs the newest firmware)."""
+    if not message.get('entity', '').startswith('climate.'):
+        return message
+    options, flags = message.get('o'), (message.get('a') or {}).get('supported_features')
+    if not isinstance(options, dict) or not isinstance(flags, int) or options.get('controls') not in ('setpoint', 'setpoint_mode'):
+        return message
+    range_only = not flags & 1 and flags & 2
+    if not flags & 3 or (range_only and features is not None and 'climate_range' not in features):
+        options['controls'] = 'mode' if options['controls'] == 'setpoint_mode' else 'none'
+    return message
 
 def encode(message):
     """The message as the firmware parses it: compact JSON, at most 4096 bytes."""

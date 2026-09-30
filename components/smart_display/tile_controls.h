@@ -39,7 +39,8 @@ enum Command {
   MEDIA_PREVIOUS, MEDIA_PLAY_PAUSE, MEDIA_NEXT, MEDIA_MUTE, TIMER_START, TIMER_PAUSE, TIMER_CANCEL,
   HVAC_MODE, SELECT_PREVIOUS, SELECT_NEXT, RUN, TOGGLE, STEP_DOWN, STEP_UP,
   COVER_OPEN_TILT, COVER_STOP_TILT, COVER_CLOSE_TILT,
-  OPEN_CARD  // "…": the modes that did not fit are on the card (firmware 0.3.1+)
+  OPEN_CARD,  // "…": the modes that did not fit are on the card (firmware 0.3.1+)
+  RANGE_SWITCH  // the chip between a range thermostat's - and +: heat or cool is the end they move (firmware 0.19.0)
 };
 struct Key { const char *icon = ""; int command = NONE; std::string arg; bool checked = false, disabled = false; };
 struct Action { std::string service, key, value; std::string key2 = {}, value2 = {}; bool valid() const { return !service.empty(); } };
@@ -790,7 +791,7 @@ inline bool panel_available(const Tile &t) {
   if(mode=="speed")return domain=="fan"&&(t.supported&1);
   if(mode=="position")return domain=="cover"&&(t.supported&feature::COVER_POSITION);
   if(mode=="volume")return domain=="media_player"&&(t.supported&(feature::MEDIA_VOLUME_SET|feature::MEDIA_VOLUME_MUTE));
-  if(mode=="setpoint")return domain=="climate"&&(t.supported&1); // single target, not a heat/cool range
+  if(mode=="setpoint")return domain=="climate"&&(t.supported&3); // a single target or a heat/cool range (firmware 0.19.0)
   if(mode=="slider"||mode=="stepper")return domain=="number"||domain=="input_number";
   if(mode=="toggle")return domain=="light"||domain=="switch"||domain=="input_boolean"||domain=="fan"||domain=="automation";
   if(mode=="run")return domain=="scene"||domain=="script"||domain=="button"||domain=="input_button"||domain=="automation";

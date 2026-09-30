@@ -27,6 +27,16 @@ function homeTile(): PageTile {
 }
 
 describe("page-owned document operations", () => {
+  it('keeps working on a screen that holds a span: every edit arranges the whole screen again (app 0.4.32)', () => {
+    const layout = arrangeTiles(emptyLayout("Hall"), grid, [
+      { tile: { entity: "climate.hall", name: "", slot: 0, options: { size: "1x3" } }, slot: 0 },
+    ]);
+    expect(layout.pages[0].tiles[0].appearance.presentation).toBe("1x3");
+    // Adding a tile beside it, as the library does, arranges the span again with it.
+    const entries = projectLayout(layout, grid).tiles.map(tile => ({ tile, slot: tile.slot! }));
+    const added = arrangeTiles(layout, grid, [...entries, { tile: { entity: "light.desk", name: "", slot: 1 }, slot: 1 }]);
+    expect(added.pages[0].tiles.map(tile => tile.appearance.presentation ?? "single")).toEqual(["1x3", "single"]);
+  });
   it('refuses an arrangement that accidentally omits an existing tile', () => {
     const layout = fixture(), original = clone(layout);
     const entries = projectLayout(layout, grid).tiles.map(tile => ({ tile, slot: tile.slot! }));

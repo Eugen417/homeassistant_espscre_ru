@@ -1916,36 +1916,45 @@ inline std::string climate_number_text(const Tile &t){
   return tile_controls::format_value(shown,tile_controls::edit_step(t),"°");
 }
 // A range (firmware 0.19.0): its two ends side by side in the number's place, as on Home Assistant's thermostat card.
-// A tap picks the end the -/+ moves (the low one first, as there); that one is drawn in full, the other at 70 %.
-inline uint8_t climate_end=tile_controls::RANGE_LOW;
+// A tap picks the end the -/+ move (Tile::range_end, the same one the tile's chip shows); that one is drawn in full,
+// the other at 70 %.
 inline lv_obj_t *climate_ends[2]={nullptr,nullptr};
 inline void climate_paint_ends(const Tile &t){
   for(uint8_t i=0;i<2;++i){
     if(!climate_ends[i])continue;
     const uint8_t end=i?tile_controls::RANGE_HIGH:tile_controls::RANGE_LOW;
     label(climate_ends[i],tile_controls::format_value(tile_controls::range_end(t,end),tile_controls::edit_step(t),"°"));
-    lv_obj_set_style_text_opa(climate_ends[i],end==climate_end?LV_OPA_COVER:LV_OPA_70,0);
+    lv_obj_set_style_text_opa(climate_ends[i],end==t.range_end?LV_OPA_COVER:LV_OPA_70,0);
   }
 }
 inline void climate_end_event(lv_event_t *e){
-  climate_end=(uint8_t)(uintptr_t)lv_event_get_user_data(e);
-  if(detail_index<model.count)climate_paint_ends(model.tiles[detail_index]);
+  if(detail_index>=model.count)return;
+  auto &t=model.tiles[detail_index];
+  t.range_end=(uint8_t)(uintptr_t)lv_event_get_user_data(e);
+  climate_paint_ends(t);
+  refresh_tile(detail_index);   // the tile's chip says the same end
+}
+// One step of a range's chosen end, never past the other end: the number follows the finger at once, tick() sends both
+// ends after a short pause.
+inline void range_step(Tile &t,int direction){
+  const float step=tile_controls::edit_step(t);
+  const float low=tile_controls::range_end(t,tile_controls::RANGE_LOW),high=tile_controls::range_end(t,tile_controls::RANGE_HIGH);
+  if(t.range_end==tile_controls::RANGE_HIGH)t.edit_high=tile_controls::step_value(high,step,low,t.maximum,direction);
+  else t.edit_value=tile_controls::step_value(low,step,t.minimum,high,direction);
+  t.edit_since=esphome::millis();t.edit_sent=false;
 }
 // A -/+ tap: the number follows the finger at once, tick() sends the last value after a short pause, exactly
-// as the -/+ pill on a wide tile does. On a range it moves the chosen end, never past the other one.
+// as the -/+ pill on a wide tile does. On a range it moves the chosen end.
 inline void climate_step(Tile &t,int direction){
-  const uint32_t now=esphome::millis();
-  const float step=tile_controls::edit_step(t);
   if(tile_controls::climate_range(t)){
-    const float low=tile_controls::range_end(t,tile_controls::RANGE_LOW),high=tile_controls::range_end(t,tile_controls::RANGE_HIGH);
-    if(climate_end==tile_controls::RANGE_HIGH)t.edit_high=tile_controls::step_value(high,step,low,t.maximum,direction);
-    else t.edit_value=tile_controls::step_value(low,step,t.minimum,high,direction);
-    t.edit_since=now;t.edit_sent=false;
+    range_step(t,direction);
     climate_paint_ends(t);
+    if(detail_index<model.count)refresh_tile(detail_index);
     return;
   }
+  const uint32_t now=esphome::millis();
   const float current=std::isfinite(t.edit_value)?t.edit_value:tile_controls::edit_target(t);
-  t.edit_value=tile_controls::step_value(current,step,t.minimum,t.maximum,direction);
+  t.edit_value=tile_controls::step_value(current,tile_controls::edit_step(t),t.minimum,t.maximum,direction);
   t.edit_since=now;t.edit_sent=false;
   if(climate_number)label(climate_number,climate_number_text(t));
 }
@@ -3447,7 +3456,6 @@ inline void show_detail(unsigned index){
   // A card that opens starts on a day (an hour for a tile whose graph shows one); switching ranges keeps it open.
   if(!detail_root||lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN)||detail_index!=index){
     history_hours=model.tiles[index].history_hours==1?1:24;history_asked_entity.clear();weather_page=0;select_page=0;
-    climate_end=tile_controls::RANGE_LOW;   // a range's card starts on its low end, as Home Assistant's does
   }
   detail_index=index;auto &t=model.tiles[index];
   if(!detail_font)detail_font=lv_obj_get_style_text_font(widgets[0].title,LV_PART_MAIN);
@@ -4898,19 +4906,53 @@ inline lv_obj_t *panel_icon(Widgets &w,unsigned n,const lv_font_t *font) {
 // The - and + keys of a stepper as round keys inside its grey pill (firmware 0.3.3), with the number between them
 // in the largest face that fits: the value is what the stepper is for, the keys only change it. The keys keep a
 // finger's reach through their click area, which covers the pill's inset.
-// `keys` false: a thermostat's range, whose two ends take the pill's width and whose card a tap on the tile opens, as its
-// -/+ would (firmware 0.19.0).
-inline void stepper_keys(Widgets &w,int width,int height,const lv_font_t *text_font,bool keys=true){
-  const int in=std::max(2,ui::px(ui::large()?4:3)),d=keys?std::max(1,height-2*in):0;
+// The chip of a thermostat's range between its - and + (firmware 0.19.0), in the room (x, y, cw, ch) the number would
+// take: the icon of the end they move, heat or cool, in that mode's colour, and its temperature in the largest of
+// `faces` that fits with a digit to spare. Without a range the chip hides and the number shows.
+inline void range_chip(Widgets &w,const Tile &t,int x,int y,int cw,int ch,std::initializer_list<const lv_font_t *> faces){
+  auto *chip=w.keys[2];
+  if(!chip||t.domain()!="climate")return;
+  const bool range=tile_controls::climate_range(t);
+  set_hidden(chip,!range);
+  if(w.pill_value)set_hidden(w.pill_value,range);
+  w.key_commands[2]=range?tile_controls::RANGE_SWITCH:tile_controls::NONE;
+  if(!range)return;
+  const char *end=t.range_end==tile_controls::RANGE_HIGH?"cool":"heat";
+  auto *icon=w.key_icons[2],*value=lv_obj_get_child(chip,1);
+  label(icon,tile_controls::climate_mode_icon(end));
+  set_color(icon,LV_STYLE_TEXT_COLOR,lv_color_hex(tile_controls::mode_color(end)));
+  if(mini_icon_font&&(int)lv_font_get_line_height(lv_obj_get_style_text_font(icon,LV_PART_MAIN))>ch-ui::px(6))set_font(icon,mini_icon_font);
+  const int icon_w=lv_font_get_line_height(lv_obj_get_style_text_font(icon,LV_PART_MAIN)),pad=ui::px(6);
+  const std::string text=tile_controls::format_value(tile_controls::range_end(t,t.range_end),tile_controls::edit_step(t),"°");
+  const lv_font_t *face=nullptr;
+  for(const auto *candidate:faces){
+    if(!candidate||!face_covers(candidate,text))continue;
+    face=candidate;
+    if((int)lv_font_get_line_height(candidate)<=ch&&text_width(text+"8",candidate)+icon_w+3*pad<=cw)break;
+  }
+  if(!face)face=lv_obj_get_style_text_font(value,LV_PART_MAIN);
+  set_font(value,face);label(value,text);
+  lv_obj_set_pos(chip,x,y);lv_obj_set_size(chip,std::max(1,cw),std::max(1,ch));
+  // Too narrow for the icon beside the number: the number alone, in the colour of its end.
+  const int tw=text_width(text,face);
+  const bool with_icon=icon_w+pad/2+tw+2*pad<=cw;
+  set_hidden(icon,!with_icon);
+  set_color(value,LV_STYLE_TEXT_COLOR,with_icon?theme::color(theme::INK):lv_color_hex(tile_controls::mode_color(end)));
+  const int left=std::max(0,(cw-(with_icon?icon_w+pad/2:0)-tw)/2);
+  lv_obj_set_align(icon,LV_ALIGN_TOP_LEFT);lv_obj_set_pos(icon,left,(ch-icon_w)/2);
+  lv_obj_set_align(value,LV_ALIGN_TOP_LEFT);lv_obj_set_pos(value,left+(with_icon?icon_w+pad/2:0),(ch-(int)lv_font_get_line_height(face))/2);
+}
+// The - and + keys of a stepper as round keys inside its grey pill, the number or a range's chip between them.
+inline void stepper_keys(Widgets &w,int width,int height,const lv_font_t *text_font,const Tile *tile=nullptr){
+  const int in=std::max(2,ui::px(ui::large()?4:3)),d=std::max(1,height-2*in);
   for(int n=0;n<2;++n){
     if(!w.keys[n])continue;
-    set_hidden(w.keys[n],!keys);
-    if(!keys)continue;
     lv_obj_set_size(w.keys[n],d,d);lv_obj_set_pos(w.keys[n],n?width-in-d:in,in);
     lv_obj_set_style_bg_opa(w.keys[n],LV_OPA_COVER,0);lv_obj_set_ext_click_area(w.keys[n],in);center_icon(w.key_icons[n]);
   }
+  if(tile)range_chip(w,*tile,in+d+in,in,width-2*(in+d+in),d,{watch_value_font,text_font,small_font});
   // Measured with a digit to spare, so the number a tap on + makes still fits the face chosen here.
-  const std::string widest=std::string(lv_label_get_text(w.pill_value))+(keys?"8":"");
+  const std::string widest=std::string(lv_label_get_text(w.pill_value))+"8";
   const int room=width-2*(d+in)-ui::px(4);
   // A thermostat's range is two numbers: the small face before it gives up (never dots: LVGL writes them into the text
   // measured here, lvgl-dots-in-label-text).
@@ -4977,6 +5019,13 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
       w.pill_value=lv_label_create(w.pill);lv_obj_remove_flag(w.pill_value,LV_OBJ_FLAG_CLICKABLE);
       lv_obj_set_style_text_font(w.pill_value,text_font,0);lv_obj_set_style_text_align(w.pill_value,LV_TEXT_ALIGN_CENTER,0);
       lv_label_set_long_mode(w.pill_value,LV_LABEL_LONG_CLIP);
+      // A thermostat's range (firmware 0.19.0): a chip over the number, the end the -/+ move with its heat or cool icon;
+      // a tap switches it. The third key of the panel, on the panel above the pill, so the pill's own children stay.
+      if(t.domain()=="climate"){
+        panel_key(w,2,w.panel,m,m.pill_key,m.key_h,false);panel_icon(w,2,icon_font);
+        auto *value=lv_label_create(w.keys[2]);lv_obj_remove_flag(value,LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_style_radius(w.keys[2],LV_RADIUS_CIRCLE,0);lv_obj_add_flag(w.keys[2],LV_OBJ_FLAG_HIDDEN);
+      }
       lv_obj_set_size(w.pill_value,std::max(1,fill-2*m.pill_key),lv_font_get_line_height(text_font));
       lv_obj_set_pos(w.pill_value,m.pill_key,(m.key_h+2-lv_font_get_line_height(text_font))/2);
       w.key_commands[0]=tile_controls::STEP_DOWN;w.key_commands[1]=tile_controls::STEP_UP;
@@ -5029,14 +5078,11 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
   }else if(mode=="setpoint"||mode=="stepper"){
     float shown=std::isfinite(t.edit_value)?t.edit_value:tile_controls::edit_target(t);
     std::string suffix=d=="climate"?"°":screen_text::unit_suffix(t.unit);
-    // A range shows both ends as Home Assistant's thermostat card writes them small, "20 · 24" without the unit; its -/+
-    // opens the card, where a tap picks the end they move (firmware 0.19.0).
+    // A range: the chip says the chosen end (range_chip); the number keeps it too, which the tall form measures by.
     const float step=tile_controls::edit_step(t);
-    label(w.pill_value,tile_controls::climate_range(t)
-      ?tile_controls::format_value(tile_controls::range_end(t,tile_controls::RANGE_LOW),step,"")+" · "+tile_controls::format_value(tile_controls::range_end(t,tile_controls::RANGE_HIGH),step,"")
-      :tile_controls::format_value(shown,step,suffix.c_str()));
+    label(w.pill_value,tile_controls::format_value(tile_controls::climate_range(t)?tile_controls::range_end(t,t.range_end):shown,step,suffix.c_str()));
     panel_w=fill;panel_h=m.key_h+2;
-    if(!taller)stepper_keys(w,fill,panel_h,text_font,!tile_controls::climate_range(t));
+    if(!taller)stepper_keys(w,fill,panel_h,text_font,&t);
   }else if(tile_controls::is_slider(mode)){
     bool has_slider=mode!="volume" || (t.supported & tile_controls::feature::MEDIA_VOLUME_SET);
     if(has_slider){
@@ -5085,6 +5131,10 @@ inline void style_panel(Widgets &w,const Tile &t,lv_color_t accent,lv_color_t te
   for(unsigned n=0;n<3;++n){
     auto *key=w.keys[n];if(!key)continue;
     bool in_pill=w.pill && lv_obj_get_parent(key)==w.pill;
+    if(n==2&&w.pill&&w.panel_mode=="setpoint"){   // a range's chip (range_chip): a white segment on the pill
+      set_color(key,LV_STYLE_BG_COLOR,theme::color(theme::CARD));set_color(key,LV_STYLE_BG_COLOR,theme::color(theme::STEPPER_KEY_PRESSED),LV_STATE_PRESSED);
+      continue;
+    }
     set_color(key,LV_STYLE_BG_COLOR,in_pill?theme::color(theme::STEPPER_KEY):key_bg);
     set_color(key,LV_STYLE_BG_COLOR,in_pill?theme::color(theme::STEPPER_KEY_PRESSED):key_pressed,LV_STATE_PRESSED);
     set_color(key,LV_STYLE_BG_COLOR,w.key_args[n]=="off" && w.panel_mode=="mode"?theme::color(theme::OFF):accent,LV_STATE_CHECKED);
@@ -5117,8 +5167,16 @@ inline void control_event(lv_event_t *e) {
   else if(step){ if(!screen_input::touch_guard.accept_repeat(now,400+slot*16+n)){ESP_LOGI("touch","tap on control %u ignored: %s",(unsigned)slot,screen_input::touch_guard.reason().c_str());return;} }
   else if(!allowed(now,400+slot*16+n,"control "+std::to_string(slot)))return;
   if(!t.available())return;
-  // A range has two ends and a tile's -/+ one number: the card, where a tap picks the end, moves it (firmware 0.19.0).
-  if(step&&tile_controls::climate_range(t)){active_index=w.index;show_detail(w.index);return;}
+  // A range (firmware 0.19.0): the chip switches the end the -/+ move, heat or cool; the -/+ move that end.
+  if(command==tile_controls::RANGE_SWITCH&&tile_controls::climate_range(t)){
+    t.range_end=t.range_end==tile_controls::RANGE_HIGH?tile_controls::RANGE_LOW:tile_controls::RANGE_HIGH;
+    refresh_tile(w.index);return;
+  }
+  if(step&&tile_controls::climate_range(t)){
+    range_step(t,command==tile_controls::STEP_UP?1:-1);
+    if(detail_root&&!lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN)&&detail_index==w.index)climate_paint_ends(t);
+    refresh_tile(w.index);return;
+  }
   if(step){
     // Local at once, tap after tap; tick() sends the last value after a short pause.
     float current=std::isfinite(t.edit_value)?t.edit_value:tile_controls::edit_target(t);
@@ -5523,7 +5581,8 @@ inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
     std::array<tile_controls::Key,CLIMATE_MODE_PARTS> modes;
     const bool wanted=tile_controls::climate_modes_selected(t);
     const int want=wanted?(int)tile_controls::climate_bar_keys(t,modes):0;
-    const std::string target=lv_label_get_text(w.pill_value);
+    // A range's chip carries an icon beside the number: two digits' room for it.
+    const std::string target=std::string(lv_label_get_text(w.pill_value))+(tile_controls::climate_range(t)?"88":"");
     climate_tile::Metrics cm;cm.large=large;cm.touch=touch;cm.gap=gap;cm.max_width=ui::control_max_width();
     const lv_font_t *faces[climate_tile::FACES]={setpoint_font,watch_value_font,control_font?control_font:w.title_font};
     for(int f=0;f<climate_tile::FACES;++f){
@@ -5550,6 +5609,7 @@ inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
       const lv_font_t *number=faces[cl.face];
       set_font(w.pill_value,number);
       lv_obj_set_pos(w.pill_value,cl.number.x-area.x,cl.number.y-area.y);lv_obj_set_size(w.pill_value,cl.number.w,cl.number.h);
+      range_chip(w,t,cl.number.x-area.x,cl.number.y-area.y,cl.number.w,cl.number.h,{number,watch_value_font,w.value_font});
       // The "now" line lives in the pill beside the number (its fourth child), so the panel is one block.
       if(lv_obj_get_child_count(w.pill)<4){auto *line=lv_label_create(w.pill);lv_obj_remove_flag(line,LV_OBJ_FLAG_CLICKABLE);
         lv_label_set_long_mode(line,LV_LABEL_LONG_DOT);lv_obj_set_style_text_align(line,LV_TEXT_ALIGN_CENTER,0);}

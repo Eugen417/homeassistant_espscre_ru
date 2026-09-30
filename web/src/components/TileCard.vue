@@ -9,8 +9,8 @@ import { vDrag } from "../drag";
 import { numberText, t, te } from "../i18n";
 import { dimensions, sizeOf, inlineControlKind, displayName, effectiveControls, isFull, isWide, keysOf, pageTarget } from "../model/layout";
 import { clockText, glyph } from "../model/topbar";
-import { clock24, isCompact, supports, entityName, isSelected, liveOf, numberMarks, openTile, placeTile, removeTile, screenBuiltinName, screenText, state, tileIconCp, toast, unitSuffix } from "../store";
-import { tilePalette, tileActive } from "../model/tile-palette";
+import { clock24, currentScreen, isCompact, supports, entityName, isSelected, liveOf, numberMarks, openTile, placeTile, removeTile, screenBuiltinName, screenText, state, tileIconCp, toast, unitSuffix } from "../store";
+import { modeColor, tilePalette, tileActive } from "../model/tile-palette";
 import type { Tile } from "../types";
 import TileResize from "./TileResize.vue";
 import { availableControl, controlKeys } from "../model/tall-controls";
@@ -62,8 +62,18 @@ function markKey(key: number) {
 const roundValue = computed(() => ["sensor", "number", "input_number"].includes(domain.value) && current.value && !gone.value ? bigValue.value + ((unit.value || "").startsWith("°") ? "°" : unit.value === "%" ? "%" : "") : "");
 const display = computed(() => props.tile.entity === "screen.settings" ? "standard" : props.tile.options?.display || "standard");
 const note = computed(() => (display.value !== "standard" ? displayName(display.value) : ""));
+// The screen draws a thermostat's range on its -/+ (firmware 0.19.0+); an older one gets such a thermostat without them.
+const rangeReady = computed(() => currentScreen.value?.climate_range !== false);
+// A thermostat's -/+ as the screen gets them (core.drawn_controls): only with a temperature to set, a single one or a
+// range (feature 1 or 2), and a range on a screen that draws it. Unknown features leave the choice as it is.
+const drawsSetpoint = computed(() => {
+  const flags = current.value?.a?.supported_features;
+  if (domain.value !== 'climate' || typeof flags !== 'number') return true;
+  return Boolean(flags & 1) || (Boolean(flags & 2) && rangeReady.value);
+});
 const controls = computed(() => {
   const selected = effectiveControls(props.tile, state.inventory);
+  if (!drawsSetpoint.value && (selected === 'setpoint' || selected === 'setpoint_mode')) return selected === 'setpoint_mode' ? 'mode' : null;
   // A card one row high draws the setpoint alone, as the screen does (resolve_controls).
   if (selected === 'setpoint_mode' && shape.value.rows < 2) return 'setpoint';
   if (domain.value !== 'cover') return selected;
@@ -73,7 +83,7 @@ const controls = computed(() => {
 const coverExtended = computed(() => domain.value === 'cover' && hasCoverTilt(effectiveControls(props.tile, state.inventory)) && shape.value.rows > 1);
 const tallControls = computed(() => availableControl(domain.value,
   props.tile.options?.inline === 'slider' ? inlineControlKind(domain.value) : controls.value,
-  current.value?.state || '', current.value?.a || {}));
+  current.value?.state || '', current.value?.a || {}, rangeReady.value));
 const tallKeys = computed(() => controlKeys(domain.value, tallControls.value, current.value?.state || '', current.value?.a || {}));
 // As many mode keys as the screen fits: a wider card holds more (firmware 0.3.1 render_tall).
 const modeKeys = computed(() => tallControls.value === 'setpoint_mode' ? controlKeys('climate', 'mode', current.value?.state || '', current.value?.a || {}, shape.value.columns > 1 ? 5 : 3) : []);
@@ -164,14 +174,13 @@ function haWord(c: { state: string; a: Record<string, any> }) {
   return ["on", "off"].includes(value) ? key(value) : "";
 }
 // A thermostat set to a range (firmware 0.19.0), decided as Home Assistant's thermostat card decides it: a single target
-// it supports and reports comes first, else a range it supports with both ends. Each end in the step's decimals, and the
-// step Home Assistant's own (target_temp_step, which the app fills in as Home Assistant's controls do).
-const climateRange = computed(() => {
+// it supports and reports comes first, else a range it supports with both ends. The screen puts a chip between its -
+// and +: the end they move, heat or cool, with its icon in that mode's colour; the low end first, as the screen does.
+const rangeChip = computed(() => {
   const a = current.value?.a || {}, f = Number(a.supported_features || 0);
-  if (domain.value !== "climate" || (f & 1 && a.temperature != null) || !(f & 2) || a.target_temp_low == null || a.target_temp_high == null) return "";
+  if (domain.value !== "climate" || !rangeReady.value || (f & 1 && a.temperature != null) || !(f & 2) || a.target_temp_low == null || a.target_temp_high == null) return null;
   const digits = Number(a.target_temp_step || 0.5) >= 1 ? 0 : 1;
-  // Home Assistant's thermostat card writes a range this small as "20 · 24", without the unit.
-  return `${num(Number(a.target_temp_low).toFixed(digits))} · ${num(Number(a.target_temp_high).toFixed(digits))}`;
+  return { icon: "fire", color: modeColor("heat"), text: `${num(Number(a.target_temp_low).toFixed(digits))}°` };
 });
 // A thermostat's line as the screen writes it: with a control on the tile, what it is doing and the room's temperature
 // (tile_controls::status_text); without one the temperature it is set to, and otherwise Home Assistant's own tile line,
@@ -244,7 +253,7 @@ const features = computed(() => Number(current.value?.a?.supported_features || 0
 const FILLS_CELL = ["brightness", "speed", "position", "slider", "volume", "setpoint"];
 const fillsCell = computed(() => FILLS_CELL.includes(controls.value || "") || (controls.value === "stepper" && !domain.value.endsWith("select")));
 const setpoint = computed(() => {
-  if (climateRange.value) return climateRange.value;
+  if (rangeChip.value) return rangeChip.value.text;
   const temperature = current.value?.a?.temperature;
   return temperature !== undefined && temperature !== null ? `${num(temperature)}°` : "—";
 });
@@ -357,7 +366,7 @@ async function onKey(e: KeyboardEvent) {
       <span v-if="tile.options?.inline === 'slider'" class="mini-slider" :style="sliderStyle"></span>
       <span v-if="controls" class="ctl">
         <span v-if="controls === 'toggle'" class="tog" :class="{ off: !on }"></span>
-        <span v-else-if="controls === 'setpoint'" class="stp"><span v-if="!climateRange" class="mdi">{{ key("minus") || "−" }}</span><b>{{ setpoint }}</b><span v-if="!climateRange" class="mdi">{{ key("plus") || "+" }}</span></span>
+        <span v-else-if="controls === 'setpoint'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><span v-if="rangeChip" class="range-chip" :style="{ '--end': rangeChip.color }"><span class="mdi end-icon">{{ key(rangeChip.icon) }}</span><b>{{ rangeChip.text }}</b></span><b v-else>{{ setpoint }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
         <template v-else-if="controls === 'volume'"><span class="range" :style="volumeStyle"></span><span class="key mdi">{{ key("volume-high") }}</span></template>
         <template v-else-if="controls === 'playback'"><span class="key mdi">{{ key("skip-previous") }}</span><span class="key mdi">{{ key(on ? "pause" : "play") || key("play") }}</span><span class="key mdi">{{ key("skip-next") }}</span></template>
         <template v-else-if="controls === 'buttons' && domain === 'cover'"><span class="key mdi">{{ key("arrow-expand-horizontal") }}</span><span class="key mdi">{{ key("stop") }}</span><span class="key mdi">{{ key("arrow-collapse-horizontal") }}</span></template>
@@ -378,7 +387,7 @@ async function onKey(e: KeyboardEvent) {
       </span>
       <CoverTilePreview v-if="coverExtended" :primary="tallControls" :entity-state="current?.state || ''" :attributes="current?.a || {}" />
       <span v-else-if="domain === 'climate' && (tallControls === 'setpoint' || tallControls === 'setpoint_mode')" class="tall-setpoint">
-        <span class="target"><span class="key mdi">{{ key('minus') || '−' }}</span><b>{{ setpoint }}</b><span class="key mdi">{{ key('plus') || '+' }}</span></span>
+        <span class="target"><span class="key mdi">{{ key('minus') || '−' }}</span><span v-if="rangeChip" class="range-chip" :style="{ '--end': rangeChip.color }"><span class="mdi end-icon">{{ key(rangeChip.icon) }}</span><b>{{ rangeChip.text }}</b></span><b v-else>{{ setpoint }}</b><span class="key mdi">{{ key('plus') || '+' }}</span></span>
         <span class="st">{{ current?.a?.current_temperature !== undefined ? screenText('screen.climate.now', { value: `${num(current.a.current_temperature)}°` }) : status }}</span>
         <span v-if="modeKeys.length" class="ctl modes"><span v-for="(control, i) in modeKeys" :key="i" class="key mdi" :class="{ active: control.mode === current?.state }">{{ key(control.icon) }}</span></span>
       </span>
@@ -392,7 +401,7 @@ async function onKey(e: KeyboardEvent) {
         </span>
       <span v-if="tallControls" class="ctl" :class="{ playback: tallControls === 'playback' }">
         <span v-if="tallControls === 'toggle'" class="tog" :class="{ off: !on }"></span>
-        <span v-else-if="tallControls === 'setpoint'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><b>{{ setpoint }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
+        <span v-else-if="tallControls === 'setpoint'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><span v-if="rangeChip" class="range-chip" :style="{ '--end': rangeChip.color }"><span class="mdi end-icon">{{ key(rangeChip.icon) }}</span><b>{{ rangeChip.text }}</b></span><b v-else>{{ setpoint }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
         <template v-else-if="tallKeys.length"><span v-for="(control, i) in tallKeys" :key="i" class="key mdi" :class="{ primary: control.primary, disabled: control.disabled, active: control.mode === current?.state }">{{ key(control.icon) }}</span></template>
         <span v-else-if="tallControls === 'stepper'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><b>{{ bigValue }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
         <template v-else-if="tallControls === 'volume'"><span v-if="features & 4" class="range" :style="volumeStyle"></span><span v-if="features & 8" class="key mdi">{{ key(current?.a?.is_volume_muted ? 'volume-off' : 'volume-high') }}</span></template>
@@ -414,7 +423,7 @@ async function onKey(e: KeyboardEvent) {
       <span v-if="tile.options?.inline === 'slider'" class="mini-slider" :style="sliderStyle"></span>
       <span v-if="controls" class="ctl" :class="{ fill: fillsCell }">
         <span v-if="controls === 'toggle'" class="tog" :class="{ off: !on }"></span>
-        <span v-else-if="controls === 'setpoint'" class="stp"><span v-if="!climateRange" class="mdi">{{ key("minus") || "−" }}</span><b>{{ setpoint }}</b><span v-if="!climateRange" class="mdi">{{ key("plus") || "+" }}</span></span>
+        <span v-else-if="controls === 'setpoint'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><span v-if="rangeChip" class="range-chip" :style="{ '--end': rangeChip.color }"><span class="mdi end-icon">{{ key(rangeChip.icon) }}</span><b>{{ rangeChip.text }}</b></span><b v-else>{{ setpoint }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
         <template v-else-if="controls === 'stepper' && domain.endsWith('select')"><span class="key mdi">{{ key("chevron-left") }}</span><span class="key mdi">{{ key("chevron-right") }}</span></template>
         <span v-else-if="controls === 'stepper'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><b>{{ bigValue }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
         <template v-else-if="controls === 'mode'"><span class="key mdi">{{ key("power") }}</span><span class="key mdi">{{ key("fire") }}</span><span class="key mdi">{{ key("snowflake") }}</span></template>
@@ -516,6 +525,15 @@ async function onKey(e: KeyboardEvent) {
 .tile.tall .key { width: clamp(22px, 18cqh, 36px); height: clamp(22px, 18cqh, 36px); min-width: 0; padding: 0; border-radius: 50%; }
 .tile.tall .playback .key.primary, .tile.tall .key.active { background: var(--tile-accent); color: white; }
 .tall-setpoint { flex: 1; display: flex; flex-direction: column; min-height: 0; justify-content: center; gap: 5px; text-align: center; }
+/* A thermostat's range (firmware 0.19.0, runtime_tiles range_chip): the end the -/+ move as a white chip between them,
+   its heat or cool icon in that mode's colour; too narrow for the icon, the number alone in that colour. */
+.range-chip { container-type: inline-size; flex: 1; min-width: 0; align-self: stretch; display: flex; align-items: center; justify-content: center; gap: 3px; margin: 2px 0; padding: 0 6px; border-radius: 999px; background: #fff; }
+.range-chip .end-icon { color: var(--end); font-size: 12px; }
+.range-chip b { font-weight: 600; white-space: nowrap; }
+.target .range-chip { margin: 0; }
+.target .range-chip b { font-size: clamp(16px, 18cqh, 42px); font-weight: 400; }
+.target .range-chip .end-icon { font-size: clamp(12px, 10cqh, 24px); }
+@container (max-width: 44px) { .range-chip .end-icon { display: none; } .range-chip b { color: var(--end); } }
 .target { flex: 1; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
 .target b, .target-value { font-size: clamp(16px, 18cqh, 42px); font-weight: 400; text-align: center; }
 .tile.tall .tall-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; opacity: 0; filter: brightness(.333); pointer-events: none; }
