@@ -632,6 +632,8 @@ onBeforeUnmount(() => { clearInterval(poll); clearInterval(clock); clearInterval
         <template v-else>
           <h2><Icon name="alert-circle-outline" />{{ t("editor.installer.arrive.missing", { name: installer.friendly }) }}</h2>
           <p>{{ t(chosen?.hotspot === false ? "editor.installer.arrive.no_hotspot" : "editor.installer.arrive.hotspot") }}</p>
+          <!-- The same line as under Another network: this Wi-Fi goes into secrets.yaml, which every screen builds with. -->
+          <p class="hint">{{ t("editor.installer.wifi.other_note") }}</p>
           <form class="arrive-form" id="arrive-wifi" novalidate @submit.prevent="fixWifi">
             <div class="field"><label class="f-label" for="fix_ssid">{{ t("editor.installer.wifi.ssid") }}</label><input id="fix_ssid" v-model="form.wifi_ssid" required autocomplete="off" /></div>
             <div class="field"><label class="f-label" for="fix_password">{{ t("editor.installer.wifi.password") }}</label><input id="fix_password" type="password" v-model="form.wifi_password" autocomplete="new-password" /></div>

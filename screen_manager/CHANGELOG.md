@@ -65,15 +65,22 @@ The editor, calmer and quicker to use, and a screen that says what is wrong when
 - The screen's log says when it shows the Wi-Fi message and when the pages come back (firmware 0.19.0).
 - **A thermostat that keeps the room between two temperatures works** (firmware 0.19.0), such as one in Heat/Cool. Its
   tile no longer shows the raw `heat_cool`: as on Home Assistant's own tile it says its state and the room's
-  temperature, "Heat/Cool · 22°". Its card shows both ends side by side, as Home Assistant's thermostat card does: tap
-  one and - and + move it, and both go to Home Assistant together. The - and + on a wide tile, which sent a single
-  temperature such a thermostat cannot take, make way for both ends, "20 · 24", and a tap opens the card. A thermostat
-  with a single temperature is unchanged; one that has both follows Home Assistant and uses the single one when it
-  reports it.
+  temperature, "Heat/Cool · 22°". Between its - and + stands a chip with the end they move, a flame for the heating's
+  and a snowflake for the cooling's, and its temperature. A tap on the chip switches ends, and both ends go to Home
+  Assistant together. The chip's number is as large as a single temperature, or a size smaller where the widest
+  temperature the thermostat can reach would not fit, so it keeps its size from one tap to the next. Its card shows
+  both ends side by side, as Home Assistant's thermostat card does: tap one and - and + move it. A thermostat with a
+  single temperature is unchanged; one that has both follows Home Assistant and uses the single one when it reports
+  it. A screen that is not updated yet leaves the - and + off such a thermostat, instead of sending a single
+  temperature it cannot take.
 - A thermostat's temperatures read as Home Assistant writes them: 22° and 21.5°, no longer 22.0°. One that names no
   step moves as Home Assistant's own controls move it, a whole degree in Fahrenheit and half a degree otherwise.
 - A thermostat in a mode without a temperature to reach, such as dry or fan only, says that mode and the room's
   temperature instead of the raw state.
+- **The editor draws a tile's controls at the screen's own size**: the - and + with the number or the chip between
+  them, measured by the board's own fonts, and a wide tile's keys as the screen draws them for that entity, only the
+  modes a thermostat has and only the keys a vacuum or a blind can use, in place of a fixed row of three.
+- A click on a page between its tiles, or on the line above it with its name ("Page 3"), opens the page's settings.
 - Tested: tools/check.sh (with the new layout audit), the firmware of the CYD, the 4-inch Guition, the 10.1-inch Guition
   and the 7-inch Waveshare with ESPHome 2026.9.0 and 2026.6.2 (CYD 90.5 %, 6.6 KB more than 0.4.31). On a Guition and a
   CYD with a Home Assistant of their own: app 0.4.31 with firmware 0.18 and eight full pages, then this app (the
@@ -84,6 +91,12 @@ The editor, calmer and quicker to use, and a screen that says what is wrong when
   restarts.
   Thermostats on the Guition's glass (a range-only one, one with both, one with a single temperature) and a range set
   through the firmware preview's card: the high end up two and the low end down one reached Home Assistant as both ends.
+- For developers: **what a tile of each entity type can do is written once**, in `catalogue/`, one file per type,
+  and the add-on, the editor and the firmware read it (docs/CATALOGUE.md). What Home Assistant's devices support, the
+  feature flags and which action needs which flag, is read from Home Assistant's own source code
+  (`tools/read_ha_source.py`), never copied by hand. A type exists only where it has a file, and a new one says from
+  which firmware a screen draws it. Every tile app 0.4.31 could save, about 16,000 of them, is checked against what
+  that release stored and sent, so an update keeps every layout as it was.
 - For developers: tests/test_layout_audit.py lays out every kind of card at every size on every board's glass, lying
   down and standing up, with the firmware's own code (the WebAssembly preview) and checks the geometry without a
   picture: nothing leaves its card, no text runs over another or is cut without dots or a marquee, texts keep a margin

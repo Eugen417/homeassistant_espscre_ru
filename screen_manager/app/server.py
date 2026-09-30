@@ -1695,7 +1695,11 @@ class Manager:
         """ESP Screens profiles without a paired screen: flashed but not yet added in Home Assistant, or not flashed yet.
 
         Pairing happens in Home Assistant itself, outside this page; the sidebar shows these so nobody wonders
-        where the freshly flashed screen went."""
+        where the freshly flashed screen went. Until Home Assistant has answered once after a start, no paired screen is
+        known yet: every profile would look like one waiting, and its Remove would take a paired screen's YAML, so none
+        is listed until then (app 0.4.32)."""
+        if not self.ha.online and not getattr(self.ha, 'registry', None):
+            return []
         nodes = {s.get('node') for s in screens}
         devices = {s.get('device') for s in screens}
         installed = getattr(self.firmware, 'installed', set())

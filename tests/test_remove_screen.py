@@ -207,6 +207,24 @@ class RemoveScreenTests(unittest.IsolatedAsyncioTestCase):
                 after = await (await client.get('/api/inventory?light=1')).json()
                 self.assertEqual(after['pending'], [])
 
+    async def test_nothing_waits_before_home_assistant_answered_once(self):
+        # Right after a start (an update of the app), no paired screen is known yet: its profile must not look like one
+        # that never got its firmware, or its Remove would take a working screen's YAML and keys.
+        with tempfile.TemporaryDirectory() as tmp:
+            manager = self.manager(tmp, {INBOX: LAYOUT})
+            self.profile(manager)   # Office 1, paired
+            registry, manager.ha.registry, manager.ha.online = manager.ha.registry, [], False
+            async with TestClient(TestServer(create_app(manager, True))) as client:
+                first = await (await client.get('/api/inventory?light=1')).json()
+                self.assertEqual(first['pending'], [])
+                answer = await client.delete('/api/firmware/profiles/office-1.yaml', headers={'X-Screen-CSRF': first['csrf']})
+                self.assertEqual(answer.status, 400)
+                self.assertTrue((manager.firmware.root / 'office-1.yaml').is_file())
+                # Home Assistant answers: the paired screen is known, and still nothing waits.
+                manager.ha.registry, manager.ha.online = registry, True
+                after = await (await client.get('/api/inventory?light=1')).json()
+                self.assertEqual(after['pending'], [])
+
 
 if __name__ == '__main__':
     unittest.main()

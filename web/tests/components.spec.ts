@@ -17,6 +17,7 @@ import TileCard from "../src/components/TileCard.vue";
 import TileInspector from "../src/components/TileInspector.vue";
 import TopbarInspector from "../src/components/TopbarInspector.vue";
 import PageInspector from "../src/components/PageInspector.vue";
+import { t } from "../src/i18n";
 import { openBar, previewed, removePage, repeatable, setTileOption, state } from "../src/store";
 import type { Inventory, Tile } from "../src/types";
 
@@ -976,6 +977,8 @@ describe("New screen and the Wi-Fi", () => {
       await vi.advanceTimersByTimeAsync(181000);
       await flush();
       expect(view.find("#arrive").classes()).toContain("missing");
+      // It says what Another network says: every screen builds with this Wi-Fi, so the others take it too.
+      expect(view.find("#arrive").text()).toContain(t("editor.installer.wifi.other_note"));
       await view.find("#fix_ssid").setValue("Right");
       await view.find("#fix_password").setValue("pw");
       await view.find("#arrive-wifi").trigger("submit");
