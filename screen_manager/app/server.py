@@ -1126,11 +1126,12 @@ class Manager:
         """The grid of a screen's pages (core.grid_of), with the board its profile builds from and the way it was built
         to hang filled in, so a save, an event and the message to the screen count the same cells whether the screen is
         online or not."""
-        if isinstance(screen, dict) and not (screen.get('package') and screen.get('orientation')):
+        if isinstance(screen, dict) and not (screen.get('package') and screen.get('orientation') and 'grid_rows' in screen):
             # The profiles once, not once per question: reading them stats every file in the ESPHome folder.
             profiles = self.firmware.profile_names()
             screen = {**screen, 'package': screen.get('package') or self.package_of(screen, profiles),
-                      'orientation': screen.get('orientation') or self.orientation_of(screen, profiles)}
+                      'orientation': screen.get('orientation') or self.orientation_of(screen, profiles),
+                      'grid_rows': screen.get('grid_rows', self.built_as(screen, profiles).get('grid_rows'))}
         return grid_of(screen)
 
     def turns(self, screen):
@@ -2561,6 +2562,8 @@ def create_app(manager, development=False):
             # And which way it was built to hang (app 0.2.107), for the same reason: a screen standing up has another
             # canvas and another grid, and while it is offline only its own YAML says so.
             screen['orientation'] = manager.orientation_of(screen, profiles)
+            # And the rows it was built with, when its own YAML chose them (a Guition with four rows, app 0.4.31).
+            screen['grid_rows'] = manager.built_as(screen, profiles).get('grid_rows')
             screen['shape'] = shape_of(screen)
             # Whether the board draws pictures (camera tiles, an alert's snapshot, an album cover): the boards with
             # memory for them say so with their camera sizes (boards.json); the firmware that draws them is a

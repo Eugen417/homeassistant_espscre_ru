@@ -2,7 +2,7 @@
 // New screen: profile, Wi-Fi, and the first flash in one go.
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { getJson, send } from "../api";
-import { t } from "../i18n";
+import { t, te } from "../i18n";
 import { copyText, createVirtualScreen, go, openIntegrations, toast } from "../store";
 import { customPreview, previewProfiles } from "../model/preview";
 import { boardAbilities, boardDetail, boardList, boardTitle } from "../model/boards";
@@ -66,6 +66,10 @@ const glassStyle = (board: BoardChoice) => {
 const abilities = computed(() => (chosen.value ? boardAbilities(chosen.value) : []));
 // The choices besides the orientation (a CYD's display controller): each starts at the board file's own value.
 const choices = computed(() => Object.entries(chosen.value?.choices || {}).map(([key, options]) => ({ key, options })));
+// A value says what it is (the display controller's model); a number of rows is said in words, and its first value is
+// the usual size rather than what most boards have (app 0.4.31).
+const optionName = (key: string, option: string) => te(`editor.installer.choice_option.${key}.${option}`) ? t(`editor.installer.choice_option.${key}.${option}`) : option;
+const firstNote = (key: string) => t(te(`editor.installer.choice_first.${key}`) ? `editor.installer.choice_first.${key}` : "editor.installer.choice_usual");
 // The first board until someone picks one, once the add-on has said which there are.
 watch(boardRows, (rows) => { if (!boards.value[form.board] && rows.length) form.board = rows[0].key; }, { immediate: true });
 // Which way the chosen board may hang, with the canvas and the cells of a page for each. Square glass hangs one way
@@ -337,7 +341,7 @@ onBeforeUnmount(() => { clearInterval(poll); flash.cancel(); });
         <div class="choice-options">
           <label v-for="(option, index) in choice.options" :key="option" class="choice">
             <input type="radio" :name="`choice-${choice.key}`" :value="option" v-model="form.choices[choice.key]" />
-            <span><b>{{ option }}</b><small v-if="index === 0">{{ t("editor.installer.choice_usual") }}</small></span>
+            <span><b>{{ optionName(choice.key, option) }}</b><small v-if="index === 0">{{ firstNote(choice.key) }}</small></span>
           </label>
         </div>
         <small>{{ t(`editor.installer.choice_hint.${choice.key}`) }}</small>

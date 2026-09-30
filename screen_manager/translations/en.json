@@ -1931,10 +1931,12 @@
         "calibration": "Touch calibration on first start"
       },
       "choice": {
-        "DISPLAY_MODEL": "Display controller"
+        "DISPLAY_MODEL": "Display controller",
+        "GRID_ROWS": "Tiles on a page"
       },
       "choice_hint": {
-        "DISPLAY_MODEL": "Most of these boards have the first one. Take the other when the screen shows noise or a garbled picture."
+        "DISPLAY_MODEL": "Most of these boards have the first one. Take the other when the screen shows noise or a garbled picture.",
+        "GRID_ROWS": "Four rows fit eight smaller tiles on a page, for a screen with many switches. Three rows keep the tiles larger and easier to read."
       },
       "choice_usual": "most boards",
       "orientation": "Which way will it hang?",
@@ -2017,7 +2019,16 @@
       "another": "Install another screen",
       "start_over": "Start over",
       "done": "Done",
-      "key_more": "Show the API key"
+      "key_more": "Show the API key",
+      "choice_option": {
+        "GRID_ROWS": {
+          "3": "3 rows",
+          "4": "4 rows, smaller tiles"
+        }
+      },
+      "choice_first": {
+        "GRID_ROWS": "the usual size"
+      }
     },
     "alerts": {
       "eyebrow": "Alerts · cheatsheet",

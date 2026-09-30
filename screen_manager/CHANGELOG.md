@@ -1,3 +1,16 @@
+## 0.4.31 (firmware 0.18.1 for guition)
+
+- **Four rows on the 4-inch Guition, as a choice.** New screen asks how many tiles go on a page: two columns of three,
+  as before, or of four with smaller tiles, for a screen with many switches. Every card works in every size on four
+  rows too. The choice is one line in the screen's own YAML (`GRID_ROWS: "4"`), and a screen already built with three
+  rows gets four by adding that line and installing it again: its saved layout moves on to four rows by itself.
+- An offline screen built with four rows keeps its own grid in the editor; the app reads it from the screen's YAML.
+- Only the Guition gets new firmware (0.18.1), which is the same as before for a screen with three rows. Other screens
+  get nothing new.
+- Tested: tools/check.sh with new tests (the choice in New screen, the line in the screen's YAML, the eight cards the
+  board takes on four rows, the grid of an offline screen), the Guition built with three and with four rows on ESPHome
+  2026.9.0 and 2026.6.2, and rendered with four rows. Not yet seen on the glass of a Guition with four rows.
+
 ## 0.4.30 (firmware 0.18.0)
 
 - **Every screen has eight pages, and a page need not be full.** A screen holds 64 tiles over up to eight pages, on

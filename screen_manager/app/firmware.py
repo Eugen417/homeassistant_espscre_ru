@@ -55,9 +55,13 @@ def profile_meta(text):
     # writes it as ${SOMETHING} is left to the board file as well, because only the build can resolve that.
     rotation = substitutions.get('LVGL_ROTATION')
     rotation = int(rotation) if isinstance(rotation, (int, str)) and str(rotation).strip().lstrip('-').isdigit() else None
+    # The rows it was built with (app 0.4.31): only a screen built with another grid than its board file's carries the
+    # line, a Guition with four rows, so nothing here means the board's own grid.
+    rows = substitutions.get('GRID_ROWS')
+    rows = int(rows) if isinstance(rows, (int, str)) and str(rows).strip().isdigit() and int(rows) > 0 else None
     return {'node': resolve(block.get('name')), 'friendly': resolve(block.get('friendly_name')),
             'screen': ours, 'api_key': key if isinstance(key, str) else None, 'package': package,
-            'rotation': rotation}
+            'rotation': rotation, 'grid_rows': rows}
 
 # What New screen offers, board by board in the catalog's order (boards.yaml, written into boards.json with what each
 # board's files say): what it is called and printed on it, how far it has been tried, its glass (canvas, density,

@@ -40,6 +40,9 @@ guition:
   name: Guition
   model: ESP32-S3-4848S040
   status: stable
+  choices:
+    # Two columns of three, or of four with smaller tiles (firmware 0.18.1): more on a page for a screen of switches.
+    GRID_ROWS: ["3", "4"]
 
 waveshare43:
   file: waveshare-esp32s3-43.yaml

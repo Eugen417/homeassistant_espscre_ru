@@ -602,6 +602,11 @@ def shape_of(screen):
     # Which way it hangs, in the order of what knows best as well: the canvas the screen reports is one of its
     # board's two, and only when it says nothing does the word from its own profile decide.
     shape = board_shape(board, orientation_shown(board, reported) or screen.get('orientation'))
+    # The rows its own YAML was built with (a Guition with four rows, app 0.4.31), for the grid lying down, which on
+    # square glass is the grid either way.
+    rows = screen.get('grid_rows')
+    if type(rows) is int and rows > 0 and shape.get('width', 0) >= shape.get('height', 0):
+        shape = {**shape, 'rows': rows}
     if reported:
         shape = {**shape, **reported}
     return shape

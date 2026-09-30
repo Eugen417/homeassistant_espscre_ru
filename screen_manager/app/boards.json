@@ -111,7 +111,12 @@
   "can_standby": true,
   "catalog": {
    "calibrate": false,
-   "choices": {},
+   "choices": {
+    "GRID_ROWS": [
+     "3",
+     "4"
+    ]
+   },
    "inch": 4.0,
    "model": "ESP32-S3-4848S040",
    "name": "Guition",
@@ -123,7 +128,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.18.0",
+  "firmware": "0.18.1",
   "height": 480,
   "hotspot": true,
   "look": "standard",
@@ -1180,7 +1185,12 @@
   "can_standby": true,
   "catalog": {
    "calibrate": false,
-   "choices": {},
+   "choices": {
+    "GRID_ROWS": [
+     "3",
+     "4"
+    ]
+   },
    "inch": 4.0,
    "model": "ESP32-S3-4848S040",
    "name": "Guition",
@@ -1192,7 +1202,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.18.0",
+  "firmware": "0.18.1",
   "height": 480,
   "hotspot": true,
   "look": "standard",
@@ -1835,7 +1845,12 @@
   "can_standby": true,
   "catalog": {
    "calibrate": false,
-   "choices": {},
+   "choices": {
+    "GRID_ROWS": [
+     "3",
+     "4"
+    ]
+   },
    "inch": 4.0,
    "model": "ESP32-S3-4848S040",
    "name": "Guition",
@@ -1847,7 +1862,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.18.0",
+  "firmware": "0.18.1",
   "height": 480,
   "hotspot": true,
   "look": "standard",

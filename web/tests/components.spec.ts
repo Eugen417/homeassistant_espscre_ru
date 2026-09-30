@@ -970,6 +970,16 @@ describe("the orientation of a new screen", () => {
     const third = await installer();
     await third.find('input[value="guition"]').setValue("guition");
     expect(third.find("#choice-DISPLAY_MODEL").exists()).toBe(false);
+    // The Guition's rows (app 0.4.31): said in words, the usual size first, and four rows sent only when chosen.
+    const rows = third.findAll("#choice-GRID_ROWS .choice");
+    expect(third.find("#choice-GRID_ROWS legend").text()).toBe("Tiles on a page");
+    expect(rows.map((option) => option.find("b").text())).toEqual(["3 rows", "4 rows, smaller tiles"]);
+    expect(rows[0].find("small").text()).toBe("the usual size");
+    await rows[1].find("input").setValue("4");
+    await third.find("#friendly_name").setValue("Hall");
+    await third.find("#install-form").trigger("submit");
+    await flush();
+    expect(answers.pop()).toMatchObject({ board: "guition", choices: { GRID_ROWS: "4" } });
   });
 
   it("sends the chosen way with the new screen", async () => {

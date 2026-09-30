@@ -1931,10 +1931,12 @@
         "calibration": "Kalibracja dotyku przy pierwszym uruchomieniu"
       },
       "choice": {
-        "DISPLAY_MODEL": "Kontroler wyświetlacza"
+        "DISPLAY_MODEL": "Kontroler wyświetlacza",
+        "GRID_ROWS": "Kafelki na stronie"
       },
       "choice_hint": {
-        "DISPLAY_MODEL": "Większość tych płytek ma pierwszy. Wybierz drugi, gdy ekran pokazuje szum lub zniekształcony obraz."
+        "DISPLAY_MODEL": "Większość tych płytek ma pierwszy. Wybierz drugi, gdy ekran pokazuje szum lub zniekształcony obraz.",
+        "GRID_ROWS": "Cztery rzędy mieszczą osiem mniejszych kafelków na stronie, dla ekranu z wieloma przełącznikami. Trzy rzędy zostawiają kafelki większe i czytelniejsze."
       },
       "choice_usual": "większość",
       "orientation": "Jak będzie wisiał?",
@@ -2017,7 +2019,16 @@
       "another": "Zainstaluj kolejny ekran",
       "start_over": "Zacznij od nowa",
       "done": "Gotowe",
-      "key_more": "Pokaż klucz API"
+      "key_more": "Pokaż klucz API",
+      "choice_option": {
+        "GRID_ROWS": {
+          "3": "3 rzędy",
+          "4": "4 rzędy, mniejsze kafelki"
+        }
+      },
+      "choice_first": {
+        "GRID_ROWS": "zwykły rozmiar"
+      }
     },
     "alerts": {
       "eyebrow": "Alerty · ściąga",
