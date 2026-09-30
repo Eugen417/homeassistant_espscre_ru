@@ -81,14 +81,16 @@ The editor, calmer and quicker to use, and a screen that says what is wrong when
   them, measured by the board's own fonts, and a wide tile's keys as the screen draws them for that entity, only the
   modes a thermostat has and only the keys a vacuum or a blind can use, in place of a fixed row of three.
 - A click on a page between its tiles, or on the line above it with its name ("Page 3"), opens the page's settings.
-- Tested: tools/check.sh (with the new layout audit), the firmware of the CYD, the 4-inch Guition, the 10.1-inch Guition
-  and the 7-inch Waveshare with ESPHome 2026.9.0 and 2026.6.2 (CYD 90.5 %, 6.6 KB more than 0.4.31). On a Guition and a
-  CYD with a Home Assistant of their own: app 0.4.31 with firmware 0.18 and eight full pages, then this app (the
-  layouts unchanged to the byte), then this firmware over the air (the same layouts back, and the new sizes offered);
-  spans saved from the editor's handles and through the tile events, 40 saves in a row, saves to both screens at once,
-  and the app, both screens and Home Assistant restarted during a delivery, each ending with the last layout on the
-  glass. A wrong Wi-Fi password on both: the CYD says so after a minute, the Guition when its hotspot opens, neither
-  restarts.
+- Tested: tools/check.sh (with the new layout audit and the tile catalogue's checks), the firmware of the CYD, the 4-inch
+  Guition and the 7-inch Waveshare with ESPHome 2026.9.0 and 2026.6.2, and of the 10.1-inch Guition with 2026.9.0 and
+  2026.8.0, the oldest it takes (CYD 90.6 %, 8.2 KB more than 0.4.31). The update as it reaches people, on a Guition
+  and a CYD with a Home Assistant of their own: app 0.4.31 with firmware 0.18 and eight pages of thermostats and tiles
+  with their options, then this app (both layouts unchanged to the byte, both screens in sync, the firmware update
+  offered, the same 77 entities in Home Assistant, the editor without an error), then this firmware (the same layouts
+  back, the new sizes offered, every setting kept). Earlier the same route over the air, spans saved from the editor's
+  handles and through the tile events, 40 saves in a row, saves to both screens at once, and the app, both screens and
+  Home Assistant restarted during a delivery, each ending with the last layout on the glass. A wrong Wi-Fi password on
+  both: the CYD says so after a minute, the Guition when its hotspot opens, neither restarts.
   Thermostats on the Guition's glass (a range-only one, one with both, one with a single temperature) and a range set
   through the firmware preview's card: the high end up two and the low end down one reached Home Assistant as both ends.
 - For developers: **what a tile of each entity type can do is written once**, in `catalogue/`, one file per type,
