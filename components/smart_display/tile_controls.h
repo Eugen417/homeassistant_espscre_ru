@@ -3,6 +3,7 @@
 // own entity rows. Pure logic only: which keys a card shows, what they send, how
 // a -/+ step lands on the entity's grid, and the status line beside them. The
 // LVGL drawing lives in runtime_tiles.h; tests/test_tile_controls.cpp covers this.
+#include "tile_catalogue.h"
 #include "alarm_panel.h"
 #include "lock_panel.h"
 #include "screen_input.h"
@@ -19,11 +20,20 @@
 
 namespace tile_controls {
 // Home Assistant supported_features bits.
+// Home Assistant's feature bits by the names this code knew them by, their values from Home Assistant's source through the
+// tile catalogue (tile_catalogue.h, catalogue/_ha.json): none is counted by hand here.
 namespace feature {
-constexpr uint32_t COVER_OPEN = 1, COVER_CLOSE = 2, COVER_POSITION = 4, COVER_STOP = 8;
-constexpr uint32_t COVER_OPEN_TILT = 16, COVER_CLOSE_TILT = 32, COVER_STOP_TILT = 64, COVER_TILT_POSITION = 128;
-constexpr uint32_t MEDIA_PAUSE = 1, MEDIA_VOLUME_SET = 4, MEDIA_VOLUME_MUTE = 8, MEDIA_PREVIOUS = 16, MEDIA_NEXT = 32, MEDIA_TURN_ON = 128, MEDIA_PLAY = 16384;
-constexpr uint32_t VACUUM_TURN_ON = 1, VACUUM_TURN_OFF = 2, VACUUM_PAUSE = 4, VACUUM_STOP = 8, VACUUM_RETURN = 16, VACUUM_START = 8192;
+namespace ha = tile_catalogue;
+constexpr uint32_t COVER_OPEN = ha::cover::OPEN, COVER_CLOSE = ha::cover::CLOSE, COVER_POSITION = ha::cover::SET_POSITION, COVER_STOP = ha::cover::STOP;
+constexpr uint32_t COVER_OPEN_TILT = ha::cover::OPEN_TILT, COVER_CLOSE_TILT = ha::cover::CLOSE_TILT, COVER_STOP_TILT = ha::cover::STOP_TILT,
+                   COVER_TILT_POSITION = ha::cover::SET_TILT_POSITION;
+constexpr uint32_t MEDIA_PAUSE = ha::media_player::PAUSE, MEDIA_VOLUME_SET = ha::media_player::VOLUME_SET, MEDIA_VOLUME_MUTE = ha::media_player::VOLUME_MUTE,
+                   MEDIA_PREVIOUS = ha::media_player::PREVIOUS_TRACK, MEDIA_NEXT = ha::media_player::NEXT_TRACK, MEDIA_TURN_ON = ha::media_player::TURN_ON,
+                   MEDIA_PLAY = ha::media_player::PLAY;
+constexpr uint32_t VACUUM_TURN_ON = ha::vacuum::TURN_ON, VACUUM_TURN_OFF = ha::vacuum::TURN_OFF, VACUUM_PAUSE = ha::vacuum::PAUSE, VACUUM_STOP = ha::vacuum::STOP,
+                   VACUUM_RETURN = ha::vacuum::RETURN_HOME, VACUUM_START = ha::vacuum::START, VACUUM_LOCATE = ha::vacuum::LOCATE;
+constexpr uint32_t CLIMATE_TEMPERATURE = ha::climate::TARGET_TEMPERATURE, CLIMATE_RANGE = ha::climate::TARGET_TEMPERATURE_RANGE;
+constexpr uint32_t FAN_SPEED = ha::fan::SET_SPEED;
 }
 // Material Design Icons glyphs the icon fonts carry (tile_icons.py FIXED).
 namespace glyph {
@@ -210,8 +220,8 @@ inline float edit_target(const Tile &t) { return t.domain() == "climate" ? t.tar
 // card decides it (ha-state-control-climate-temperature): a single target it supports and reports comes first; else a
 // range it supports (feature 2) with both ends reported.
 inline bool climate_range(const Tile &t) {
-  if (t.domain() != "climate" || ((t.supported & 1) && std::isfinite(t.target))) return false;
-  return (t.supported & 2) && std::isfinite(t.extra().target_low) && std::isfinite(t.extra().target_high);
+  if (t.domain() != "climate" || ((t.supported & feature::CLIMATE_TEMPERATURE) && std::isfinite(t.target))) return false;
+  return (t.supported & feature::CLIMATE_RANGE) && std::isfinite(t.extra().target_low) && std::isfinite(t.extra().target_high);
 }
 // Which end of the range the climate card's -/+ moves.
 constexpr uint8_t RANGE_LOW = 1, RANGE_HIGH = 2;
@@ -799,10 +809,10 @@ inline bool panel_available(const Tile &t) {
   const auto mode=panel_kind(t),domain=t.domain();
   if(is_key_row(mode)){std::array<Key,3> keys;return keys_for(t,keys)>0;}
   if(mode=="brightness")return domain=="light"&&light_dims(t);
-  if(mode=="speed")return domain=="fan"&&(t.supported&1);
+  if(mode=="speed")return domain=="fan"&&(t.supported&feature::FAN_SPEED);
   if(mode=="position")return domain=="cover"&&(t.supported&feature::COVER_POSITION);
   if(mode=="volume")return domain=="media_player"&&(t.supported&(feature::MEDIA_VOLUME_SET|feature::MEDIA_VOLUME_MUTE));
-  if(mode=="setpoint")return domain=="climate"&&(t.supported&3); // a single target or a heat/cool range (firmware 0.19.0)
+  if(mode=="setpoint")return domain=="climate"&&(t.supported&(feature::CLIMATE_TEMPERATURE|feature::CLIMATE_RANGE)); // one or a range (firmware 0.19.0)
   if(mode=="slider"||mode=="stepper")return domain=="number"||domain=="input_number";
   if(mode=="toggle")return domain=="light"||domain=="switch"||domain=="input_boolean"||domain=="fan"||domain=="automation";
   if(mode=="run")return domain=="scene"||domain=="script"||domain=="button"||domain=="input_button"||domain=="automation";

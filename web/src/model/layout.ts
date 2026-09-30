@@ -9,6 +9,7 @@
 // directly from the owning document, without a watcher or mutable module-global grid.
 import { t } from "../i18n";
 import { NAMED_SIZES, isSize, isWideSize, spanOf, type Size } from "./sizes";
+import { resolveControls } from "./catalogue";
 import type { Inventory, Layout, Tile, PageGrid } from "../types";
 
 // The firmware's own caps (components/smart_display/runtime_model.h): eight pages whatever the grid, and never more than
@@ -254,12 +255,10 @@ export const newTile = (id: string): Tile => ({ entity: id, name: "", slot: -1, 
 
 // Same rule as the add-on: only a wide or full card in the standard layout shows direct controls;
 // without a choice the domain's first control set applies to a wide card, none to a full one.
-export function effectiveControls(tile: Tile, inventory: Inventory): string | null {
-  const domain = tile.entity.split(".")[0], catalogue = inventory.controls?.[domain], o = tile.options || {};
-  if (!catalogue || !isSize(o.size) || o.size === "single" || !["standard", "cover"].includes((o.display || "standard") as string) || o.inline === "slider") return null;
-  // A span one column wide is a taller tall card, as the add-on reads it.
-  const choice = o.controls ?? (["tall", "full"].includes(o.size as string) || (spanOf(o.size)?.columns === 1) ? "none" : catalogue.default);
-  return choice === "none" ? null : choice;
+/** The control set a card draws (model/catalogue.ts resolveControls, as the add-on sends it): the chosen one or its
+ * type's default, and on a card one row high what fits there. `inventory` stays for the callers; the catalogue decides. */
+export function effectiveControls(tile: Tile, _inventory?: Inventory): string | null {
+  return resolveControls(tile);
 }
 export function controlsLabel(tile: Tile, inventory: Inventory) {
   const key = effectiveControls(tile, inventory);

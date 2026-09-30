@@ -1543,9 +1543,9 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
                 options = {**options, 'action': validate_tap_action(options.get('action'))}
             elif 'action' in options:
                 options = {key: value for key, value in options.items() if key != 'action'}
-            if options.get('inline') == 'slider' and domain not in {'light','fan','cover','number','input_number','media_player'}:
+            if options.get('inline') == 'slider' and not (catalogue.of_type(domain) or {}).get('inline'):   # a type with a small slider
                 raise ValueError(t('addon.errors.layout.no_mini_slider'))
-            if 'history_hours' in options and (type(options['history_hours']) is not int or options['history_hours'] not in (1,6,24)):
+            if 'history_hours' in options and (type(options['history_hours']) is not int or options['history_hours'] not in catalogue.TILE['history_hours']):
                 raise ValueError(t('addon.errors.layout.history_hours'))
             # A live picture's pace (app 0.2.91) belongs to the live display; another display leaves a stale one behind.
             # So does how its picture fills a taller card and whether its name is on it (app 0.3.8); the defaults are

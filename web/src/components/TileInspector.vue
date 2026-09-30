@@ -8,6 +8,7 @@ import { t } from "../i18n";
 import { beginFieldEdit, endFieldEdit } from '../store';
 import { ACTS_ON_TAP, domainInfo, entriesOf, holdHintKey, inlineControlKind, pageTarget, SLIDER_DOMAINS, SWITCHES_ON_TAP, TOGGLE_BEFORE } from "../model/layout";
 import { glyph } from "../model/topbar";
+import { controlOption, drawable, fits } from "../model/catalogue";
 import { currentScreen, automaticIcon, entityName, liveOf, openPage, openTile, screenBuiltinName, fullPage, loadSubtitleValues, setTileName, pictures, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
 import type { Tile } from "../types";
 import ActionPicker from "./ActionPicker.vue";
@@ -116,10 +117,11 @@ const controlChoices = computed(() => {
   const c = caps.value;
   // Temperature and mode need a second row: offered on 1 x 2, 2 x 2 and full-page cards only.
   const choices = (catalogue.value?.choices || []).filter(ch => domain.value !== "cover" || !hasCoverTilt(ch.key))
-    .filter(ch => ch.key !== "setpoint_mode" || (isTallSize(size.value) || size.value === "full"))
-    // A thermostat with only a range has its -/+ on screens that draw a range (firmware 0.19.0+, climate_range).
-    .filter(ch => !["setpoint", "setpoint_mode"].includes(ch.key) || domain.value !== "climate" || currentScreen.value?.climate_range !== false
-      || Boolean(Number(liveOf(props.tile.entity)?.a?.supported_features || 0) & 1))
+    // The tile catalogue decides the rest (model/catalogue.ts): room for it on a card of this size (the mode keys and
+    // the slats ask a second row), and a screen that draws it for this entity (a range: firmware 0.19.0+).
+    .filter(ch => ch.key === "none" || fits(controlOption(domain.value, ch.key), size.value, grid.columns))
+    .filter(ch => ch.key === "none" || drawable(domain.value, ch.key, liveOf(props.tile.entity)?.a || {},
+      currentScreen.value?.climate_range === false ? new Set<string>() : null) === ch.key)
     .filter((ch) => !c || ch.key === "none" || ch.key === primaryControl.value || c.controls.includes(ch.key)).map((ch) => [ch.key, ch.label] as [string, string]);
   return offer("controls", choices, primaryControl.value, (key) => domain.value === "cover" ? withCoverTilt(key, tiltSelected.value) : key);
 });

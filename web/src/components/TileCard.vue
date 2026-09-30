@@ -12,6 +12,7 @@ import { clockText, glyph } from "../model/topbar";
 import { clock24, currentScreen, isCompact, supports, entityName, isSelected, liveOf, numberMarks, openTile, placeTile, removeTile, screenBuiltinName, screenText, state, tileIconCp, toast, unitSuffix } from "../store";
 import { modeColor, tilePalette, tileActive } from "../model/tile-palette";
 import { textEms, widestSetpoint } from "../model/ui-scale";
+import { drawable } from "../model/catalogue";
 import type { Tile } from "../types";
 import TileResize from "./TileResize.vue";
 import { availableControl, controlKeys } from "../model/tall-controls";
@@ -65,16 +66,12 @@ const display = computed(() => props.tile.entity === "screen.settings" ? "standa
 const note = computed(() => (display.value !== "standard" ? displayName(display.value) : ""));
 // The screen draws a thermostat's range on its -/+ (firmware 0.19.0+); an older one gets such a thermostat without them.
 const rangeReady = computed(() => currentScreen.value?.climate_range !== false);
-// A thermostat's -/+ as the screen gets them (core.drawn_controls): only with a temperature to set, a single one or a
-// range (feature 1 or 2), and a range on a screen that draws it. Unknown features leave the choice as it is.
-const drawsSetpoint = computed(() => {
-  const flags = current.value?.a?.supported_features;
-  if (domain.value !== 'climate' || typeof flags !== 'number') return true;
-  return Boolean(flags & 1) || (Boolean(flags & 2) && rangeReady.value);
-});
 const controls = computed(() => {
-  const selected = effectiveControls(props.tile, state.inventory);
-  if (!drawsSetpoint.value && (selected === 'setpoint' || selected === 'setpoint_mode')) return selected === 'setpoint_mode' ? 'mode' : null;
+  // What the screen draws for this entity (model/catalogue.ts drawable, as the add-on sends it): an older screen gets a
+  // thermostat with only a range without its -/+, one without a temperature to set never has them.
+  const chosen = effectiveControls(props.tile, state.inventory);
+  const drawn = chosen ? drawable(domain.value, chosen, current.value?.a || {}, rangeReady.value ? null : new Set<string>()) : null;
+  const selected = drawn === 'none' ? null : drawn;
   // A card one row high draws the setpoint alone, as the screen does (resolve_controls).
   if (selected === 'setpoint_mode' && shape.value.rows < 2) return 'setpoint';
   if (domain.value !== 'cover') return selected;

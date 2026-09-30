@@ -156,5 +156,14 @@ class Screens(unittest.TestCase):
         self.assertEqual(gate('light.a'), [])
 
 
+class Conformance(unittest.TestCase):
+    def test_the_editors_cases_are_what_catalogue_py_answers(self):
+        # web/tests/catalogue.spec.ts holds catalogue.ts to the same file: the two answer alike.
+        conformance = importlib.util.spec_from_file_location('catalogue_conformance', ROOT / 'tests/catalogue_conformance.py')
+        module = importlib.util.module_from_spec(conformance)
+        conformance.loader.exec_module(module)
+        self.assertEqual(module.FIXTURE.read_text(), module.output(), 'run tests/catalogue_conformance.py')
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -1,4 +1,5 @@
 #pragma once
+#include "tile_catalogue.h"
 #include <algorithm>
 #include <array>
 #include <memory>
@@ -119,7 +120,8 @@ inline bool valid_entity(const std::string &entity) {
     if (entity == "screen.clock" || entity == "screen.settings" || entity == "screen.nightstand") return true;
     return page_entity(entity) && entity[12] >= '1' && entity[12] <= static_cast<char>('0' + grid.pages());
   }
-  for (const auto *allowed : {"light", "switch", "input_boolean", "scene", "script", "climate", "vacuum", "fan", "cover", "sensor", "binary_sensor", "input_select", "select", "number", "input_number", "weather", "media_player", "button", "input_button", "automation", "sun", "timer", "person", "camera", "image", "alarm_control_panel", "lock"})
+  // The types the tile catalogue has (catalogue/*.yaml, tile_catalogue.h): the same list the add-on and the editor take.
+  for (const auto *allowed : tile_catalogue::DOMAINS)
     if (domain == allowed) return true;
   return false;
 }

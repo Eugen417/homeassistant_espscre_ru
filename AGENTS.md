@@ -97,6 +97,13 @@ and screens for lookups and tests. If that file is missing you are not on his ma
 
 ## Code and regressions
 
+- What a tile of each entity type can do lives in the tile catalogue: `catalogue/<type>.yaml`, generated into the add-on,
+  the editor and the firmware by `tools/generate_catalogue.py`, with Home Assistant's own facts read from its source by
+  `tools/read_ha_source.py`. A type exists only where it has a file, and only after the firmware draws it. Never write
+  a capability rule (a feature bit, an allowed control, a firmware gate for an option) in the add-on, the editor or the
+  firmware by hand: docs/CATALOGUE.md is the recipe. `tests/test_compat_0431.py` must stay green: updating from 0.4.31
+  keeps every saved layout.
+
 - The page-owned layout release deliberately replaces the old firmware decoder.
   Future protocol extensions must be negotiated, as with `tile_sizes`, rather
   than requiring another protocol break. Keep legacy delivery in the add-on,
