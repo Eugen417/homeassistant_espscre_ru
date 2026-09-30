@@ -92,7 +92,7 @@ The editor, calmer and quicker to use, and a screen that says what is wrong when
   longer selects text on the page.
 - Tested: tools/check.sh (with the new layout audit and the tile catalogue's checks), the firmware of the CYD, the 4-inch
   Guition and the 7-inch Waveshare with ESPHome 2026.9.0 and 2026.6.2, and of the 10.1-inch Guition with 2026.9.0 and
-  2026.8.0, the oldest it takes (CYD 90.6 %, 8.2 KB more than 0.4.31). The update as it reaches people, on a Guition
+  2026.8.0, the oldest it takes (CYD 90.6 %, 7.5 KB more than 0.4.31). The update as it reaches people, on a Guition
   and a CYD with a Home Assistant of their own: app 0.4.31 with firmware 0.18 and eight pages of thermostats and tiles
   with their options, then this app (both layouts unchanged to the byte, both screens in sync, the firmware update
   offered, the same 77 entities in Home Assistant, the editor without an error), then this firmware (the same layouts
@@ -102,6 +102,8 @@ The editor, calmer and quicker to use, and a screen that says what is wrong when
   both: the CYD says so after a minute, the Guition when its hotspot opens, neither restarts.
   Thermostats on the Guition's glass (a range-only one, one with both, one with a single temperature) and a range set
   through the firmware preview's card: the high end up two and the low end down one reached Home Assistant as both ends.
+  Both mode controls and the range's temperature laid out on every board and size by the layout audit, and rendered on
+  the Guition's and the CYD's glass through the firmware preview beside the editor's mockup, which matched.
 - For developers: **what a tile of each entity type can do is written once**, in `catalogue/`, one file per type,
   and the add-on, the editor and the firmware read it (docs/CATALOGUE.md). What Home Assistant's devices support, the
   feature flags and which action needs which flag, is read from Home Assistant's own source code
