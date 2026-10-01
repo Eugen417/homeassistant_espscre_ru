@@ -256,7 +256,7 @@ on the screen itself, and how updates work.
   wake a screen or put it to sleep with its **Wake** and **Sleep** buttons (firmware 0.2.45+).
   See [Wake and sleep](#wake-and-sleep-from-an-automation).
 - **Settings on the screen itself** (firmware 0.2.44+): hold the top bar for about a
-  second and a half and the screen opens its own settings page — brightness, night,
+  second and a half and the screen opens its own settings page: brightness, night,
   the clock, back to page 1, swiping, the page buttons, the home button, rotation, and what this screen is
   (name, IP address, firmware, whether Home Assistant is connected, and Restart). Changes show up in ESP Screens
   within a second. See [Settings on the screen](#settings-on-the-screen).
@@ -354,7 +354,7 @@ data:
   or `account`. `mdi:doorbell` and the hex codepoint (`F12E6`) also work, as long as the glyph
   is included in the firmware. Unknown falls back to the warning triangle.
 - **`color`**: `red`, `orange`, `yellow`, `green`, `mint`, `blue`, `purple`, `pink`, or
-  `gray` — the same pastel shades as the tiles. Empty gives the white card.
+  `gray`, the same pastel shades as the tiles. Empty gives the white card.
 - **`button_text`**: the text on the button; empty is "OK".
 - **`timeout`**: seconds after which the card disappears on its own; `0` means it waits for the button,
   however long that takes. The button always closes the card immediately, even with a timeout. Standby and
@@ -654,7 +654,7 @@ Everything you would want to change while standing in front of the panel is on t
 itself (firmware 0.2.44+). Tiles, the top bar and the pages stay in ESP Screens, where you
 have a mouse.
 
-**Opening it:** hold the top bar — the strip with the screen's name and the clock — until the
+**Opening it:** hold the top bar (the strip with the screen's name and the clock) until the
 blue line along the top edge is full, about a second and a half. Letting go early cancels.
 Rather have a button? Put the built-in **Settings** card on a page like any other tile. From
 Home Assistant, `esphome.<screen>_open_settings` opens it too (`page` 0 menu, 1 Brightness,
@@ -680,8 +680,8 @@ English is the default. [Translating ESP Screens](docs/TRANSLATING.md) says how 
   <img src="docs/images/guition-settings-night.png" width="32%" alt="The Night page: Night mode on, starting at 22:00 and ending at 07:00, and the night brightness">
 </p>
 
-Tap a toggle to flip it, `-` and `+` to change a number or a time — hold them and a time walks
-whole hours — and tap a chip like the clock to cycle it. Every change is saved on the screen,
+Tap a toggle to flip it, `-` and `+` to change a number or a time (hold them and a time walks
+whole hours), and tap a chip like the clock to cycle it. Every change is saved on the screen,
 takes effect at once, and appears in ESP Screens within a second, so both sides always show
 the same value. The **Screen settings** cards in ESP Screens have the same rows.
 
@@ -743,8 +743,8 @@ query for all screens. Older firmware still works via the text field and the
 full resend every two minutes. The diagnostic sensor `Uptime` has been
 replaced by the `Last boot` timestamp.
 
-See the [release history](screen_manager/CHANGELOG.md) and
-[releases and protocol compatibility](docs/RELEASING.md).
+See the [release history](screen_manager/CHANGELOG.md), [how a release is made](docs/RELEASING.md) and
+[updating the app and the screens at different times](docs/PAGES.md#updating-at-different-times).
 
 **If you publish your own fork:** every push to GitHub is a release. Always also
 bump the add-on version in `screen_manager/config.yaml` and log the change in
@@ -764,6 +764,7 @@ board, so the other screens are not asked to update. `tools/affected_boards.py` 
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Instructions for developers and LLMs](AGENTS.md), with [how a screen's YAML is put together](docs/PROFILES.md),
   [settings](docs/SETTINGS.md), [colours and Dark mode](docs/THEME.md) and [releases](docs/RELEASING.md)
+- [Every document in docs/](docs/README.md): the recipes for changing the code, a page per board, and the guides
 
 Give a developer or LLM a clean copy of this repository and, for example:
 

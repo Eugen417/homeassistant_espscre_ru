@@ -2535,7 +2535,7 @@ def installation_yaml(data):
         raise ValueError(t('addon.errors.firmware.choice'))
     choice_lines = ''.join(f'  {key}: {quote(chosen[key])}\n' for key in offered if chosen.get(key, offered[key][0]) != offered[key][0])
     # An OTA password, not yet `ota: encryption:` with the api key: ESPHome before 2026.9 refuses that, and the owner's
-    # ESPHome Device Builder may still be older (docs/RELEASING.md, Compatibility 0.2.89).
+    # ESPHome Device Builder may still be older (docs/RELEASING.md, "ESPHome versions").
     key, ota = base64.b64encode(secrets.token_bytes(32)).decode(), secrets.token_urlsafe(24)
     # The Wi-Fi fallback hotspot and its captive portal, where the board has room for them (boards.json `hotspot`,
     # app 0.4.5+): a board with 4 MB of flash leaves both out, some 90 KB of its 1.75 MB update slot. A screen whose
