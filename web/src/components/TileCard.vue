@@ -315,7 +315,7 @@ async function onKey(e: KeyboardEvent) {
 </script>
 
 <template>
-  <span v-if="round" class="round-tile" :class="{ chosen, placeholder: placeholder || (!live && !foreign) }" :data-tile-id="tile.id"
+  <span v-if="round" class="round-tile" :class="{ chosen, placeholder: placeholder || (!live && !foreign), 'just-added': !preview && !!tile.id && state.justAdded === tile.id }" :data-tile-id="tile.id"
     :style="{ '--tile-icon': palette.icon, '--tile-circle': palette.circle }">
     <button type="button" class="round-key" :aria-label="name" :disabled="preview && !live"
       v-drag="preview || foreign ? null : { kind: 'tile', tile }" @click.stop="activate">
@@ -325,7 +325,7 @@ async function onKey(e: KeyboardEvent) {
     <!-- The same remove key as on a tile, at the circle's corner. -->
     <button v-if="live && !preview" type="button" class="remove" :title="t('editor.tile_card.remove')" :aria-label="t('editor.tile_card.remove_named', { name })" @click.stop="removeTile(tile)">✕</button>
   </span>
-  <div v-else class="tile" :class="{ wide, full, tall, 'tall-action': tallAction || tallStack, 'big-key': bigKey, photo: artworkLoaded && !!artwork, camera: cameraCard && cameraLoaded, bare, placeholder: placeholder || (!live && !foreign), chosen }" :data-slot="slot" :data-tile-id="tile.id" :data-columns="shape.columns" :data-rows="shape.rows"
+  <div v-else class="tile" :class="{ wide, full, tall, 'tall-action': tallAction || tallStack, 'big-key': bigKey, photo: artworkLoaded && !!artwork, camera: cameraCard && cameraLoaded, bare, placeholder: placeholder || (!live && !foreign), chosen, 'just-added': !preview && !!tile.id && state.justAdded === tile.id }" :data-slot="slot" :data-tile-id="tile.id" :data-columns="shape.columns" :data-rows="shape.rows"
     :style="{ gridColumn: `${slot % grid.columns + 1} / span ${shape.columns}`, gridRow: `${Math.floor(slot % grid.slots / grid.columns) + 1} / span ${shape.rows}`, ...(background && !bare ? { backgroundColor: background } : {}), '--tile-icon': palette.icon, '--tile-circle': palette.circle, '--tile-accent': palette.accent }"
     :tabindex="!foreign && (preview ? goesTo : live) ? 0 : -1" :role="!foreign && (preview ? goesTo : live) ? 'button' : undefined" :aria-label="live ? label : undefined"
     v-drag="preview || foreign ? null : { kind: 'tile', tile }" @click="activate" @keydown="live && onKey($event)">

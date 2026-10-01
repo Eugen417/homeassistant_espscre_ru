@@ -2566,6 +2566,26 @@
         "page": "Seite",
         "bar": "Kopfleiste"
       }
+    },
+    "phone": {
+      "screens": "Bildschirme",
+      "add_tile": "Kachel hinzufügen",
+      "add_to_cell": "Kommt an Platz {cell} auf {page}",
+      "add_to_page": "Kommt an den ersten freien Platz auf {page}",
+      "added": "{name} hinzugefügt",
+      "page_of": "{n} von {total}",
+      "pages": "Seiten",
+      "page_tiles": "{n} Kachel | {n} Kacheln",
+      "pages_order": "Seiten und Reihenfolge",
+      "hint": "Tippe auf eine Kachel, um sie zu ändern.",
+      "hint_pages": "Tippe auf eine Kachel, um sie zu ändern. Wische zur nächsten Seite.",
+      "on_screen": "Alles ist auf dem Bildschirm",
+      "not_sent": "Geändert, noch nicht gesendet",
+      "more_settings": "Weitere Einstellungen",
+      "more_settings_hint": "Darstellung, zweite Zeile und was ein Tippen tut",
+      "move": "Verschieben",
+      "full_editor": "Vollständiger Editor",
+      "simple_editor": "Einfache Ansicht"
     }
   }
 }

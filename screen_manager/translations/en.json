@@ -2566,6 +2566,26 @@
         "page": "Page",
         "bar": "Top bar"
       }
+    },
+    "phone": {
+      "screens": "Screens",
+      "add_tile": "Add tile",
+      "add_to_cell": "Goes in place {cell} on {page}",
+      "add_to_page": "Goes in the first free place on {page}",
+      "added": "{name} added",
+      "page_of": "{n} of {total}",
+      "pages": "Pages",
+      "page_tiles": "{n} tile | {n} tiles",
+      "pages_order": "Pages and order",
+      "hint": "Tap a tile to change it.",
+      "hint_pages": "Tap a tile to change it. Swipe for the next page.",
+      "on_screen": "Everything is on the screen",
+      "not_sent": "Changed, not sent yet",
+      "more_settings": "More settings",
+      "more_settings_hint": "Display, second line and what a tap does",
+      "move": "Move",
+      "full_editor": "Full editor",
+      "simple_editor": "Simple view"
     }
   }
 }

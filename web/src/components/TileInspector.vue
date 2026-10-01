@@ -9,7 +9,8 @@ import { beginFieldEdit, endFieldEdit } from '../store';
 import { ACTS_ON_TAP, domainInfo, entriesOf, holdHintKey, inlineControlKind, pageTarget, SLIDER_DOMAINS, SWITCHES_ON_TAP, TOGGLE_BEFORE } from "../model/layout";
 import { glyph } from "../model/topbar";
 import { controlOption, drawable, fits, ofType } from "../model/catalogue";
-import { currentScreen, automaticIcon, entityName, liveOf, openPage, openTile, screenBuiltinName, fullPage, loadSubtitleValues, setTileName, pictures, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
+import { currentScreen, automaticIcon, entityName, liveOf, moveTileToPage, openPage, openTile, phone, screenBuiltinName, fullPage, loadSubtitleValues, setTileName, pictures, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
+import { titleOf } from "../model/pages";
 import type { Tile } from "../types";
 import ActionPicker from "./ActionPicker.vue";
 import IconPicker from "./IconPicker.vue";
@@ -30,6 +31,17 @@ import { choiceOffered, offeredChoices } from "../model/tile-options";
 import { isTallSize } from "../model/sizes";
 
 const props = defineProps<{ tile: Tile }>();
+// On a phone (app 0.4.40) the sheet starts with what a tile is changed for most: its name, icon and colour, then a way
+// to move it or take it off. Everything else stands behind More settings, the same rows as on a wider page.
+const more = ref(false);
+watch(() => props.tile.id, () => { more.value = false; });
+// The tile goes to the first free cell of another page, and the sheet follows it there.
+function moveTile(page: number) {
+  const id = state.document?.pages[page]?.id;
+  if (moveTileToPage(props.tile, page) && id) state.selectedPageId = id;
+}
+const otherPages = computed(() => (state.document?.pages || []).map((page, index) => ({ index, name: titleOf(state.document!, page) || t("editor.page.label", { page: index + 1 }) }))
+  .filter((page) => page.index !== pageOf(props.tile.slot)));
 const nameDraft = textDraft(() => props.tile.name, value => setTileName(props.tile, value));
 const domain = computed(() => props.tile.entity.split(".")[0]);
 const name = computed(() => entityName(props.tile.entity));
@@ -287,6 +299,7 @@ const backgroundName = computed(() => state.inventory.backgrounds?.[props.tile.o
     </Section>
 
     <!-- What the card shows first, then where it stands, what a finger does to it, and last its icon and colour. -->
+    <template v-if="!phone || more">
     <Section v-if="lookShown || (!bedside && !key)" :title="t('editor.tile.sections.look')">
       <PropRow v-if="lookShown && tile.entity !== 'screen.settings' && !mapTile" :label="t('editor.tile.display.label')" icon="eye-outline" :hint="displayHint && !displayWarns ? displayHint : undefined">
         <ChoiceField :choices="displays" :value="display" :tile="tile" preview-key="display" :aria-label="t('editor.tile.display.label')" @pick="(v) => setTileOption(tile, 'display', v)" />
@@ -391,8 +404,9 @@ const backgroundName = computed(() => state.inventory.backgrounds?.[props.tile.o
         <small v-if="sliderWarn" class="warn">{{ t("editor.tile.slider.nothing") }}</small>
       </SwitchRow>
     </Section>
+    </template>
 
-    <Section :title="t('editor.tile.sections.style')">
+    <Section :title="t('editor.tile.sections.style')" class="style-section">
       <IconPicker v-if="showIcon" :tile="tile" :selected="tile.options?.icon || 'auto'" :automatic="automaticIcon(tile.entity)"
         :auto-label="t(fromHA ? 'editor.tile.icon.auto_ha' : 'editor.tile.icon.auto_default')"
         :note="supports(0, 2, 18) ? '' : t('editor.tile.icon.needs_firmware')"
@@ -407,5 +421,17 @@ const backgroundName = computed(() => state.inventory.backgrounds?.[props.tile.o
         </div>
       </PropRow>
     </Section>
+    <template v-if="phone">
+      <button v-if="!more" type="button" class="phone-more" @click="more = true">
+        <span><b>{{ t("editor.phone.more_settings") }}</b><small>{{ t("editor.phone.more_settings_hint") }}</small></span><Icon name="chevron-right" />
+      </button>
+      <div class="phone-tile-actions">
+        <UiMenu v-if="!key && !bedside && otherPages.length" width="240px">
+          <template #trigger><button type="button" class="btn"><Icon name="arrow-right" />{{ t("editor.phone.move") }}</button></template>
+          <UiMenuItem v-for="page in otherPages" :key="page.index" icon="view-column-outline" @select="moveTile(page.index)">{{ page.name }}</UiMenuItem>
+        </UiMenu>
+        <button type="button" class="btn danger-soft" @click="removeTile(tile)"><Icon name="delete-outline" />{{ t("editor.common.remove") }}</button>
+      </div>
+    </template>
   </div>
 </template>

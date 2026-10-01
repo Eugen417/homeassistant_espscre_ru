@@ -2566,6 +2566,26 @@
         "page": "Página",
         "bar": "Barra superior"
       }
+    },
+    "phone": {
+      "screens": "Ecrãs",
+      "add_tile": "Adicionar mosaico",
+      "add_to_cell": "Vai para o lugar {cell} de {page}",
+      "add_to_page": "Vai para o primeiro lugar livre de {page}",
+      "added": "{name} adicionado",
+      "page_of": "{n} de {total}",
+      "pages": "Páginas",
+      "page_tiles": "{n} mosaico | {n} mosaicos",
+      "pages_order": "Páginas e ordem",
+      "hint": "Toque num mosaico para o alterar.",
+      "hint_pages": "Toque num mosaico para o alterar. Deslize para a página seguinte.",
+      "on_screen": "Está tudo no ecrã",
+      "not_sent": "Alterado, ainda não enviado",
+      "more_settings": "Mais definições",
+      "more_settings_hint": "Vista, segunda linha e o que faz um toque",
+      "move": "Mover",
+      "full_editor": "Editor completo",
+      "simple_editor": "Vista simples"
     }
   }
 }

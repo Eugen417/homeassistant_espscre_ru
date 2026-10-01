@@ -2566,6 +2566,26 @@
         "page": "Page",
         "bar": "Barre supérieure"
       }
+    },
+    "phone": {
+      "screens": "Écrans",
+      "add_tile": "Ajouter une tuile",
+      "add_to_cell": "Va à la place {cell} de {page}",
+      "add_to_page": "Va à la première place libre de {page}",
+      "added": "{name} ajouté",
+      "page_of": "{n} sur {total}",
+      "pages": "Pages",
+      "page_tiles": "{n} tuile | {n} tuiles",
+      "pages_order": "Pages et ordre",
+      "hint": "Touchez une tuile pour la modifier.",
+      "hint_pages": "Touchez une tuile pour la modifier. Balayez pour la page suivante.",
+      "on_screen": "Tout est sur l’écran",
+      "not_sent": "Modifié, pas encore envoyé",
+      "more_settings": "Plus de réglages",
+      "more_settings_hint": "Affichage, deuxième ligne et effet d’un toucher",
+      "move": "Déplacer",
+      "full_editor": "Éditeur complet",
+      "simple_editor": "Vue simple"
     }
   }
 }

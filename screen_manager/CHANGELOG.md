@@ -1,3 +1,21 @@
+## 0.4.40 (firmware 0.22.0)
+
+- **The editor on a phone is about your screen now.** On a phone the editor opens on the screen as it stands on the
+  glass, one page at a time, with one button under your thumb: **Add tile**. Swipe for the next page; tap the page's
+  name under the screen for the list of pages, to go to one, move it by its handle or add one.
+- **Adding a tile** opens a sheet that says where the tile goes, with the search and the kinds of entity as chips. One
+  tap adds it: the sheet closes, the new tile lights up for a moment and Undo is beside the message. A tap on an empty
+  place adds the next tile right there. Once something changed, the button at the bottom is **Save & send**.
+- **A tile's settings** open as a sheet over the lower half, so the screen above it shows every change: its name, icon
+  and colour first, then **Move** to another page and **Remove**. **More settings** opens every other setting, as on a
+  computer.
+- **Everything else is in the screen's ··· menu**: preview, undo and redo, add a page, pages and order, the top bar,
+  screen settings and rename, and what the menu held already. The overview's ··· holds search, alerts, settings and a
+  new screen.
+- **Full editor** in that menu brings back the editor of a computer on that phone, and **Simple view** returns. The
+  phone remembers the choice. A computer and a tablet keep the editor exactly as it was.
+- Nothing changes on the screens.
+
 ## 0.4.39
 
 - **New licence.** From this release Tessera is licensed under the GNU Affero General Public License v3.0 instead of

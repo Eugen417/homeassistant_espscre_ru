@@ -25,6 +25,11 @@ on the screen itself, and how updates work.
   Search by entity, device, or room, and drag to reorder. A whole page moves the same way: drag it by its
   number to another place in the row, and its tiles, its own title and the Go to page tiles that lead to it come
   along. Remove page in the page's ··· menu takes a page away with those same tiles, with Undo beside the message.
+- **On a phone** (app 0.4.40) the editor shows the screen itself, one page at a time: swipe for the next page, tap
+  its name under the screen for the list of pages. **Add tile** opens a sheet to pick one, a tap on an empty place adds
+  it right there, and a tap on a tile gives its name, icon and colour, with More settings for the rest. Everything else
+  (preview, undo, pages, the top bar, screen settings) is in the screen's ··· menu, and **Full editor** there brings back
+  the editor of a computer on that phone.
 - **Per-tile settings:** a custom name, click behavior, a small slider where
   supported, or a large value for things like temperature and power usage.
   On a double-width tile the small slider stands beside the name, in the cell

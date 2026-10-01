@@ -2566,6 +2566,26 @@
         "page": "Oldal",
         "bar": "Felső sáv"
       }
+    },
+    "phone": {
+      "screens": "Képernyők",
+      "add_tile": "Csempe hozzáadása",
+      "add_to_cell": "Ide kerül: {page}, {cell}. hely",
+      "add_to_page": "Ide kerül: {page}, első szabad hely",
+      "added": "{name} hozzáadva",
+      "page_of": "{n} / {total}",
+      "pages": "Oldalak",
+      "page_tiles": "{n} csempe | {n} csempe",
+      "pages_order": "Oldalak és sorrend",
+      "hint": "Koppints egy csempére a módosításához.",
+      "hint_pages": "Koppints egy csempére a módosításához. Lapozz oldalra a következő oldalhoz.",
+      "on_screen": "Minden a képernyőn van",
+      "not_sent": "Módosítva, még nincs elküldve",
+      "more_settings": "További beállítások",
+      "more_settings_hint": "Megjelenés, második sor és a koppintás hatása",
+      "move": "Áthelyezés",
+      "full_editor": "Teljes szerkesztő",
+      "simple_editor": "Egyszerű nézet"
     }
   }
 }

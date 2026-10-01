@@ -2566,6 +2566,26 @@
         "page": "Strona",
         "bar": "Górny pasek"
       }
+    },
+    "phone": {
+      "screens": "Ekrany",
+      "add_tile": "Dodaj kafelek",
+      "add_to_cell": "Trafi na miejsce {cell} na stronie {page}",
+      "add_to_page": "Trafi na pierwsze wolne miejsce na stronie {page}",
+      "added": "Dodano: {name}",
+      "page_of": "{n} z {total}",
+      "pages": "Strony",
+      "page_tiles": "{n} kafelek | {n} kafelki | {n} kafelków",
+      "pages_order": "Strony i kolejność",
+      "hint": "Dotknij kafelka, aby go zmienić.",
+      "hint_pages": "Dotknij kafelka, aby go zmienić. Przesuń, aby przejść do następnej strony.",
+      "on_screen": "Wszystko jest na ekranie",
+      "not_sent": "Zmieniono, jeszcze nie wysłano",
+      "more_settings": "Więcej ustawień",
+      "more_settings_hint": "Widok, druga linia i działanie dotknięcia",
+      "move": "Przenieś",
+      "full_editor": "Pełny edytor",
+      "simple_editor": "Prosty widok"
     }
   }
 }

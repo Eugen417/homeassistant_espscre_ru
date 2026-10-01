@@ -2566,6 +2566,26 @@
         "page": "Pagina",
         "bar": "Barra superiore"
       }
+    },
+    "phone": {
+      "screens": "Schermi",
+      "add_tile": "Aggiungi riquadro",
+      "add_to_cell": "Va al posto {cell} di {page}",
+      "add_to_page": "Va al primo posto libero di {page}",
+      "added": "{name} aggiunto",
+      "page_of": "{n} di {total}",
+      "pages": "Pagine",
+      "page_tiles": "{n} riquadro | {n} riquadri",
+      "pages_order": "Pagine e ordine",
+      "hint": "Tocca un riquadro per modificarlo.",
+      "hint_pages": "Tocca un riquadro per modificarlo. Scorri per la pagina successiva.",
+      "on_screen": "È tutto sullo schermo",
+      "not_sent": "Modificato, non ancora inviato",
+      "more_settings": "Altre impostazioni",
+      "more_settings_hint": "Vista, seconda riga e cosa fa un tocco",
+      "move": "Sposta",
+      "full_editor": "Editor completo",
+      "simple_editor": "Vista semplice"
     }
   }
 }

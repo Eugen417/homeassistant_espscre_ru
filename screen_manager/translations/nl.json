@@ -2566,6 +2566,26 @@
         "page": "Pagina",
         "bar": "Bovenbalk"
       }
+    },
+    "phone": {
+      "screens": "Schermen",
+      "add_tile": "Tegel toevoegen",
+      "add_to_cell": "Komt op plek {cell} van {page}",
+      "add_to_page": "Komt op de eerste lege plek van {page}",
+      "added": "{name} toegevoegd",
+      "page_of": "{n} van {total}",
+      "pages": "Pagina's",
+      "page_tiles": "{n} tegel | {n} tegels",
+      "pages_order": "Pagina's en volgorde",
+      "hint": "Tik op een tegel om hem aan te passen.",
+      "hint_pages": "Tik op een tegel om hem aan te passen. Veeg opzij voor de volgende pagina.",
+      "on_screen": "Alles staat op het scherm",
+      "not_sent": "Gewijzigd, nog niet verstuurd",
+      "more_settings": "Meer instellingen",
+      "more_settings_hint": "Weergave, tweede regel en wat een tik doet",
+      "move": "Verplaatsen",
+      "full_editor": "Volledige editor",
+      "simple_editor": "Eenvoudige weergave"
     }
   }
 }
