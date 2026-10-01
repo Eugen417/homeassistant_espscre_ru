@@ -1,3 +1,20 @@
+## 0.4.41 (firmware 0.23.0)
+
+- **The editor draws what the screen draws, to the pixel.** A new check compares the editor's sizes and colours with
+  the firmware's own code on every board, and it found five places where the editor was slightly off:
+  - a lamp's colour on its tile, by one step in a few thousand colours;
+  - a battery without a charge, which the editor showed red at 0 % where the screen shows no charge;
+  - the widths of cards on a five-column screen such as the 10.1-inch Guition, where a column could be a pixel wider;
+  - the home mark in the top bar of the 7-inch Waveshare, Waveshare 7B and Sunton screens;
+  - a tall tile offered on a grid too small to hold it.
+- **Firmware 0.23.0 tidies the code, with nothing new on the glass.** The alarm panel, the lock and a light's effects
+  page now read Home Assistant's feature flags by their names from the tile catalogue, as the rest of the firmware
+  already did. Update when it suits you.
+- For contributors: the documentation now describes the project as it is built today, with an index in docs/README.md
+  and a list per recipe of every place a change touches. New checks keep the editor and the firmware in step, test
+  every tile type on every board, keep the flash of every 4 MB board within budget, and compare the tile catalogue with
+  each new Home Assistant release every week.
+
 ## 0.4.40 (firmware 0.22.0)
 
 - **The editor on a phone is about your screen now.** On a phone the editor opens on the screen as it stands on the

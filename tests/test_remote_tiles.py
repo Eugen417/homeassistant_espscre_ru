@@ -47,7 +47,7 @@ class TheApp(unittest.TestCase):
     def test_a_layout_with_one_waits_for_firmware_0_22_0(self):
         self.assertEqual(catalogue.of_type('remote')['firmware'], '0.22.0')
         self.assertEqual(core.min_firmware(layout('remote.a')), (0, 22, 0))
-        self.assertEqual(core.FIRMWARE_VERSION, '0.22.0')
+        self.assertGreaterEqual(tuple(map(int, core.FIRMWARE_VERSION.split('.'))), (0, 22, 0))
         # Older firmware refuses the domain; this one takes it.
         self.assertIn('remote', firmware_domains())
 
