@@ -27,6 +27,8 @@
   "dpi": 143,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 18,
+   "icon_home": 25,
    "icon_mini": 18,
    "label": 11,
    "sublabel": 11,
@@ -83,6 +85,8 @@
   "dpi": 143,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 18,
+   "icon_home": 25,
    "icon_mini": 18,
    "label": 11,
    "sublabel": 11,
@@ -154,6 +158,8 @@
   "dpi": 170,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 27,
+   "icon_home": 34,
    "icon_mini": 26,
    "label": 18,
    "sublabel": 16,
@@ -230,6 +236,8 @@
   "dpi": 146,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 18,
+   "icon_home": 26,
    "icon_mini": 18,
    "label": 11,
    "sublabel": 11,
@@ -296,6 +304,8 @@
   "dpi": 170,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 27,
+   "icon_home": 34,
    "icon_mini": 26,
    "label": 18,
    "sublabel": 16,
@@ -382,6 +392,8 @@
   "dpi": 170,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 27,
+   "icon_home": 34,
    "icon_mini": 26,
    "label": 18,
    "sublabel": 16,
@@ -468,6 +480,8 @@
   "dpi": 165,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 26,
+   "icon_home": 33,
    "icon_mini": 25,
    "label": 17,
    "sublabel": 16,
@@ -554,6 +568,8 @@
   "dpi": 149,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 24,
+   "icon_home": 30,
    "icon_mini": 23,
    "label": 16,
    "sublabel": 14,
@@ -640,6 +656,8 @@
   "dpi": 149,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 24,
+   "icon_home": 30,
    "icon_mini": 23,
    "label": 16,
    "sublabel": 14,
@@ -726,6 +744,8 @@
   "dpi": 149,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 24,
+   "icon_home": 30,
    "icon_mini": 23,
    "label": 16,
    "sublabel": 14,
@@ -812,6 +832,8 @@
   "dpi": 133,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 21,
+   "icon_home": 26,
    "icon_mini": 20,
    "label": 14,
    "sublabel": 13,
@@ -888,6 +910,8 @@
   "dpi": 165,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 26,
+   "icon_home": 33,
    "icon_mini": 25,
    "label": 17,
    "sublabel": 16,
@@ -954,6 +978,8 @@
   "dpi": 217,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 34,
+   "icon_home": 43,
    "icon_mini": 33,
    "label": 23,
    "sublabel": 20,
@@ -1040,6 +1066,8 @@
   "dpi": 170,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 27,
+   "icon_home": 34,
    "icon_mini": 26,
    "label": 18,
    "sublabel": 16,
@@ -1126,6 +1154,8 @@
   "dpi": 133,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 21,
+   "icon_home": 26,
    "icon_mini": 20,
    "label": 14,
    "sublabel": 13,
@@ -1212,6 +1242,8 @@
   "dpi": 170,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 27,
+   "icon_home": 26,
    "icon_mini": 26,
    "label": 18,
    "sublabel": 16,
@@ -1293,6 +1325,8 @@
   "dpi": 143,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 18,
+   "icon_home": 25,
    "icon_mini": 18,
    "label": 11,
    "sublabel": 11,
@@ -1349,6 +1383,8 @@
   "dpi": 143,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 18,
+   "icon_home": 25,
    "icon_mini": 18,
    "label": 11,
    "sublabel": 11,
@@ -1420,6 +1456,8 @@
   "dpi": 170,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 27,
+   "icon_home": 34,
    "icon_mini": 26,
    "label": 18,
    "sublabel": 16,
@@ -1496,6 +1534,8 @@
   "dpi": 146,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 18,
+   "icon_home": 26,
    "icon_mini": 18,
    "label": 11,
    "sublabel": 11,
@@ -1562,6 +1602,8 @@
   "dpi": 170,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 27,
+   "icon_home": 34,
    "icon_mini": 26,
    "label": 18,
    "sublabel": 16,
@@ -1648,6 +1690,8 @@
   "dpi": 170,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 27,
+   "icon_home": 34,
    "icon_mini": 26,
    "label": 18,
    "sublabel": 16,
@@ -1734,6 +1778,8 @@
   "dpi": 165,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 26,
+   "icon_home": 33,
    "icon_mini": 25,
    "label": 17,
    "sublabel": 16,
@@ -1820,6 +1866,8 @@
   "dpi": 149,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 24,
+   "icon_home": 30,
    "icon_mini": 23,
    "label": 16,
    "sublabel": 14,
@@ -1906,6 +1954,8 @@
   "dpi": 149,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 24,
+   "icon_home": 30,
    "icon_mini": 23,
    "label": 16,
    "sublabel": 14,
@@ -1992,6 +2042,8 @@
   "dpi": 149,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 24,
+   "icon_home": 30,
    "icon_mini": 23,
    "label": 16,
    "sublabel": 14,
@@ -2073,6 +2125,8 @@
   "dpi": 143,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 18,
+   "icon_home": 25,
    "icon_mini": 18,
    "label": 11,
    "sublabel": 11,
@@ -2129,6 +2183,8 @@
   "dpi": 143,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 18,
+   "icon_home": 25,
    "icon_mini": 18,
    "label": 11,
    "sublabel": 11,
@@ -2200,6 +2256,8 @@
   "dpi": 170,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 27,
+   "icon_home": 34,
    "icon_mini": 26,
    "label": 18,
    "sublabel": 16,
@@ -2276,6 +2334,8 @@
   "dpi": 146,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 18,
+   "icon_home": 26,
    "icon_mini": 18,
    "label": 11,
    "sublabel": 11,
@@ -2342,6 +2402,8 @@
   "dpi": 170,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 27,
+   "icon_home": 34,
    "icon_mini": 26,
    "label": 18,
    "sublabel": 16,
@@ -2428,6 +2490,8 @@
   "dpi": 170,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 27,
+   "icon_home": 34,
    "icon_mini": 26,
    "label": 18,
    "sublabel": 16,
@@ -2514,6 +2578,8 @@
   "dpi": 165,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 26,
+   "icon_home": 33,
    "icon_mini": 25,
    "label": 17,
    "sublabel": 16,
@@ -2600,6 +2666,8 @@
   "dpi": 149,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 24,
+   "icon_home": 30,
    "icon_mini": 23,
    "label": 16,
    "sublabel": 14,
@@ -2686,6 +2754,8 @@
   "dpi": 149,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 24,
+   "icon_home": 30,
    "icon_mini": 23,
    "label": 16,
    "sublabel": 14,
@@ -2772,6 +2842,8 @@
   "dpi": 149,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 24,
+   "icon_home": 30,
    "icon_mini": 23,
    "label": 16,
    "sublabel": 14,
@@ -2858,6 +2930,8 @@
   "dpi": 133,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 21,
+   "icon_home": 26,
    "icon_mini": 20,
    "label": 14,
    "sublabel": 13,
@@ -2934,6 +3008,8 @@
   "dpi": 165,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 26,
+   "icon_home": 33,
    "icon_mini": 25,
    "label": 17,
    "sublabel": 16,
@@ -3000,6 +3076,8 @@
   "dpi": 217,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 34,
+   "icon_home": 43,
    "icon_mini": 33,
    "label": 23,
    "sublabel": 20,
@@ -3086,6 +3164,8 @@
   "dpi": 170,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 27,
+   "icon_home": 34,
    "icon_mini": 26,
    "label": 18,
    "sublabel": 16,
@@ -3172,6 +3252,8 @@
   "dpi": 133,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 21,
+   "icon_home": 26,
    "icon_mini": 20,
    "label": 14,
    "sublabel": 13,
@@ -3258,6 +3340,8 @@
   "dpi": 170,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 27,
+   "icon_home": 26,
    "icon_mini": 26,
    "label": 18,
    "sublabel": 16,
@@ -3344,6 +3428,8 @@
   "dpi": 133,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 21,
+   "icon_home": 26,
    "icon_mini": 20,
    "label": 14,
    "sublabel": 13,
@@ -3420,6 +3506,8 @@
   "dpi": 165,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 26,
+   "icon_home": 33,
    "icon_mini": 25,
    "label": 17,
    "sublabel": 16,
@@ -3486,6 +3574,8 @@
   "dpi": 217,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 34,
+   "icon_home": 43,
    "icon_mini": 33,
    "label": 23,
    "sublabel": 20,
@@ -3572,6 +3662,8 @@
   "dpi": 170,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 27,
+   "icon_home": 34,
    "icon_mini": 26,
    "label": 18,
    "sublabel": 16,
@@ -3658,6 +3750,8 @@
   "dpi": 133,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 21,
+   "icon_home": 26,
    "icon_mini": 20,
    "label": 14,
    "sublabel": 13,
@@ -3744,6 +3838,8 @@
   "dpi": 170,
   "firmware": "0.22.0",
   "fonts": {
+   "headline": 27,
+   "icon_home": 26,
    "icon_mini": 26,
    "label": 18,
    "sublabel": 16,
