@@ -1249,7 +1249,9 @@ class Run:
                     if atlas is None:
                         faults.append(f'the covers were asked for with frames the app refuses: {data["atlas"][:120]}')
                         continue
-                    body = tile_art.encode([picture(t) for t in tokens], [int(data['bg'], 16)] * len(tokens), atlas, compact=True)
+                    # Each album keeps its own cover: the one the card plays from (Low Sun) is the same picture here.
+                    seeds = [int(((shelf.get(ENTITY, t) or {}).get('id') or f':{t}').rsplit(':', 1)[1]) for t in tokens]
+                    body = tile_art.encode([picture(n) for n in seeds], [int(data['bg'], 16)] * len(tokens), atlas, compact=True)
                     url = self.pictures.url(f'{self.item.key}-lib-{served["art"]}.bmp', body)
                     served['art'] += 1
                     await self.send({'v': 1, 'op': 'camera', 't': 'lib', 'e': ENTITY, 'u': url, 'view': int(data['view'])})
@@ -1279,7 +1281,8 @@ class Run:
                for name, kind in zip(folders, classes)]}
         albums = {'title': 'Albums', 'children': [{'title': title, 'media_class': 'album', 'media_content_type': 'spotify://album',
                   'media_content_id': f'spotify:album:{n}', 'can_play': True, 'can_expand': True, 'thumbnail': f'https://i.scdn.co/image/{n}'}
-                  for n, title in enumerate(([title for title, _ in media_art.ALBUMS[:7]] + ['An Extra Long Album Title That Needs Two Lines And More']) * 6)]}
+                  for n, title in enumerate(([title for title, _ in media_art.ALBUMS[:7]] + [media_art.LONG_ALBUM] + [title for title, _ in media_art.ALBUMS[7:]]) * 2)
+                  if n < 48]}
         async def answer_browse(since):
             sent = await call_for('esphome.screen_browse', since)
             data = dict(sent.data)
@@ -1444,7 +1447,9 @@ class Run:
                     faults.append(f'the favourites asked for their pictures without frames the app takes: {data}')
                     continue
                 indexes = [int(n) for n in data['idx'].split(',')]
-                body = tile_art.encode([picture(i + 3) for i in indexes], [int(g, 16) for g in data['bg'].split(',')], atlas, compact=True)
+                # Low Sun and the player that plays from it share the card's cover; the playlists have their own.
+                seeds = {0: 0, 1: 2, 2: 6, 4: 0}
+                body = tile_art.encode([picture(seeds.get(i, i + 3)) for i in indexes], [int(g, 16) for g in data['bg'].split(',')], atlas, compact=True)
                 url = self.pictures.url(f'{self.item.key}-strip-{served["art"]}.bmp', body)
                 served['art'] += 1
                 await self.send({'v': 1, 'op': 'camera', 't': 'live', 'e': data['tiles'], 'u': url, 'view': int(data['view'])})

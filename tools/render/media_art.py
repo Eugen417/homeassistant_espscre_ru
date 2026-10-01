@@ -27,7 +27,13 @@ PALETTES = [
 ALBUMS = [('Low Sun', 'Nova Coast'), ('Tidal Rooms', 'Harbour Lights'), ('Northern Hours', 'Aurora Field'),
           ('Paper Moons', 'The Quiet Kind'), ('Green Fold', 'Willow & Fern'), ('City Rain', 'Night Tram'),
           ('Velvet Hours', 'Juno Bay'), ('Glass Garden', 'Winter Arcade'), ('Slow Orbit', 'Satellite Choir'),
-          ('Afterglow', 'Nova Coast'), ('Small Rooms', 'Lena Vos'), ('Static Bloom', 'Paper Planes')]
+          ('Afterglow', 'Nova Coast'), ('Small Rooms', 'Lena Vos'), ('Static Bloom', 'Paper Planes'),
+          ('Salt & Cedar', 'Harbour Lights'), ('Blue Hour', 'Juno Bay'), ('Open Water', 'Aurora Field'),
+          ('Late Bloomers', 'The Quiet Kind'), ('Copper Sky', 'Night Tram'), ('Field Notes', 'Willow & Fern'),
+          ('Lanterns', 'Winter Arcade'), ('Sea Glass', 'Lena Vos'), ('Neon Harbour', 'Satellite Choir'),
+          ('Morning Tide', 'Paper Planes'), ('Quiet Engines', 'Night Tram'), ('Snowline', 'Aurora Field')]
+# One title long enough to need two lines, the way real ones do.
+LONG_ALBUM = 'Songs for the Long Way Home, Part Two'
 PLAYLISTS = ['Sunday Morning', 'Deep Focus', 'Dinner Party', 'Road Trip', 'Rainy Day', 'Late Night Jazz', 'Workout', 'Wind Down']
 
 
