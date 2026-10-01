@@ -3,7 +3,10 @@
 # (a remote's commands per integration, tools/read_remote_commands.py) are read from a home-assistant/core checkout.
 # tools/check.sh compares them only when HA_CORE names one, which CI never has. Once a week this checks them against the
 # newest Home Assistant release (not its dev branch: that is what people run), from a sparse clone of only the files the
-# two readers open, and fails when Home Assistant changed something the catalogue depends on.
+# two readers open, and fails when Home Assistant changed something the catalogue depends on. Our snapshot is often a
+# dev build ahead of that release: then what only the snapshot knows is listed in the summary, and only what the release
+# has that the snapshot lacks or contradicts fails (--release, tools/ha_release.py). A remote's commands are compared
+# without the library versions they were read from (--ignore-pins): a screen sends the command, never the version.
 name: Home Assistant source
 
 on:
@@ -78,11 +81,11 @@ jobs:
       - name: Feature flags and actions (catalogue/_ha.json)
         id: ha
         continue-on-error: true
-        run: python tools/read_ha_source.py "$HA_CORE" --check
+        run: python tools/read_ha_source.py "$HA_CORE" --check --release 2>&1 | tee "$RUNNER_TEMP/ha.txt"
       - name: A remote's commands (catalogue/_remote_commands.json)
         id: remotes
         continue-on-error: true
-        run: python tools/read_remote_commands.py "$HA_CORE" --check
+        run: python tools/read_remote_commands.py "$HA_CORE" --check --release --ignore-pins 2>&1 | tee "$RUNNER_TEMP/remotes.txt"
       # What changed, for whoever picks it up: the readers write the files here, and the diff goes in the run's summary.
       - name: Verdict
         env:
@@ -96,6 +99,9 @@ jobs:
             echo
             echo "- catalogue/_ha.json: $HA"
             echo "- catalogue/_remote_commands.json: $REMOTES"
+            for name in ha remotes; do
+              if [ -s "$RUNNER_TEMP/$name.txt" ]; then echo; echo '```'; head -n 200 "$RUNNER_TEMP/$name.txt"; echo '```'; fi
+            done
           } >> "$GITHUB_STEP_SUMMARY"
           failed=0
           if [ "$HA" != success ]; then

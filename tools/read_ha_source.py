@@ -2,6 +2,8 @@
 
     python tools/read_ha_source.py <home-assistant/core checkout>            writes catalogue/_ha.json
     python tools/read_ha_source.py <checkout> --check                        fails when catalogue/_ha.json differs
+    python tools/read_ha_source.py <checkout> --check --release              against a release: a newer snapshot may know
+                                                                             more, only what the release adds fails
 
 For every entity type the catalogue has (catalogue/*.yaml), it reads with Python's own parser, never by hand:
 
@@ -149,7 +151,14 @@ if __name__ == '__main__':
         sys.exit(__doc__)
     text = output(Path(sys.argv[1]).resolve())
     if '--check' in sys.argv:
-        if not OUTPUT.exists() or json.loads(OUTPUT.read_text())['domains'] != json.loads(text)['domains']:
+        # --release (.github/workflows/ha-source.yml): held against a release older than the snapshot, only what the
+        # release has and the snapshot lacks or contradicts fails (tools/ha_release.py).
+        import ha_release
+        kept = json.loads(OUTPUT.read_text()) if OUTPUT.exists() else {'source': '', 'domains': None}
+        found = json.loads(text)
+        ok, lines = ha_release.check(kept['domains'], found['domains'], kept['source'], found['source'], '--release' in sys.argv)
+        print('\n'.join(lines))
+        if not ok:
             sys.exit('catalogue/_ha.json differs from this Home Assistant: run tools/read_ha_source.py without --check and read the change.')
     else:
         OUTPUT.write_text(text)

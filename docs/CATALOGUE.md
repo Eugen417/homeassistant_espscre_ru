@@ -132,7 +132,10 @@ is gone. `tools/generate_catalogue.py` then says which of our options name somet
 `tools/check.sh` runs the same comparison when `HA_CORE` names a checkout. CI has none, so
 `.github/workflows/ha-source.yml` does it once a week (and by hand, with any tag or branch) against the newest Home
 Assistant release: a sparse clone of only the files the two readers open, both `--check`s, and the diff in the run's
-summary when one fails.
+summary when one fails. It passes `--release`: a snapshot taken from a dev build ahead of that release may know more,
+which the summary lists, and only what the release has that the snapshot lacks or contradicts fails
+(`tools/ha_release.py`). A remote's commands are compared with `--ignore-pins`, without the library versions they were
+read from. Without the flags the comparison stays exact, as `tools/check.sh` runs it.
 
 ## Updating keeps what people have
 
