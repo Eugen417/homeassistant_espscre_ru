@@ -3792,8 +3792,9 @@ inline void render_media_detail(Tile &t,unsigned index,bool large,int width,int 
   const lv_font_t *key_font=mini_icon_font?mini_icon_font:detail_font;
   std::vector<lv_obj_t *> keys;
   if(rest){
-    const int w=std::min(std::max(l.next.right()-l.prev.x,ui::px(large?200:120)),width-2*m.margin());
-    auto *library=detail_button(tr(txt::media_library),(width-w)/2,l.play.y+top,w,l.play.h,27);
+    // Where the keys would be: under the words on a tall card, in the column beside the cover on a wide one.
+    const int w=std::min(std::max(l.next.right()-l.prev.x,ui::px(large?200:120)),l.title.w);
+    auto *library=detail_button(tr(txt::media_library),l.play.cx()-w/2,l.play.y+top,w,l.play.h,27);
     lv_obj_set_style_radius(library,LV_RADIUS_CIRCLE,0);
     set_color(library,LV_STYLE_BG_COLOR,theme::rgb(ink));set_color(library,LV_STYLE_BG_COLOR,theme::rgb(theme::mix(ink,g.bottom,200)),LV_STATE_PRESSED);
     if(auto *words=lv_obj_get_child(library,0)){

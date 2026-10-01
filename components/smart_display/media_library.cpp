@@ -40,6 +40,8 @@ struct Cover { lv_obj_t *image = nullptr; int index = 0; Rect at; };
 static std::vector<Cover> covers;
 // The speaker menu.
 static std::string menu_entity;
+static std::string menu_drawn;   // the speakers and the one it plays on, as the menu shows them
+static bool menu_due = false;    // they changed while a finger was on the glass
 static uint32_t menu_then = 0;
 static unsigned menu_page = 0;
 
@@ -97,6 +99,12 @@ static void art_show(lv_image_dsc_t *src) {
     lv_obj_set_pos(c.image, (c.at.w - fw) / 2, (c.at.h - fh) / 2);
     lv_obj_set_size(c.image, fw, fh);
     lv_obj_remove_flag(c.image, LV_OBJ_FLAG_HIDDEN);
+    // The placeholder goes under its picture: a picture over the cap comes smaller (picture_store) and would stand in
+    // a rim of it.
+    if (auto *frame = lv_obj_get_parent(c.image)) {
+      lv_obj_set_style_bg_opa(frame, LV_OPA_TRANSP, 0);
+      if (auto *icon = lv_obj_get_child(frame, 0)) if (icon != c.image) lv_obj_add_flag(icon, LV_OBJ_FLAG_HIDDEN);
+    }
     lv_obj_invalidate(c.image);
   }
 #else
@@ -321,7 +329,10 @@ static void cell(size_t index, const Rect &at, const Rect &cover_at) {
     lv_obj_set_style_bg_opa(frame, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(frame, theme::rgb(theme::tint(theme::ha::LIGHT_BLUE, 51)), 0);
     lv_obj_set_style_radius(frame, media_card::radius_for(local.w), 0);
-    const lv_font_t *big = rt::big_icon_font && local.w >= 2 * lv_font_get_line_height(rt::big_icon_font) ? rt::big_icon_font : icons();
+    // The big icon font carries only the tiles' own glyphs: an item's icon it lacks takes the small one.
+    const std::string wanted = item.icon ? tile_icon::utf8(item.icon) : std::string("\U000F0387");
+    const lv_font_t *big = rt::big_icon_font && local.w >= 2 * lv_font_get_line_height(rt::big_icon_font) && rt::font_has(rt::big_icon_font, wanted)
+                               ? rt::big_icon_font : icons();
     auto *icon = glyph(frame, item.icon, "\U000F0387", big, theme::icon(theme::ha::LIGHT_BLUE));
     lv_obj_center(icon);
 #if LV_USE_IMAGE
@@ -396,7 +407,9 @@ static void draw() {
   art_forget();
   lv_obj_clean(root);
   cell_objs.clear(); pager_objs.clear(); marks.clear();
-  const auto m = effects_page::screen_metrics();
+  // The effects page's bar, across the whole glass: the page of covers is not capped to a hand's width.
+  auto m = effects_page::screen_metrics();
+  m.width = overlay_card::screen_width();
   const Shape s = shape();
   // The top bar: back (up a folder, or out), the folder's name, the speakers at the right.
   const Tile *t = tile();
@@ -523,6 +536,9 @@ static void draw_menu() {
   const Tile *t = player(menu_entity);
   if (!t || t->extra().media_sources.empty()) return;
   const auto &sources = t->extra().media_sources;
+  menu_drawn = t->extra().media_source;
+  for (const auto &name : sources) menu_drawn += "\n" + name;
+  menu_due = false;
   const auto m = effects_page::screen_metrics();
   const int width = overlay_card::screen_width(), height = overlay_card::screen_height();
   // A scrim over everything that closes the menu when tapped beside it.
@@ -586,8 +602,18 @@ void speakers(const std::string &id, uint32_t then) {
 }
 
 // ---- what changes while open ----
+static bool finger_down() {
+  auto *input = lv_indev_get_next(nullptr);
+  return input && lv_indev_get_state(input) == LV_INDEV_STATE_PRESSED;
+}
 void updated(const std::string &id) {
-  if (menu_root && id == menu_entity) draw_menu();
+  // The menu changes only when the speakers do, and never under a finger: a row drawn anew loses the tap on it.
+  if (menu_root && id == menu_entity) {
+    const Tile *t = player(menu_entity);
+    std::string now = t ? t->extra().media_source : std::string();
+    if (t) for (const auto &name : t->extra().media_sources) now += "\n" + name;
+    if (now != menu_drawn) { if (finger_down()) menu_due = true; else draw_menu(); }
+  }
   if (!root || id != entity) return;
   const Tile *t = tile();
   // A start that took: what was tapped is what plays now.
@@ -605,6 +631,7 @@ void restyle() {
   if (menu_root) draw_menu();
 }
 void tick(uint32_t now) {
+  if (menu_root && menu_due && !finger_down()) draw_menu();
   if (root && !folder.complete && now - asked_at >= ASK_AGAIN_MS) {
     if (++tries >= ASK_TRIES) { folder.failed = folder.complete = true; draw(); }
     else ask();
