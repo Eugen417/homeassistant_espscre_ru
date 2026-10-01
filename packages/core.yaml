@@ -72,7 +72,7 @@ esphome:
   # The oldest ESPHome these packages build with, not the one the add-on ships (2026.9.0, screen_manager/Dockerfile): an
   # add-on or ESPHome Device Builder that isn't updated yet keeps building every screen (firmware 0.2.75+). Raise it in a
   # release of its own, with the camera images' `image:` form (before ESPHome 2027.1) and OTA with the api key for new
-  # screens; docs/RELEASING.md, Compatibility 0.2.89.
+  # screens; docs/RELEASING.md, "ESPHome versions".
   min_version: 2026.6.2
   project:
     name: maxgramser.esp_screen
@@ -361,7 +361,7 @@ logger:
 
 # A screen hangs on the mains, so its Wi-Fi never dozes (firmware 0.2.74+). With ESPHome's default for the ESP32,
 # `light`, every message from Home Assistant waits at the router for the next beacon: 76-117 ms on the bench screens
-# against about 20 ms, and an image download held a loop up to 0.1 s now and then (docs/TEST_RESULTS_0287.md). The
+# against about 20 ms, and an image download held a loop up to 0.1 s now and then (measured with firmware 0.2.73). The
 # network and its password stay in the screen's own YAML, and a `power_save_mode` there wins over this one.
 wifi:
   power_save_mode: none
