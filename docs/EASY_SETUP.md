@@ -243,7 +243,11 @@ Click **Save & send** to send your changes.
   a key such as Play or Menu, add the remote again with **On tap** set to **Perform action** and **Send command**, and
   pick the command from the list under the field (Android TV, Apple TV, Roku and others) or type it as Home Assistant
   knows it (Harmony, Broadlink).
-- Media player: tap for the media card with the cover (boards with camera pictures), the keys, and the volume.
+- Media player: tap for the media card with the cover (boards with camera pictures), the keys, and the volume. The
+  speaker it plays on is at the top of the card; tap it to choose another. Where Home Assistant can browse the player,
+  the library key opens its library down to a page of covers, and a tap plays one (firmware 0.24.0+, boards with camera
+  pictures). **Display → Favourite** makes the tile play one playlist, album or artist you pick from that library, on
+  the speaker you choose. A new media tile shows its cover by default on a board with pictures.
 - Camera or image (every board except the CYD, the Waveshare 3.5-inch and the Hosyond 4-inch): tap for the
   picture full screen, refreshed every four seconds. **Display → Live picture** fills the tile itself, on every size, and refreshes every 5, 10, 15 or 30 seconds (firmware 0.3.7+, [CAMERA.md](CAMERA.md)).
 - Alarm panel: tap for its card with a key per mode, and a keypad when the panel asks for a code (firmware 0.3.3+).

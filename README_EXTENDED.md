@@ -222,6 +222,13 @@ on the screen itself, and how updates work.
   off shows a power key. A Guition fetches the cover through ESP Screens, like a camera picture
   ([docs/CAMERA.md](docs/CAMERA.md)); the CYD shows the player's icon in its place. A media tile of
   size **Full page** is the same card on the page, with the keys and the volume working on the tile.
+- **Music from the library** (app 0.4.42 / firmware 0.24.0): the media card sits on a ground in the colours of
+  the cover that plays, with the speaker at the top (a tap moves the music to another one), shuffle, repeat and a bar
+  you drag through the track. The library key opens what Home Assistant can browse on the player (`media_player.browse_media`),
+  folder by folder down to a page of up to 48 covers; a tap plays one. **Display → Favourite** turns a media tile into
+  one playlist, album or artist, picked in the editor from the same library, with the speaker it plays on; a tap starts
+  it and a ring marks it while it plays. A Spotify player at rest keeps its library and speakers. The library and the
+  covers need a board with camera pictures; the CYD keeps the card, the speakers and the favourites with icons.
 - **Cameras** on a Guition (app 0.2.66 / firmware 0.2.57): a `camera.*` entity, or an `image.*` one such
   as a doorbell's last ring, is a tile like any other. A tap opens the picture full screen, refreshed every
   four seconds, with the round back key; standby and **Back to page 1** close it. The same camera can bring its
