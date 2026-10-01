@@ -1,4 +1,4 @@
-static_assert(screen_text::KEYS_HASH == 0x6831FA4Bu && screen_text::KEY_COUNT == 391,
+static_assert(screen_text::KEYS_HASH == 0xE6303FB2u && screen_text::KEY_COUNT == 396,
               "screen_text_keys.h does not match screen_manager/translations/en.json: run tools/i18n.py header");
 const char *const screen_text::TABLE[] = {
     ".",
@@ -192,6 +192,11 @@ const char *const screen_text::TABLE[] = {
     "Muted",
     "Not playing",
     "Loading",
+    "Library",
+    "Choose a speaker",
+    "Tap a cover in the library to play",
+    "The library did not answer",
+    "Nothing here",
     "Running",
     "Paused",
     "Stopped",

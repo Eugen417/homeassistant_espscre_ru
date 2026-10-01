@@ -708,7 +708,7 @@ inline void play_request(const std::string &entity, uint32_t item, const std::st
 // The covers of a page: the items by their numbers, the frames they fill (tile_art) and the page's colour behind them.
 inline void library_art_request(const std::string &entity, const std::string &items, const std::string &atlas, uint32_t ground) {
   char bg[8];
-  snprintf(bg, sizeof(bg), "%06X", (unsigned) (ground & 0xFFFFFF));
+  snprintf(bg, sizeof(bg), "%06X", (unsigned) ground);  // a theme colour, six digits
   library_event("esphome.screen_camera", {{"entity", entity}, {"lib", items}, {"atlas", atlas}, {"bg", bg}, {"view", std::to_string(++library_art_view_id)}});
   ESP_LOGI("library", "Asked for the covers of %s", items.c_str());
 }
