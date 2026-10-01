@@ -2654,6 +2654,9 @@ class Manager:
             for n, tile in enumerate(placed):
                 if favored(tile):
                     renders[n] = self.favorite_render(tile)
+            # The pictures of a page's favourites at once, not one after the other.
+            await asyncio.gather(*(self.thumbnail(tile['entity'], tile['options']['play']['thumb'], tile['options']['play'].get('title'))
+                                   for tile in placed if favored(tile)))
         url, listing = '', ','.join(entities)
         base = await camera_feed.base_url(self.ha.request)
         if base:
@@ -2670,24 +2673,29 @@ class Manager:
         await self.send_auxiliary(inbox, {'v': 1, 'op': 'camera', 't': 'live', 'e': listing, 'u': url}, action, request)
         LOG.info('Live pictures of %s on %s%s', ', '.join(entities), screen['name'], '' if url else ': no image')
 
+    async def thumbnail(self, entity, url, title=''):
+        """A picture of a player's library, fetched once and kept a while (the library's covers and the favourites'); None
+        when it does not come, and the next ask tries again."""
+        if url not in self.thumbnails:
+            try:
+                raw = await self.ha.browse_image(entity, url)
+            except Exception as error:
+                LOG.info('No picture for %s (%s)', title or entity, type(error).__name__)
+                return None
+            self.thumbnails[url] = raw
+            while len(self.thumbnails) > 96:
+                self.thumbnails.popitem(last=False)
+        self.thumbnails.move_to_end(url)
+        return self.thumbnails[url]
+
     def favorite_render(self, tile):
-        """A favourite's picture for the page's strip (camera_feed.live `renders`): its saved thumbnail, fetched once and
-        kept with the library's."""
-        url = tile['options']['play']['thumb']
-        entity = tile['entity']
+        """A favourite's picture for the page's strip (camera_feed.live `renders`): its saved thumbnail. The strip draws
+        its pictures one after the other, so answer_live fetches the favourites' together first."""
+        play = tile['options']['play']
 
         async def draw(width, height):
-            if url not in self.thumbnails:
-                try:
-                    self.thumbnails[url] = await self.ha.browse_image(entity, url)
-                except Exception as error:
-                    # The tile keeps its ground colour; the next load tries again.
-                    LOG.info('No picture for the favourite %s (%s)', tile['options']['play'].get('title'), type(error).__name__)
-                    return None
-                while len(self.thumbnails) > 96:
-                    self.thumbnails.popitem(last=False)
-            return self.thumbnails[url]
-        return (lambda: 'favorite:' + url, draw)
+            return await self.thumbnail(tile['entity'], play['thumb'], play.get('title'))
+        return (lambda: 'favorite:' + play['thumb'], draw)
 
     async def answer_map_full(self, inbox, screen, request):
         """A map tile tapped open (app 0.4.36, firmware 0.21.0+): the same map drawn as large as the board takes a

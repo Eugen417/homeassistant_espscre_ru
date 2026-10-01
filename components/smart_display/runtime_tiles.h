@@ -6000,11 +6000,13 @@ inline void favorite_key_event(lv_event_t *e){
   if(!allowed(esphome::millis(),100+w.index,model.tiles[w.index].entity))return;
   favorite_tap(w.index);
 }
-// The card with its picture: false while there is none, and the tile is drawn as an ordinary one.
+// The card with its picture, or while its picture is on its way the same card with the spinner every picture card
+// has; false on a board without pictures and when the app has none, and the tile is drawn as an ordinary one.
 inline bool render_favorite_card(Widgets &w,const Tile &t,int width,int height){
   live_place(w,t,0,0,0);
-  const bool photo=w.picture&&!lv_obj_has_flag(w.picture,LV_OBJ_FLAG_HIDDEN);
-  if(!photo)return false;
+  const bool photo=w.picture&&!lv_obj_has_flag(w.picture,LV_OBJ_FLAG_HIDDEN),waiting=!photo&&t.pictured()&&live_waiting(t);
+  set_loading(w,waiting,width,height);
+  if(!photo&&!waiting)return false;
   hide_panel(w);begin_extra(w,"favorite",width,height);
   for(auto *part:w.parts)if(part)lv_obj_add_flag(part,LV_OBJ_FLAG_HIDDEN);
   lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);lv_obj_add_flag(w.unit,LV_OBJ_FLAG_HIDDEN);lv_obj_add_flag(w.circle,LV_OBJ_FLAG_HIDDEN);
@@ -6031,7 +6033,7 @@ inline bool render_favorite_card(Widgets &w,const Tile &t,int width,int height){
 }
 inline bool render_camera_card(Widgets &w,const Tile &t,int width,int height){
   live_place(w,t,0,0,0);
-  const bool photo=w.picture&&!lv_obj_has_flag(w.picture,LV_OBJ_FLAG_HIDDEN),waiting=!photo&&live_waiting(t);
+  const bool photo=w.picture&&!lv_obj_has_flag(w.picture,LV_OBJ_FLAG_HIDDEN),waiting=!photo&&t.pictured()&&live_waiting(t);
   set_loading(w,waiting,width,height);
   if(!photo&&!waiting)return false;
   // A tall card to style_tall, which gives the name the picture's ink; it only has no parts of its own.
@@ -6262,13 +6264,16 @@ inline void style_tall(Widgets &w,const Tile &t){
     }
     set_color(w.pill_value,LV_STYLE_TEXT_COLOR,theme::color(tile_controls::climate_off(t)?theme::MUTED:theme::INK));
   }
-  // A favourite over its picture (firmware 0.24.0+): light words on the app's shade, a white key with a dark glyph.
+  // A favourite over its picture (firmware 0.24.0+): light words on the dimmed picture, a white key with a dark glyph;
+  // while the picture is on its way, the card's own words and the accent key.
   if(w.extra_mode=="favorite"){
-    set_color(w.title,LV_STYLE_TEXT_COLOR,theme::color(theme::CAMERA_INK));set_color(w.value,LV_STYLE_TEXT_COLOR,theme::color(theme::CAMERA_INK));
+    const bool photo=w.picture&&!lv_obj_has_flag(w.picture,LV_OBJ_FLAG_HIDDEN);
+    set_color(w.title,LV_STYLE_TEXT_COLOR,theme::color(photo?theme::CAMERA_INK:theme::INK));
+    set_color(w.value,LV_STYLE_TEXT_COLOR,theme::color(photo?theme::CAMERA_INK:theme::MUTED));
     if(w.parts[0]){
-      set_color(w.parts[0],LV_STYLE_BG_COLOR,theme::color(theme::CAMERA_INK));
-      set_color(w.parts[0],LV_STYLE_BG_COLOR,theme::color(theme::CAMERA_NOTE),LV_STATE_PRESSED);
-      if(auto *icon=lv_obj_get_child(w.parts[0],0))set_color(icon,LV_STYLE_TEXT_COLOR,theme::color(theme::CAMERA_PAGE));
+      set_color(w.parts[0],LV_STYLE_BG_COLOR,theme::color(photo?theme::CAMERA_INK:theme::ACCENT));
+      set_color(w.parts[0],LV_STYLE_BG_COLOR,theme::color(photo?theme::CAMERA_NOTE:theme::ACCENT_PRESSED),LV_STATE_PRESSED);
+      if(auto *icon=lv_obj_get_child(w.parts[0],0))set_color(icon,LV_STYLE_TEXT_COLOR,theme::color(photo?theme::CAMERA_PAGE:theme::ON_ACCENT));
     }
     return;
   }
@@ -6406,7 +6411,7 @@ inline void render_slot(size_t slot) {
   const auto &t = model.tiles[w.index];
   auto d=t.domain();
   // A slot is another tile on another page: only a camera card that waits for its picture keeps a spinner.
-  if(w.loading&&!(t.live()||t.is_map()))lv_obj_add_flag(w.loading,LV_OBJ_FLAG_HIDDEN);
+  if(w.loading&&!(t.live()||t.is_map()||t.favorite()))lv_obj_add_flag(w.loading,LV_OBJ_FLAG_HIDDEN);
   label(w.title, t.name.empty() ? t.entity : t.name);
   label(w.icon, icon_for(t));
   bool watch=t.display=="watch";

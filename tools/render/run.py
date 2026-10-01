@@ -1433,6 +1433,13 @@ class Run:
             await self.sender.synchronize(self.inbox.object_id, record, region, values, bars)
         await push_favorites()
         await asyncio.sleep(0.8)
+        # Before their pictures come, the favourites wait with the spinner every picture card has (a moment, one snapshot).
+        (await self.snapshot(self.out / 'media-favorites-waiting.ppm')).save(self.out / 'media-favorites-waiting.png')
+        (self.out / 'media-favorites-waiting.ppm').unlink(missing_ok=True)
+        # A favourite without a picture never waits for one.
+        start = len(self.lines)
+        await self.call('render_cards')
+        await self.until(lambda l: 'cards ' in l, 10, 'render_cards', start)
         async def answer_strip(since):
             for call in calls[since:]:
                 data = dict(call.data)
