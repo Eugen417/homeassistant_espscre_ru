@@ -1,3 +1,8 @@
+## 0.4.34 (firmware 0.20.0)
+
+- ESP Screens 0.4.33 did not start: the map card looked for its font outside the app. The app now carries the font
+  itself. The screens' firmware is unchanged (0.20.0).
+
 ## 0.4.33 (firmware 0.20.0)
 
 A map of where everyone is, drawn in your screen's own colours.

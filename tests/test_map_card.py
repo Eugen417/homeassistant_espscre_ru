@@ -185,6 +185,12 @@ class Card(unittest.TestCase):
         zones['zone.office'] = zone('zone.office', 'Office', 52.3760, 4.8978, 200)[1]
         self.assertNotEqual(map_card.fingerprint(tile, zones), mark, 'a zone drawn larger is a new picture')
 
+    def test_the_add_on_carries_the_screens_font(self):
+        # The add-on's image is built from screen_manager/ alone (0.4.33 crashed at start looking outside it).
+        for name in ('Roboto-400.ttf', 'Roboto-500.ttf', 'Roboto-OFL.txt'):
+            self.assertEqual((ROOT / 'screen_manager/app/fonts' / name).read_bytes(), (ROOT / 'fonts' / name).read_bytes(), name)
+        self.assertEqual(map_card.FONT_DIRS, (ROOT / 'screen_manager/app/fonts',))
+
     def test_the_board_sizes_what_is_drawn(self):
         shapes = json.loads((ROOT / 'screen_manager/app/boards.json').read_text())
         guition, waveshare = map_card.Board(shapes['guition']), map_card.Board(shapes['waveshare43'])

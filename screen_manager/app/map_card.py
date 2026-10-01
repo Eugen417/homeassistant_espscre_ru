@@ -275,8 +275,9 @@ GREEN = frozenset(('park', 'forest', 'wood', 'grass', 'meadow', 'garden', 'villa
 PLACES = {'capital': 11.0, 'state_capital': 11.0, 'city': 11.0, 'town': 12.5, 'village': 13.5, 'suburb': 13.5,
           'quarter': 14.5, 'neighbourhood': 15.5}
 
-FONT_DIRS = (Path(__file__).resolve().parent / 'fonts', Path(__file__).resolve().parents[2] / 'fonts',
-             Path('/app/fonts'))
+# The add-on's own copy of the screens' Roboto (screen_manager/app/fonts, the image is built from screen_manager/ alone;
+# tests/test_map_card.py keeps it equal to fonts/), so a name on a map is in the face the screen writes names in.
+FONT_DIRS = (Path(__file__).resolve().parent / 'fonts',)
 _FONTS = {}
 
 
