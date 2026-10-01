@@ -549,7 +549,7 @@
         "eight_pages": "Estos mosaicos no caben en las páginas de esta pantalla; elimina un mosaico o haz uno más pequeño.",
         "camera_unsupported": "Esta pantalla no puede mostrar imágenes de cámara.",
         "map_unsupported": "Esta pantalla no puede mostrar un mapa.",
-        "map_entities": "Un mapa muestra como máximo {n} personas, cada una una vez, junto a la persona del mosaico.",
+        "map_entities": "Un mapa muestra como máximo {n} personas y rastreadores, cada uno una vez, junto a la persona del mosaico.",
         "firmware_first": "Para estos mosaicos, instala antes el firmware {version} o posterior en la pantalla.",
         "entity_gone": "Una de las entidades elegidas ya no existe. Busca la entidad nueva.",
         "ids_too_long": "Juntos, los ID de entidad de estos mosaicos son demasiado largos para caber en un mensaje a la pantalla; elimina algunos mosaicos."
@@ -1573,8 +1573,8 @@
         },
         "with": {
           "label": "También en el mapa",
-          "hint": "Las personas que se muestran junto a esta, cada una con su propio color.",
-          "add": "Añadir una persona",
+          "hint": "Las personas y rastreadores que se muestran junto a esta, cada uno con su color. Un rastreador es un teléfono, un coche o una etiqueta cuya ubicación conoce Home Assistant.",
+          "add": "Añadir una persona o un rastreador",
           "remove": "Quitar a {name}"
         }
       },

@@ -549,7 +549,7 @@
         "eight_pages": "These tiles don't fit on this screen's pages; remove a tile or make one smaller.",
         "camera_unsupported": "This screen cannot show camera pictures.",
         "map_unsupported": "This screen cannot show a map.",
-        "map_entities": "A map shows at most {n} people, each once, beside the tile's own person.",
+        "map_entities": "A map shows at most {n} people and trackers, each once, beside the tile's own person.",
         "firmware_first": "Install screen firmware {version} or newer first for these tiles.",
         "entity_gone": "A chosen entity no longer exists. Look up the new entity.",
         "ids_too_long": "These tiles' entity IDs are too long together to fit in one message to the screen; remove a few tiles."
@@ -1573,8 +1573,8 @@
         },
         "with": {
           "label": "Also on the map",
-          "hint": "The people shown beside this one, each with their own colour.",
-          "add": "Add a person",
+          "hint": "The people and trackers shown beside this one, each in their own colour. A tracker is a phone, a car or a tag Home Assistant knows the place of.",
+          "add": "Add a person or tracker",
           "remove": "Remove {name}"
         }
       },

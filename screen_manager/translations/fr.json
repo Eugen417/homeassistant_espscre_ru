@@ -549,7 +549,7 @@
         "eight_pages": "Ces tuiles ne tiennent pas sur les pages de cet écran ; retirez une tuile ou réduisez-en une.",
         "camera_unsupported": "Cet écran ne peut pas afficher d'images de caméra.",
         "map_unsupported": "Cet écran ne peut pas afficher de carte.",
-        "map_entities": "Une carte montre au plus {n} personnes, chacune une fois, à côté de la personne de la tuile.",
+        "map_entities": "Une carte montre au plus {n} personnes et traceurs, chacun une fois, à côté de la personne de la tuile.",
         "firmware_first": "Pour ces tuiles, installez d'abord le firmware {version} ou plus récent sur l'écran.",
         "entity_gone": "Une entité choisie n'existe plus. Cherchez la nouvelle entité.",
         "ids_too_long": "Ensemble, les ID d'entité de ces tuiles sont trop longs pour tenir dans un seul message à l'écran ; retirez quelques tuiles."
@@ -1573,8 +1573,8 @@
         },
         "with": {
           "label": "Aussi sur la carte",
-          "hint": "Les personnes affichées à côté de celle-ci, chacune dans sa couleur.",
-          "add": "Ajouter une personne",
+          "hint": "Les personnes et traceurs affichés à côté de celle-ci, chacun dans sa couleur. Un traceur est un téléphone, une voiture ou une balise dont Home Assistant connaît la position.",
+          "add": "Ajouter une personne ou un traceur",
           "remove": "Retirer {name}"
         }
       },

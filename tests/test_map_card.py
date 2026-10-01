@@ -124,6 +124,8 @@ STATES = dict([
     person('person.alex', 'Alex Morgan', 'home', 52.35878, 4.86835),
     person('person.sam', 'Sam', 'Office', 52.37590, 4.89800),
     person('person.jo', 'Jo', 'unknown'),
+    person('device_tracker.car', 'Car', 'not_home', 52.3700, 4.8900),
+    person('device_tracker.router_phone', 'Phone on the router', 'home'),
 ])
 
 
@@ -241,6 +243,16 @@ class Layout(unittest.TestCase):
         # Another display drops what only a map keeps.
         self.assertEqual(self.save({'display': 'standard', 'map': ['person.sam'], 'framing': 'home'})['options'], {'display': 'standard'})
         self.assertEqual(min_firmware({'tiles': [tile]}), (0, 20, 0))
+
+    def test_a_tracker_rides_along(self):
+        # A phone, a car or a tag (app 0.4.35): any device tracker Home Assistant reports a place for.
+        tile = self.save({'display': 'map', 'map': ['device_tracker.car', 'person.sam']})
+        self.assertEqual(tile['options']['map'], ['device_tracker.car', 'person.sam'])
+        self.assertEqual([item['id'] for item in map_card.trackers(STATES)], ['device_tracker.car'],
+                         'a tracker that only knows home or away has no place to draw')
+        mark = map_card.fingerprint(tile, STATES)
+        moved = {**STATES, 'device_tracker.car': person('device_tracker.car', 'Car', 'not_home', 52.3800, 4.9000)[1]}
+        self.assertNotEqual(map_card.fingerprint(tile, moved), mark, 'the car drove off: a new picture')
 
     def test_who_rides_along_is_checked(self):
         for bad in ({'framing': 'nowhere'}, {'distance': 'moon'}, {'map': 'person.sam'}, {'map': ['person.alex']},

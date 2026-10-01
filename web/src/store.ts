@@ -371,7 +371,8 @@ window.addEventListener("hashchange", () => { state.route = location.hash; windo
 
 // ---- Names and icons ----
 export function entityName(id: string) {
-  return state.inventory.entities.find((e) => e.id === id)?.name || state.inventory.builtin?.find((e) => e.id === id)?.name || id;
+  return state.inventory.entities.find((e) => e.id === id)?.name || state.inventory.builtin?.find((e) => e.id === id)?.name ||
+    state.inventory.trackers?.find((e) => e.id === id)?.name || id;
 }
 let iconIndex: { source: unknown; byName: Record<string, { name: string; cp: string; label: string }> } = { source: null, byName: {} };
 export function iconNamed(name: string | undefined) {

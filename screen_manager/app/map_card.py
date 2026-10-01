@@ -164,6 +164,20 @@ def people_of(entities, states):
     return out
 
 
+def trackers(states):
+    """The device trackers that can ride along on a map (app 0.4.35): those Home Assistant reports a place for, a
+    phone, a car or a tag, by name. A tracker that only knows home or away has no place to draw."""
+    found = []
+    for entity, state in states.items():
+        if not isinstance(entity, str) or not entity.startswith('device_tracker.'):
+            continue
+        a = (state or {}).get('attributes') or {}
+        if a.get('latitude') is None or a.get('longitude') is None:
+            continue
+        found.append({'id': entity, 'name': a.get('friendly_name') or entity.split('.', 1)[1], 'state': state.get('state')})
+    return sorted(found, key=lambda item: item['name'].lower())
+
+
 def home_of(zones):
     return next((z for z in zones if z.home), None)
 

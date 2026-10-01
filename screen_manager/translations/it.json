@@ -549,7 +549,7 @@
         "eight_pages": "Questi riquadri non stanno nelle pagine di questo schermo; rimuovi un riquadro o rimpiccioliscine uno.",
         "camera_unsupported": "Questo schermo non può mostrare le immagini della telecamera.",
         "map_unsupported": "Questo schermo non può mostrare una mappa.",
-        "map_entities": "Una mappa mostra al massimo {n} persone, ognuna una volta, accanto alla persona del riquadro.",
+        "map_entities": "Una mappa mostra al massimo {n} persone e tracker, ognuno una volta, accanto alla persona del riquadro.",
         "firmware_first": "Per questi riquadri installa prima sullo schermo il firmware {version} o più recente.",
         "entity_gone": "Un'entità scelta non esiste più. Cerca la nuova entità.",
         "ids_too_long": "Insieme, gli ID entità di questi riquadri sono troppo lunghi per stare in un solo messaggio allo schermo; rimuovi qualche riquadro."
@@ -1573,8 +1573,8 @@
         },
         "with": {
           "label": "Anche sulla mappa",
-          "hint": "Le persone mostrate accanto a questa, ognuna con il proprio colore.",
-          "add": "Aggiungi una persona",
+          "hint": "Le persone e i tracker mostrati accanto a questa, ognuno con il proprio colore. Un tracker è un telefono, un'auto o un tag di cui Home Assistant conosce la posizione.",
+          "add": "Aggiungi una persona o un tracker",
           "remove": "Rimuovi {name}"
         }
       },

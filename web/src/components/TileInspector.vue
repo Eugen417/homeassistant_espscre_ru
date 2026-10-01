@@ -90,7 +90,7 @@ const MAP = ofType("person")?.map;
 const mapCard = computed(() => display.value === "map");
 const mapWith = computed(() => (props.tile.options?.map as string[] | undefined) ?? []);
 const mapFull = computed(() => mapWith.value.length >= (MAP?.max ?? 8) - 1);
-const mapOffered = computed(() => (state.inventory.entities || [])
+const mapOffered = computed(() => [...(state.inventory.entities || []), ...(state.inventory.trackers || [])]
   .filter((item) => (MAP?.with ?? []).includes(item.id.split(".")[0]) && item.id !== props.tile.entity && !mapWith.value.includes(item.id))
   .map((item) => [item.id, item.name || item.id] as [string, string]));
 const mapFraming = computed(() => current("framing", MAP?.framing[0]) as string);

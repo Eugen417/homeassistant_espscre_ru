@@ -10,10 +10,11 @@ displays:
   map:
     screen: {pictures: true, firmware: 0.20.0}
 # How a map frames its people (everyone on it, around home, around this person), how far a fixed view reaches, whether
-# the tile's name is on it, and who may ride along beside the tile's own person: other people, eight in all.
+# the tile's name is on it, and who may ride along beside the tile's own person: other people, and device trackers that
+# report a place (a phone, a car, a tag), eight in all.
 map:
   framing: [everyone, home, person]
   distance: [neighbourhood, street, town, region]
   overlay: [name, none]
-  with: [person]
+  with: [person, device_tracker]
   max: 8

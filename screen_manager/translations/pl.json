@@ -549,7 +549,7 @@
         "eight_pages": "Te kafelki nie mieszczą się na stronach tego ekranu; usuń kafelek albo zmniejsz któryś z nich.",
         "camera_unsupported": "Ten ekran nie może pokazywać obrazu z kamery.",
         "map_unsupported": "Ten ekran nie może pokazać mapy.",
-        "map_entities": "Mapa pokazuje najwyżej {n} osób, każdą raz, obok osoby z kafelka.",
+        "map_entities": "Mapa pokazuje najwyżej {n} osób i lokalizatorów, każdy raz, obok osoby z kafelka.",
         "firmware_first": "Dla tych kafelków najpierw zainstaluj na ekranie firmware {version} lub nowszy.",
         "entity_gone": "Wybrana encja już nie istnieje. Wyszukaj nową encję.",
         "ids_too_long": "Identyfikatory encji tych kafelków są razem za długie, by zmieścić się w jednej wiadomości do ekranu; usuń kilka kafelków."
@@ -1573,8 +1573,8 @@
         },
         "with": {
           "label": "Także na mapie",
-          "hint": "Osoby pokazane obok tej osoby, każda w swoim kolorze.",
-          "add": "Dodaj osobę",
+          "hint": "Osoby i lokalizatory pokazane obok tej osoby, każdy w swoim kolorze. Lokalizator to telefon, samochód lub tag, którego położenie zna Home Assistant.",
+          "add": "Dodaj osobę lub lokalizator",
           "remove": "Usuń {name}"
         }
       },

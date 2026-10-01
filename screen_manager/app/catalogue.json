@@ -1276,7 +1276,8 @@
      "none"
     ],
     "with": [
-     "person"
+     "person",
+     "device_tracker"
     ],
     "max": 8
    }

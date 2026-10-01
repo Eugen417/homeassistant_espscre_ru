@@ -167,6 +167,8 @@ export type Inventory = {
   screens: Screen[];
   entities: Entity[];
   builtin?: Entity[];
+  // Device trackers with a place, for a map card's "Also on the map" (app 0.4.35).
+  trackers?: Entity[];
   // `seen`: Home Assistant found it on the network, waiting to be paired (app 0.4.32).
   pending?: { friendly: string; file: string; node?: string; installed?: boolean; downloaded?: boolean; api_key?: string; seen?: boolean }[];
   updates?: { target: string; busy?: boolean; pending?: number; auto?: boolean };

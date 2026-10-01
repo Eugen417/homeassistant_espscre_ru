@@ -549,7 +549,7 @@
         "eight_pages": "Deze tegels passen niet op de pagina's van dit scherm; verwijder een tegel of maak er een kleiner.",
         "camera_unsupported": "Dit scherm kan geen camerabeelden tonen.",
         "map_unsupported": "Dit scherm kan geen kaart tonen.",
-        "map_entities": "Een kaart toont hoogstens {n} personen, elk één keer, naast de eigen persoon van de tegel.",
+        "map_entities": "Een kaart toont hoogstens {n} personen en trackers, elk één keer, naast de eigen persoon van de tegel.",
         "firmware_first": "Installeer eerst schermfirmware {version} of nieuwer voor deze tegels.",
         "entity_gone": "Een gekozen entiteit bestaat niet meer. Zoek de nieuwe entiteit op.",
         "ids_too_long": "De entiteits-ID's van deze tegels zijn samen te lang voor één bericht aan het scherm; verwijder een paar tegels."
@@ -1573,8 +1573,8 @@
         },
         "with": {
           "label": "Ook op de kaart",
-          "hint": "De mensen die naast deze persoon worden getoond, elk in een eigen kleur.",
-          "add": "Persoon toevoegen",
+          "hint": "De personen en trackers die naast deze persoon worden getoond, elk in een eigen kleur. Een tracker is een telefoon, auto of tag waarvan Home Assistant de plek kent.",
+          "add": "Persoon of tracker toevoegen",
           "remove": "{name} verwijderen"
         }
       },

@@ -549,7 +549,7 @@
         "eight_pages": "Ezek a csempék nem férnek el a kijelző oldalain; távolíts el egy csempét, vagy tegyél egyet kisebbre.",
         "camera_unsupported": "Ez a kijelző nem tud kameraképet megjeleníteni.",
         "map_unsupported": "Ez a kijelző nem tud térképet mutatni.",
-        "map_entities": "Egy térkép legfeljebb {n} személyt mutat, mindegyiket egyszer, a csempe saját személye mellett.",
+        "map_entities": "Egy térkép legfeljebb {n} személyt és nyomkövetőt mutat, mindegyiket egyszer, a csempe saját személye mellett.",
         "firmware_first": "Ezekhez a csempékhez előbb telepíts {version} vagy újabb kijelző-firmware-t.",
         "entity_gone": "Egy kiválasztott entitás már nem létezik. Keresd meg az újat.",
         "ids_too_long": "Ezeknek a csempéknek az entitásazonosítói együtt túl hosszúak ahhoz, hogy egy üzenetben elférjenek; távolíts el néhány csempét."
@@ -1573,8 +1573,8 @@
         },
         "with": {
           "label": "Szintén a térképen",
-          "hint": "Az e személy mellett mutatott emberek, mindegyik a saját színében.",
-          "add": "Személy hozzáadása",
+          "hint": "Az e személy mellett mutatott emberek és nyomkövetők, mindegyik a saját színében. Nyomkövető egy telefon, autó vagy címke, amelynek helyét a Home Assistant ismeri.",
+          "add": "Személy vagy nyomkövető hozzáadása",
           "remove": "{name} eltávolítása"
         }
       },

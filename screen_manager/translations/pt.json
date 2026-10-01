@@ -549,7 +549,7 @@
         "eight_pages": "Estes mosaicos não cabem nas páginas deste ecrã; remova um mosaico ou torne um mais pequeno.",
         "camera_unsupported": "Este ecrã não consegue mostrar imagens de câmara.",
         "map_unsupported": "Este ecrã não consegue mostrar um mapa.",
-        "map_entities": "Um mapa mostra no máximo {n} pessoas, cada uma uma vez, ao lado da pessoa do mosaico.",
+        "map_entities": "Um mapa mostra no máximo {n} pessoas e localizadores, cada um uma vez, ao lado da pessoa do mosaico.",
         "firmware_first": "Para estes mosaicos, instale primeiro o firmware {version} ou mais recente no ecrã.",
         "entity_gone": "Uma das entidades escolhidas já não existe. Procure a nova entidade.",
         "ids_too_long": "Em conjunto, os IDs de entidade destes mosaicos são demasiado longos para caberem numa mensagem para o ecrã; remova alguns mosaicos."
@@ -1573,8 +1573,8 @@
         },
         "with": {
           "label": "Também no mapa",
-          "hint": "As pessoas mostradas ao lado desta, cada uma com a sua cor.",
-          "add": "Adicionar uma pessoa",
+          "hint": "As pessoas e localizadores mostrados ao lado desta, cada um com a sua cor. Um localizador é um telemóvel, um carro ou uma etiqueta cuja localização o Home Assistant conhece.",
+          "add": "Adicionar uma pessoa ou localizador",
           "remove": "Remover {name}"
         }
       },

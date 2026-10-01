@@ -244,9 +244,18 @@ describe("a map card in the panel (app 0.4.33)", () => {
     panel.unmount();
     panel = mount(TileInspector, { props: { tile: current(tile)! } });
     expect(panel.text()).toContain("Distance");
+    // Device trackers with a place come in their own list (app 0.4.35): a car rides along like a person.
+    state.inventory.trackers = [{ id: "device_tracker.car", name: "Car" }];
+    expect((panel.vm as any).mapOffered.map(([id]: [string]) => id)).toEqual(["person.q", "device_tracker.car"]);
     (panel.vm as any).addMapEntity("person.q");
     await nextTick();
     expect(current(tile)!.options).toMatchObject({ display: "map", framing: "home", map: ["person.q"] });
+    panel.unmount();
+    panel = mount(TileInspector, { props: { tile: current(tile)! } });
+    (panel.vm as any).addMapEntity("device_tracker.car");
+    expect(current(tile)!.options?.map).toEqual(["person.q", "device_tracker.car"]);
+    expect(() => validatePages(state.document!, state.documentGrid!)).not.toThrow();
+    (panel.vm as any).removeMapEntity("device_tracker.car");
     expect(() => validatePages(state.document!, state.documentGrid!)).not.toThrow();
     const saved = state.document!.pages.flatMap((page) => page.tiles)[0];
     expect(saved.appearance).toMatchObject({ display: "map", mapFraming: "home", mapEntities: ["person.q"] });

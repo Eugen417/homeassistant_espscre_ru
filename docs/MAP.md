@@ -13,8 +13,10 @@ the screen a picture, the way a live camera arrives. The screen never gets a loc
    - **Around this person**: the tile's own person in the middle.
 3. With Around home or Around this person, **Distance** says how far the view reaches: Street, Neighborhood, Town or
    Region. Someone outside the view is a small marker on the edge of the card, pointing the way to them.
-4. **Also on the map** adds other people, up to eight on one card. Each person keeps a colour, in the order they are
-   listed, and their initials are in their marker. From a card about 200 pixels high the first names are beside the
+4. **Also on the map** adds other people and device trackers, up to eight on one card (app 0.4.35 for trackers). A
+   device tracker is anything Home Assistant reports a place for: a phone through the Companion app, a car through its
+   integration, a tag. One that only knows home or away has no place and is not offered. Each keeps a colour, in the
+   order they are listed, and their initials are in their marker. From a card about 200 pixels high the first names are beside the
    markers.
 5. **On the picture** says whether the tile's name is on the map, on a small label at the bottom left.
 

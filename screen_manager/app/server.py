@@ -2709,6 +2709,8 @@ def create_app(manager, development=False):
         screens, entities = manager.inventory()
         payload = await seen_pending(light_payload(screens))
         payload['entities'] = entities
+        # The device trackers a map card can show beside its person (app 0.4.35): no tiles of their own.
+        payload['trackers'] = map_card.trackers(manager.ha.states)
         # Labels and help in the editor's language (app 0.2.90); ids and keys stay as they are.
         payload['backgrounds'] = backgrounds()
         payload['controls'] = controls_catalogue()

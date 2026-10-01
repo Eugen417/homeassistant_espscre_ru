@@ -1,3 +1,10 @@
+## 0.4.35 (firmware 0.20.0)
+
+- **A phone, a car or a tag on the map.** **Also on the map** now offers Home Assistant's device trackers that report a
+  place, beside people: the car on the drive, a phone without a person, a tag on a bag. Each gets its own colour and
+  marker, and the map is drawn again when it moves. A tracker that only knows home or away has no place and is not
+  offered. No screen update needed (firmware 0.20.0).
+
 ## 0.4.34 (firmware 0.20.0)
 
 - ESP Screens 0.4.33 did not start: the map card looked for its font outside the app. The app now carries the font

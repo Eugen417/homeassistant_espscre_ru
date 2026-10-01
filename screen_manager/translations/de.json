@@ -549,7 +549,7 @@
         "eight_pages": "Diese Kacheln passen nicht auf die Seiten dieses Bildschirms; entferne eine Kachel oder mach eine kleiner.",
         "camera_unsupported": "Dieser Bildschirm kann keine Kamerabilder anzeigen.",
         "map_unsupported": "Dieser Bildschirm kann keine Karte anzeigen.",
-        "map_entities": "Eine Karte zeigt höchstens {n} Personen, jede einmal, neben der Person der Kachel.",
+        "map_entities": "Eine Karte zeigt höchstens {n} Personen und Tracker, jeden einmal, neben der Person der Kachel.",
         "firmware_first": "Installiere für diese Kacheln zuerst Bildschirm-Firmware {version} oder neuer.",
         "entity_gone": "Eine gewählte Entität gibt es nicht mehr. Such die neue Entität heraus.",
         "ids_too_long": "Die Entitäts-IDs dieser Kacheln sind zusammen zu lang für eine Nachricht an den Bildschirm; entferne ein paar Kacheln."
@@ -1573,8 +1573,8 @@
         },
         "with": {
           "label": "Auch auf der Karte",
-          "hint": "Die Personen, die neben dieser gezeigt werden, jede in ihrer eigenen Farbe.",
-          "add": "Person hinzufügen",
+          "hint": "Die Personen und Tracker, die neben dieser gezeigt werden, jeder in seiner eigenen Farbe. Ein Tracker ist ein Telefon, ein Auto oder ein Tag, dessen Standort Home Assistant kennt.",
+          "add": "Person oder Tracker hinzufügen",
           "remove": "{name} entfernen"
         }
       },
