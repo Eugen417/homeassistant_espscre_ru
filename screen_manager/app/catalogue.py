@@ -76,6 +76,13 @@ def bits(domain, *names):
     return out
 
 
+def playing_features(domain, platform):
+    """What an integration reports while it plays, where it reports less while it plays nowhere (catalogue/_ha.json
+    `playing`, read from its source: Spotify's SUPPORT_SPOTIFY, GitHub #88), joined; 0 for any other."""
+    names = ((TYPES.get(domain) or {}).get('playing') or {}).get(platform)
+    return bits(domain, *names) if names else 0
+
+
 def features_hold(domain, names, attributes, strict=False):
     """Any of these features, where Home Assistant reports the entity's. What may be chosen or drawn (`needs`) is not
     held against an entity that reports none, as one that is unavailable; a condition (`strict`, a range's `when`) only

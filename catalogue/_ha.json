@@ -505,6 +505,21 @@
     "VOLUME_MUTE": 8,
     "VOLUME_SET": 4,
     "VOLUME_STEP": 1024
+   },
+   "playing": {
+    "spotify": [
+     "BROWSE_MEDIA",
+     "NEXT_TRACK",
+     "PAUSE",
+     "PLAY",
+     "PLAY_MEDIA",
+     "PREVIOUS_TRACK",
+     "REPEAT_SET",
+     "SEEK",
+     "SELECT_SOURCE",
+     "SHUFFLE_SET",
+     "VOLUME_SET"
+    ]
    }
   },
   "number": {

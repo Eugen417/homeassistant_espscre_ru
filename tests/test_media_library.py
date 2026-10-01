@@ -218,6 +218,11 @@ class ThePlayersState(unittest.TestCase):
             memory.save()
             self.assertEqual(media_library.FeatureMemory(path).widest(PLAYER, {'supported_features': 0}), PLAYING | AT_REST)
             self.assertIs(memory.widened('light.hall', resting), resting, 'only media players')
+            # Spotify says in Home Assistant's source what it reports while it plays: a player never seen playing has it.
+            fresh = media_library.FeatureMemory(None, platform_of=lambda entity: 'spotify')
+            self.assertEqual(fresh.widened('media_player.other', resting)['attributes']['supported_features'], PLAYING)
+            other = media_library.FeatureMemory(None, platform_of=lambda entity: 'sonos')
+            self.assertIs(other.widened('media_player.other', resting), resting)
 
 
 @unittest.skipUnless(HAS_AIOHTTP and HAS_PIL, 'Run using .venv-portal/bin/python for server tests')

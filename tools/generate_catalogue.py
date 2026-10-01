@@ -116,7 +116,11 @@ def normalise(tile, types, translations, facts, commands=None):
         known = facts['domains'].get(domain)
         if known is None and domain != 'screen':
             fail(f'catalogue/{domain}.yaml', f'Home Assistant has no {domain} in catalogue/_ha.json: run tools/read_ha_source.py')
-        ha[domain] = {'features': dict((known or {}).get('features') or {}), 'actions': dict((known or {}).get('actions') or {})}
+        ha[domain] = {'features': dict((known or {}).get('features') or {}), 'actions': dict((known or {}).get('actions') or {}),
+                      'playing': dict((known or {}).get('playing') or {})}
+        for integration, flags in ha[domain]['playing'].items():
+            if set(flags) - set(ha[domain]['features']):
+                fail('catalogue/_ha.json', f'{integration} plays with flags {domain} does not have')
 
     def needs(where, domain, value):
         if value is None:
@@ -217,6 +221,7 @@ def normalise(tile, types, translations, facts, commands=None):
             'key': bool(data.get('key', True)),
             'features': ha[domain]['features'],
             'actions': ha[domain]['actions'],
+            **({'playing': ha[domain]['playing']} if ha[domain]['playing'] else {}),
             'displays': [option(f'{where} displays {key}', domain, key, value, displays) for key, value in displays.items()],
             'controls': [option(f'{where} controls {key}', domain, key, value, controls) for key, value in controls.items()],
             'inline': option(f'{where} inline', domain, 'slider', data['inline'], {}) if 'inline' in data else None,

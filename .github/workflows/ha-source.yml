@@ -61,10 +61,10 @@ jobs:
           import ast, sys
           from pathlib import Path
           sys.path.insert(0, 'tools')
-          import read_remote_commands
+          import read_ha_source, read_remote_commands
           core = Path(sys.argv[1])
           domains = {p.stem for p in Path('catalogue').glob('*.yaml') if not p.name.startswith('_') and p.stem != 'screen'}
-          domains |= set(read_remote_commands.RULES)
+          domains |= set(read_remote_commands.RULES) | set(read_ha_source.PLAYING)
           for folder in sorted(domains):
               for path in (core / 'homeassistant/components' / folder).glob('*.py'):
                   for node in ast.walk(ast.parse(path.read_text())):

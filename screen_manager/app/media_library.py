@@ -89,11 +89,13 @@ class FeatureMemory:
 
     Spotify reports only SELECT_SOURCE while it plays nowhere (spotify/media_player.py: supported_features), so whatever
     reads the features at that moment finds no play, pause or next: the editor did not offer the playback keys on the
-    tile (GitHub #88) and the screen drew none. A player keeps the features it showed once; the screen draws what it has
-    now and fades what it had before, and the editor offers both."""
+    tile (GitHub #88) and the screen drew none. A player keeps the features it showed once, and one whose integration
+    says in its source what it reports while it plays (catalogue.playing_features: Spotify's SUPPORT_SPOTIFY) has those
+    from the start; the screen draws what it has now and fades the rest, and the editor offers both."""
 
-    def __init__(self, path=None):
+    def __init__(self, path=None, platform_of=None):
         self.path, self.seen, self.dirty = path, {}, False
+        self.platform_of = platform_of
         if path is not None:
             try:
                 data = json.loads(path.read_text())
@@ -101,19 +103,24 @@ class FeatureMemory:
             except (OSError, ValueError, AttributeError):
                 self.seen = {}
 
+    def playing(self, entity):
+        """What the player's integration reports while it plays, from Home Assistant's source; 0 when it says nothing."""
+        platform = self.platform_of(entity) if self.platform_of else None
+        return catalogue.playing_features('media_player', platform) if platform else 0
+
     def note(self, entity, attrs):
-        """Remember what a player reports now; returns the widest it ever reported."""
+        """Remember what a player reports now; returns the widest it may report."""
         if not isinstance(entity, str) or not entity.startswith('media_player.'):
             return features_of(attrs)
         now = features_of(attrs)
-        widest = self.seen.get(entity, 0) | now
-        if widest != self.seen.get(entity, 0):
-            self.seen[entity] = widest
+        seen = self.seen.get(entity, 0) | now
+        if seen != self.seen.get(entity, 0):
+            self.seen[entity] = seen
             self.dirty = True
-        return widest
+        return seen | self.playing(entity)
 
     def widest(self, entity, attrs):
-        return features_of(attrs) | self.seen.get(entity, 0)
+        return features_of(attrs) | self.seen.get(entity, 0) | self.playing(entity)
 
     def widened(self, entity, state):
         """The state with the player's widest features, for what the editor offers; anything else as it is."""

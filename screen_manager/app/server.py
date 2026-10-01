@@ -861,7 +861,8 @@ class Manager:
         # A media player's library (app 0.4.42, firmware 0.24.0, media_library.py): the widest features each player
         # reported (GitHub #88), the numbers each screen's items go by, the folders read a moment ago, the players
         # that browse, the colours of each cover, the item this app started last on each player, and the thumbnails.
-        self.players = media_library.FeatureMemory(self.path.parent / 'media-features.json')
+        self.players = media_library.FeatureMemory(self.path.parent / 'media-features.json',
+                                                   platform_of=getattr(self.ha, 'platform_of', None))
         self.ha.widen = self.players.widened
         self.shelves, self.folders, self.browsable, self.browse_probes = {}, OrderedDict(), {}, {}
         self.grounds, self.ground_reads, self.started = OrderedDict(), {}, {}
