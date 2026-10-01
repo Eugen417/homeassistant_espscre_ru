@@ -12,7 +12,7 @@ import { clockText, glyph } from "../model/topbar";
 import { clock24, currentScreen, deviceStyle, screenShape, isCompact, supports, entityName, isSelected, liveOf, numberMarks, openTile, placeTile, removeTile, screenBuiltinName, screenText, state, tileIconCp, toast, unitSuffix } from "../store";
 import { modeColor, tilePalette, tileActive } from "../model/tile-palette";
 import { textEms, wideChip, widestSetpoint } from "../model/ui-scale";
-import { drawable } from "../model/catalogue";
+import { bits, drawable } from "../model/catalogue";
 import type { Tile } from "../types";
 import TileResize from "./TileResize.vue";
 import { availableControl, controlKeys } from "../model/tall-controls";
@@ -209,7 +209,7 @@ function haWord(c: { state: string; a: Record<string, any> }) {
 // and +: the end they move, heat or cool, with its icon in that mode's colour; the low end first, as the screen does.
 const rangeChip = computed(() => {
   const a = current.value?.a || {}, f = Number(a.supported_features || 0);
-  if (domain.value !== "climate" || !rangeReady.value || (f & 1 && a.temperature != null) || !(f & 2) || a.target_temp_low == null || a.target_temp_high == null) return null;
+  if (domain.value !== "climate" || !rangeReady.value || (f & bits("climate", "TARGET_TEMPERATURE") && a.temperature != null) || !(f & bits("climate", "TARGET_TEMPERATURE_RANGE")) || a.target_temp_low == null || a.target_temp_high == null) return null;
   const digits = Number(a.target_temp_step || 0.5) >= 1 ? 0 : 1;
   return { icon: "fire", color: modeColor("heat"), text: `${num(Number(a.target_temp_low).toFixed(digits))}°`, ems: textEms(widestSetpoint(a)) };
 });
@@ -437,7 +437,7 @@ async function onKey(e: KeyboardEvent) {
         <ModeBar v-else-if="tallControls === 'mode' && domain === 'climate'" :a="current?.a || {}" :mode="current?.state || ''" place="tall" :columns="shape.columns" />
         <template v-else-if="tallKeys.length"><span v-for="(control, i) in tallKeys" :key="i" class="key mdi" :class="{ primary: control.primary, disabled: control.disabled, active: control.mode === current?.state }">{{ key(control.icon) }}</span></template>
         <span v-else-if="tallControls === 'stepper'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><b>{{ bigValue }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
-        <template v-else-if="tallControls === 'volume'"><span v-if="features & 4" class="range" :style="volumeStyle"></span><span v-if="features & 8" class="key mdi">{{ key(current?.a?.is_volume_muted ? 'volume-off' : 'volume-high') }}</span></template>
+        <template v-else-if="tallControls === 'volume'"><span v-if="features & bits('media_player', 'VOLUME_SET')" class="range" :style="volumeStyle"></span><span v-if="features & bits('media_player', 'VOLUME_MUTE')" class="key mdi">{{ key(current?.a?.is_volume_muted ? 'volume-off' : 'volume-high') }}</span></template>
         <span v-else-if="tallControls === 'run'" class="run">{{ runText }}</span>
         <span v-else class="range" :style="sliderStyle"></span>
       </span>

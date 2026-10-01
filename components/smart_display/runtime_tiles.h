@@ -1471,7 +1471,7 @@ inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad
     int edge_hero=ui::px(large?12:6);
     auto *hero=detail_card(pad,y,inner,hero_h);
     vacuum_robot(hero,edge_hero,(hero_h-robot)/2,robot,look);
-    // Locate, when the robot can do it (supported_features 512; unknown features keep the button).
+    // Locate, when the robot can do it (VacuumEntityFeature.LOCATE; unknown features keep the button).
     bool locate=large && (!t.supported || (t.supported & tile_controls::feature::VACUUM_LOCATE));
     int key=std::min(ui::px(48),hero_h-ui::px(8)),text_x=edge_hero+robot+(ui::px(large?18:12)),text_w=inner-text_x-(locate?key+2*edge_hero:edge_hero);
     int line=lv_font_get_line_height(big),text_h=lv_font_get_line_height(text),space=ui::px(large?6:3);

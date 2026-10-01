@@ -66,6 +66,16 @@ def display_keys(domain):
 
 # ---- Home Assistant's side: does an entity meet what an option needs ----
 
+def bits(domain, *names):
+    """Home Assistant's feature bits of a type by the names its source gives them (catalogue/_ha.json), joined: the add-on's
+    counterpart of catalogue.ts `bits`. A name Home Assistant does not have for the type is a KeyError, never a 0."""
+    features = TYPES[domain]['features']
+    out = 0
+    for name in names:
+        out |= features[name]
+    return out
+
+
 def features_hold(domain, names, attributes, strict=False):
     """Any of these features, where Home Assistant reports the entity's. What may be chosen or drawn (`needs`) is not
     held against an entity that reports none, as one that is unavailable; a condition (`strict`, a range's `when`) only
