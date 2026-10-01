@@ -417,4 +417,5 @@ mounts for the CYD.
 The front door in the camera pictures is a photo by
 [Virginia Marinova](https://unsplash.com/photos/the-door-welcomes-with-plants-on-both-sides-80uwJgdeqWg) on Unsplash.
 
-Tessera (formerly ESP Screens) is MIT licensed, see [LICENSE](LICENSE).
+Tessera (formerly ESP Screens) is licensed under the GNU Affero General Public License v3.0, see [LICENSE](LICENSE)
+and [NOTICE](NOTICE). Releases up to and including 0.4.38 were MIT licensed and stay so.

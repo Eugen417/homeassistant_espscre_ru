@@ -1,3 +1,11 @@
+## 0.4.39
+
+- **New licence.** From this release Tessera is licensed under the GNU Affero General Public License v3.0 instead of
+  the MIT License. Using, changing and sharing it stays free, also commercially, but whoever passes on a changed version,
+  on a device or as an online service, shares its source under the same licence. Releases up to and including 0.4.38
+  stay under the MIT License. NOTICE lists the third-party code and its licences.
+- Nothing changes on the screens or in the editor.
+
 ## 0.4.38 (firmware 0.22.0)
 
 - **Remotes in the library** (#117). A remote (`remote.*`, such as a Harmony hub, an Android TV, or a Broadlink or other
