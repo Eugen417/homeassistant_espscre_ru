@@ -246,7 +246,8 @@
       "choose_speaker": "Válassz hangszórót",
       "library_hint": "Koppints egy borítóra a könyvtárban",
       "library_failed": "A könyvtár nem válaszolt",
-      "library_empty": "Itt nincs semmi"
+      "library_empty": "Itt nincs semmi",
+      "starting_on": "Indítás: {speaker}"
     },
     "timer": {
       "running": "Fut",

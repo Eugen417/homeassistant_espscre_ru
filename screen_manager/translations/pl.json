@@ -246,7 +246,8 @@
       "choose_speaker": "Wybierz głośnik",
       "library_hint": "Dotknij okładki w bibliotece",
       "library_failed": "Biblioteka nie odpowiada",
-      "library_empty": "Nic tu nie ma"
+      "library_empty": "Nic tu nie ma",
+      "starting_on": "Uruchamianie na {speaker}"
     },
     "timer": {
       "running": "Działa",

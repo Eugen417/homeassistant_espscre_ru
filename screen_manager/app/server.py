@@ -33,7 +33,7 @@ from updates import Updater
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
 from core import alarm_extras, lock_extras, ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_choice, alert_data, choice_service, ALERT_CHOICE_ACTION, ALERT_CHOICE_MIN_FIRMWARE, parse_firmware, alert_reference, alert_screen_choice, alert_screen_names, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, entity_slug, extras, media_cover, media_extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, name_clash, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 from core import MAP_TILE_MIN_FIRMWARE, calibrate_entity, can_standby, dimmable, SETTING_ENTITIES, SETTING_RULES, STANDBY_KEYS, setting_action, setting_entities, setting_from_state, state_word
-from core import BOARD_KEYS, is_key, drawn_controls
+from core import BOARD_KEYS, is_key, drawn_controls, FAVORITE_KINDS
 from core import (Grid, page_target, PAGE_TILE_REPEAT_MIN_FIRMWARE, ENTITY_REPEAT_MIN_FIRMWARE, ROTATION_MIN_FIRMWARE, SHAPES, firmware_features, grid_of, orientation_at,
                   packed_slots, run_tile_event, screen_firmware, shape_of, turns_of, version_text)
 import header_bar
@@ -1668,14 +1668,25 @@ class Manager:
     async def answer_play(self, request):
         """Play what a screen tapped, on the speaker it chose (or where the player plays now)."""
         found = self.player_request(request)
-        token = self.media_token(request.get('item'))
-        if not found or not token:
+        if not found:
             return
         inbox, screen, entity, action = found
-        item = self.shelves.get(inbox, media_library.Shelf()).get(entity, token)
+        source = request.get('source') if isinstance(request.get('source'), str) and request.get('source') else None
+        # A favourite's tile (firmware 0.24.0) names itself by its index: what it plays and its speaker are the tile's.
+        if request.get('tile') not in (None, ''):
+            index = self.media_token(request.get('tile'))
+            tiles = self.layouts.get(inbox, {}).get('tiles', [])
+            tile = tiles[index] if index is not None and index < len(tiles) else None
+            options = (tile or {}).get('options') or {}
+            if not tile or tile['entity'] != entity or options.get('display') != 'favorite':
+                return
+            item = media_library.favorite_item(options.get('play'))
+            source = source or options.get('speaker')
+        else:
+            token = self.media_token(request.get('item'))
+            item = self.shelves.get(inbox, media_library.Shelf()).get(entity, token) if token else None
         if item is None or not item['play']:
             return
-        source = request.get('source') if isinstance(request.get('source'), str) and request.get('source') else None
         attrs = self.ha.states.get(entity, {}).get('attributes') or {}
         if source is not None and source not in (attrs.get('source_list') or []):
             LOG.info('%s on %s: no speaker %s', item['title'], entity, source)
@@ -1683,6 +1694,9 @@ class Manager:
         outcome = await media_library.start(self.ha.states, self.ha.call_service, entity, item, source)
         if outcome == 'playing':
             self.started[entity] = (item['type'], item['id'])
+            # Every favourite of this player says again whether it is the one that plays.
+            self.ha.dirty.add(entity)
+            self.ha.changed.set()
         LOG.info('%s on %s from %s: %s', item['title'], entity, screen['name'], outcome)
 
     async def library_art(self, inbox, screen, request):
@@ -2089,6 +2103,11 @@ class Manager:
         # A vacuum's card also reads selects and the battery sensor of its device (app 0.2.46), a cover's card its battery (0.2.58).
         device=self.device_entries(tile['entity']) if tile['entity'].startswith(('vacuum.', 'cover.', 'light.')) else None
         entry=self.registry_index().get(tile['entity'])
+        # A favourite (app 0.4.42) is named after what it plays until it is given a name of its own.
+        options=tile.get('options') or {}
+        favorite=tile['entity'].startswith('media_player.') and options.get('display')=='favorite'
+        if favorite and not tile.get('name') and isinstance(options.get('play'),dict):
+            tile={**tile,'name':options['play'].get('title') or ''}
         # A light's effects page (app 0.2.83) names the device's selects and numbers as Home Assistant does, with its icons.
         light=tile['entity'].startswith('light.')
         extra=extras(tile,self.ha.states,forecast,getattr(self.ha,'time_zone',None),hourly,device=device,
@@ -2121,6 +2140,13 @@ class Manager:
                                              self.player_browsable(tile['entity'],widest))
             if more:
                 message.setdefault('x',{}).update(more)
+            # A favourite (firmware 0.24.0): what it plays, on which speaker, and whether it plays now.
+            if favorite:
+                play=options.get('play') or {}
+                state_now=self.ha.states.get(tile['entity'],{}).get('state')
+                started=self.started.get(tile['entity']) if state_now in ('playing','paused') else None
+                word=screen_t(f"addon.screen.media.{play.get('class') or 'music'}") if (play.get('class') or 'music') in FAVORITE_KINDS else ''
+                message.setdefault('x',{}).update(media_library.favorite_extras(play,options.get('speaker'),attributes if state_now in ('playing','paused') else {},started,word))
         # Home Assistant's word where the screen would show the raw state (firmware 0.2.58+ shows it).
         state=self.ha.states.get(tile['entity'],{})
         word=ha_catalogue.screen_word(tile['entity'],message['state'],state.get('attributes'),entry,getattr(self.ha,'state_words',None))
@@ -2582,7 +2608,10 @@ class Manager:
         placed_tiles = self.layouts.get(inbox, {}).get('tiles', [])
         # A map (app 0.4.33) is a person's tile set to it, drawn here from that saved tile alone.
         mapped = lambda tile: (tile.get('options') or {}).get('display') == 'map' and camera_feed.map_supported(tile['entity'])
-        pictured = lambda tile: mapped(tile) or (tile.get('options') or {}).get('display') in ('live', 'cover') and \
+        # A favourite (app 0.4.42) is the picture of what it plays, from its own saved choice.
+        favored = lambda tile: (tile.get('options') or {}).get('display') == 'favorite' and camera_feed.cover_supported(tile['entity']) and \
+            bool(((tile.get('options') or {}).get('play') or {}).get('thumb'))
+        pictured = lambda tile: mapped(tile) or favored(tile) or (tile.get('options') or {}).get('display') in ('live', 'cover') and \
             ((tile.get('options') or {}).get('display') == 'cover') == camera_feed.cover_supported(tile['entity'])
         tiles = {}
         for tile in placed_tiles:
@@ -2602,7 +2631,8 @@ class Manager:
             return
         options_of = (lambda n, entity: placed_tiles[own[n]].get('options') or {}) if own is not None else \
             (lambda n, entity: next((o for o in tiles[entity] if o.get('display') == 'live'), None))
-        # How each picture fills its card (app 0.3.8).
+        # How each picture fills its card (app 0.3.8). A favourite is dimmed whole, as an album cover over a card is: the
+        # screen asks for that in its frame.
         modes = camera_feed.picture_modes(screen, options_of, entities) if atlas else None
         # The maps of the page (app 0.4.33), each its own saved tile, drawn in the look the screen is in.
         renders = None
@@ -2615,6 +2645,15 @@ class Manager:
             dark = camera_feed.live_dark(request)
             shape = camera_feed.shape_of(screen)
             renders = [self.map_render(tile, shape, dark) if mapped(tile) else None for tile in placed]
+        if any(favored(tile) for tile in placed_tiles if tile['entity'] in entities):
+            if not atlas:
+                return
+            placed = [placed_tiles[own[n]] if own is not None else next(t for t in placed_tiles if t['entity'] == entity and pictured(t))
+                      for n, entity in enumerate(entities)]
+            renders = [r for r in (renders or [None] * len(entities))]
+            for n, tile in enumerate(placed):
+                if favored(tile):
+                    renders[n] = self.favorite_render(tile)
         url, listing = '', ','.join(entities)
         base = await camera_feed.base_url(self.ha.request)
         if base:
@@ -2630,6 +2669,25 @@ class Manager:
             LOG.warning('Live pictures: no address for this app on the LAN; set SCREEN_CAMERA_URL')
         await self.send_auxiliary(inbox, {'v': 1, 'op': 'camera', 't': 'live', 'e': listing, 'u': url}, action, request)
         LOG.info('Live pictures of %s on %s%s', ', '.join(entities), screen['name'], '' if url else ': no image')
+
+    def favorite_render(self, tile):
+        """A favourite's picture for the page's strip (camera_feed.live `renders`): its saved thumbnail, fetched once and
+        kept with the library's."""
+        url = tile['options']['play']['thumb']
+        entity = tile['entity']
+
+        async def draw(width, height):
+            if url not in self.thumbnails:
+                try:
+                    self.thumbnails[url] = await self.ha.browse_image(entity, url)
+                except Exception as error:
+                    # The tile keeps its ground colour; the next load tries again.
+                    LOG.info('No picture for the favourite %s (%s)', tile['options']['play'].get('title'), type(error).__name__)
+                    return None
+                while len(self.thumbnails) > 96:
+                    self.thumbnails.popitem(last=False)
+            return self.thumbnails[url]
+        return (lambda: 'favorite:' + url, draw)
 
     async def answer_map_full(self, inbox, screen, request):
         """A map tile tapped open (app 0.4.36, firmware 0.21.0+): the same map drawn as large as the board takes a
@@ -3401,6 +3459,55 @@ def create_app(manager, development=False):
             return web.Response(status=304, headers=headers)
         return web.Response(body=body, content_type='image/bmp', headers=headers)
 
+    async def media_browse(request):
+        """A folder of a player's library for the editor's favourite (app 0.4.42): the top (no folder) or a folder by the
+        number it was given; each item with what a favourite stores of it and a link to its prepared picture."""
+        entity = request.query.get('entity', '')
+        if not entity.startswith('media_player.') or entity not in manager.ha.states:
+            raise web.HTTPNotFound()
+        shelf = manager.shelves.setdefault('', media_library.Shelf())
+        token = manager.media_token(request.query.get('folder') or 0)
+        item = shelf.get(entity, token) if token else None
+        if token and (item is None or not item['expand']):
+            raise web.HTTPNotFound()
+        try:
+            folder = await manager.read_folder(entity, item)
+        except (ClientError, ConnectionError, TimeoutError, OSError, ValueError) as error:
+            name = manager.ha.states.get(entity, {}).get('attributes', {}).get('friendly_name') or entity
+            return web.json_response({'error': t('addon.errors.media.browse', name=name), 'detail': type(error).__name__}, status=502)
+        items = []
+        for raw in folder['items']:
+            number = shelf.token(entity, raw)
+            items.append({'item': number, 'title': raw['title'], 'play': raw['play'], 'expand': raw['expand'], 'icon': raw['icon'],
+                          'picture': f'api/media/picture?entity={entity}&item={number}' if raw['thumb'] else None,
+                          'favorite': media_library.favorite_of(raw) if raw['play'] else None})
+        return web.json_response({'title': folder['title'], 'folder': token or 0, 'items': items})
+
+    async def media_picture(request):
+        """An item's picture for the editor, prepared: an item of the library it browsed, or what a saved favourite
+        plays. Never an address of the browser's choosing."""
+        entity = request.query.get('entity', '')
+        url = None
+        token = manager.media_token(request.query.get('item'))
+        if token:
+            url = (manager.shelves.get('', media_library.Shelf()).get(entity, token) or {}).get('thumb')
+        elif request.query.get('url'):
+            wanted = request.query['url']
+            saved = {((tile.get('options') or {}).get('play') or {}).get('thumb') for layout in manager.layouts.values()
+                     for tile in layout.get('tiles', []) if tile['entity'] == entity}
+            url = wanted if wanted in saved else None
+        if not url:
+            raise web.HTTPNotFound()
+        if url not in manager.thumbnails:
+            try:
+                manager.thumbnails[url] = await manager.ha.browse_image(entity, url)
+            except Exception:
+                raise web.HTTPNotFound() from None
+            while len(manager.thumbnails) > 96:
+                manager.thumbnails.popitem(last=False)
+        body = await asyncio.get_running_loop().run_in_executor(None, media_library.preview_jpeg, manager.thumbnails[url])
+        return web.Response(body=body, content_type='image/jpeg', headers={'Cache-Control': 'private, max-age=3600'})
+
     async def camera_preview(request):
         # A camera that fills a taller card on the mockup (app 0.3.8): prepared pixels only, as for a cover.
         entity = request.query.get('entity', '')
@@ -3432,6 +3539,10 @@ def create_app(manager, development=False):
             if eid.startswith('media_player.'):
                 # What the player reported at its widest (GitHub #88): the editor draws a player at rest with its keys.
                 attributes['supported_features'] = manager.players.widest(eid, state.get('attributes'))
+                # The speakers a favourite may play on (app 0.4.42).
+                sources = state.get('attributes', {}).get('source_list')
+                if isinstance(sources, list):
+                    attributes['source_list'] = [str(s) for s in sources if isinstance(s, str)][:media_library.SOURCES]
                 for key in ('media_title', 'media_artist', 'media_album_name', 'media_duration', 'media_position'):
                     value = state.get('attributes', {}).get(key)
                     if isinstance(value, (str, int, float)):
@@ -3687,6 +3798,8 @@ def create_app(manager, development=False):
     app.router.add_get('/api/history-preview', preview_history)
     app.router.add_get('/api/media-art', media_art_preview)
     app.router.add_get('/api/camera-preview', camera_preview)
+    app.router.add_get('/api/media/browse', media_browse)
+    app.router.add_get('/api/media/picture', media_picture)
     app.router.add_post('/api/firmware-preview', firmware_preview)
     app.router.add_post('/api/firmware-preview/import', import_document)
     app.router.add_post('/api/firmware-preview/action', firmware_preview_action)

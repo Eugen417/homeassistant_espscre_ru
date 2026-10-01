@@ -1389,8 +1389,103 @@ class Run:
         if dict(sent.data).get('source') != 'Living room':
             faults.append(f'a start at rest went out as {dict(sent.data)}')
         await asyncio.sleep(0.6)
+        # Favourites (firmware 0.24.0): an album on one cell, a playlist on two with its own speaker, one without a picture.
+        await self.tap(*card['lib_back'][:2]) if card.get('lib_back') else None
+        await asyncio.sleep(0.4)
+        library = await self.media_probe()
+        if library['library']:
+            await self.tap(*library['lib_back'][:2])
+            await asyncio.sleep(0.4)
+        library = await self.media_probe()
+        if library['open'] and library['back']:
+            await self.tap(*library['back'][:2])
+            await asyncio.sleep(0.6)
+        states[ENTITY] = spotify(source='Kitchen')
+        favorites = [
+            {'entity': ENTITY, 'name': '', 'slot': 0, 'options': {'display': 'favorite', 'play': {'id': 'spotify:album:1', 'type': 'spotify://album',
+             'title': 'Random Access Memories', 'thumb': 'https://i.scdn.co/image/1', 'class': 'album'}}},
+            {'entity': ENTITY, 'name': 'Focus', 'slot': 1, 'options': {'display': 'favorite', 'play': {'id': 'spotify:playlist:2', 'type': 'spotify://playlist',
+             'title': 'Focus', 'thumb': 'https://i.scdn.co/image/2', 'class': 'playlist'}, 'speaker': 'Bedroom'}},
+            {'entity': ENTITY, 'name': '', 'slot': 2, 'options': {'display': 'favorite', 'size': 'wide', 'play': {'id': 'spotify:playlist:3', 'type': 'spotify://playlist',
+             'title': 'Electro Swing', 'thumb': 'https://i.scdn.co/image/3', 'class': 'playlist'}, 'speaker': 'Kitchen'}},
+            {'entity': ENTITY, 'name': '', 'slot': 4, 'options': {'display': 'favorite', 'play': {'id': 'spotify:artist:4', 'type': 'spotify://artist',
+             'title': 'Daft Punk', 'class': 'artist'}}},
+            {'entity': ENTITY, 'name': 'Spotify', 'slot': 5, 'options': {'display': 'cover'}}]
+        favorites = [tile for tile in favorites if tile['slot'] < grid.columns * grid.rows]
+        record = send_layout.migrate_legacy(dict(title='Favourites', tiles=favorites), grid)
+        tiles = send_layout.compile_tiles(record['layout'], grid)
+        started = {'id': None}
+        WORDS = {'album': 'Album', 'playlist': 'Playlist', 'artist': 'Artist'}
+        async def push_favorites():
+            values = [state_message(index, {**tile, 'name': tile['name'] or (tile['options'].get('play') or {}).get('title', '')}, states, extras(tile, states))
+                      for index, tile in enumerate(tiles)]
+            for value, tile in zip(values, tiles):
+                attributes = states[value['entity']]['attributes']
+                value.setdefault('x', {}).update(media_library.player_extras(attributes, PLAYING, '2B484F,121E20', True))
+                play = tile['options'].get('play')
+                if play:
+                    mine = started['id'] == play['id']
+                    value['x'].update(media_library.favorite_extras(play, tile['options'].get('speaker'), attributes if mine else {},
+                                                                    (play['type'], play['id']) if mine else None, WORDS[play['class']]))
+            await self.sender.synchronize(self.inbox.object_id, record, region, values, bars)
+        await push_favorites()
+        await asyncio.sleep(0.8)
+        async def answer_strip(since):
+            for call in calls[since:]:
+                data = dict(call.data)
+                if call.service != 'esphome.screen_camera' or 'tiles' not in data or data.get('_answered'):
+                    continue
+                entities = data['tiles'].split(',')
+                atlas = tile_art.parse(data.get('atlas'), self.canvas, len(entities)) if data.get('atlas') else None
+                if atlas is None:
+                    faults.append(f'the favourites asked for their pictures without frames the app takes: {data}')
+                    continue
+                indexes = [int(n) for n in data['idx'].split(',')]
+                body = tile_art.encode([picture(i + 3) for i in indexes], [int(g, 16) for g in data['bg'].split(',')], atlas, compact=True)
+                url = self.pictures.url(f'{self.item.key}-strip-{served["art"]}.bmp', body)
+                served['art'] += 1
+                await self.send({'v': 1, 'op': 'camera', 't': 'live', 'e': data['tiles'], 'u': url, 'view': int(data['view'])})
+                call.data['_answered'] = '1'
+        since = 0
+        await asyncio.sleep(1.0)
+        await answer_strip(since)
+        await asyncio.sleep(2.0)
+        await answer_strip(since)
+        await asyncio.sleep(1.5)
+        await self.render('media-favorites')
+        # Every card of the page in slot order (they are all the same player): its box.
+        start = len(self.lines)
+        await self.call('render_cards')
+        line = await self.until(lambda l: 'cards ' in l, 10, 'render_cards', start)
+        boxes = [tuple(int(n) for n in item.split('|')[5].split(',')) for item in line.split('cards ', 1)[1].strip().split(';') if '|' in item]
+        # A tap on the playlist on two cells: it asks the app to play that tile.
+        playlist = next((i for i, tile in enumerate(tiles) if tile['options'].get('size') == 'wide'), None)
+        if playlist is not None and boxes:
+            since = len(calls)
+            # The widest card, a little left of its key.
+            wide = max(boxes, key=lambda b: b[2] - b[0])
+            await self.tap((wide[0] + wide[2]) // 2 - 40, (wide[1] + wide[3]) // 2)
+            sent = await call_for('esphome.screen_play', since)
+            if dict(sent.data).get('tile') != str(playlist):
+                faults.append(f'a favourite asked to play {dict(sent.data)}, not tile {playlist}')
+            # While it starts its key turns (an animation: one snapshot, never two equal ones) and its line says so.
+            await asyncio.sleep(0.6)
+            start = len(self.lines)
+            await self.call('render_cards')
+            line = await self.until(lambda l: 'cards ' in l, 10, 'render_cards', start)
+            if 'Starting on Kitchen' not in line:
+                faults.append(f'a favourite that starts does not say so: {line.split("cards ", 1)[1][:200]}')
+            (await self.snapshot(self.out / 'media-favorites-starting.ppm')).save(self.out / 'media-favorites-starting.png')
+            (self.out / 'media-favorites-starting.ppm').unlink(missing_ok=True)
+            started['id'] = tiles[playlist]['options']['play']['id']
+            states[ENTITY] = spotify(source='Kitchen', media_title='Bella Ciao', media_artist='Electro Swing Band', media_playlist='Electro Swing')
+            await push_favorites()
+            await asyncio.sleep(1.0)
+            await answer_strip(since)
+            await asyncio.sleep(1.5)
+            await self.render('media-favorites-playing')
         self.failures += [f'media: {f}' for f in faults]
-        self.warnings.append(f'media: card, speakers, library, albums, play, rest; {served["cover"]} covers, {served["art"]} pages of covers')
+        self.warnings.append(f'media: card, speakers, library, albums, play, rest, favourites; {served["cover"]} covers, {served["art"]} pictures')
         return 1
 
     async def automation_panel(self, grid):

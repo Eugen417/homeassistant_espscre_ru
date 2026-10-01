@@ -1155,6 +1155,20 @@
      "sizes": {
       "full": false
      }
+    },
+    {
+     "key": "favorite",
+     "needs": {
+      "features": [
+       "BROWSE_MEDIA"
+      ]
+     },
+     "screen": {
+      "firmware": "0.24.0"
+     },
+     "sizes": {
+      "full": false
+     }
     }
    ],
    "controls": [

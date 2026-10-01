@@ -246,7 +246,8 @@
       "choose_speaker": "Choose a speaker",
       "library_hint": "Tap a cover in the library to play",
       "library_failed": "The library did not answer",
-      "library_empty": "Nothing here"
+      "library_empty": "Nothing here",
+      "starting_on": "Starting on {speaker}"
     },
     "timer": {
       "running": "Running",

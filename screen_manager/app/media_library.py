@@ -21,9 +21,11 @@ for Spotify (BROWSE_LIMIT) and says nothing of the rest; a screen shows what it 
 """
 import asyncio
 import colorsys
+import hashlib
 import io
 import json
 import logging
+import re
 import time
 from collections import OrderedDict
 
@@ -220,6 +222,10 @@ def item_of(raw):
     if not play and not expand:
         return None
     thumbnail = raw.get('thumbnail')
+    if isinstance(thumbnail, str) and thumbnail.startswith('/'):
+        # Home Assistant's own proxy for a player's library (Sonos, Music Assistant): this app fetches it with its own
+        # token, so a signature in the address is left out and never stored or shown.
+        thumbnail = re.sub(r'[?&](token|authSig)=[^&]*', '', thumbnail)
     return {'title': title, 'id': content_id, 'type': content_type, 'play': play, 'expand': expand,
             'thumb': thumbnail if isinstance(thumbnail, str) and thumbnail else None, 'icon': icon_of(raw),
             'class': raw.get('media_class') if isinstance(raw.get('media_class'), str) else ''}
@@ -353,3 +359,54 @@ async def start(states, call, entity, item, source=None, wait=START_SECONDS, sle
             await sleep(0.25)
     await call('media_player', 'play_media', {'entity_id': entity, 'media_content_type': item['type'], 'media_content_id': item['id']})
     return 'playing'
+
+
+# ---- a favourite: one item of the library on a tile of its own (app 0.4.42, firmware 0.24.0) ----
+
+def favorite_item(play):
+    """A favourite's stored `play` as an item start() takes, or None."""
+    if not isinstance(play, dict) or not play.get('id') or not play.get('type'):
+        return None
+    return {'id': play['id'], 'type': play['type'], 'title': play.get('title') or '', 'thumb': play.get('thumb'),
+            'icon': CLASS_ICONS.get(play.get('class') or '', FOLDER_ICON), 'class': play.get('class') or '', 'play': True, 'expand': False}
+
+
+def favorite_extras(play, speaker, attrs, started, word):
+    """What a favourite's tile says (firmware 0.24.0): the kind of thing it plays in the screens' language (`fk`), the
+    speaker it plays on when one is chosen (`fo`), whether it plays now (`fp`), a mark of its picture (`fm`, the screen
+    asks for the picture by it) and the icon of its kind (`fi`, where it has no picture)."""
+    item = favorite_item(play)
+    if item is None:
+        return {}
+    result = {'fi': item['icon']}
+    if word:
+        result['fk'] = short(word, 24)
+    if isinstance(speaker, str) and speaker.strip():
+        result['fo'] = short(speaker, SOURCE_LIMIT)
+    if playing_now(item, attrs, started):
+        result['fp'] = 1
+    if item['thumb']:
+        result['fm'] = hashlib.sha1(item['thumb'].encode()).hexdigest()[:10]
+    return result
+
+
+def favorite_of(item):
+    """What a favourite stores of an item it plays (core.validate_favorite)."""
+    play = {'id': item['id'], 'type': item['type'], 'title': item['title']}
+    if item.get('thumb'):
+        play['thumb'] = item['thumb']
+    if item.get('class'):
+        play['class'] = item['class']
+    return play
+
+
+def preview_jpeg(raw, side=256):
+    """A picture for the editor: at most `side` pixels, JPEG."""
+    from PIL import Image, ImageOps
+    with Image.open(io.BytesIO(raw)) as source:
+        source.draft('RGB', (side * 2, side * 2))
+        image = ImageOps.exif_transpose(source).convert('RGB')
+        image.thumbnail((side, side), Image.Resampling.LANCZOS)
+        out = io.BytesIO()
+        image.save(out, 'JPEG', quality=85)
+        return out.getvalue()

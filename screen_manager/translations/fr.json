@@ -246,7 +246,8 @@
       "choose_speaker": "Choisir une enceinte",
       "library_hint": "Touchez une pochette de la bibliothèque",
       "library_failed": "La bibliothèque ne répond pas",
-      "library_empty": "Rien ici"
+      "library_empty": "Rien ici",
+      "starting_on": "Démarre sur {speaker}"
     },
     "timer": {
       "running": "En cours",

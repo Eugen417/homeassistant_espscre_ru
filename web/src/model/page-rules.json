@@ -90,7 +90,8 @@
     "media_player": [
       "standard",
       "watch",
-      "cover"
+      "cover",
+      "favorite"
     ],
     "person": [
       "standard",

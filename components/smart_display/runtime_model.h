@@ -241,6 +241,10 @@ struct Extra {
   uint32_t media_features = 0, ground_top = 0, ground_bottom = 0;
   // ground_known: the app read the cover (its colours, or that it has none to speak of), so its cover may be asked for.
   bool has_ground = false, ground_known = false, media_library = false;
+  // A favourite (firmware 0.24.0+, app 0.4.42+): the kind of thing it plays in the screen's words ("Playlist"), the
+  // speaker chosen for it, the mark of its picture, the glyph of its kind, and whether it plays now.
+  std::string fav_kind, fav_source, fav_mark, fav_glyph;
+  bool fav_playing = false;
   // Vacuum: its own speeds (at most four) and speed, the mode, water and suction rows (see Choice), and
   // from sensors of its device the room it is in and whether it charges.
   std::vector<std::string> fan_speeds;
@@ -284,7 +288,8 @@ struct Extra {
            option_rows.empty() && number_rows.empty() && lamps.empty() && code_format.empty() && changed_by.empty() && !arm_code_free &&
            !code_saved && !alarm_end && !alarm_delay && !assumed && activity.empty() && keypad.empty() &&
            media_source.empty() && media_repeat.empty() && media_sources.empty() && media_shuffle < 0 && !media_features &&
-           !has_ground && !ground_known && !media_library;
+           !has_ground && !ground_known && !media_library && fav_kind.empty() && fav_source.empty() && fav_mark.empty() &&
+           fav_glyph.empty() && !fav_playing;
   }
 };
 // The numbers of a clock text ("0:05:00", "07:45"), at most `max` of them, each after optional white space, up to the
@@ -362,8 +367,11 @@ struct Tile {
   // card, its name included, and sends it in the page's strip like a live camera, so no map arithmetic lives here.
   // The map tile of the screen's own cards (firmware 0.21.0+) is the same picture, following whom the app is told to.
   bool is_map() const { return display == "map" && (domain() == "person" || entity == "screen.map"); }
+  // A favourite (firmware 0.24.0+): a player's tile that plays one thing of its library on a tap, with that thing's
+  // picture over the card where the board draws pictures. Never a whole page: the player's card is that.
+  bool favorite() const { return display == "favorite" && domain() == "media_player" && !full; }
   // A tile that draws its picture out of the page's strip (runtime_tiles.h, live_*).
-  bool pictured() const { return live() || cover_tile() || is_map(); }
+  bool pictured() const { return live() || cover_tile() || is_map() || (favorite() && !extra().fav_mark.empty()); }
   // Double width takes a row; full (firmware 0.2.62+) takes the whole page, all six slots, and is also wide.
   bool wide = false, full = false;
   uint8_t height = 1;  // Row span; independent of the card design and page height.

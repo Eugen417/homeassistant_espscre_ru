@@ -246,7 +246,8 @@
       "choose_speaker": "Kies een speaker",
       "library_hint": "Tik op een hoes in de bibliotheek om af te spelen",
       "library_failed": "De bibliotheek antwoordde niet",
-      "library_empty": "Niets hier"
+      "library_empty": "Niets hier",
+      "starting_on": "Start op {speaker}"
     },
     "timer": {
       "running": "Loopt",

@@ -200,6 +200,8 @@ inline lv_obj_t *media_detail_picture = nullptr;
 constexpr unsigned MEDIA_PICTURE = 14;
 inline void media_action(Tile &t, int cmd);
 inline const char *icon_for(const Tile &tile);
+// A favourite's tap (firmware 0.24.0+), further down with its card.
+inline void favorite_tap(size_t index);
 inline void label(lv_obj_t *obj, const std::string &text);
 // An icon in a circle or a key sits on the centre of its ink, not of its label box: a Material Design glyph's box
 // carries the font's side bearings and line gap, so a box-centred icon sat a few pixels off. Some glyphs fill their
@@ -442,7 +444,8 @@ inline bool live_marquee_ready(const Widgets &w, const Tile &t);
 // and a live camera in full colour with its name at the bottom, on a shade the app puts in the picture: on a 1x2 or 2x2
 // tile since 0.3.3, on every size since 0.3.7 (the small square in the icon's place said too little to be of use).
 // A map (firmware 0.20.0) fills its card on every size too, with its name drawn into the picture by the app.
-inline bool card_art(const Tile &t) {return (t.row_span()>1 && !t.full && t.cover_tile()) || t.live() || t.is_map();}
+// A favourite (firmware 0.24.0+) fills its card with what it plays on every size, as a live camera does.
+inline bool card_art(const Tile &t) {return (t.row_span()>1 && !t.full && t.cover_tile()) || t.live() || t.is_map() || (t.favorite() && t.pictured());}
 // All icon fonts carry the same generated glyph set, so the first bound one answers for all.
 inline bool has_icon_glyph(uint32_t codepoint) {
   for (auto &w : widgets) if (w.icon_font) { lv_font_glyph_dsc_t dsc; return lv_font_get_glyph_dsc(w.icon_font, &dsc, codepoint, 0); }
@@ -3987,6 +3990,8 @@ inline const char *icon_for(const Tile &tile) {
   // five seconds it says what the next tap does.
   if (tile.domain() == "lock" && lock_asking(tile, false, lock_panel::NONE)) return lock_panel::glyph::LOCK_OPEN;
   if (!tile.icon.empty()) return tile.icon.c_str();
+  // A favourite shows the glyph of what it plays (a playlist, an album) where it has no picture (firmware 0.24.0+).
+  if (tile.favorite() && !tile.extra().fav_glyph.empty()) return tile.extra().fav_glyph.c_str();
   auto d = tile.domain();
   // Home Assistant's own icon: a bulb, crossed out while off. A chosen icon stays, as in Home Assistant.
   if (d == "light" && tile.state == "off") return "\U000F0E4F";
@@ -4131,6 +4136,8 @@ inline void event(lv_event_t *event) {
   // A person tile tapped (Automatic, firmware 0.21.0+): where they are, on the full map focused on them with their card,
   // as Home Assistant's own map shows a person picked; on a board without pictures the card opens as before.
   if(d=="person"&&!held&&tile.tap=="auto"&&camera_supported()){camera_open(tile.entity,tile.name.empty()?tile.entity:tile.name,(int)w.index,tile.entity);return;}
+  // A favourite plays (or pauses) what it holds on a tap; held, it opens the player's card (firmware 0.24.0+).
+  if(tile.favorite()&&!held&&tile.tap=="auto"){favorite_tap(w.index);return;}
   // tile_controls::tap_route decides; tests/test_tile_controls.cpp keeps every older tap choice routed as before.
   auto tap = tile_controls::tap_route(tile, code == LV_EVENT_LONG_PRESSED);
   switch (tap.route) {
@@ -5944,6 +5951,78 @@ inline const lv_font_t *heading_icon(const Widgets &w,int &circle,int max_side,i
 // nothing on it at all. A camera's state ("Idle") says nothing next to its own picture. The name stands where the
 // picture will put it while the card waits for it, so the card does not move when the picture comes. False for a
 // camera the app has no picture of (or a screen that cannot ask now): the caller then draws the head its size has.
+// ---- A favourite (firmware 0.24.0+, app 0.4.42+) ----
+// One playlist, album or artist of a player's library on a tile of its own: a tap plays it on the speaker chosen for
+// it (or where the player plays), and a tap while it plays pauses it. Holding opens the player's card. Where the board
+// draws pictures, what it plays fills the card, dimmed as an album cover over a card is, with its name and line at the
+// bottom and a round
+// key at the bottom right; elsewhere it is an ordinary tile whose whole card is the key. What plays now has a ring of
+// the accent. The app knows what each favourite plays; the screen only asks to play its tile.
+inline uint32_t favorite_started_at[64]{};  // by the tile's index: a tap that is starting it, until the player plays
+constexpr uint32_t FAVORITE_STARTING_MS = 12000;
+inline bool favorite_starting(size_t index,const Tile &t){
+  if(index>=64||!favorite_started_at[index])return false;
+  if(t.extra().fav_playing||esphome::millis()-favorite_started_at[index]>=FAVORITE_STARTING_MS){favorite_started_at[index]=0;return false;}
+  return true;
+}
+inline size_t tile_index(const Tile &t){return model.count?static_cast<size_t>(&t-&model.tiles[0]):SIZE_MAX;}
+// The line under its name: "Playlist", "Playlist · Kitchen"; "Starting on Kitchen" while a tap starts it, "Playing" or
+// "Playing · Kitchen" while it plays.
+inline std::string favorite_line(const Tile &t){
+  const auto &x=t.extra();
+  const std::string speaker=!x.fav_source.empty()?x.fav_source:x.media_source;
+  if(favorite_starting(tile_index(t),t))return speaker.empty()?std::string(tr(txt::media_loading)):fill(txt::media_starting_on,"speaker",speaker);
+  if(x.fav_playing)return x.media_source.empty()?std::string(tr(txt::ha_media_playing)):std::string(tr(txt::ha_media_playing))+" · "+x.media_source;
+  if(x.fav_kind.empty())return x.fav_source;
+  return x.fav_source.empty()?x.fav_kind:x.fav_kind+" · "+x.fav_source;
+}
+// A tap: pause what it plays, or play it.
+inline void favorite_tap(size_t index){
+  if(index>=model.count)return;
+  auto &t=model.tiles[index];
+  if(t.extra().fav_playing&&t.state=="playing"){action("media_player.media_pause",t.entity);return;}
+  if(index<64)favorite_started_at[index]=std::max<uint32_t>(1,esphome::millis());
+  library_event("esphome.screen_play",{{"entity",t.entity},{"tile",std::to_string(index)}});
+  ESP_LOGI("library","Play favourite %u of %s",(unsigned)index,t.entity.c_str());
+  refresh_tile(index);
+}
+inline void favorite_key_event(lv_event_t *e){
+  const unsigned slot=(uintptr_t)lv_event_get_user_data(e);
+  if(slot>=widgets.size()||!enabled||!fresh())return;
+  auto &w=widgets[slot];
+  if(w.index>=model.count||w.extra_mode!="favorite"||!model.tiles[w.index].available())return;
+  if(!allowed(esphome::millis(),100+w.index,model.tiles[w.index].entity))return;
+  favorite_tap(w.index);
+}
+// The card with its picture: false while there is none, and the tile is drawn as an ordinary one.
+inline bool render_favorite_card(Widgets &w,const Tile &t,int width,int height){
+  live_place(w,t,0,0,0);
+  const bool photo=w.picture&&!lv_obj_has_flag(w.picture,LV_OBJ_FLAG_HIDDEN);
+  if(!photo)return false;
+  hide_panel(w);begin_extra(w,"favorite",width,height);
+  for(auto *part:w.parts)if(part)lv_obj_add_flag(part,LV_OBJ_FLAG_HIDDEN);
+  lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);lv_obj_add_flag(w.unit,LV_OBJ_FLAG_HIDDEN);lv_obj_add_flag(w.circle,LV_OBJ_FLAG_HIDDEN);
+  const bool large=ui::large();
+  // The key: the size of a playback key, round and white, at the bottom right.
+  const int key=std::min({std::max(ui::touch_min(),ui::px(large?44:32)),width/2,height});
+  const media_card::Rect r{width-key,height-key,key,key};
+  const bool starting=favorite_starting(w.index,t),playing=t.extra().fav_playing&&t.state=="playing";
+  w.parts[0]=media_key(w.extra,w.parts[0],r,playing?tile_controls::glyph::PAUSE:tile_controls::glyph::PLAY,mini_icon_font?mini_icon_font:w.icon_font,false,false,t.available(),favorite_key_event,(void*)(uintptr_t)(&w-widgets.data()));
+  set_number(w.parts[0],LV_STYLE_BG_OPA,starting?LV_OPA_60:LV_OPA_COVER);
+  lv_obj_remove_flag(w.parts[0],LV_OBJ_FLAG_HIDDEN);
+  // While a tap starts it, a ring turns round the key.
+  if(starting){
+    if(!w.parts[1])w.parts[1]=spinner_create(w.extra,key,ui::px(large?4:3));
+    if(w.parts[1]){lv_obj_set_pos(w.parts[1],r.x,r.y);lv_obj_set_size(w.parts[1],key,key);lv_obj_remove_flag(w.parts[1],LV_OBJ_FLAG_HIDDEN);}
+  }
+  // The name and its line at the bottom left, on the shade the app put in the picture.
+  const int name_h=lv_font_get_line_height(w.title_font),line_h=lv_font_get_line_height(w.value_font),text_w=std::max(1,width-key-ui::px(large?8:4));
+  set_hidden(w.title,false);set_hidden(w.value,false);
+  set_font(w.title,w.title_font);set_text_align(w.title,LV_TEXT_ALIGN_LEFT);set_text_align(w.value,LV_TEXT_ALIGN_LEFT);
+  lv_obj_set_pos(w.title,0,height-name_h-line_h);lv_obj_set_size(w.title,text_w,name_h);
+  lv_obj_set_pos(w.value,0,height-line_h);lv_obj_set_size(w.value,text_w,line_h);
+  return true;
+}
 inline bool render_camera_card(Widgets &w,const Tile &t,int width,int height){
   live_place(w,t,0,0,0);
   const bool photo=w.picture&&!lv_obj_has_flag(w.picture,LV_OBJ_FLAG_HIDDEN),waiting=!photo&&live_waiting(t);
@@ -6147,6 +6226,23 @@ inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
   }
   return true;
 }
+// A favourite that plays now has a ring of the accent (firmware 0.24.0+): the card's own border, drawn over its picture
+// along the card's own corners. An outline outside the card left the picture's corners, which the app fills with the
+// page's colour, as a light wedge between the ring and the picture. Every other card keeps its hairline under its parts.
+inline void ring_favorite(Widgets &w,const Tile &t){
+  const bool ringed=t.favorite()&&t.extra().fav_playing;
+  set_number(w.tile,LV_STYLE_BORDER_POST,ringed?1:0);
+  if(ringed){
+    set_number(w.tile,LV_STYLE_BORDER_WIDTH,ui::px(3));
+    set_number(w.tile,LV_STYLE_BORDER_OPA,LV_OPA_COVER);
+    set_color(w.tile,LV_STYLE_BORDER_COLOR,theme::color(theme::ACCENT));
+  }else if(t.favorite()){
+    // The palette's own hairline again: the palette pass is skipped while the card's colours stand still.
+    set_number(w.tile,LV_STYLE_BORDER_WIDTH,1);
+    set_number(w.tile,LV_STYLE_BORDER_OPA,t.transparent?LV_OPA_TRANSP:LV_OPA_COVER);
+    set_color(w.tile,LV_STYLE_BORDER_COLOR,lv_color_hex(theme::outline(t.background)));
+  }
+}
 inline void style_tall(Widgets &w,const Tile &t){
   // A thermostat's stepper (render_tall, climate_tile.h): a grey pill with white keys on one row, or the keys alone
   // in grey beside a big number. The number is grey while the thermostat is off.
@@ -6159,6 +6255,16 @@ inline void style_tall(Widgets &w,const Tile &t){
       if(w.key_icons[n])set_color(w.key_icons[n],LV_STYLE_TEXT_COLOR,theme::color(theme::INK));
     }
     set_color(w.pill_value,LV_STYLE_TEXT_COLOR,theme::color(tile_controls::climate_off(t)?theme::MUTED:theme::INK));
+  }
+  // A favourite over its picture (firmware 0.24.0+): light words on the app's shade, a white key with a dark glyph.
+  if(w.extra_mode=="favorite"){
+    set_color(w.title,LV_STYLE_TEXT_COLOR,theme::color(theme::CAMERA_INK));set_color(w.value,LV_STYLE_TEXT_COLOR,theme::color(theme::CAMERA_INK));
+    if(w.parts[0]){
+      set_color(w.parts[0],LV_STYLE_BG_COLOR,theme::color(theme::CAMERA_INK));
+      set_color(w.parts[0],LV_STYLE_BG_COLOR,theme::color(theme::CAMERA_NOTE),LV_STATE_PRESSED);
+      if(auto *icon=lv_obj_get_child(w.parts[0],0))set_color(icon,LV_STYLE_TEXT_COLOR,theme::color(theme::CAMERA_PAGE));
+    }
+    return;
   }
   if(w.extra_mode!="tall"||(!t.live()&&!t.is_map()&&(t.row_span()<2||t.full)))return;
   const bool photo=card_art(t)&&w.picture&&!lv_obj_has_flag(w.picture,LV_OBJ_FLAG_HIDDEN);
@@ -6343,6 +6449,7 @@ inline void render_slot(size_t slot) {
   // Home Assistant's word where the screen has none of its own (firmware 0.2.58+): a cover says Open, a washer Rinsing.
   else if (!t.extra().state_word.empty()) value = t.extra().state_word;
   // A player's state in the screen's own words where Home Assistant sent none (firmware 0.2.64+).
+  else if (t.favorite()) value = favorite_line(t);
   else if (d == "media_player") value = tile_controls::media_state_text(t.state);
   // A measurement in the screen's number format ("21,5 °C" in Dutch), as Home Assistant writes a state with a unit; a
   // number without one (a code, a year) stays as it is, as there.
@@ -6428,6 +6535,9 @@ inline void render_slot(size_t slot) {
     }
     lap(swipe_profile::GEOMETRY);
   }else if((t.live()||t.is_map())&&render_camera_card(w,t,content_w,content_h)){
+    lap(swipe_profile::GEOMETRY);
+  }else if(t.favorite()&&render_favorite_card(w,t,content_w,content_h)){
+    label(w.value,value);
     lap(swipe_profile::GEOMETRY);
   }else if((taller||(w.full&&(tile_controls::cover_tilt_selected(t)||tile_controls::climate_modes_selected(t))))&&!custom&&!watch&&!graph&&
      render_tall(w,t,with_panel,content_w,content_h)){
@@ -6618,7 +6728,7 @@ inline void render_slot(size_t slot) {
   // An alarm panel's circle beats while it counts down or goes off, and springs once when it arms or disarms.
   if (d == "alarm_control_panel" || d == "lock" || w.alarm_look || w.alarm_mark) alarm_tile_look(slot, &t);
   const uint32_t paint=t.background|(t.transparent?1u<<24:0);
-  if (w.cached_active == palette_state && w.cached_paint == paint && !w.panel_dirty) { style_tall(w,t);lap(swipe_profile::GEOMETRY); return; }
+  if (w.cached_active == palette_state && w.cached_paint == paint && !w.panel_dirty) { style_tall(w,t);ring_favorite(w,t);lap(swipe_profile::GEOMETRY); return; }
   w.cached_active = palette_state;w.cached_paint=paint;w.panel_dirty=false;
   // Home Assistant's colour for the state (tile_controls::accent), and a lamp's own colour while it is on.
   uint32_t accent=lock_tile?lock_accent(t):tile_controls::accent(t);
@@ -6665,6 +6775,7 @@ inline void render_slot(size_t slot) {
   // (Tile::slider_active), while the slider of something off turns grey and the Off mode key has a grey of its own.
   style_panel(w,t,lv_color_hex(theme::state(accent)),title_color);
   style_tall(w,t);
+  ring_favorite(w,t);
   // Custom parts follow the card palette: text like the title, lines/dots in the accent.
   // The sun path sets its own colours on every render, the sunlit area under its arc too: taking the
   // accent here made that area orange after a palette change and yellow again after the next minute.
@@ -6673,7 +6784,7 @@ inline void render_slot(size_t slot) {
   // in the media colours, not the card's.
   if(w.extra_mode=="bedside"){}  // render_bedside paints its own parts
   else if(w.extra_mode=="calm"||w.extra_mode=="flip")paint_face(w,title_color,value_color,icon_color);
-  else for(unsigned i=0;i<w.parts.size() && w.extra_mode!="media" && w.extra_mode!="tall" && w.extra_mode!="cover_tilt" && w.extra_mode!="forecast" && w.extra_mode!="forecast_rows";++i){
+  else for(unsigned i=0;i<w.parts.size() && w.extra_mode!="media" && w.extra_mode!="tall" && w.extra_mode!="cover_tilt" && w.extra_mode!="forecast" && w.extra_mode!="forecast_rows" && w.extra_mode!="favorite";++i){
     auto *p=w.parts[i];if(!p)continue;
     bool muted=w.extra_mode=="sunpath" ? i>=1 : w.extra_mode=="calendar" ? i==15||i==17 : w.extra_mode=="digital" ? i==16||i==17 : i==16;
     if(lv_obj_check_type(p,&lv_label_class))set_color(p,LV_STYLE_TEXT_COLOR,muted?value_color:title_color);
@@ -7760,6 +7871,8 @@ inline void tick() {
       // An alarm's delay counts down on its tile; its heartbeat stops while the screen sleeps and starts when it wakes.
       if(t.domain()=="alarm_control_panel"){if(alarm_left(t))card(w.index);alarm_tile_look(slot,&t);}
       if(t.domain()=="lock")alarm_tile_look(slot,&t);
+      // A favourite whose start never came stops saying it starts (firmware 0.24.0+).
+      if(t.favorite()&&w.index<64&&favorite_started_at[w.index]&&!favorite_starting(w.index,t))card(w.index);
       // A media tile over the whole page: its bar runs on while the track plays (firmware 0.2.64+).
       if(w.extra_mode=="media" && w.extra && !lv_obj_has_flag(w.extra,LV_OBJ_FLAG_HIDDEN) && w.parts[5] && !lv_obj_has_flag(w.parts[5],LV_OBJ_FLAG_HIDDEN))media_progress(t,w.parts[5],w.parts[6],w.media_bar_w);
       // The second hand moves on its own: only its line is redrawn, and it hides during standby. Only while the
@@ -8226,7 +8339,7 @@ inline LiveWish live_wanted() {
       const int fx=picture_store::scaled(x,scale),fy=picture_store::scaled(y,scale);
       const int fw=std::max(1,picture_store::scaled(x+width,scale)-fx),fh=std::max(1,picture_store::scaled(y+height,scale)-fy);
       char frame[96];snprintf(frame,sizeof(frame),"%s[%d,%d,%d,%d,%d,%d]",want.atlas.size()>1?",":"",
-        fx,fy,fw,fh,std::min(picture_store::scaled(radius,scale),std::min(fw,fh)/2),card_art(t)&&t.cover_tile()?170:0);
+        fx,fy,fw,fh,std::min(picture_store::scaled(radius,scale),std::min(fw,fh)/2),card_art(t)&&(t.cover_tile()||t.favorite())?170:0);
       want.atlas+=frame;
       // A smaller picture sits on the dark card (live_place), so its rounded corners are rounded over that.
       if(card_art(t)&&(fw<width||fh<height))behind=theme::hex(theme::CAMERA_PAGE);
@@ -8234,6 +8347,8 @@ inline LiveWish live_wanted() {
     snprintf(ground, sizeof(ground), "%06X", (unsigned) behind);
     want.grounds += ground;
     if (t.cover_tile()) want.marks += t.extra().media_picture;
+    // A favourite's picture is what it plays (firmware 0.24.0+): its own mark, never the player's cover.
+    if (t.favorite()) want.marks += t.extra().fav_mark;
     // A map's mark is what makes it another picture (app 0.4.33). It sets no pace: a page of maps and covers loads
     // once and then waits for someone to move.
     if (t.is_map()) want.marks += t.extra().map_mark;

@@ -658,6 +658,13 @@ std::string receive(const std::string &payload) {
       next.has_ground = media_card::ground(ground, next.ground_top, next.ground_bottom);
       next.ground_known = !ground.empty();
       next.media_library = (extra["lb"] | 0) == 1;
+      // A favourite (firmware 0.24.0+): what its tile says, and its picture's mark.
+      next.fav_kind = string(extra["fk"], 24);
+      next.fav_source = string(extra["fo"], 48);
+      next.fav_mark = string(extra["fm"], 16);
+      next.fav_playing = (extra["fp"] | 0) == 1;
+      const uint32_t glyph = tile_icon::codepoint(string(extra["fi"], 8));
+      if (glyph && has_icon_glyph(glyph)) next.fav_glyph = tile_icon::utf8(glyph);
     }
     const std::string name = string(root["name"], 80);
     if (!initial && tile.is_key() && name != tile.name) refresh_tile(tile.parent);

@@ -246,7 +246,8 @@
       "choose_speaker": "Escolher coluna",
       "library_hint": "Toque numa capa da biblioteca",
       "library_failed": "A biblioteca não respondeu",
-      "library_empty": "Nada aqui"
+      "library_empty": "Nada aqui",
+      "starting_on": "A iniciar em {speaker}"
     },
     "timer": {
       "running": "Em curso",

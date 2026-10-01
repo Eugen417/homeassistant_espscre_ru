@@ -1030,7 +1030,9 @@ TILE_EVENT_OPTIONS = {'size': 'size', 'controls': 'controls', 'display': 'displa
                       'color': 'background', 'background': 'background', 'tap': 'tap', 'inline': 'inline',
                       'history_hours': 'history_hours', 'refresh': 'refresh', 'fit': 'fit', 'overlay': 'overlay',
                       # How a map frames its people (app 0.4.33); who is on it is the editor's.
-                      'framing': 'framing', 'distance': 'distance'}
+                      'framing': 'framing', 'distance': 'distance',
+                      # A favourite (app 0.4.42): what it plays, as Home Assistant's library names it, and on which speaker.
+                      'play': 'play', 'speaker': 'speaker'}
 TILE_SIZES = {'full': 'full', 'fullscreen': 'full', 'full screen': 'full', 'full-screen': 'full', 'page': 'full', 'whole page': 'full',
               'wide': 'wide', 'double': 'wide', 'large': 'wide', 'big': 'wide',
               'single': 'single', 'small': 'single', 'normal': 'single', 'tall': 'tall', 'high': 'tall', 'square': 'square'}
@@ -1442,6 +1444,28 @@ def action_for_screen(value):
         act['t'] = templates
     return act
 
+# A favourite's own options (app 0.4.42): what it plays, as Home Assistant's library names it, and on which speaker.
+FAVORITE_OWN = ('play', 'speaker')
+FAVORITE_KINDS = ('playlist', 'album', 'artist', 'track', 'podcast', 'episode', 'channel', 'genre', 'directory', 'music')
+
+def validate_favorite(value):
+    """What a favourite plays as it is stored: Home Assistant's content id and type, the title and picture its library
+    gave, and the class of thing it is. ValueError when it is not one."""
+    if not isinstance(value, dict) or set(value) - {'id', 'type', 'title', 'thumb', 'class'}:
+        raise ValueError(t('addon.errors.layout.invalid_setting', setting='play'))
+    clean = {}
+    for key, limit, needed in (('id', 400, True), ('type', 64, True), ('title', 80, True), ('thumb', 600, False), ('class', 32, False)):
+        item = value.get(key)
+        if item is None and not needed:
+            continue
+        if not isinstance(item, str) or not item.strip() or len(item.encode()) > limit:
+            raise ValueError(t('addon.errors.layout.invalid_setting', setting='play'))
+        clean[key] = item
+    thumb = clean.get('thumb')
+    if thumb and not (thumb.startswith('https://') or thumb.startswith('http://') or thumb.startswith('/api/media_player_proxy/')):
+        raise ValueError(t('addon.errors.layout.invalid_setting', setting='play'))
+    return clean
+
 def validate_tap_action(value):
     """The stored form of a tap's own action; ValueError with what to change."""
     if not isinstance(value, dict) or set(value) - {'action', 'data'}:
@@ -1509,7 +1533,7 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
                 continue
         if 'options' in tile:
             options = tile['options']
-            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon', 'controls', 'action', 'refresh', 'sub', 'fit', 'overlay', 'guard', *MAP_OWN}:
+            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon', 'controls', 'action', 'refresh', 'sub', 'fit', 'overlay', 'guard', *MAP_OWN, *FAVORITE_OWN}:
                 raise ValueError(t('addon.errors.layout.unknown_settings'))
             # A navigation tile (screen.page_<n>, firmware 0.2.62+) has a name, an icon, a colour and a width; never the page.
             if page_target(tile['entity']):
@@ -1615,6 +1639,18 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
                            not (key in allowed and value == allowed[key][0]) and not (key == 'map' and not value)}
             elif set(options) & {'refresh', *PICTURE_OPTIONS, *MAP_OWN}:
                 options = {key: value for key, value in options.items() if key not in ('refresh', *PICTURE_OPTIONS, *MAP_OWN)}
+            # A favourite (app 0.4.42, firmware 0.24.0) keeps what it plays and on which speaker; another display leaves
+            # them behind. It plays on a tap, so it has no small slider and no other tap of its own.
+            if options.get('display') == 'favorite':
+                if 'play' in options:
+                    options = {**options, 'play': validate_favorite(options['play'])}
+                elif not stored:
+                    raise ValueError(t('addon.errors.layout.favorite_play'))
+                if 'speaker' in options and (not isinstance(options['speaker'], str) or not options['speaker'].strip() or len(options['speaker'].encode()) > 48):
+                    raise ValueError(t('addon.errors.layout.invalid_setting', setting='speaker'))
+                options = {k: v for k, v in options.items() if k not in ('inline', 'controls', 'action') and not (k == 'tap' and v == 'action')}
+            elif set(options) & set(FAVORITE_OWN):
+                options = {k: v for k, v in options.items() if k not in FAVORITE_OWN}
             if options.get('display') == 'watch' and options.get('inline') == 'slider':
                 raise ValueError(t('addon.errors.layout.watch_or_slider'))
             if 'controls' in options:
@@ -2031,7 +2067,8 @@ def screen_options(tile, attrs, state=None, entry=None):
     """Stored options on the wire; `icon` travels as the resolved codepoint (firmware 0.2.18+, ignored before)
     and `controls` only as the set the card really shows (firmware 0.2.19+, ignored before)."""
     # A map's own choices stay in the app: who is on it and how it frames them say where people are (app 0.4.33).
-    options = {k: v for k, v in tile.get('options', {}).items() if k not in ('icon', 'controls', 'action', *MAP_OWN)}
+    # So do a favourite's own (app 0.4.42): the screen asks to play its tile, never an id.
+    options = {k: v for k, v in tile.get('options', {}).items() if k not in ('icon', 'controls', 'action', *MAP_OWN, *FAVORITE_OWN)}
     icon = tile_icon(tile, attrs, state, entry)
     if icon:
         options['icon'] = icon

@@ -246,7 +246,8 @@
       "choose_speaker": "Elige un altavoz",
       "library_hint": "Toca una portada de la biblioteca",
       "library_failed": "La biblioteca no responde",
-      "library_empty": "No hay nada"
+      "library_empty": "No hay nada",
+      "starting_on": "Iniciando en {speaker}"
     },
     "timer": {
       "running": "En marcha",

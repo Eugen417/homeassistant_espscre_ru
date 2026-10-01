@@ -246,7 +246,8 @@
       "choose_speaker": "Scegli un altoparlante",
       "library_hint": "Tocca una copertina nella libreria",
       "library_failed": "La libreria non risponde",
-      "library_empty": "Niente qui"
+      "library_empty": "Niente qui",
+      "starting_on": "Avvio su {speaker}"
     },
     "timer": {
       "running": "In corso",

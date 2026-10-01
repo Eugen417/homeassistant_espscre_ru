@@ -246,7 +246,8 @@
       "choose_speaker": "Lautsprecher wählen",
       "library_hint": "Tippe auf ein Cover in der Mediathek",
       "library_failed": "Die Mediathek antwortet nicht",
-      "library_empty": "Hier ist nichts"
+      "library_empty": "Hier ist nichts",
+      "starting_on": "Startet auf {speaker}"
     },
     "timer": {
       "running": "Läuft",
