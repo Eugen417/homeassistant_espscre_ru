@@ -241,7 +241,12 @@
     "media": {
       "muted": "Muted",
       "not_playing": "Not playing",
-      "loading": "Loading"
+      "loading": "Loading",
+      "library": "Library",
+      "choose_speaker": "Choose a speaker",
+      "library_hint": "Tap a cover in the library to play",
+      "library_failed": "The library did not answer",
+      "library_empty": "Nothing here"
     },
     "timer": {
       "running": "Running",

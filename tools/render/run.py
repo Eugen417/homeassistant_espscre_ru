@@ -74,6 +74,7 @@ ALERT = re.compile(r'alert on=(\d) ' + ' '.join(f'{part}=(-?\\d+),(-?\\d+),(-?\\
                                               for part in ('card', 'frame', 'icon', 'title', 'subtitle', 'button', 'button2')))
 # A page's own title (app 0.2.123): a long one among them, the kind that stood in dots after a page change (GitHub #27).
 PAGE_TITLES = ['Demo cards', 'Living room downstairs', 'Kitchen']
+MEDIA = re.compile(r'media open=(\d) back=(\S*) pill=(\S*) libkey=(\S*) knob=(\S*) keys=(\S*) faults=(.*?) \| (.*)$')
 ALARM = re.compile(r'alarm open=(\d) pad=(\d) back=(\S*) title=\[(.*?)\] status=\[(.*?)\] line=\[(.*?)\] modes=(\S*) keys=(\S*) faults=(.*?) locked=(\d+)$')
 
 
@@ -1165,6 +1166,233 @@ class Run:
         self.failures += [f'remote: {f}' for f in faults]
         self.warnings.append(f'remote: card, activity, power, plain card, key, toggle; {len(calls)} calls')
 
+    async def media_probe(self):
+        start = len(self.lines)
+        await self.call('render_media')
+        line = await self.until(lambda l: MEDIA.search(l), 10, 'render_media', start)
+        m = MEDIA.search(line)
+        point = lambda text: tuple(int(n) for n in text.split(',')) if text else None
+        points = lambda text: [point(p) for p in text.split(';') if p]
+        library = dict(part.split('=', 1) for part in m[8].split(' ') if '=' in part)
+        return {'open': m[1] == '1', 'back': point(m[2]), 'pill': point(m[3]), 'library_key': point(m[4]), 'knob': point(m[5]),
+                'keys': points(m[6]), 'faults': m[7], 'library': library.get('library') == '1', 'menu': library.get('menu') == '1',
+                'folder': int(library.get('folder', 0)), 'items': int(library.get('items', 0)), 'page': library.get('page'),
+                'grid': library.get('grid'), 'covers': int(library.get('covers', 0)), 'shown': int(library.get('shown', 0)),
+                'marked': int(library.get('marked', 0)), 'lib_back': point(library.get('back')), 'speaker': point(library.get('speaker')),
+                'cells': points(library.get('cells', '')), 'pager': points(library.get('pager', '')), 'rows': points(library.get('rows', ''))}
+
+    async def media_until(self, test, what, timeout=8):
+        end = time.monotonic() + timeout
+        while True:
+            card = await self.media_probe()
+            if test(card):
+                return card
+            if time.monotonic() > end:
+                raise RuntimeError(f'media: {what}: {card}')
+            await asyncio.sleep(0.15)
+
+    async def media_panel(self, grid):
+        """A player the way Spotify is used (firmware 0.24.0, app 0.4.42): its card on its cover's ground with the speaker
+        in the top bar, the speaker menu, shuffle and repeat, the library from its folders to a page of covers, a tap
+        that plays, and the card of a player at rest. The app's side is played by the add-on's own code (media_library,
+        tile_art, camera_feed); Home Assistant's answers have the shape of the Spotify integration's."""
+        from core import extras, state_message
+        import camera_feed
+        import media_library
+        import tile_art
+        from PIL import Image as PILImage, ImageDraw as PILDraw
+        calls = []
+        self.client.subscribe_service_calls(calls.append)
+        ENTITY = 'media_player.spotify'
+        PLAYING = 444983
+        def spotify(state='playing', features=PLAYING, **more):
+            attributes = {'friendly_name': 'Spotify', 'supported_features': features, 'source_list': ['Bedroom', 'Kitchen', 'Living room']}
+            if state in ('playing', 'paused'):
+                attributes.update(source='Kitchen', shuffle=True, repeat='all', volume_level=0.42, media_title='Give Life Back to Music',
+                                  media_artist='Daft Punk', media_album_name='Random Access Memories', media_duration=274,
+                                  media_position=81, media_position_updated_at=MOMENT.isoformat(),
+                                  entity_picture='/api/media_player_proxy/media_player.spotify?token=x&cache=ram')
+            attributes.update(more)
+            return {'state': state, 'attributes': attributes, 'last_changed': MOMENT.isoformat()}
+        states = {ENTITY: spotify()}
+        tiles_in = [{'entity': ENTITY, 'name': 'Spotify', 'slot': 0}]
+        record = send_layout.migrate_legacy(dict(title='Music', tiles=tiles_in), grid)
+        tiles = send_layout.compile_tiles(record['layout'], grid)
+        region = dict(keepalive=120, clock_24h=True, numbers='point', group_min=1, percent_space=False)
+        bars = [[{'k': 'clock'}] for _ in record['layout']['pages']]
+        ground = {'g': '2B484F,121E20'}  # what the add-on reads from Random Access Memories (media_library.ground_colours)
+        async def push():
+            values = [state_message(index, tile, states, extras(tile, states)) for index, tile in enumerate(tiles)]
+            for value in values:
+                attributes = states[value['entity']]['attributes']
+                value.setdefault('x', {}).update(media_library.player_extras(attributes, PLAYING, ground.get('g'), True))
+            await self.sender.synchronize(self.inbox.object_id, record, region, values, bars)
+        await push()
+        await self.call('render_page', page=0)
+        await self.page_done(0)
+        faults = []
+        def picture(seed, size=320):
+            """A cover: a field of two colours and a disc, different for every seed."""
+            hues = [(43, 72, 79), (97, 29, 24), (24, 71, 98), (98, 65, 24), (34, 40, 89), (29, 75, 93), (88, 30, 60), (60, 90, 40)]
+            a, b = hues[seed % len(hues)], hues[(seed * 3 + 1) % len(hues)]
+            image = PILImage.new('RGB', (size, size), a)
+            draw = PILDraw.Draw(image)
+            draw.rectangle((0, size * (seed % 3 + 1) // 4, size, size), fill=b)
+            draw.ellipse((size // 4, size // 4, size * 3 // 4, size * 3 // 4), outline=(240, 240, 240), width=max(2, size // 40))
+            out = io.BytesIO()
+            image.save(out, 'PNG')
+            return out.getvalue()
+        served = {'cover': 0, 'art': 0}
+        async def answer_pictures(since):
+            """The pictures the screen asked for since `since`: the card's cover and a page's covers."""
+            for call in calls[since:]:
+                data = dict(call.data)
+                if call.service != 'esphome.screen_camera' or data.get('_answered'):
+                    continue
+                if 'lib' in data:
+                    tokens = [int(t) for t in data['lib'].split(',')]
+                    atlas = tile_art.parse(data['atlas'], self.canvas, len(tokens))
+                    if atlas is None:
+                        faults.append(f'the covers were asked for with frames the app refuses: {data["atlas"][:120]}')
+                        continue
+                    body = tile_art.encode([picture(t) for t in tokens], [int(data['bg'], 16)] * len(tokens), atlas, compact=True)
+                    url = self.pictures.url(f'{self.item.key}-lib-{served["art"]}.bmp', body)
+                    served['art'] += 1
+                    await self.send({'v': 1, 'op': 'camera', 't': 'lib', 'e': ENTITY, 'u': url, 'view': int(data['view'])})
+                elif data.get('size'):
+                    body = camera_feed.encode_cover(picture(0), int(data['size']), int(data['bg'], 16))
+                    url = self.pictures.url(f'{self.item.key}-cover-{served["cover"]}.bmp', body)
+                    served['cover'] += 1
+                    await self.send({'v': 1, 'op': 'camera', 't': 'cover', 'e': ENTITY, 'u': url, 'view': int(data['view'])})
+                call.data['_answered'] = '1'
+        async def call_for(service, since, timeout=8):
+            end = time.monotonic() + timeout
+            while time.monotonic() < end:
+                found = [c for c in calls[since:] if c.service == service]
+                if found:
+                    return found[-1]
+                await asyncio.sleep(0.05)
+            raise RuntimeError(f'media: the screen never sent {service}: {[c.service for c in calls[since:]]}')
+        def answer(sent, ok=True):
+            if getattr(sent, 'call_id', 0):
+                self.client.send_homeassistant_action_response(sent.call_id, ok, '', b'')
+        # The library as Home Assistant's Spotify integration answers it: eight folders at the top, 48 albums in one.
+        shelf = media_library.Shelf()
+        folders = ['Playlists', 'Artists', 'Albums', 'Liked songs', 'Podcasts', 'Recently played', 'Top Artists', 'Top Tracks']
+        classes = ['playlist', 'artist', 'album', 'track', 'podcast', 'track', 'artist', 'track']
+        top = {'title': 'Media Library', 'children': [{'title': name, 'media_class': 'directory', 'children_media_class': kind,
+               'media_content_type': f'spotify://{name}', 'media_content_id': name, 'can_play': False, 'can_expand': True}
+               for name, kind in zip(folders, classes)]}
+        albums = {'title': 'Albums', 'children': [{'title': title, 'media_class': 'album', 'media_content_type': 'spotify://album',
+                  'media_content_id': f'spotify:album:{n}', 'can_play': True, 'can_expand': True, 'thumbnail': f'https://i.scdn.co/image/{n}'}
+                  for n, title in enumerate(['Random Access Memories', 'The Slow Rush', 'In Rainbows', 'Currents', 'Discovery',
+                                             'An Extra Long Album Title That Needs Two Lines And More', 'Blue', 'Melodrama'] * 6)]}
+        async def answer_browse(since):
+            sent = await call_for('esphome.screen_browse', since)
+            data = dict(sent.data)
+            token = int(data['folder'])
+            folder = media_library.folder_of(top if token == 0 else albums)
+            items = media_library.entries(folder, shelf, ENTITY)
+            pages = media_library.pages(items)
+            await self.send({**media_library.message(ENTITY, token, folder['title'], int(data['page']), pages, len(items)), 'view': int(data['view'])})
+            return token
+        await asyncio.sleep(1.0)
+        spots = await self.slots()
+        # The card: a tap on the tile opens it, on the cover's ground, the speaker in the pill.
+        since = len(calls)
+        await self.tap(*spots[ENTITY])
+        card = await self.media_until(lambda c: c['open'] and c['pill'], 'the card never opened with its speaker pill')
+        faults += [f'card: {f}' for f in card['faults'].split(';') if f]
+        await asyncio.sleep(0.6)
+        await answer_pictures(since)
+        await asyncio.sleep(2.5)
+        await answer_pictures(since)
+        await self.render('media-card')
+        # The speaker menu: a tap on the pill, a row per speaker, the one it plays on ticked; a row chooses it.
+        await self.tap(*card['pill'][:2])
+        card = await self.media_until(lambda c: c['menu'] and len(c['rows']) == 3, 'the speaker menu never opened with three rows')
+        await self.render('media-speakers')
+        since = len(calls)
+        await self.tap(*card['rows'][0][:2])
+        sent = await call_for('media_player.select_source', since)
+        if dict(sent.data) != {'entity_id': ENTITY, 'source': 'Bedroom'}:
+            faults.append(f'select_source went out as {dict(sent.data)}')
+        answer(sent)
+        states[ENTITY] = spotify(source='Bedroom')
+        await push()
+        card = await self.media_until(lambda c: c['open'] and not c['menu'], 'the menu never closed')
+        # Shuffle and repeat, where the row has room: the first key after next is shuffle.
+        # The library: its key at the top right, then the eight folders as cards.
+        since = len(calls)
+        await self.tap(*card['library_key'][:2])
+        await answer_browse(since)
+        card = await self.media_until(lambda c: c['library'] and c['items'] == 8, 'the library never showed its eight folders')
+        await self.render('media-library')
+        # Albums: a page of covers, then their picture.
+        since = len(calls)
+        await self.tap(*card['cells'][2][:2])
+        await answer_browse(since)
+        card = await self.media_until(lambda c: c['library'] and c['items'] == 48, 'the albums never came')
+        if card['covers']:
+            await asyncio.sleep(0.5)
+            await answer_pictures(since)
+            card = await self.media_until(lambda c: c['shown'] == c['covers'], 'the covers never showed', timeout=20)
+        await self.render('media-albums')
+        if card['pager']:
+            since2 = len(calls)
+            await self.tap(*card['pager'][1][:2])
+            card = await self.media_until(lambda c: c['page'].startswith('1/'), 'the next page never came')
+            if card['covers']:
+                await asyncio.sleep(0.5)
+                await answer_pictures(since2)
+                card = await self.media_until(lambda c: c['shown'] == c['covers'], 'the covers of page 2 never showed', timeout=20)
+            await self.render('media-albums-2')
+        # A tap on a cover plays it where the player plays now.
+        since = len(calls)
+        await self.tap(*card['cells'][0][:2])
+        sent = await call_for('esphome.screen_play', since)
+        data = dict(sent.data)
+        if data.get('source') or not data.get('item'):
+            faults.append(f'a tap on a cover asked to play {data}')
+        card = await self.media_until(lambda c: c['marked'] == int(data['item']), 'the tapped cover was never marked')
+        await self.render('media-albums-starting')
+        # Back twice: the folders, then the card again.
+        since = len(calls)
+        await self.tap(*card['lib_back'][:2])
+        await answer_browse(since)
+        card = await self.media_until(lambda c: c['library'] and c['items'] == 8, 'back never went to the folders')
+        await self.tap(*card['lib_back'][:2])
+        card = await self.media_until(lambda c: c['open'] and not c['library'], 'back never went to the card')
+        # At rest, as Spotify playing nowhere: only SELECT_SOURCE, no track; the card offers the library.
+        states[ENTITY] = spotify('idle', features=2048)
+        ground.pop('g')
+        await push()
+        await asyncio.sleep(1.0)
+        await self.render('media-rest')
+        card = await self.media_until(lambda c: c['open'] and len(c['keys']) >= 1, 'the card at rest has no Library key')
+        faults += [f'card at rest: {f}' for f in card['faults'].split(';') if f]
+        # Its Library key opens the library; a cover then asks for a speaker first, and plays on the one chosen.
+        since = len(calls)
+        await self.tap(*card['keys'][-1][:2])
+        await answer_browse(since)
+        card = await self.media_until(lambda c: c['library'] and c['items'] == 8, 'the library never opened at rest')
+        since = len(calls)
+        await self.tap(*card['cells'][2][:2])
+        await answer_browse(since)
+        card = await self.media_until(lambda c: c['library'] and c['items'] == 48, 'the albums never came at rest')
+        await self.tap(*card['cells'][1][:2])
+        card = await self.media_until(lambda c: c['menu'] and len(c['rows']) == 3, 'a cover at rest never asked for a speaker')
+        await self.render('media-rest-speakers')
+        since = len(calls)
+        await self.tap(*card['rows'][2][:2])
+        sent = await call_for('esphome.screen_play', since)
+        if dict(sent.data).get('source') != 'Living room':
+            faults.append(f'a start at rest went out as {dict(sent.data)}')
+        await asyncio.sleep(0.6)
+        self.failures += [f'media: {f}' for f in faults]
+        self.warnings.append(f'media: card, speakers, library, albums, play, rest; {served["cover"]} covers, {served["art"]} pages of covers')
+        return 1
+
     async def automation_panel(self, grid):
         """An automation (firmware 0.7.0, GitHub #62) the way it is used: a tap switches it on or off and holding runs its
         actions; a tile set to run does it the other way round and looks like a script's button, coloured only while
@@ -1418,6 +1646,8 @@ class Run:
             return 1, await self.remote_panel(grid)
         if self.only == 'bedside':
             return 1, await self.bedside_clock(grid)
+        if self.only == 'media':
+            return 1, await self.media_panel(grid)
         checks = await self.self_test()
         await self.moments(pages)
         for page in range(pages):
@@ -1505,7 +1735,7 @@ def main():
     parser.add_argument('--out', type=Path, default=REPO / '.esphome' / 'render' / 'out')
     parser.add_argument('--work', type=Path, help='where the host builds go (default: .esphome/render/build)')
     parser.add_argument('--camera', default='960x540', help='the camera picture of the camera alert, WxH')
-    parser.add_argument('--only', choices=['alarm', 'lock', 'automation', 'remote', 'bedside'], help='after the demo layout arrives, run only this stage')
+    parser.add_argument('--only', choices=['alarm', 'lock', 'automation', 'remote', 'bedside', 'media'], help='after the demo layout arrives, run only this stage')
     parser.add_argument('--port-base', type=int, help='the first API port (default host.PORT_BASE); another worktree may use it')
     args = parser.parse_args()
     # The programs write their pictures from their own folder, so every path they get is absolute.

@@ -241,7 +241,12 @@
     "media": {
       "muted": "Gedempt",
       "not_playing": "Speelt niet",
-      "loading": "Laden"
+      "loading": "Laden",
+      "library": "Bibliotheek",
+      "choose_speaker": "Kies een speaker",
+      "library_hint": "Tik op een hoes in de bibliotheek om af te spelen",
+      "library_failed": "De bibliotheek antwoordde niet",
+      "library_empty": "Niets hier"
     },
     "timer": {
       "running": "Loopt",

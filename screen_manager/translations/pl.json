@@ -241,7 +241,12 @@
     "media": {
       "muted": "Wyciszony",
       "not_playing": "Nic nie gra",
-      "loading": "Ładowanie"
+      "loading": "Ładowanie",
+      "library": "Biblioteka",
+      "choose_speaker": "Wybierz głośnik",
+      "library_hint": "Dotknij okładki w bibliotece",
+      "library_failed": "Biblioteka nie odpowiada",
+      "library_empty": "Nic tu nie ma"
     },
     "timer": {
       "running": "Działa",

@@ -231,6 +231,16 @@ struct Extra {
   // folds this into the picture it asks for, so a map is drawn again when something moved and never on a clock.
   std::string map_mark;
   uint32_t media_duration = 0, media_position = 0, media_position_at = 0;
+  // More of a media player (firmware 0.24.0+, app 0.4.42+): the speaker it plays on and the ones it may (source_list,
+  // sixteen at most), shuffle (-1 for a player without it) and repeat ("" without it), the features it reported at its
+  // widest when that is more than now (a player at rest keeps the keys it had, faded: GitHub #88), the two colours of
+  // its cover that the card's ground is made of, and whether its library opens.
+  std::string media_source, media_repeat;
+  std::vector<std::string> media_sources;
+  int8_t media_shuffle = -1;
+  uint32_t media_features = 0, ground_top = 0, ground_bottom = 0;
+  // ground_known: the app read the cover (its colours, or that it has none to speak of), so its cover may be asked for.
+  bool has_ground = false, ground_known = false, media_library = false;
   // Vacuum: its own speeds (at most four) and speed, the mode, water and suction rows (see Choice), and
   // from sensors of its device the room it is in and whether it charges.
   std::vector<std::string> fan_speeds;
@@ -272,7 +282,9 @@ struct Extra {
            choices.empty() && room.empty() && !charging && std::isnan(tilt) && action.empty() && action_data.empty() &&
            action_templates.empty() && state_word.empty() && subtitle.empty() && !subtitle_at && effect.empty() &&
            option_rows.empty() && number_rows.empty() && lamps.empty() && code_format.empty() && changed_by.empty() && !arm_code_free &&
-           !code_saved && !alarm_end && !alarm_delay && !assumed && activity.empty() && keypad.empty();
+           !code_saved && !alarm_end && !alarm_delay && !assumed && activity.empty() && keypad.empty() &&
+           media_source.empty() && media_repeat.empty() && media_sources.empty() && media_shuffle < 0 && !media_features &&
+           !has_ground && !ground_known && !media_library;
   }
 };
 // The numbers of a clock text ("0:05:00", "07:45"), at most `max` of them, each after optional white space, up to the

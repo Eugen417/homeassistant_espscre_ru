@@ -241,7 +241,12 @@
     "media": {
       "muted": "Muto",
       "not_playing": "Inattivo",
-      "loading": "Caricamento"
+      "loading": "Caricamento",
+      "library": "Libreria",
+      "choose_speaker": "Scegli un altoparlante",
+      "library_hint": "Tocca una copertina nella libreria",
+      "library_failed": "La libreria non risponde",
+      "library_empty": "Niente qui"
     },
     "timer": {
       "running": "In corso",

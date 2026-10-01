@@ -241,7 +241,12 @@
     "media": {
       "muted": "Némítva",
       "not_playing": "Nincs lejátszás",
-      "loading": "Betöltés"
+      "loading": "Betöltés",
+      "library": "Könyvtár",
+      "choose_speaker": "Válassz hangszórót",
+      "library_hint": "Koppints egy borítóra a könyvtárban",
+      "library_failed": "A könyvtár nem válaszolt",
+      "library_empty": "Itt nincs semmi"
     },
     "timer": {
       "running": "Fut",

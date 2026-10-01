@@ -570,6 +570,9 @@ api:
                     // option adds its name here. climate_range: a thermostat's range on its -/+, with the chip for its end.
                     auto features = root["features"].to<JsonArray>();
                     features.add("climate_range");
+                    // media_library (firmware 0.24.0+, app 0.4.42+): a player's speaker menu, shuffle, repeat, seek, its
+                    // cover's colours as the card's ground, and its library with covers and a tap that plays.
+                    features.add("media_library");
                     auto sizes = root["tile_sizes"].to<JsonArray>();
                     for (const auto &size : page_protocol::TILE_SIZES)
                       if (size.fits(runtime_tiles::grid.columns, runtime_tiles::grid.rows)) sizes.add(size.name);
@@ -1062,6 +1065,11 @@ font:
       - "\U000F0709" # restart
       - "\U000F01A3" # crosshairs
       - "\U000F0E4F" # lightbulb-off
+      - "\U000F049F" # shuffle-variant
+      - "\U000F0456" # repeat
+      - "\U000F0458" # repeat-once
+      - "\U000F0803" # account-music
+      - "\U000F024B" # folder
       - "\U000F0B53" # account-arrow-right
       - "\U000F0D43" # air-filter
       - "\U000F1099" # air-humidifier

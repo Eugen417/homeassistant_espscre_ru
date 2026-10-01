@@ -24,6 +24,7 @@ import catalogue
 import ha_catalogue
 import light_effects
 import light_groups
+import media_library
 import map_card
 import map_tiles
 import tile_icons
@@ -218,6 +219,11 @@ class HomeAssistant:
         self.camera_requests = asyncio.Queue()
         # The names a light's picker lists (firmware 0.2.70+): {inbox, entity, page}, for Manager.card_options_loop.
         self.options_requests = asyncio.Queue()
+        # A player's library (firmware 0.24.0+): a folder a screen opens and an item it plays, for Manager.media_loop.
+        self.media_requests = asyncio.Queue()
+        # The widest features a media player reported (media_library.FeatureMemory), set by the manager: what the
+        # editor offers for a player at rest (GitHub #88).
+        self.widen = None
 
     async def request(self, kind, **data):
         if self.ws is None or self.ws.closed:
@@ -257,6 +263,8 @@ class HomeAssistant:
                     self.camera_requests.put_nowait(body)
                 elif event.get('event_type') == light_effects.OPTIONS_EVENT:
                     self.options_requests.put_nowait(body)
+                elif event.get('event_type') in (media_library.BROWSE_EVENT, media_library.PLAY_EVENT):
+                    self.media_requests.put_nowait((event['event_type'], body))
                 elif event.get('event_type') == 'state_changed':
                     eid = body.get('entity_id')
                     if body.get('new_state'):
@@ -402,7 +410,12 @@ class HomeAssistant:
         if state is None or not self.services:
             return None
         attributes = state.get('attributes') or {}
-        key = (self.services_rev, id(self.registry), attributes.get('supported_features'), attributes.get('device_class'))
+        # A media player at rest offers what it did while it played (GitHub #88): Home Assistant lists the actions of
+        # the features it reports now, so the ones it reported before come from the action descriptions.
+        wide = self.widen(entity_id, state) if self.widen else state
+        widened = wide is not state
+        key = (self.services_rev, id(self.registry), attributes.get('supported_features'), attributes.get('device_class'),
+               (wide.get('attributes') or {}).get('supported_features'))
         cached = self.targets.get(entity_id)
         if cached and cached[0] == key:
             return cached[1]
@@ -419,6 +432,8 @@ class HomeAssistant:
                 pass
         if actions is None:
             actions = frozenset(ha_catalogue.local_actions(self.services, entity_id, attributes, self.platform_of(entity_id)))
+        if widened:
+            actions = actions | frozenset(ha_catalogue.local_actions(self.services, entity_id, wide.get('attributes') or {}, self.platform_of(entity_id)))
         self.targets[entity_id] = (key, actions)
         return actions
 
@@ -427,7 +442,8 @@ class HomeAssistant:
         actions = await self.entity_actions(entity_id)
         if actions is None:
             return None
-        return ha_catalogue.capabilities(entity_id, actions, self.states.get(entity_id), self.services)
+        state = self.states.get(entity_id)
+        return ha_catalogue.capabilities(entity_id, actions, self.widen(entity_id, state) if self.widen else state, self.services)
 
     async def run(self):
         url = ('ws://supervisor/core/websocket' if self.base == 'http://supervisor/core/api'
@@ -447,6 +463,8 @@ class HomeAssistant:
                     await self.request('subscribe_events', event_type='esphome.screen_history')
                     await self.request('subscribe_events', event_type='esphome.screen_camera')
                     await self.request('subscribe_events', event_type=light_effects.OPTIONS_EVENT)
+                    await self.request('subscribe_events', event_type=media_library.BROWSE_EVENT)
+                    await self.request('subscribe_events', event_type=media_library.PLAY_EVENT)
                     for event_type in (*REGISTRY_EVENTS, *BROADCAST_EVENTS, ALERT_EVENT, *TILE_EVENTS, *SERVICE_EVENTS):
                         await self.request('subscribe_events', event_type=event_type)
                     self.states = {s['entity_id']: s for s in await self.request('get_states')}
@@ -530,6 +548,15 @@ class HomeAssistant:
         """One Home Assistant action, such as a screen's esphome.<node>_show_alert."""
         domain, service = action.split('.', 1)
         await self.request('call_service', domain=domain, service=service, service_data=data)
+
+    async def call_service(self, domain, service, data):
+        """One Home Assistant action by its domain and name, without an answer (media_player.play_media)."""
+        await self.request('call_service', domain=domain, service=service, service_data=data)
+
+    async def call_answer(self, domain, service, data):
+        """One Home Assistant action that answers (media_player.browse_media): its response, per entity."""
+        result = await self.request('call_service', domain=domain, service=service, service_data=data, return_response=True)
+        return (result or {}).get('response') if isinstance(result, dict) else None
 
     async def camera_image(self, entity):
         """The picture of a camera or image entity as Home Assistant hands it to its own frontend."""
@@ -623,6 +650,32 @@ class HomeAssistant:
             async for chunk in response.content.iter_chunked(65536):
                 raw += chunk
                 if len(raw) > camera_feed.MAX_SNAPSHOT_BYTES:
+                    raise ValueError('picture too large')
+            return bytes(raw)
+
+    async def browse_image(self, entity, picture):
+        """A thumbnail of a player's library (app 0.4.42): a public address on the internet (Spotify's), or Home
+        Assistant's own proxy for that player's library (Sonos, Music Assistant); never a private address, never a
+        redirect, as a cover (media_image)."""
+        root = self.base[:-4] if self.base.endswith('/api') else self.base
+        if picture.startswith('/'):
+            parsed = urlsplit(picture)
+            if parsed.netloc or not parsed.path.startswith(f'/api/media_player_proxy/{entity}/browse_media/') or '..' in parsed.path:
+                raise ValueError('unsafe picture address')
+            url, headers = f'{root}{picture}', {'Authorization': 'Bearer ' + self.token}
+        elif picture.startswith(('http://', 'https://')):
+            if not await self._allow_media_url(picture):
+                raise ValueError('unsafe picture address')
+            url, headers = picture, {}
+        else:
+            raise ValueError('unknown picture address')
+        async with self.session.get(url, headers=headers, timeout=ClientTimeout(total=camera_feed.FETCH_SECONDS),
+                                    allow_redirects=False) as response:
+            response.raise_for_status()
+            raw = bytearray()
+            async for chunk in response.content.iter_chunked(65536):
+                raw += chunk
+                if len(raw) > 2 * 1024 * 1024:
                     raise ValueError('picture too large')
             return bytes(raw)
 
@@ -805,6 +858,14 @@ class Manager:
         # own, and a page that loads again for its camera does not draw its map again.
         self.map_source = map_tiles.TileSource(lambda z, x, y: self.ha.map_tile(z, x, y))
         self.map_renders = OrderedDict()
+        # A media player's library (app 0.4.42, firmware 0.24.0, media_library.py): the widest features each player
+        # reported (GitHub #88), the numbers each screen's items go by, the folders read a moment ago, the players
+        # that browse, the colours of each cover, the item this app started last on each player, and the thumbnails.
+        self.players = media_library.FeatureMemory(self.path.parent / 'media-features.json')
+        self.ha.widen = self.players.widened
+        self.shelves, self.folders, self.browsable, self.browse_probes = {}, OrderedDict(), {}, {}
+        self.grounds, self.ground_reads, self.started = OrderedDict(), {}, {}
+        self.thumbnails = OrderedDict()
         self.preview_tiles = []
         self.map_pictures = OrderedDict()
         self.map_hits = {}
@@ -1468,6 +1529,209 @@ class Manager:
         all_pages = light_effects.pages(names)
         await self.send_auxiliary(inbox, light_effects.message(entity, page, all_pages), action, request)
 
+    # ----- A media player's library (app 0.4.42, firmware 0.24.0+, media_library.py) -----
+    def player_ground(self, entity, attrs):
+        """The two colours of a player's cover ('RRGGBB,RRGGBB'), or None until they are read or when it has none. Read
+        once per picture, from the same cover the screens load (camera_feed.cover_raw); the screen gets them with the
+        player's next state, so the card is whole before any picture comes."""
+        mark = (media_extras(attrs) or {}).get('pic')
+        if not mark:
+            return None
+        if mark in self.grounds:
+            self.grounds.move_to_end(mark)
+            return self.grounds[mark]
+        if mark not in self.ground_reads:
+            self.ground_reads[mark] = asyncio.ensure_future(self.read_ground(entity, mark))
+        return None
+
+    async def read_ground(self, entity, mark):
+        colours = None
+        try:
+            raw = await self.camera.cover_raw(entity, camera_feed.FETCH_SECONDS)
+            if raw:
+                colours = await asyncio.get_running_loop().run_in_executor(None, media_library.ground_colours, raw)
+        except Exception as error:
+            LOG.info('No colours from the cover of %s (%s)', entity, type(error).__name__)
+        finally:
+            self.ground_reads.pop(mark, None)
+        # '-': read, and nothing to speak of; the screen asks for the cover then without waiting any longer.
+        self.grounds[mark] = colours or '-'
+        while len(self.grounds) > 64:
+            self.grounds.popitem(last=False)
+        self.ha.dirty.add(entity)
+        self.ha.changed.set()
+
+    def player_browsable(self, entity, widest):
+        """Whether a player's library opens. A player that says BROWSE_MEDIA does; Spotify at rest says nothing but
+        answers the action all the same, so a player that does not say it is asked once (and again a while after a no)."""
+        if widest & media_library.BROWSE_MEDIA:
+            return True
+        known = self.browsable.get(entity)
+        if known and (known[1] or time.monotonic() - known[0] < media_library.BROWSABLE_SECONDS):
+            return known[1]
+        if entity not in self.browse_probes and getattr(self.ha, 'online', False):
+            self.browse_probes[entity] = asyncio.ensure_future(self.probe_browse(entity))
+        return bool(known and known[1])
+
+    async def probe_browse(self, entity):
+        found = False
+        try:
+            folder = await media_library.browse(self.ha.call_answer, entity)
+            found = True
+            self.folders[(entity, None)] = (time.monotonic(), folder)
+        except Exception as error:
+            LOG.info('The library of %s does not open (%s)', entity, type(error).__name__)
+        finally:
+            self.browse_probes.pop(entity, None)
+        self.browsable[entity] = (time.monotonic(), found)
+        if found:
+            self.ha.dirty.add(entity)
+            self.ha.changed.set()
+
+    async def read_folder(self, entity, item):
+        """A folder of a player, read again only after FOLDER_SECONDS: a screen asks for its pages one by one."""
+        key = (entity, (item['type'], item['id']) if item else None)
+        cached = self.folders.get(key)
+        if cached and time.monotonic() - cached[0] < media_library.FOLDER_SECONDS:
+            return cached[1]
+        folder = await media_library.browse(self.ha.call_answer, entity, item)
+        self.folders[key] = (time.monotonic(), folder)
+        while len(self.folders) > 32:
+            self.folders.popitem(last=False)
+        self.browsable[entity] = (time.monotonic(), True)
+        return folder
+
+    def player_request(self, request):
+        """(inbox, screen, entity, action) of a library request from a screen with that player on its layout, or None."""
+        if not isinstance(request, dict):
+            return None
+        inbox = self.aliases.get(request.get('inbox'), request.get('inbox'))
+        entity = request.get('entity')
+        layout, screen = self.layouts.get(inbox), self.screen(inbox) if isinstance(inbox, str) else None
+        if not isinstance(entity, str) or not entity.startswith('media_player.') or not layout or not screen or not screen.get('online'):
+            return None
+        if entity not in {tile['entity'] for tile in layout['tiles']}:
+            return None
+        action = self.transport(inbox, screen)
+        return (inbox, screen, entity, action) if action else None
+
+    async def media_loop(self):
+        """Answer the folders screens open and play what they tap, a few at a time."""
+        limit = asyncio.Semaphore(4)
+
+        async def answer(kind, request):
+            async with limit:
+                try:
+                    if kind == media_library.BROWSE_EVENT:
+                        await self.answer_browse(request)
+                    else:
+                        await self.answer_play(request)
+                except Exception as error:
+                    LOG.warning('The library of %s did not answer (%s)', request.get('entity') if isinstance(request, dict) else '?', type(error).__name__)
+        while True:
+            kind, request = await self.ha.media_requests.get()
+            asyncio.ensure_future(answer(kind, request))
+
+    def media_token(self, value):
+        try:
+            token = int(value)
+        except (TypeError, ValueError):
+            return None
+        return token if 0 <= token < 1 << 31 else None
+
+    async def answer_browse(self, request):
+        """One page of a folder: the top of the library (folder 0) or a folder a screen got a number for before."""
+        found = self.player_request(request)
+        token, page = self.media_token(request.get('folder')), self.media_token(request.get('page')) or 0
+        if not found or token is None:
+            return
+        inbox, screen, entity, action = found
+        shelf = self.shelves.setdefault(inbox, media_library.Shelf())
+        item = shelf.get(entity, token) if token else None
+        failed, folder = False, {'title': '', 'items': []}
+        if token and (item is None or not item['expand']):
+            failed = True
+        else:
+            try:
+                folder = await self.read_folder(entity, item)
+            except (ClientError, ConnectionError, TimeoutError, OSError, ValueError) as error:
+                LOG.info('The library of %s did not open (%s)', entity, type(error).__name__)
+                failed = True
+        attrs = self.ha.states.get(entity, {}).get('attributes') or {}
+        started = self.started.get(entity) if self.ha.states.get(entity, {}).get('state') in ('playing', 'paused') else None
+        items = media_library.entries(folder, shelf, entity, attrs, started)
+        all_pages = media_library.pages(items)
+        await self.send_auxiliary(inbox, media_library.message(entity, token, folder['title'], page, all_pages, len(items), failed),
+                                  action, request)
+
+    async def answer_play(self, request):
+        """Play what a screen tapped, on the speaker it chose (or where the player plays now)."""
+        found = self.player_request(request)
+        token = self.media_token(request.get('item'))
+        if not found or not token:
+            return
+        inbox, screen, entity, action = found
+        item = self.shelves.get(inbox, media_library.Shelf()).get(entity, token)
+        if item is None or not item['play']:
+            return
+        source = request.get('source') if isinstance(request.get('source'), str) and request.get('source') else None
+        attrs = self.ha.states.get(entity, {}).get('attributes') or {}
+        if source is not None and source not in (attrs.get('source_list') or []):
+            LOG.info('%s on %s: no speaker %s', item['title'], entity, source)
+            return
+        outcome = await media_library.start(self.ha.states, self.ha.call_service, entity, item, source)
+        if outcome == 'playing':
+            self.started[entity] = (item['type'], item['id'])
+        LOG.info('%s on %s from %s: %s', item['title'], entity, screen['name'], outcome)
+
+    async def library_art(self, inbox, screen, request):
+        """The covers of one page of a folder as one picture (an atlas, tile_art), in the screen's frames: the items by
+        their numbers, each thumbnail Home Assistant names fetched once and kept a while."""
+        entity = request.get('entity')
+        found = self.player_request({**request, 'entity': entity})
+        if not found or not camera_feed.can_show_cover(screen):
+            return
+        _, _, entity, action = found
+        tokens = [self.media_token(part) for part in str(request.get('lib') or '').split(',')]
+        shape = camera_feed.shape_of(screen) or {}
+        atlas = camera_feed.tile_art.parse(request.get('atlas'), (shape.get('width', 0), shape.get('height', 0)), len(tokens))
+        try:
+            ground = int(str(request.get('bg') or '0'), 16) & 0xFFFFFF
+        except ValueError:
+            ground = 0
+        if atlas is None or None in tokens:
+            return
+        shelf = self.shelves.get(inbox, media_library.Shelf())
+        items = [shelf.get(entity, token) for token in tokens]
+        limit = asyncio.Semaphore(6)
+
+        async def thumbnail(item):
+            url = (item or {}).get('thumb')
+            if not url:
+                return None
+            if url in self.thumbnails:
+                self.thumbnails.move_to_end(url)
+                return self.thumbnails[url]
+            async with limit:
+                try:
+                    raw = await self.ha.browse_image(entity, url)
+                except Exception as error:
+                    LOG.info('No cover for %s (%s)', item['title'], type(error).__name__)
+                    return None
+            self.thumbnails[url] = raw
+            while len(self.thumbnails) > 96:
+                self.thumbnails.popitem(last=False)
+            return raw
+        raws = await asyncio.gather(*(thumbnail(item) for item in items))
+        url = ''
+        base = await camera_feed.base_url(self.ha.request)
+        if base and any(raws):
+            image = await asyncio.get_running_loop().run_in_executor(
+                None, lambda: camera_feed.tile_art.encode(list(raws), [ground] * len(raws), atlas, compact=camera_feed.compact_pictures(screen)))
+            url = f'{base}/camera/{self.camera.link(entity, atlas[:2], still=image)}.bmp'
+        await self.send_auxiliary(inbox, {'v': 1, 'op': 'camera', 't': 'lib', 'e': entity, 'u': url}, action, request)
+        LOG.info('Covers of %d items of %s on %s%s', len(tokens), entity, screen['name'], '' if url else ': none')
+
     # ----- History on a detail card (firmware 0.2.51+) -----
     async def card_history_loop(self):
         """Answer the history a screen asks for when a card opens, a few at a time."""
@@ -1834,7 +2098,28 @@ class Manager:
         message=state_message(index,tile,self.ha.states,extra,
                               precision=header_bar.precision_of(entry) if tile['entity'].startswith('sensor.') else None,entry=entry,
                               units=getattr(self.ha,'units',None))
-        drawn_controls(message, features)
+        # A media player at rest keeps the controls it had while it played (GitHub #88): what it draws is cut to the
+        # widest features it reported, and the screen fades what it lacks right now.
+        player=tile['entity'].startswith('media_player.')
+        attributes=self.ha.states.get(tile['entity'],{}).get('attributes') or {}
+        widest=self.players.note(tile['entity'],attributes) if player else 0
+        if self.players.dirty:
+            self.players.save()
+        if player and widest!=message['a'].get('supported_features',0):
+            reported=message['a'].get('supported_features')
+            message['a']['supported_features']=widest
+            drawn_controls(message, features)
+            if reported is None: message['a'].pop('supported_features')
+            else: message['a']['supported_features']=reported
+        else:
+            drawn_controls(message, features)
+        # The speaker, shuffle, repeat, the cover's colours and the library (firmware 0.24.0+): to a screen that draws
+        # them, and to the editor's preview, which runs the newest firmware.
+        if player and (features is None or media_library.FEATURE in features):
+            more=media_library.player_extras(attributes,widest,self.player_ground(tile['entity'],attributes),
+                                             self.player_browsable(tile['entity'],widest))
+            if more:
+                message.setdefault('x',{}).update(more)
         # Home Assistant's word where the screen would show the raw state (firmware 0.2.58+ shows it).
         state=self.ha.states.get(tile['entity'],{})
         word=ha_catalogue.screen_word(tile['entity'],message['state'],state.get('attributes'),entry,getattr(self.ha,'state_words',None))
@@ -2247,6 +2532,10 @@ class Manager:
         inbox = self.aliases.get(request.get('inbox'), request.get('inbox'))
         entity = request.get('entity')
         screen = self.screen(inbox) if isinstance(inbox, str) else None
+        # The covers of a page of a player's library (app 0.4.42, firmware 0.24.0+): one atlas for all of them.
+        if 'lib' in request:
+            await self.library_art(inbox, screen, request)
+            return
         # The live pictures of a page's camera tiles (app 0.2.91, firmware 0.2.77+): one strip for all of them.
         if 'tiles' in request:
             await self.answer_live(inbox, screen, request)
@@ -3140,6 +3429,8 @@ def create_app(manager, development=False):
                                     units=getattr(manager.ha, 'units', None))
             attributes = dict(message['a'])
             if eid.startswith('media_player.'):
+                # What the player reported at its widest (GitHub #88): the editor draws a player at rest with its keys.
+                attributes['supported_features'] = manager.players.widest(eid, state.get('attributes'))
                 for key in ('media_title', 'media_artist', 'media_album_name', 'media_duration', 'media_position'):
                     value = state.get('attributes', {}).get(key)
                     if isinstance(value, (str, int, float)):
@@ -3447,7 +3738,8 @@ async def main():
             LOG.error('Camera images are off: port %d is not available (%s)', camera_feed.port(), error)
         try:
             await asyncio.gather(ha.run(), manager.run(), manager.history_loop(), manager.updates.run(),
-                                 manager.alert_loop(), manager.tile_loop(), manager.card_history_loop(), manager.camera_loop(), manager.card_options_loop())
+                                 manager.alert_loop(), manager.tile_loop(), manager.card_history_loop(), manager.camera_loop(), manager.card_options_loop(),
+                                 manager.media_loop())
         finally:
             await cameras.cleanup()
             await runner.cleanup()

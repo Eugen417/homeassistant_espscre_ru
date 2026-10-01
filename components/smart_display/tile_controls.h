@@ -29,6 +29,9 @@ constexpr uint32_t COVER_OPEN_TILT = ha::cover::OPEN_TILT, COVER_CLOSE_TILT = ha
 constexpr uint32_t MEDIA_PAUSE = ha::media_player::PAUSE, MEDIA_VOLUME_SET = ha::media_player::VOLUME_SET, MEDIA_VOLUME_MUTE = ha::media_player::VOLUME_MUTE,
                    MEDIA_PREVIOUS = ha::media_player::PREVIOUS_TRACK, MEDIA_NEXT = ha::media_player::NEXT_TRACK, MEDIA_TURN_ON = ha::media_player::TURN_ON,
                    MEDIA_PLAY = ha::media_player::PLAY;
+// The media card's seek, shuffle and repeat, and what a library start takes (firmware 0.24.0+).
+constexpr uint32_t MEDIA_SEEK = ha::media_player::SEEK, MEDIA_SHUFFLE = ha::media_player::SHUFFLE_SET, MEDIA_REPEAT = ha::media_player::REPEAT_SET,
+                   MEDIA_PLAY_MEDIA = ha::media_player::PLAY_MEDIA, MEDIA_SELECT_SOURCE = ha::media_player::SELECT_SOURCE;
 constexpr uint32_t VACUUM_TURN_ON = ha::vacuum::TURN_ON, VACUUM_TURN_OFF = ha::vacuum::TURN_OFF, VACUUM_PAUSE = ha::vacuum::PAUSE, VACUUM_STOP = ha::vacuum::STOP,
                    VACUUM_RETURN = ha::vacuum::RETURN_HOME, VACUUM_START = ha::vacuum::START, VACUUM_LOCATE = ha::vacuum::LOCATE;
 constexpr uint32_t CLIMATE_TEMPERATURE = ha::climate::TARGET_TEMPERATURE, CLIMATE_RANGE = ha::climate::TARGET_TEMPERATURE_RANGE;
@@ -576,9 +579,12 @@ inline unsigned keys_for(const Tile &t, std::array<Key, 3> &out, uint32_t now = 
     add(active ? glyph::PAUSE : glyph::PLAY, active ? TIMER_PAUSE : TIMER_START);
     add(glyph::CLOSE, TIMER_CANCEL);
   } else if (c == "playback") {
-    if (t.supported & feature::MEDIA_PREVIOUS) add(glyph::PREVIOUS, MEDIA_PREVIOUS);
-    if (t.supported & (feature::MEDIA_PLAY | feature::MEDIA_PAUSE)) add(t.state == "playing" ? glyph::PAUSE : glyph::PLAY, MEDIA_PLAY_PAUSE, !(t.supported & (t.state == "playing" ? feature::MEDIA_PAUSE : feature::MEDIA_PLAY)));
-    if (t.supported & feature::MEDIA_NEXT) add(glyph::NEXT, MEDIA_NEXT);
+    // A player at rest keeps the keys it had while it played (firmware 0.24.0+, GitHub #88): Spotify reports none of
+    // them while it plays nowhere. They stand where they were, faded until the player reports them again.
+    const uint32_t had = t.supported | t.extra().media_features;
+    if (had & feature::MEDIA_PREVIOUS) add(glyph::PREVIOUS, MEDIA_PREVIOUS, !(t.supported & feature::MEDIA_PREVIOUS));
+    if (had & (feature::MEDIA_PLAY | feature::MEDIA_PAUSE)) add(t.state == "playing" ? glyph::PAUSE : glyph::PLAY, MEDIA_PLAY_PAUSE, !(t.supported & (t.state == "playing" ? feature::MEDIA_PAUSE : feature::MEDIA_PLAY)));
+    if (had & feature::MEDIA_NEXT) add(glyph::NEXT, MEDIA_NEXT, !(t.supported & feature::MEDIA_NEXT));
   } else if (c == "chevrons") {
     // Nothing to step through is not a state that can lag: without two options there is no next one.
     add(glyph::LEFT, SELECT_PREVIOUS, t.extra().options.size() < 2);

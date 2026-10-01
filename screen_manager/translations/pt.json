@@ -241,7 +241,12 @@
     "media": {
       "muted": "Sem som",
       "not_playing": "Inativo",
-      "loading": "A carregar"
+      "loading": "A carregar",
+      "library": "Biblioteca",
+      "choose_speaker": "Escolher coluna",
+      "library_hint": "Toque numa capa da biblioteca",
+      "library_failed": "A biblioteca não respondeu",
+      "library_empty": "Nada aqui"
     },
     "timer": {
       "running": "Em curso",

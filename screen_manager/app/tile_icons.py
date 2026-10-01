@@ -242,6 +242,13 @@ FIXED = (
     ('crosshairs', 'F01A3'),
     # A light that is off, as Home Assistant shows one without an icon of its own (firmware 0.2.53+).
     ('lightbulb-off', 'F0E4F'),
+    # A media player's card and library (firmware 0.24.0+): shuffle and repeat, and an artist and a folder without a
+    # picture of their own (media_library.CLASS_ICONS).
+    ('shuffle-variant', 'F049F'),
+    ('repeat', 'F0456'),
+    ('repeat-once', 'F0458'),
+    ('account-music', 'F0803'),
+    ('folder', 'F024B'),
 )
 
 # Home Assistant's own default icons for the domains a tile or the top bar shows (frontend/get_icons, `entity_component`,

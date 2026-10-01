@@ -241,7 +241,12 @@
     "media": {
       "muted": "Stumm",
       "not_playing": "Nichts läuft",
-      "loading": "Wird geladen"
+      "loading": "Wird geladen",
+      "library": "Mediathek",
+      "choose_speaker": "Lautsprecher wählen",
+      "library_hint": "Tippe auf ein Cover in der Mediathek",
+      "library_failed": "Die Mediathek antwortet nicht",
+      "library_empty": "Hier ist nichts"
     },
     "timer": {
       "running": "Läuft",
