@@ -3,7 +3,8 @@
 # (.github/workflows/ci.yml, app 0.2.78). Runs from any folder: every path is taken from this repository.
 #
 #   tools/check.sh                   the Python tests, every tests/*.cpp, the package check, the icon generator's --check, the editor's
-#                                    tests, types and build, and whether the editor bundle in Git equals that build
+#                                    tests, its sizes against the firmware's, types and build, and whether the editor bundle in Git
+#                                    equals that build
 #   tools/check.sh --firmware        compiles every board profile (tools/profiles.py) and applies the CYD's flash budget
 #   --board KEY                      with --firmware: only this board (repeat for more); a fix for one board builds one
 #   --affected                       with --firmware: only the boards a build of the change needs (affected_boards.py --build-keys);
@@ -189,6 +190,9 @@ firmware_numbers_raised() {
 translations_check() { cd "$ROOT" && "$PYTHON" tools/i18n.py check > "$WORK/i18n.txt" && "$PYTHON" tools/i18n.py header --check && "$PYTHON" tools/i18n.py lint; }
 editor_install() { cd "$ROOT/web" && npm ci --no-audit --no-fund; }
 editor_tests() { cd "$ROOT/web" && npm test; }
+# The editor's mockup against the firmware's numbers (tests/test_editor_parity.py): it needs web/node_modules, which the
+# Python tests above run before, so it runs here again, where a missing piece is a failure and not a skip.
+editor_parity() { cd "$ROOT" && EDITOR_PARITY=1 "$PYTHON" -m unittest tests.test_editor_parity; }
 editor_types() { cd "$ROOT/web" && npm run check; }
 firmware_preview() {
   cd "$ROOT" || return 1
@@ -414,6 +418,7 @@ if ((want_fast)); then
   run "Editor: npm ci" editor_install
   if ((last_ok)); then
     run "Editor: tests (Vitest)" editor_tests
+    run "Editor: the firmware's numbers" editor_parity
     run "Firmware preview: WASM" firmware_preview
     run "Editor: types (vue-tsc)" editor_types
     run "Editor: build" editor_build
