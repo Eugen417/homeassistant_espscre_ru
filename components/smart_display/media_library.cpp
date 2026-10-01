@@ -69,6 +69,7 @@ static Shape shape() {
   s.pager_h = std::max(ui::touch_min(), m.bar * 3 / 4);
   s.card_h = std::max(ui::touch_min() * 3 / 2, m.row_h * 5 / 4);
   s.min_art = ui::mm(12);
+  s.ring = ui::px(5);  // the ring's width and its gap to the cover (mark)
   return s;
 }
 
@@ -341,7 +342,7 @@ static void cell(size_t index, const Rect &at, const Rect &cover_at) {
     lv_obj_add_event_cb(holder, press_event, LV_EVENT_PRESSED, nullptr);
     lv_obj_add_event_cb(holder, press_event, LV_EVENT_RELEASED, nullptr);
     lv_obj_add_event_cb(holder, press_event, LV_EVENT_PRESS_LOST, nullptr);
-    auto *title = words(holder, item.title, cover_font(), theme::INK, LV_TEXT_ALIGN_CENTER, 0, local.bottom() + grid.gap / 2, at.w, 2);
+    auto *title = words(holder, item.title, cover_font(), theme::INK, LV_TEXT_ALIGN_CENTER, 0, local.bottom() + grid.ring + grid.gap / 2, at.w, 2);
     marks.push_back({frame, title, index});
     mark(marks.back());
     return;

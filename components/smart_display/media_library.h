@@ -94,6 +94,9 @@ struct Rect {
 struct Shape {
   int width = 480, height = 480, pad = 20, top = 88, gap = 12, line_h = 22, pager_h = 44, card_h = 64;
   int min_art = 48;  // the smallest a cover may get for a second row: a finger's width and a little
+  // The ring that marks what plays lies round a cover, inside its cell: LVGL draws a cell's parts again only within
+  // the cell, so a ring past its edge lost its top whenever it was drawn anew (the first row, under the top bar).
+  int ring = 5;
 };
 struct Grid {
   bool covers = false;  // squares with a picture and the title under each; else cards with an icon and the name
@@ -106,12 +109,12 @@ struct Grid {
     const int c = n % columns, r = n / columns;
     return {x + c * (cell_w + gap), y + r * (cell_h + gap), cell_w, cell_h};
   }
-  // Where a cell's cover goes: its side, centred over the title.
+  // Where a cell's cover goes: its side, centred over the title, the ring's room above it.
   Rect cover(int n) const {
     const Rect c = cell(n);
-    return {c.x + (c.w - art) / 2, c.y, art, art};
+    return {c.x + (c.w - art) / 2, c.y + ring, art, art};
   }
-  int gap = 0;
+  int gap = 0, ring = 0;
 };
 // A wide glass (three units of width to two of height, the rule the effects page and the cards keep) takes five
 // covers a row, a very wide one (1200 pixels and more) six; a square or a standing one three.
@@ -124,19 +127,20 @@ inline Grid place(const Shape &s, bool covers, size_t count) {
   Grid g;
   g.covers = covers;
   g.gap = s.gap;
+  g.ring = covers ? s.ring : 0;
   const int inner = std::max(1, s.width - 2 * s.pad);
   auto lay = [&](bool pager) {
     const int room = std::max(1, s.height - s.top - s.pad - (pager ? s.pager_h + s.gap / 2 : 0));
     if (covers) {
       g.columns = cover_columns(s.width, s.height);
       g.cell_w = std::max(1, (inner - (g.columns - 1) * s.gap) / g.columns);
-      const int text_h = s.gap / 2 + 2 * s.line_h;
+      const int text_h = s.gap / 2 + 2 * s.line_h + 2 * g.ring;
       // As many rows as the covers fill at about their width, and two where a cover stays a finger wide: a wide glass
       // is short, and one row of five is a fifth of a library a page. The cover then shrinks to what the rows leave it.
       const int art_of = [&](int rows) { return (room - (rows - 1) * s.gap) / rows - text_h; }(2);
       g.rows = std::max(1, (2 * (room + s.gap) + (g.cell_w + text_h + s.gap)) / (2 * (g.cell_w + text_h + s.gap)));
       if (g.rows < 2 && art_of >= s.min_art) g.rows = 2;
-      g.art = std::max(1, std::min(g.cell_w, (room - (g.rows - 1) * s.gap) / g.rows - text_h));
+      g.art = std::max(1, std::min(g.cell_w - 2 * g.ring, (room - (g.rows - 1) * s.gap) / g.rows - text_h));
       g.cell_h = g.art + text_h;
     } else {
       g.columns = card_columns(s.width, s.height);

@@ -20,9 +20,11 @@ static void sound(const Shape &s, const Grid &g) {
     for (int k = 0; k < n; ++k) assert(apart(c, g.cell(k)));
     if (g.covers) {
       const Rect a = g.cover(n);
-      assert(a.w == a.h && a.w == g.art && a.x >= c.x && a.right() <= c.right() && a.y == c.y);
-      // Two lines of title fit under it.
-      assert(c.h - a.h >= 2 * s.line_h);
+      assert(a.w == a.h && a.w == g.art && a.y == c.y + g.ring);
+      // The ring round the cover stays inside the cell (LVGL redraws a cell's parts only there).
+      assert(a.x - g.ring >= c.x && a.right() + g.ring <= c.right() && a.y - g.ring >= c.y);
+      // Two lines of title fit under it, under the ring.
+      assert(c.bottom() - (a.bottom() + g.ring) >= 2 * s.line_h);
     }
   }
   if (g.pager) assert(g.pager_y + s.pager_h <= s.height);
@@ -36,7 +38,7 @@ int main() {
     sound(s, g);
     assert(g.columns == 3 && g.rows == 2 && g.per_page == 6 && g.pager);
     assert(page_count(48, g.per_page) == 8 && dots(8));
-    assert(g.art >= 100);
+    assert(g.art >= 90);
     Grid top = place(s, false, 8);
     sound(s, top);
     assert(top.columns == 2 && top.per_page >= 8 && !top.pager);
