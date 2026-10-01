@@ -13,7 +13,10 @@
 - For contributors: the documentation now describes the project as it is built today, with an index in docs/README.md
   and a list per recipe of every place a change touches. New checks keep the editor and the firmware in step, test
   every tile type on every board, keep the flash of every 4 MB board within budget, and compare the tile catalogue with
-  each new Home Assistant release every week.
+  each new Home Assistant release every week. On the oldest ESPHome the packages support, a change for every board now
+  builds one board instead of four.
+- Tested: the CYD, both Guitions and the Waveshare 7 build with ESPHome 2026.9.0 (the CYD image is 1,678,864 B, 91.5 %
+  of its slot, the same as firmware 0.22.0), and the CYD, the Guition 4848S040 and the Waveshare 7 with 2026.6.2.
 
 ## 0.4.40 (firmware 0.22.0)
 

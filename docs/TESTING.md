@@ -62,8 +62,12 @@ from `tests/fixtures/overrides/` on its board, and applies the flash budget to e
   board, it builds the sample of four in `tools/profiles.py` `SAMPLE` instead (the CYD and the Guition always, and two
   that differ in chip, flash or glass). `--affected --every-board` builds them all.
 - `--sample` builds the sample directly, and `--board <key>` (repeatable) one board.
+- On an ESPHome older than the add-on's (the packages' `min_version`), a change that reaches every board builds one
+  board, `MIN_VERSION_SAMPLE` in `tools/profiles.py` (the CYD), plus a board for each changed file the CYD doesn't
+  build (`tools/affected_boards.py --older-sample`). What an older ESPHome refuses is a newer option or API in the
+  shared YAML and C++, the same on every board, so one board says it.
 - CI's firmware job builds with the ESPHome the add-on ships and with the packages' `min_version`, on the boards the
-  push reaches, and every board every night and when started by hand.
+  push reaches as above, and every board on both every night and when started by hand.
 
 A build that passes says the YAML and the C++ compile and fit their slot. It says nothing about what the glass shows.
 

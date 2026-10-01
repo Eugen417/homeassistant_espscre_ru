@@ -235,8 +235,9 @@ Anything in `packages/core.yaml`, `components/`, `fonts/` or the screen texts, o
    A change that reaches every board builds the sample of four in `tools/profiles.py` `SAMPLE` (the CYD and the
    Guition always, and two that differ in chip, flash or glass), and the flash budget of every 4 MB board it builds applies (docs/RELEASING.md
    step 2). `--affected --every-board`, or `--firmware` alone, builds every board when a change needs it; CI does that
-   every night. The renders draw `RENDER_SAMPLE`: the smallest, a middle and the largest glass. They run by hand, not
-   in CI.
+   every night. On the packages' `min_version` ESPHome the same `--affected` build is one board, the CYD
+   (`MIN_VERSION_SAMPLE`), plus a board for each changed file the CYD doesn't build. The renders draw `RENDER_SAMPLE`:
+   the smallest, a middle and the largest glass. They run by hand, not in CI.
 
 ## The app alone
 

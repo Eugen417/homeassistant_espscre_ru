@@ -10,7 +10,8 @@
 #   --board KEY                      with --firmware: only this board (repeat for more); a fix for one board builds one
 #   --affected                       with --firmware: only the boards a build of the change needs (affected_boards.py --build-keys);
 #                                    nothing to build when it reaches none (docs/BOARD_RELEASES.md); a change that reaches
-#                                    every board builds the sample instead (app 0.4.32)
+#                                    every board builds the sample instead (app 0.4.32), and on an ESPHome older than the
+#                                    add-on's only MIN_VERSION_SAMPLE plus a board per changed file the CYD doesn't build
 #   --sample                         with --firmware: the four boards of tools/profiles.py SAMPLE (CYD and Guition always);
 #                                    with --render: the three of RENDER_SAMPLE (the smallest, a middle and the largest glass)
 #   --every-board                    with --firmware --affected: every board the change reaches, also when that is all of them
@@ -457,9 +458,22 @@ if ((want_firmware && affected)); then
   # A change that reaches every board (a shared release) builds the sample (app 0.4.32): the same code runs on all of
   # them, and four that differ where a build breaks say as much. --every-board still builds them all.
   total=$(cd "$ROOT/tools" && "$PYTHON" -c "import profiles; print(len(profiles.CATALOG))")
-  if ((${#reached[@]} == total && !every_board)); then
-    read -r -a reached <<< "$(sample_keys SAMPLE)"
-    echo "The change reaches every board: building the sample (tools/profiles.py SAMPLE)."
+  if ((${#reached[@]} && ${#reached[@]} == total && !every_board)); then
+    pinned=$(sed -n 's|^FROM ghcr.io/esphome/esphome:||p' "$ROOT/screen_manager/Dockerfile")
+    running=$("${ESPHOME_CMD[@]}" version 2>/dev/null | sed -n 's/^Version: //p') || running=""
+    if [[ -n $running ]] && older_version "$running" "$pinned"; then
+      # On an ESPHome older than the add-on's (CI's min_version leg) the same shared code says what it refuses on one
+      # board (app 0.4.41): the CYD, plus a board for each changed file the CYD doesn't build.
+      if ! keys=$(cd "$ROOT" && "$PYTHON" tools/affected_boards.py --older-sample ${CHECK_BASE:+--base "$CHECK_BASE"}); then
+        echo "tools/affected_boards.py failed, so which boards to build is unknown: nothing was built." >&2
+        exit 2
+      fi
+      read -r -a reached <<< "$keys"
+      echo "The change reaches every board, on ESPHome $running (older than the add-on's $pinned): building ${reached[*]} (tools/profiles.py MIN_VERSION_SAMPLE)."
+    else
+      read -r -a reached <<< "$(sample_keys SAMPLE)"
+      echo "The change reaches every board: building the sample (tools/profiles.py SAMPLE)."
+    fi
   fi
   only+=(${reached[@]+"${reached[@]}"})
   choosing=1

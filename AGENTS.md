@@ -94,8 +94,10 @@ Most of these are guarded by a test; the test names the doc to read when it fail
   tests, types and build, the WASM preview tests and the layout audit of every card on every board shape).
 - A firmware change: also `tools/check.sh --firmware --affected`. A change that reaches one board or a few builds only
   those; a change that reaches every board builds `SAMPLE` in `tools/profiles.py` (four boards that differ in chip,
-  flash and glass), and CI builds every board nightly. Renders use `RENDER_SAMPLE`, the smallest, a middle and the
-  largest glass (`tools/check.sh --render --sample`), and run by hand.
+  flash and glass), and CI builds every board nightly. On the packages' older `min_version` ESPHome the same
+  `--affected` build is the CYD alone (`MIN_VERSION_SAMPLE`), plus a board for each changed file the CYD doesn't
+  build. Renders use `RENDER_SAMPLE`, the smallest, a middle and the largest glass (`tools/check.sh --render
+  --sample`), and run by hand.
 - A firmware change makes the committed WASM preview stale: `web/wasm/build.sh` rebuilds it, or CI's preview job does
   after the push.
 - Firmware tests and hardware acceptance are different checks: report which ones actually ran.

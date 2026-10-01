@@ -113,7 +113,9 @@
 Screens build their firmware from the packages on main (`refresh: 0s`), with whatever ESPHome builds them: this
 add-on's (`screen_manager/Dockerfile`), an add-on not updated yet, or the owner's ESPHome Device Builder. So a release
 uses nothing the packages' `min_version` (in `packages/core.yaml`) lacks, and CI's firmware job builds with both the
-add-on's ESPHome and `min_version` to catch a form that is too new. Raise `min_version` only in a release of its own.
+add-on's ESPHome and `min_version` to catch a form that is too new. On `min_version` a change that reaches every board
+builds the CYD alone (`MIN_VERSION_SAMPLE` in `tools/profiles.py`), plus a board for each changed file the CYD doesn't
+build: the shared code is the same on every board. Raise `min_version` only in a release of its own.
 Two moves wait for that release: the camera images' `image: - platform: online_image` form (ESPHome 2027.1 drops the
 top-level `online_image:`, `packages/features/camera.yaml`), and `ota:` with `encryption:` and the api key in
 `core.installation_yaml()` in place of the OTA password. A board that needs a newer ESPHome states its own
