@@ -19,7 +19,6 @@
 #include <vector>
 
 namespace tile_controls {
-// Home Assistant supported_features bits.
 // Home Assistant's feature bits by the names this code knew them by, their values from Home Assistant's source through the
 // tile catalogue (tile_catalogue.h, catalogue/_ha.json): none is counted by hand here.
 namespace feature {

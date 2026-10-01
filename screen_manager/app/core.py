@@ -1709,14 +1709,17 @@ def local_clock(value, tz):
         moment = moment.replace(tzinfo=timezone.utc)
     return moment.astimezone(tz or timezone.utc).strftime('%H:%M')
 
+# The forecasts a weather card asks for, each with Home Assistant's feature bit for it (catalogue/_ha.json).
+FORECAST_BITS = (('daily', catalogue.bits('weather', 'FORECAST_DAILY')), ('hourly', catalogue.bits('weather', 'FORECAST_HOURLY')))
+
 def forecast_kinds(attributes):
-    """The forecasts a weather entity offers, from its supported_features (WeatherEntityFeature: 1 daily,
-    2 hourly). Asking for one it lacks makes Home Assistant log an error; an entity that reports no features
-    (unavailable) is asked for both, as before."""
+    """The forecasts a weather entity offers, from its supported_features (WeatherEntityFeature FORECAST_DAILY and
+    FORECAST_HOURLY, through the tile catalogue). Asking for one it lacks makes Home Assistant log an error; an entity
+    that reports no features (unavailable) is asked for both, as before."""
     features = (attributes or {}).get('supported_features')
     if not isinstance(features, int) or isinstance(features, bool):
         return frozenset(('daily', 'hourly'))
-    return frozenset(kind for kind, bit in (('daily', 1), ('hourly', 2)) if features & bit)
+    return frozenset(kind for kind, bit in FORECAST_BITS if features & bit)
 
 def forecast_number(entry, name):
     value = entry.get(name)

@@ -38,6 +38,12 @@ Three questions are answered by the catalogue, the same way in Python and TypeSc
 `tests/fixtures/catalogue-conformance.json` holds cases the add-on and the editor must answer alike;
 `tests/test_catalogue.py` and `web/tests/catalogue.spec.ts` run them.
 
+Code that tests an entity's `supported_features` names the bit as Home Assistant's source does, never by its number:
+`tile_catalogue::cover::SET_TILT_POSITION` in the firmware, `catalogue.bits('cover', 'SET_TILT_POSITION')` in the
+add-on and `bits('cover', 'SET_TILT_POSITION')` from `model/catalogue.ts` in the editor. `tests/test_feature_bits.py`
+fails where shared code compares `supported_features` with a number or defines a feature constant as one. A bit the
+catalogue lacks comes from Home Assistant's source through `catalogue/_ha.json`, never from a constant of our own.
+
 ## The files are the list of types
 
 A type exists in the add-on, the editor and the firmware only when it has a file in `catalogue/`. Home Assistant has
