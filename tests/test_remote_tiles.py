@@ -4,6 +4,7 @@ the firmware's routes and colours; these keep the app, the firmware and the edit
 Assistant (2026.10 core and frontend: remote/icons.json, remote/services.yaml, state_color.ts, more-info-remote.ts).
 """
 from firmware_sources import firmware_domains, runtime_source
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -82,6 +83,41 @@ class TheApp(unittest.TestCase):
         self.assertIn('if (a["activity_list"].is<JsonArray>())', RECEIVER)
         self.assertIn('next.activity=string(a["current_activity"],48);', RECEIVER)
         self.assertIn('activity.empty()', MODEL)
+
+
+class CommandsFromTheSource(unittest.TestCase):
+    """Send command offers what the remote's integration takes, read from Home Assistant and the library it pins
+    (tools/read_remote_commands.py); typed text still goes, so a learned code or a hub's own name keeps working."""
+    SEND = {'command': {'required': True, 'selector': {'object': {}}}, 'device': {'selector': {'text': {}}},
+            'num_repeats': {'selector': {'number': {'min': 0, 'max': 255}}}}
+
+    def choices(self, platform):
+        services = {'remote': {'send_command': {'fields': self.SEND, 'target': {'entity': [{'domain': ['remote']}]}}}}
+        found = ha_catalogue.action_choices('remote.tv', {'remote.send_command'}, {'state': 'on', 'attributes': {}}, services, {}, platform)
+        return {field['key']: field for field in found[0]['fields']}
+
+    def test_every_list_names_where_it_was_read(self):
+        source = json.loads((ROOT / 'catalogue/_remote_commands.json').read_text())
+        self.assertTrue(source['source'].startswith('home-assistant/core '))
+        self.assertEqual(json.loads((ROOT / 'screen_manager/app/remote_commands.json').read_text()), source)
+        for platform, entry in source['platforms'].items():
+            self.assertTrue(entry['from'], platform)
+            self.assertTrue(entry['commands'] and len(set(entry['commands'])) == len(entry['commands']), platform)
+        # A library's pinned version, as Home Assistant's manifest has it.
+        self.assertTrue(any(item.startswith('rokuecp==') for item in source['platforms']['roku']['from']))
+
+    def test_send_command_offers_the_integrations_commands(self):
+        roku = self.choices('roku')
+        self.assertIn('play', roku['command']['suggestions'])
+        self.assertIn('volume_up', roku['command']['suggestions'])
+        # Only the command field, and nothing for an integration whose names live on the hub or in learned codes.
+        self.assertNotIn('suggestions', roku['device'])
+        self.assertNotIn('suggestions', self.choices('broadlink')['command'])
+        self.assertNotIn('suggestions', self.choices(None)['command'])
+        self.assertIn('DPAD_CENTER', catalogue.remote_commands('androidtv_remote'))
+        # Android's keyboard and game pad keys are no TV remote's.
+        self.assertFalse({'A', 'F1', 'BUTTON_A', 'NUMPAD_1', 'CTRL_LEFT'} & set(catalogue.remote_commands('androidtv_remote')))
+        self.assertIn('field.suggestions?.length', (ROOT / 'web/src/components/ActionPicker.vue').read_text())
 
 
 class HomeAssistantsWay(unittest.TestCase):

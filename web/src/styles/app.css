@@ -896,6 +896,10 @@ td code { white-space: nowrap; }
 .ui-menu-item { display: flex; align-items: center; gap: 10px; padding: 7px 9px; border-radius: 6px; cursor: default; outline: none; user-select: none; color: var(--ink); line-height: 1.3; }
 .ui-menu-item[data-highlighted] { background: var(--seg); }
 .ui-menu-item[data-disabled] { opacity: 0.45; }
+/* A text field with its usual values under it (UiSuggest, GitHub #117): in the panel, as the library's results are. */
+.ui-suggest { display: grid; gap: 4px; min-width: 0; }
+.ui-suggest-list { max-height: 216px; overflow: auto; padding: 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.ui-suggest-list .ui-menu-item { padding: 5px 8px; font: 12.5px/1.3 var(--mono); }
 .ui-menu-item[data-state="open"] { background: var(--seg); }
 .ui-menu-icon { font-size: 17px; color: var(--muted); width: 18px; text-align: center; }
 .ui-menu-item[data-highlighted] .ui-menu-icon { color: var(--ink-2); }

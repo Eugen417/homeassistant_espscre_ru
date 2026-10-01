@@ -240,7 +240,8 @@ Click **Save & send** to send your changes.
   tile turns it on or off. The tile then looks like a script's button, coloured while the actions run (firmware 0.7.0+).
 - Remote: tap for its card with the power key and, where the remote has them, its activities (firmware 0.22.0+). For
   a key such as Play or Menu, add the remote again with **On tap** set to **Perform action** and **Send command**, and
-  type the command as Home Assistant knows it.
+  pick the command from the list under the field (Android TV, Apple TV, Roku and others) or type it as Home Assistant
+  knows it (Harmony, Broadlink).
 - Media player: tap for the media card with the cover (boards with camera pictures), the keys, and the volume.
 - Camera or image (every board except the CYD, the Waveshare 3.5-inch and the Hosyond 4-inch): tap for the
   picture full screen, refreshed every four seconds. **Display → Live picture** fills the tile itself, on every size, and refreshes every 5, 10, 15 or 30 seconds (firmware 0.3.7+, [CAMERA.md](CAMERA.md)).

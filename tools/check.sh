@@ -156,11 +156,14 @@ cells_current() { cd "$ROOT" && "$PYTHON" tools/generate_cells.py --check; }
 icons_current() { cd "$ROOT" && "$PYTHON" tools/generate_icons.py --check; }
 # The tile catalogue (docs/CATALOGUE.md): what each entity type can do, from catalogue/*.yaml to what the add-on, the
 # editor and the firmware read. With HA_CORE naming a home-assistant/core checkout, also Home Assistant's own facts
-# (catalogue/_ha.json) against its source; that needs Python 3.14, which Home Assistant's code is written in.
+# (catalogue/_ha.json) and a remote's commands (catalogue/_remote_commands.json) against its source; the first needs
+# Python 3.14, which Home Assistant's code is written in.
 catalogue_current() {
   cd "$ROOT" && "$PYTHON" tools/generate_catalogue.py --check || return 1
   if [[ -n ${HA_CORE:-} ]]; then
     uv run -q --no-project --python 3.14 python tools/read_ha_source.py "$HA_CORE" --check || return 1
+    # A remote's commands per integration (catalogue/_remote_commands.json), from it and the libraries it pins.
+    "$PYTHON" tools/read_remote_commands.py "$HA_CORE" --check || return 1
   fi
 }
 # What every board looks like, as the manager reads it (screen_manager/app/boards.json from the board files).

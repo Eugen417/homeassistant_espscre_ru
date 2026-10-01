@@ -19,6 +19,15 @@ DATA = json.loads((Path(__file__).with_name('catalogue.json')).read_text())
 TILE = DATA['tile']
 TYPES = DATA['domains']
 DOMAINS = frozenset(TYPES)
+# The commands a remote of each integration takes, read from Home Assistant's source and the libraries it pins
+# (tools/read_remote_commands.py, GitHub #117): {integration: {'from': [...], 'commands': [...]}}.
+REMOTE_COMMANDS = json.loads((Path(__file__).with_name('remote_commands.json')).read_text())['platforms']
+
+
+def remote_commands(platform):
+    """The commands a remote of this integration takes, in its source's order; None where only the device, the hub or
+    the user's own configuration knows them (Harmony, Broadlink) or any text goes (Samsung)."""
+    return (REMOTE_COMMANDS.get(platform) or {}).get('commands')
 
 
 def parse_version(text):

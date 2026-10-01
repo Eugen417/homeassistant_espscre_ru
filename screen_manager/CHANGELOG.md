@@ -6,9 +6,14 @@
   and the thermostat's have theirs, and the remote's activities where it has them (Harmony, Android TV Remote), each of
   which turns it on with that activity. The tile names the activity it runs. Set the tap to **On / off** to switch it
   with a tap instead; a wide tile carries the switch.
-- **A key of a remote is a tile of its own**: set its tap to **Perform action**, choose **Send command** and type the
-  command (`play`, `menu`, `power`), with the device for a Broadlink. Home Assistant lists no commands a remote knows,
-  so they are typed as in Home Assistant itself. Give each key its own name and icon.
+- **A key of a remote is a tile of its own**: set its tap to **Perform action**, choose **Send command** and pick the
+  command, with the device for a Broadlink. Give each key its own name and icon.
+- **The commands each remote takes, from Home Assistant's source.** For thirteen integrations (Android TV Remote, Android
+  TV, Apple TV, Roku, Sky, DirecTV, LG Netcast, Panasonic Viera, Vizio, Xbox, Kaleidescape, JVC, Lyngdorf) the command
+  field lists what the remote takes, filtered as you type. The lists are read from Home Assistant and the exact library
+  version each integration pins (`tools/read_remote_commands.py`), so they follow Home Assistant when it updates. Where
+  only the hub, the learned codes or your own configuration know the names (Harmony, Broadlink, Bravia) or any text goes
+  (Samsung, Philips), you type the command; a typed command always goes as typed.
 - A remote's "on" says the remote may send, not that the device behind it runs: a Broadlink that is off drops every
   command. Name the tile after the remote, and power the player with a command tile of its own.
 - Needs firmware 0.22.0: a screen with a remote tile is offered the update before its layout goes out. CYD image is

@@ -198,5 +198,5 @@ export type Inventory = {
 export type Capability = { toggle: boolean; inline: boolean; controls: string[]; displays: string[] };
 export type EntityAction = {
   action: string; name: string; description: string;
-  fields: { key: string; name: string; required?: boolean; description?: string; example?: unknown; selector?: Record<string, any>; options?: string[] }[];
+  fields: { key: string; name: string; required?: boolean; description?: string; example?: unknown; selector?: Record<string, any>; options?: string[]; suggestions?: string[] }[];
 };

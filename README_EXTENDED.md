@@ -160,8 +160,11 @@ on the screen itself, and how updates work.
   Home Assistant's dialog does: the power key in the top bar and, where the remote has activities, one row per
   activity, which turns it on with that activity. The tile names the activity it runs. Set **On tap** to **On / off**
   to switch it with a tap instead. Home Assistant lists no commands a remote knows, so a key is a tile of its own: set
-  **On tap** to **Perform action**, choose **Send command** and type the command, such as `play`, with the **Device**
-  a Broadlink asks for, and give that tile its own name and icon. For an IR blaster "on" means it may send, not that
+  **On tap** to **Perform action**, choose **Send command** and pick the command, with the **Device** a Broadlink asks
+  for, and give that tile its own name and icon. For thirteen integrations (Android TV, Apple TV, Roku, Sky, DirecTV,
+  LG, Panasonic, Vizio, Xbox and more) the command field lists the commands the remote takes, read from Home Assistant
+  and the library version it uses, so the list follows Home Assistant. For the others (Harmony, Broadlink, Samsung)
+  type the command as Home Assistant knows it; a typed command always goes. For an IR blaster "on" means it may send, not that
   the device behind it runs: a Broadlink that is off drops every command.
 - **Direct control on double-width tiles** (firmware 0.2.19+), like the rows in
   Home Assistant: temperature − / + or mode buttons (climate), a toggle (switch,

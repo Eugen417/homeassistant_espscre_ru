@@ -20,7 +20,10 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'catalogue'
 OUTPUTS = {'addon': ROOT / 'screen_manager/app/catalogue.json', 'editor': ROOT / 'web/src/model/catalogue.json',
-           'firmware': ROOT / 'components/smart_display/tile_catalogue.h'}
+           'firmware': ROOT / 'components/smart_display/tile_catalogue.h',
+           # The commands a remote of each integration takes (catalogue/_remote_commands.json, read from Home Assistant
+           # and the libraries it pins by tools/read_remote_commands.py): the add-on offers them in Send command.
+           'remote_commands': ROOT / 'screen_manager/app/remote_commands.json'}
 VERSION = re.compile(r'^\d+\.\d+\.\d+$')
 # The types there were when the catalogue began (app 0.4.32). A type added after them is one the firmware learned to
 # draw at some version, and says which (`firmware:`): the add-on then waits for that firmware before it sends one, and
@@ -232,7 +235,9 @@ def outputs():
     facts = json.loads((SOURCE / '_ha.json').read_text())
     catalogue = normalise(tile, types, translations, facts)
     text = json.dumps(catalogue, ensure_ascii=False, indent=1) + '\n'
-    return {'addon': text, 'editor': text, 'firmware': header(catalogue)}
+    commands = json.loads((SOURCE / '_remote_commands.json').read_text())
+    return {'addon': text, 'editor': text, 'firmware': header(catalogue),
+            'remote_commands': json.dumps(commands, ensure_ascii=False, indent=1) + '\n'}
 
 
 if __name__ == '__main__':

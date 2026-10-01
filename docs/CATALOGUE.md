@@ -114,6 +114,18 @@ uv run --no-project --python 3.14 python tools/read_ha_source.py /tmp/ha-core
 git diff catalogue/_ha.json
 ```
 
+A remote's commands are read the same way, from Home Assistant and the exact library versions its integrations pin
+(fetched from PyPI into `.esphome/remote-libs/`):
+
+```sh
+python3 tools/read_remote_commands.py /tmp/ha-core
+python3 tools/generate_catalogue.py
+git diff catalogue/_remote_commands.json
+```
+
+Each integration has one rule in that script that names where its remote.py looks a command up. A rule that finds
+nothing stops the script: read that integration's remote.py again.
+
 The diff is exactly what Home Assistant changed for our types: a new flag, an action that asks another flag, one that
 is gone. `tools/generate_catalogue.py` then says which of our options name something that no longer exists.
 `tools/check.sh` runs the same comparison when `HA_CORE` names a checkout.
