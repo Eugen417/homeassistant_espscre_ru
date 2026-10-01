@@ -128,6 +128,9 @@ home fits on one page.
 ## Music, from the speaker to the library
 
 <p align="center">
+  <img src="docs/images/media-boards-scale.png" width="98%" alt="The same player card on five screens side by side on one scale, from the 2.8-inch CYD to the 10.1-inch Guition: the album cover on a ground in its own colours, the speaker Kitchen at the top, the title, the bar through the track, the keys and the volume">
+</p>
+<p align="center">
   <img src="docs/images/media-guition-player.png" width="32%" alt="The player card on the 4-inch Guition: the album cover on a ground in the cover's own colours, the speaker Kitchen at the top, the title and artist, a bar to drag through the track, shuffle, previous, pause, next and repeat, and the volume">
   <img src="docs/images/media-guition-speakers.png" width="32%" alt="The speaker menu open over the card: Bedroom, Kitchen with a check mark, and Living room">
   <img src="docs/images/media-guition-favourites.png" width="32%" alt="A page of favourites: an album and a playlist with their covers dimmed behind the name and a play key, the playlist that plays ringed in blue with a pause key, an artist and the player itself">
@@ -140,6 +143,10 @@ home fits on one page.
 <p align="center">
   <img src="docs/images/media-waveshare43-player.png" width="49%" alt="The player card on the 4.3-inch Waveshare: the cover at the left on its coloured ground, the title, the bar and the keys beside it, the volume along the bottom">
   <img src="docs/images/media-waveshare43-albums.png" width="49%" alt="A page of albums on the 4.3-inch Waveshare: five covers in a row with page arrows">
+</p>
+<p align="center">
+  <img src="docs/images/media-waveshare43-starting.png" width="49%" alt="Favourites on the 4.3-inch Waveshare: the wide favourite Sunday Morning starting on the Kitchen speaker, a spinner round its play key">
+  <img src="docs/images/media-waveshare43-speakers.png" width="49%" alt="The speaker menu over the player card on the 4.3-inch Waveshare: Bedroom, Kitchen with a check mark, and Living room">
 </p>
 <p align="center">
   <img src="docs/images/media-jc8012p4a1-albums.png" width="66%" alt="A page of albums on the 10.1-inch Guition: eighteen covers in three rows of six">
