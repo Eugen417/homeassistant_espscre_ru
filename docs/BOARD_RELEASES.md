@@ -202,8 +202,8 @@ only it includes, its entry files.
    The second is CI's min_version leg: the oldest ESPHome the packages promise (`min_version` in
    `packages/core.yaml`). `tools/affected_boards.py` prints it with the version filled in.
 
-   `--affected` builds only the boards the change reaches (the same as `--board waveshare4b`). The CYD flash budget
-   only runs when the CYD is one of them. Render the board with `tools/render/run.py <key>`, and test it on the glass
+   `--affected` builds only the boards the change reaches (the same as `--board waveshare4b`). The flash budget
+   only runs for the 4 MB boards among them (docs/RELEASING.md step 2). Render the board with `tools/render/run.py <key>`, and test it on the glass
    when the fix is about something only hardware shows.
 
 ## A shared fix or feature
@@ -226,7 +226,7 @@ Anything in `packages/core.yaml`, `components/`, `fonts/` or the screen texts, o
    tools/check.sh --render
    ```
 
-   Every board compiles and the CYD flash budget applies (docs/RELEASING.md step 2).
+   Every board compiles and the flash budget applies to every 4 MB board (docs/RELEASING.md step 2).
 
 ## The app alone
 

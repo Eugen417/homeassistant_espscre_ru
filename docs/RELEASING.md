@@ -40,8 +40,12 @@
    this computer (tools/render/run.py, needs SDL2): its self test must pass lying down and standing up, and it saves
    what every board draws under `.esphome/render/out`. Run it by hand when a change reaches what a screen draws; CI does
    not run it (a run took up to four hours, and the next push nearly always cancelled it). What the renders were mostly
-   for, whether cards fit, is checked on every run without drawing: tests/test_layout_audit.py lays out every card
-   kind, size and board through the firmware preview and checks where every object and text ended up.
+   for, whether cards fit, is checked on every run without drawing: tests/test_layout_audit.py lays out every type of
+   the tile catalogue with each of its faces and control sets, in every size, on every board, through the firmware
+   preview, and checks where every object and text ended up and that no control shrinks below its type's touch floor.
+   A new catalogue type fails it until it has a case (or a reason it has none); what the firmware does today that the
+   checks would flag is listed in its `KNOWN` and `TOUCH_FLOORS` with the code behind it. Without Node or the preview
+   it is skipped on a laptop and fails in CI, and a preview older than the firmware sources fails everywhere.
    **Firmware preview.** The editor's preview is the shared firmware compiled to WebAssembly (web/wasm/README.md), and
    `tools/check.sh` fails when it is older than the firmware sources, which every firmware number bump makes it. Push a
    firmware change to its own branch first: `.github/workflows/preview.yml` rebuilds the preview there and commits it
@@ -51,7 +55,12 @@
    `check-guition` and build under `.esphome/check`, apart from the bench profiles). Check that no secrets are in Git.
 
    **Flash budget of the CYD** (Max's rule, app 0.2.78). The CYD has 4 MB of flash and two update slots of
-   1,835,008 bytes; the Guition's 16 MB leave it far from any limit. Measure the CYD on the build users get: the YAML
+   1,835,008 bytes; the Guition's 16 MB leave it far from any limit. The same budget holds for every board with 4 MB
+   of flash (`flash_mb` in tools/profiles.py: the CYD, its ILI9342 variant `cyd9342` and the Hosyond 4.0-inch
+   `hosyond40`), and `tools/check.sh --firmware` applies it to each one it builds. A change that reaches every board
+   builds the sample, which has the CYD only: the other two share its chip, code and look and sit within a few KB of
+   it, so the nightly build of every board gates them, and when the CYD is over 90 % the check warns until they are
+   built too (`tools/check.sh --firmware --board cyd9342 --board hosyond40`). Measure the CYD on the build users get: the YAML
    `core.installation_yaml()` writes has the Wi-Fi fallback access point (`wifi: ap:`) and `captive_portal:` only on a
    board with more than 4 MB of flash (`hotspot` in boards.json, app 0.4.5+). On the CYD they cost 97 KB (1,720,768
    against 1,623,552 bytes with ESPHome 2026.9), so a screen of a 4 MB board is written without them, and the manager
@@ -64,7 +73,7 @@
    and, when the ESPHome Device Builder ships a newer ESPHome, with that one too (`ESPHOME=<its esphome command>`),
    because users build their updates there.
 
-   | CYD image, share of 1,835,008 bytes | Rule |
+   | Image of a 4 MB board, share of its 1,835,008-byte slot | Rule |
    |---|---|
    | up to 90 % | normal |
    | 90-93 % | tight: every release states its flash delta; a delta over 8 KB needs a matching saving or Max's OK |

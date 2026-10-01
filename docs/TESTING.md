@@ -11,7 +11,7 @@ There are four levels, from fast to real.
 
 `tools/check.sh`: the Python tests of the add-on and the tools, every C++ test of the firmware's logic, the package
 check, the generated files (cells, board shapes, entry files, icons), the translations and the editor's tests, types
-and build. `tools/check.sh --firmware` compiles every board as its owners build it, with the flash budget of the CYD.
+and build. `tools/check.sh --firmware` compiles every board as its owners build it, with the flash budget of every 4 MB board (the CYD and its kin).
 `--affected` (or `--board <key>`) compiles only the boards a change reaches, which for a fix in one board file is one
 build instead of all of them; docs/BOARD_RELEASES.md says which boards a change reaches and why.
 
