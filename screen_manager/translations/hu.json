@@ -1171,9 +1171,8 @@
         "auto": "Auto"
       },
       "map": {
-        "since": "{state} {time} óta",
-        "activity": "Tevékenység",
-        "battery": "Akkumulátor {n}%"
+        "since_time": "{time} óta",
+        "battery": "Akkumulátor"
       }
     }
   },

@@ -241,6 +241,29 @@ class Drawing(unittest.TestCase):
         # The name's pill in the card's colour at the bottom left.
         self.assertEqual(light.getpixel((14, 118 - 8 - 14)), (255, 255, 255))
 
+    def test_markers_sit_on_their_place_and_a_focused_one_exactly(self):
+        people = map_card.people_of(['person.alex', 'device_tracker.car', 'person.sam'], STATES)
+        # Far enough apart on the glass: each exactly on its coordinate.
+        view = map_card.View(52.3675, 4.884, 13.5, (480, 480))
+        hits = []
+        map_card.draw_people(map_card.Canvas((480, 480), (0, 0, 0)), view, people, map_card.LIGHT, 1.0, 30, hits=hits)
+        for entity, x, y, _ in hits:
+            p = next(p for p in people if p.entity == entity)
+            self.assertLessEqual(max(abs(x - view.point(p.lat, p.lon)[0]), abs(y - view.point(p.lat, p.lon)[1])), 0.5, entity)
+        # On a small card they would cover each other: fanned out, each still to be seen. Opened on one, that one is
+        # exactly on its coordinate whoever lies on it.
+        # (The upper half: the lower one lies under the focused one's card.)
+        small = map_card.View(52.345, 4.884, 11.5, (300, 300))
+        for focus in ('person.sam', 'device_tracker.car'):
+            hits = []
+            map_card.draw_people(map_card.Canvas((300, 300), (0, 0, 0)), small, people, map_card.LIGHT, 1.0, 30, focus=focus, hits=hits)
+            x, y = next((h[1], h[2]) for h in hits if h[0] == focus)
+            p = next(p for p in people if p.entity == focus)
+            ex, ey = small.point(p.lat, p.lon)
+            self.assertLessEqual(max(abs(x - ex), abs(y - ey)), 0.5, focus)
+            spots = [(h[1], h[2]) for h in hits]
+            self.assertEqual(len(set(spots)), len(spots), 'no two markers on one spot')
+
     def test_a_photo_in_the_marker(self):
         from PIL import Image
         board = map_card.Board(None)
@@ -514,7 +537,9 @@ class Screens(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(sheet['f'], 'person.sam')
             self.assertEqual({hit[0] for hit in sheet['h']} >= {'person.sam'}, True)
             self.assertEqual(sheet['c']['t'], 'Sam')
-            self.assertEqual([row[1] for row in sheet['c']['r']], ['Office', 'not_home'], 'newest first; the day began at home')
+            # Rows as the effects page draws them: the state now, then the day's changes newest first (it began at home).
+            self.assertEqual([row[1] for row in sheet['c']['r']], ['Office', 'Office', 'not_home'])
+            self.assertTrue(all(len(row) == 3 and row[0] for row in sheet['c']['r']), 'an icon, a name, a value')
             self.assertNotIn('52.', json.dumps(sheet))
             # Someone who is not on that map is no focus.
             ha.log.clear()
@@ -522,6 +547,13 @@ class Screens(unittest.IsolatedAsyncioTestCase):
                 await m.answer_camera({'inbox': 'text.d1_tiles', 'entity': 'person.alex', 'idx': '0', 'focus': 'person.jo'})
             message, = [entry[2] for entry in ha.log if entry[0] == 'send']
             self.assertEqual((message['m']['f'], 'c' in message['m']), ('', False))
+            # A person's own tile tapped (firmware 0.21.0+): that person's map, opened on them.
+            seed_layout(m, 'text.d1_tiles', validate_layout({'title': 'Home', 'tiles': [{'entity': 'person.sam', 'name': ''}]}))
+            ha.log.clear()
+            with self.assertLogs('screen_manager', 'INFO'):
+                await m.answer_camera({'inbox': 'text.d1_tiles', 'entity': 'person.sam', 'idx': '0', 'focus': 'person.sam'})
+            message, = [entry[2] for entry in ha.log if entry[0] == 'send']
+            self.assertEqual((message['t'], message['m']['f'], message['m']['c']['t']), ('full', 'person.sam', 'Sam'))
             # A person who has no map tile on the screen gets none.
             ha.log.clear()
             with self.assertLogs('screen_manager', 'INFO'):

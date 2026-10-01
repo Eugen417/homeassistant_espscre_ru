@@ -588,18 +588,39 @@ def initials(name):
     return ''.join(part[:1] for part in str(name or '').split(' ') if part)[:3] or '?'
 
 
-def _spread(points, gap):
-    """Markers on one spot fanned out round it, so everyone at home stays visible."""
+def _spread(people, points, gap, focus=None):
+    """Markers that would lie on top of each other on the glass (closer than `gap`) fanned out round their middle, so
+    each stays to be seen; everyone else exactly on their place. The one a finger picked (`focus`) never moves: it
+    stays exactly on its coordinate, and whoever lies on it makes room round it."""
     out = list(points)
+    done = set()
     for i in range(len(out)):
-        group = [j for j in range(len(out)) if math.hypot(out[j][0] - out[i][0], out[j][1] - out[i][1]) < gap]
-        if len(group) > 1 and group[0] == i:
-            cx = sum(out[j][0] for j in group) / len(group)
-            cy = sum(out[j][1] for j in group) / len(group)
-            r = gap * 0.58
-            for n, j in enumerate(group):
-                a = -math.pi / 2 + 2 * math.pi * n / len(group)
-                out[j] = (cx + r * math.cos(a), cy + r * math.sin(a))
+        if i in done:
+            continue
+        group, grown = [i], True
+        while grown:
+            grown = False
+            for j in range(len(out)):
+                if j not in group and j not in done and any(math.hypot(out[j][0] - out[k][0], out[j][1] - out[k][1]) < gap for k in group):
+                    group.append(j)
+                    grown = True
+        done.update(group)
+        if len(group) < 2:
+            continue
+        pinned = next((j for j in group if people[j].entity == focus), None)
+        if pinned is not None:
+            cx, cy = out[pinned]
+            others = [j for j in group if j != pinned]
+            for n, j in enumerate(others):
+                angle = -math.pi / 2 + 2 * math.pi * n / len(others)
+                out[j] = (cx + gap * 1.05 * math.cos(angle), cy + gap * 1.05 * math.sin(angle))
+            continue
+        cx = sum(out[j][0] for j in group) / len(group)
+        cy = sum(out[j][1] for j in group) / len(group)
+        r = gap * (0.58 if len(group) == 2 else 0.55 / math.sin(math.pi / len(group)))
+        for n, j in enumerate(group):
+            angle = -math.pi / 2 + 2 * math.pi * n / len(group)
+            out[j] = (cx + r * math.cos(angle), cy + r * math.sin(angle))
     return out
 
 
@@ -615,7 +636,10 @@ def draw_people(canvas, view, people, look, dpi_scale, marker, names=False, phot
     edge_margin = marker * 0.5 + 4 * dpi_scale
     inside = [p for p in placed if view.inside(p.lat, p.lon, -marker * 0.2)]
     outside = [p for p in placed if p not in inside]
-    spots = _spread([view.point(p.lat, p.lon) for p in inside], marker * 1.1)
+    # Where Home Assistant puts them, from north to south, so a marker further down lies over one above it as pins on a
+    # map do; only markers that would cover each other fan out (_spread), and the focused one never moves.
+    inside.sort(key=lambda p: -p.lat)
+    spots = _spread(inside, [view.point(p.lat, p.lon) for p in inside], marker * 0.9, focus)
     chips = []
     for p in outside:
         x, y = view.point(p.lat, p.lon)

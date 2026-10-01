@@ -326,9 +326,13 @@ std::string receive(const std::string &payload) {
         }
         if (m["c"].is<JsonObject>()) {
           auto c = m["c"];
-          next.title = string(c["t"], 60); next.line = string(c["s"], 80); next.heading = string(c["a"], 40);
-          if (c["r"].is<JsonArray>()) for (JsonVariant row : c["r"].as<JsonArray>())
-            if (row.is<JsonArray>() && row.size() == 2 && next.rows.size() < 5) next.rows.push_back({string(row[0], 12), string(row[1], 40)});
+          next.title = string(c["t"], 60);
+          // Rows as the effects page draws them: Home Assistant's icon (a codepoint), a name and a value at the right.
+          if (c["r"].is<JsonArray>()) for (JsonVariant row : c["r"].as<JsonArray>()) {
+            if (!row.is<JsonArray>() || row.size() != 3 || next.rows.size() >= 8) continue;
+            const std::string code = string(row[0], 6);
+            next.rows.push_back({code.empty() ? 0u : (uint32_t) strtoul(code.c_str(), nullptr, 16), string(row[1], 40), string(row[2], 24)});
+          }
         }
         camera_map_sheet(next);
       }

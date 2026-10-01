@@ -2354,6 +2354,9 @@ class Manager:
         except (TypeError, ValueError):
             index = -1
         tile = tiles[index] if 0 <= index < len(tiles) and mapped(tiles[index]) else next((t for t in tiles if mapped(t)), None)
+        # A person's own tile tapped (firmware 0.21.0+): where that person is, on a map of them alone, opened on them.
+        if tile is None and entity.startswith('person.') and 0 <= index < len(tiles) and tiles[index]['entity'] == entity:
+            tile = {'entity': entity, 'name': tiles[index].get('name', ''), 'options': {'display': 'map', 'distance': 'neighbourhood'}}
         box = camera_feed.box(screen, 'full')
         if tile is None or not box:
             LOG.info('A map for %s: not a map tile of %s', entity, screen['name'])
@@ -2378,8 +2381,9 @@ class Manager:
 
     async def map_sheet(self, entity):
         """The card of a person or tracker picked on a full map, as Home Assistant's own map shows a selected one
-        (hui-map-overview.ts): the name, the state since when, the battery where it reports one, and the changes of the
-        last day newest first, each with its time, in the screens' language and clock."""
+        (hui-map-overview.ts): its state since when, its battery where it reports one, and the changes of the last day
+        newest first, each with its time. Rows as the effects page draws them (an icon, a name, a value at the right),
+        with Home Assistant's own icon and word for each state, in the screens' language and clock."""
         state = self.ha.states.get(entity) or {}
         a = state.get('attributes') or {}
         entry = self.registry_index().get(entity)
@@ -2387,33 +2391,37 @@ class Manager:
         tz = getattr(self.ha, 'time_zone', None) or timezone.utc
         word = lambda value: state_word(entity, value, a, entry, words) or str(value or '')
         clock = lambda moment: i18n.screen_clock(moment.hour, moment.minute)
+        # Home Assistant's icon for a person or tracker in that state (a person at home, one away), else a marker.
+        icon = lambda value: tile_icons.default_glyph(entity, value, a, entry) or tile_icons.GLYPHS['map-marker']
         now = datetime.now(timezone.utc)
-        line = word(state.get('state'))
+        since = ''
         try:
-            since = datetime.fromisoformat(str(state.get('last_changed', '')).replace('Z', '+00:00'))
-            if now - since < timedelta(hours=24):
-                line = screen_t('addon.screen.map.since', state=line, time=clock(since.astimezone(tz)))
+            moment = datetime.fromisoformat(str(state.get('last_changed', '')).replace('Z', '+00:00'))
+            if now - moment < timedelta(hours=24):
+                since = screen_t('addon.screen.map.since_time', time=clock(moment.astimezone(tz)))
         except (ValueError, TypeError):
             pass
+        rows = [[icon(state.get('state')), word(state.get('state'))[:40], since[:24]]]
         battery = a.get('battery_level', a.get('battery'))
         if isinstance(battery, (int, float)) and not isinstance(battery, bool):
-            line = f'{line} · ' + screen_t('addon.screen.map.battery', n=round(battery))
-        rows = []
+            level = max(10, min(100, round(battery / 10) * 10))
+            glyph = tile_icons.GLYPHS.get('battery' if level == 100 else f'battery-{level}') or tile_icons.GLYPHS['battery']
+            rows.append([glyph, screen_t('addon.screen.map.battery'), f'{round(battery)}{i18n.unit_suffix("%")}'])
         try:
             changes = await self.ha.state_changes(entity, 24)
         except Exception as error:
             LOG.info('No history for %s on the map (%s)', entity, type(error).__name__)
             changes = []
-        previous = None
+        activity, previous = [], None
         # The state the day began with is no change; a moment without a place (unavailable) is none either.
         for moment, value in changes:
             if value in ('unavailable', 'unknown', None):
                 continue
             if previous is not None and value != previous:
-                rows.append([clock(datetime.fromtimestamp(moment, tz)), word(value)[:40]])
+                activity.append([icon(value), word(value)[:40], clock(datetime.fromtimestamp(moment, tz))])
             previous = value
         name = a.get('friendly_name') or entity.split('.', 1)[1]
-        return {'t': str(name)[:60], 's': line[:80], 'a': screen_t('addon.screen.map.activity') if rows else '', 'r': rows[::-1][:5]}
+        return {'t': str(name)[:60], 'r': (rows + activity[::-1])[:8]}
 
     # The maps kept drawn: a page's maps in both looks and the page before it.
     MAP_RENDERS_KEPT = 12

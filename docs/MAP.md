@@ -19,11 +19,18 @@ and a layout with one is refused on them.
 **A tap opens the map over the whole screen**, as a camera tile does: drawn as large as the board takes a camera picture,
 with the round back key and the tile's name at the top. A small 1 x 1 map you glance at becomes a full map with a tap.
 
-**On the full map, tap a person or a tracker** to focus on them, as Home Assistant's own map does: they come to the
-middle, closer in, and a card over the bottom shows their name, their state and since when (with the battery where they
-report one), and the changes of the last day, newest first, each with its time. A tap beside the markers, or the back
-key, goes back to everyone. The screen gets where each marker is on the picture (pixels) and the card's words, never a
-place.
+**On the full map, tap a person or a tracker** to focus on them, as Home Assistant's own map does: they stay exactly on
+their place in the middle, closer in, their name goes into the top bar, and a card over the bottom has rows as the
+light's effects page has them: their state with Home Assistant's icon and since when, the battery where they report one,
+and the changes of the last day, newest first, each with its time. A tap beside the markers, or the back key, goes back
+to everyone. The screen gets where each marker is on the picture (pixels) and the card's words, never a place.
+
+**A person's own tile** (any display, firmware 0.21.0) opens the same focused map with a tap, on a board that draws
+pictures: where they are, with their card. Holding the tile opens its card with the history, as before; on a board
+without pictures a tap opens the card too.
+
+Markers stand exactly on their coordinates. Only markers that would cover each other on the glass fan out round their
+middle, so each stays to be seen; the one a finger picked never moves.
 
 ## The choices
 

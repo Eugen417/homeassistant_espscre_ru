@@ -291,7 +291,8 @@ export const TOGGLE_BEFORE = ["light", "switch", "input_boolean", "automation", 
 // open the card; SWITCHES_ON_TAP those that stop switching when the tap opens the card instead.
 export const ACTS_ON_TAP = ["light", "fan", "switch", "input_boolean", "timer", "scene", "script", "button", "input_button", "lock"];
 export const SWITCHES_ON_TAP = ["light", "fan", "switch", "input_boolean"];
-const HOLD_HINTS: Record<string, string> = { light: "hold_light", fan: "hold_fan", switch: "hold_history", input_boolean: "hold_history", timer: "hold_timer" };
+// A person (firmware 0.21.0+): a tap shows where they are on a map, holding the card with their history.
+const HOLD_HINTS: Record<string, string> = { light: "hold_light", fan: "hold_fan", switch: "hold_history", input_boolean: "hold_history", timer: "hold_timer", person: "hold_history" };
 export const holdHintKey = (domain: string) => `editor.tile.tap.${HOLD_HINTS[domain] ?? "hold"}`;
 const SLIDER_CONTROLS: Record<string, string> = { light: 'brightness', fan: 'speed', cover: 'position', media_player: 'volume', number: 'slider', input_number: 'slider' };
 export const SLIDER_DOMAINS = Object.keys(SLIDER_CONTROLS);

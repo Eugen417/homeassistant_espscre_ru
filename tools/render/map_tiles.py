@@ -87,6 +87,8 @@ PAGES = [
                  ('person.sam', 'Sam', 'single', {'framing': 'person', 'distance': 'street'})]),
     # The map of the screen's own cards (firmware 0.21.0): everyone Home Assistant knows the place of.
     ('map-tile', [('screen.map', '', 'square', {})]),
+    # An ordinary person tile (firmware 0.21.0): a tap opens where they are, focused on them.
+    ('person', [('person.sam', 'Sam', 'single', {'display': 'standard'})]),
 ]
 
 
@@ -131,6 +133,8 @@ class Study(run.Run):
     async def full(self, data):
         """A map tapped open: drawn at the board's camera size, as server.Manager.answer_map_full answers."""
         tile = self.compiled[int(data.get('idx', 0))]
+        if (tile.get('options') or {}).get('display') != 'map':
+            tile = {'entity': tile['entity'], 'name': tile.get('name', ''), 'options': {'display': 'map'}}
         w, h = self.full_box
         focus = data.get('focus') or ''
         image = self.draw(tile, (w, h), camera_feed.live_dark(data), True, focus or None)
@@ -140,9 +144,10 @@ class Study(run.Run):
         url = self.pictures.url(f'map-full-{self.served}.bmp', body)
         sheet = {'h': self.hits, 'f': focus}
         if focus:
+            # As server.Manager.map_sheet answers: Home Assistant's icon, its word, the value at the right.
             name = STATES[focus]['attributes']['friendly_name']
-            sheet['c'] = {'t': name, 's': 'Office since 14:02 · Battery 82%' if focus == 'person.sam' else 'Away since 09:40',
-                          'a': 'Activity', 'r': [['14:02', 'Office'], ['08:31', 'Away'], ['07:12', 'Home']]}
+            sheet['c'] = {'t': name, 'r': [['F0B53', 'Office', 'since 14:02'], ['F0081', 'Battery', '82%'],
+                                           ['F0B53', 'Office', '14:02'], ['F0B53', 'Away', '08:31'], ['F0004', 'Home', '07:12']]}
         async with self.turn:
             await self.send({'v': 1, 'op': 'camera', 't': 'full', 'e': data['entity'], 'u': url, 'view': int(data['view']), 'm': sheet})
 
@@ -197,7 +202,8 @@ class Study(run.Run):
             for entity, name, size, options in cards:
                 # The first place on the page the tile fits whole (a double-width tile starts in a column with room).
                 slot = next(c for c in cells if c not in taken and fits(grid, c, size, taken, cells))
-                tiles.append(dict(entity=entity, name=name, slot=slot, options={'display': 'map', 'size': size, **options}))
+                tiles.append(dict(entity=entity, name=name, slot=slot, options={k: v for k, v in {'display': 'map', 'size': size, **options}.items()
+                                                                            if not (k == 'display' and v == 'standard')}))
                 taken |= set(grid.footprint(slot, size))
             for cell in [c for c in range(page * grid.slots, (page + 1) * grid.slots) if c not in taken]:
                 neighbour = next(neighbours, None)
@@ -218,11 +224,12 @@ class Study(run.Run):
             for page, (name, _) in enumerate(pages):
                 await self.call('render_page', page=page)
                 await self.page_done(page)
-                await self.picture(f'{name} {look}')
+                if name != 'person':
+                    await self.picture(f'{name} {look}')
                 await self.render(f'{name}-{look}')
                 shots += 1
                 # A tap opens the map over the whole glass, as a camera does: the first card of the page.
-                if name in ('square', 'singles'):
+                if name in ('square', 'singles', 'person'):
                     first = next(t for t in self.compiled if t.get('slot', 0) // grid.slots == page)
                     cells = side['width'] // grid.columns, (side['height'] - 60) // grid.rows
                     col, row = (first['slot'] % grid.slots) % grid.columns, (first['slot'] % grid.slots) // grid.columns

@@ -1171,9 +1171,8 @@
         "auto": "Auto"
       },
       "map": {
-        "since": "{state} depuis {time}",
-        "activity": "Activité",
-        "battery": "Batterie {n} %"
+        "since_time": "depuis {time}",
+        "battery": "Batterie"
       }
     }
   },

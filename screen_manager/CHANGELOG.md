@@ -5,9 +5,12 @@ it yours.
 
 - **Tap a map to open it over the whole screen**, as a camera tile opens: drawn as large as the board takes a camera
   picture, with the back key and the name at the top. A small 1 x 1 map you glance at becomes a full map with a tap.
-- **Tap someone on the full map** to focus on them, as Home Assistant's map does: they come to the middle, closer in, with
-  a card over the bottom: their state and since when, the battery where they report one, and the day's changes with
-  their times ("14:02 Office", "08:31 Away"). A tap beside them, or Back, shows everyone again.
+- **Tap someone on the full map** to focus on them, as Home Assistant's map does: they stay exactly on their place in the
+  middle, closer in, with a card over the bottom in the style of the light's effects page: their state with Home
+  Assistant's icon and since when, the battery where they report one, and the day's changes with their times. A tap
+  beside them, or Back, shows everyone again.
+- **A person tile opens where they are**: a tap shows the map focused on them with that card; holding the tile opens
+  its card with the history, as before. On a screen without pictures a tap still opens the card.
 - **The map tile**: **Map** under the screen's own cards in the library. It follows **everyone** Home Assistant knows the
   place of, as Home Assistant's own map card does, or only whom you choose: just the two of you, or only your devices.
 - **Photos in the markers**, as Home Assistant shows them: a person with a picture in Home Assistant has it in their

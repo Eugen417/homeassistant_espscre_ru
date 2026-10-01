@@ -174,7 +174,7 @@ class Rules(unittest.TestCase):
     def test_the_first_picture_waits_for_no_tick(self):
         # Firmware 0.2.73+: the camera asks when it opens and loads the link when it comes, not on the next 250 ms tick;
         # the spinner turns until the first picture or a note is there.
-        opened = TILES.split('inline void camera_open(const std::string &entity, const std::string &name, int map_index) {', 1)[1].split('\n}\n', 1)[0]
+        opened = TILES.split('inline void camera_open(const std::string &entity, const std::string &name, int map_index, const std::string &focus) {', 1)[1].split('\n}\n', 1)[0]
         self.assertIn('camera_spinner = spinner_create(camera_root,', opened)
         self.assertIn('if (awake() && fresh() && camera.should_ask(now)) {', opened)
         answer = TILES.split('inline void camera_answer(const std::string &view, const std::string &entity, const std::string &url) {', 1)[1].split('\n}\n', 1)[0]
