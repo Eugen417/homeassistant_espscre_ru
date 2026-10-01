@@ -23,7 +23,8 @@
 - A remote's "on" says the remote may send, not that the device behind it runs: a Broadlink that is off drops every
   command. Name the tile after the remote, and power the player with a command tile of its own.
 - Needs firmware 0.22.0: a screen with a remote tile is offered the update before its layout goes out. CYD image is
-  1,672,272 B, 91.1 % of its slot, 3.8 KB more. Built: CYD, Guition 4848S040, JC8012P4A1, Waveshare 7.
+  1,678,864 B, 91.5 % of its slot, 10.2 KB more (the keypad and its icons). Built: CYD, Guition 4848S040, JC8012P4A1,
+  Waveshare 7.
 
 ## 0.4.37 (firmware 0.21.0)
 
