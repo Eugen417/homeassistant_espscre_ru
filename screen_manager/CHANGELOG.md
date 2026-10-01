@@ -1,3 +1,11 @@
+## 0.4.37 (firmware 0.21.0)
+
+- **The editor on a phone** (#124). On a narrow window the library stood in the middle of the page with the pages
+  running on underneath it, out of reach. Now the page scrolls as a whole and the library stays along the bottom of
+  the window, folded to its head or opened over the last few rows, and the pages scroll clear above it. Its kinds and
+  rooms, hidden on a phone until now, are a row of chips above the list that you swipe sideways. No screen update
+  needed.
+
 ## 0.4.36 (firmware 0.21.0)
 
 The map grows up: a map tile of its own, a tap that opens it over the whole screen, people's photos, and many ways to make
