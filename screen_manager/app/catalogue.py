@@ -24,6 +24,16 @@ DOMAINS = frozenset(TYPES)
 REMOTE_COMMANDS = json.loads((Path(__file__).with_name('remote_commands.json')).read_text())['platforms']
 
 
+KEYPAD_KEYS = ('up', 'down', 'left', 'right', 'ok', 'back', 'home', 'play', 'volume_up', 'volume_down', 'mute')
+
+
+def remote_keypad(platform):
+    """The commands of a remote's keypad for its integration (catalogue/remote.yaml keypad, firmware 0.22.0), in the order
+    the screen takes them and an empty one for a key it lacks; None for an integration without one."""
+    keys = ((TYPES.get('remote') or {}).get('keypad') or {}).get(platform)
+    return [keys.get(key, '') for key in KEYPAD_KEYS] if keys else None
+
+
 def remote_commands(platform):
     """The commands a remote of this integration takes, in its source's order; None where only the device, the hub or
     the user's own configuration knows them (Harmony, Broadlink) or any text goes (Samsung)."""

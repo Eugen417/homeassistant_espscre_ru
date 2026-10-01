@@ -81,7 +81,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "automation": {
    "firmware": "0.7.0",
@@ -130,7 +131,8 @@
    ],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "binary_sensor": {
    "firmware": null,
@@ -151,7 +153,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "button": {
    "firmware": null,
@@ -185,7 +188,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "camera": {
    "firmware": "0.2.57",
@@ -236,7 +240,8 @@
      30
     ]
    },
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "climate": {
    "firmware": null,
@@ -375,7 +380,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "cover": {
    "firmware": null,
@@ -543,7 +549,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "fan": {
    "firmware": null,
@@ -653,7 +660,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "image": {
    "firmware": "0.2.57",
@@ -695,7 +703,8 @@
      30
     ]
    },
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "input_boolean": {
    "firmware": null,
@@ -731,7 +740,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "input_button": {
    "firmware": null,
@@ -765,7 +775,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "input_number": {
    "firmware": null,
@@ -820,7 +831,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "input_select": {
    "firmware": null,
@@ -859,7 +871,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "light": {
    "firmware": null,
@@ -920,7 +933,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "lock": {
    "firmware": "0.5.0",
@@ -954,7 +968,8 @@
     "lock_only"
    ],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "media_player": {
    "firmware": null,
@@ -1178,7 +1193,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "number": {
    "firmware": null,
@@ -1231,7 +1247,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "person": {
    "firmware": "0.2.14",
@@ -1306,7 +1323,8 @@
      "device_tracker"
     ],
     "max": 8
-   }
+   },
+   "keypad": null
   },
   "remote": {
    "firmware": "0.22.0",
@@ -1349,7 +1367,155 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": {
+    "androidtv_remote": {
+     "up": "DPAD_UP",
+     "down": "DPAD_DOWN",
+     "left": "DPAD_LEFT",
+     "right": "DPAD_RIGHT",
+     "ok": "DPAD_CENTER",
+     "back": "BACK",
+     "home": "HOME",
+     "play": "MEDIA_PLAY_PAUSE",
+     "volume_up": "VOLUME_UP",
+     "volume_down": "VOLUME_DOWN",
+     "mute": "MUTE"
+    },
+    "androidtv": {
+     "up": "UP",
+     "down": "DOWN",
+     "left": "LEFT",
+     "right": "RIGHT",
+     "ok": "CENTER",
+     "back": "BACK",
+     "home": "HOME",
+     "volume_up": "VOLUME_UP",
+     "volume_down": "VOLUME_DOWN",
+     "mute": "MUTE"
+    },
+    "apple_tv": {
+     "up": "up",
+     "down": "down",
+     "left": "left",
+     "right": "right",
+     "ok": "select",
+     "back": "menu",
+     "home": "home",
+     "play": "play_pause",
+     "volume_up": "volume_up",
+     "volume_down": "volume_down"
+    },
+    "roku": {
+     "up": "up",
+     "down": "down",
+     "left": "left",
+     "right": "right",
+     "ok": "select",
+     "back": "back",
+     "home": "home",
+     "play": "play",
+     "volume_up": "volume_up",
+     "volume_down": "volume_down",
+     "mute": "volume_mute"
+    },
+    "sky_remote": {
+     "up": "up",
+     "down": "down",
+     "left": "left",
+     "right": "right",
+     "ok": "select",
+     "back": "backup",
+     "home": "home",
+     "play": "play"
+    },
+    "directv": {
+     "up": "up",
+     "down": "down",
+     "left": "left",
+     "right": "right",
+     "ok": "select",
+     "back": "back",
+     "home": "menu",
+     "play": "play"
+    },
+    "lg_netcast": {
+     "up": "UP",
+     "down": "DOWN",
+     "left": "LEFT",
+     "right": "RIGHT",
+     "ok": "OK",
+     "back": "BACK",
+     "home": "HOME_MENU",
+     "play": "PLAY",
+     "volume_up": "VOLUME_UP",
+     "volume_down": "VOLUME_DOWN",
+     "mute": "MUTE_TOGGLE"
+    },
+    "panasonic_viera": {
+     "up": "UP",
+     "down": "DOWN",
+     "left": "LEFT",
+     "right": "RIGHT",
+     "ok": "ENTER",
+     "back": "RETURN_KEY",
+     "home": "HOME",
+     "play": "PLAY",
+     "volume_up": "VOLUME_UP",
+     "volume_down": "VOLUME_DOWN",
+     "mute": "MUTE"
+    },
+    "vizio": {
+     "up": "up",
+     "down": "down",
+     "left": "left",
+     "right": "right",
+     "ok": "ok",
+     "back": "back",
+     "home": "smartcast",
+     "play": "play",
+     "volume_up": "vol_up",
+     "volume_down": "vol_down",
+     "mute": "mute_toggle"
+    },
+    "xbox": {
+     "up": "Up",
+     "down": "Down",
+     "left": "Left",
+     "right": "Right",
+     "ok": "A",
+     "back": "B",
+     "home": "Nexus",
+     "play": "Play"
+    },
+    "kaleidescape": {
+     "up": "up",
+     "down": "down",
+     "left": "left",
+     "right": "right",
+     "ok": "select",
+     "back": "cancel",
+     "home": "go_movie_covers"
+    },
+    "jvc_projector": {
+     "up": "up",
+     "down": "down",
+     "left": "left",
+     "right": "right",
+     "ok": "ok",
+     "back": "back",
+     "home": "menu"
+    },
+    "lyngdorf": {
+     "up": "up",
+     "down": "down",
+     "left": "left",
+     "right": "right",
+     "ok": "enter",
+     "back": "back",
+     "home": "menu"
+    }
+   }
   },
   "scene": {
    "firmware": null,
@@ -1383,7 +1549,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "screen": {
    "firmware": "0.2.14",
@@ -1418,7 +1585,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "script": {
    "firmware": null,
@@ -1455,7 +1623,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "select": {
    "firmware": null,
@@ -1493,7 +1662,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "sensor": {
    "firmware": null,
@@ -1520,7 +1690,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "sun": {
    "firmware": "0.2.14",
@@ -1545,7 +1716,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "switch": {
    "firmware": null,
@@ -1581,7 +1753,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "timer": {
    "firmware": "0.2.14",
@@ -1622,7 +1795,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "vacuum": {
    "firmware": null,
@@ -1719,7 +1893,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   },
   "weather": {
    "firmware": null,
@@ -1765,7 +1940,8 @@
    "taps": [],
    "guards": [],
    "picture": null,
-   "map": null
+   "map": null,
+   "keypad": null
   }
  }
 }

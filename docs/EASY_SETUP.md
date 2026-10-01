@@ -238,7 +238,8 @@ Click **Save & send** to send your changes.
 - Automation: tap to turn it on or off, and hold the tile to run its actions now, as **Run actions** does in Home
   Assistant (its conditions are skipped). Under **On tap**, **Run automation actions** swaps the two: a tap runs it and holding the
   tile turns it on or off. The tile then looks like a script's button, coloured while the actions run (firmware 0.7.0+).
-- Remote: tap for its card with the power key and, where the remote has them, its activities (firmware 0.22.0+). For
+- Remote: tap for its card with the power key and, where the remote has them, its activities, or for an Apple TV,
+  Android TV, Roku and others a keypad with arrows, OK, Back, Home and the volume (firmware 0.22.0+). For
   a key such as Play or Menu, add the remote again with **On tap** set to **Perform action** and **Send command**, and
   pick the command from the list under the field (Android TV, Apple TV, Roku and others) or type it as Home Assistant
   knows it (Harmony, Broadlink).

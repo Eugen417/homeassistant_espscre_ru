@@ -599,6 +599,11 @@ std::string receive(const std::string &payload) {
     if (a["activity_list"].is<JsonArray>()) for(JsonVariant option:a["activity_list"].as<JsonArray>()) {
       if(next.options.size()==16)break;next.options.push_back(string(option,48)); }
     next.activity=string(a["current_activity"],48);
+    // A remote's keypad (firmware 0.22.0+): eleven commands, an empty one for a key the remote lacks.
+    if (extra["keys"].is<JsonArray>()) {
+      for (JsonVariant key : extra["keys"].as<JsonArray>()) { if (next.keypad.size() == 11) break; next.keypad.push_back(string(key, 32)); }
+      if (next.keypad.size() != 11) next.keypad.clear();
+    }
     tile.battery=number(a["battery_level"]);tile.volume=number(a["volume_level"]);
     tile.muted=a["is_volume_muted"].is<bool>() && a["is_volume_muted"].as<bool>();
     tile.device_class=string(a["device_class"],24);next.hvac_action=string(a["hvac_action"],24);

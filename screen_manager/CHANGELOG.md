@@ -6,6 +6,12 @@
   and the thermostat's have theirs, and the remote's activities where it has them (Harmony, Android TV Remote), each of
   which turns it on with that activity. The tile names the activity it runs. Set the tap to **On / off** to switch it
   with a tap instead; a wide tile carries the switch.
+- **A remote you hold in your hand, on the glass.** For a remote whose commands Home Assistant's source names (Apple TV,
+  Android TV, Roku, Sky, DirecTV, LG, Panasonic, Vizio, Xbox, Kaleidescape, JVC, Lyngdorf) the card is a keypad: a
+  ring of four arrows round OK, and Back, Home and Play/Pause with the volume beside or under it. Each key sends the
+  command that integration takes for it, and only the keys it has are drawn: a Sky box gets no volume keys, a projector
+  Back and Menu. Every screen keeps one arrangement for every remote, from what its glass holds: a column on each side,
+  a row under the ring, or two rows on narrow glass standing up. Keys go out at once, also several in a row.
 - **A key of a remote is a tile of its own**: set its tap to **Perform action**, choose **Send command** and pick the
   command, with the device for a Broadlink. Give each key its own name and icon.
 - **The commands each remote takes, from Home Assistant's source.** For thirteen integrations (Android TV Remote, Android

@@ -20,6 +20,7 @@ import claude_skill
 import screen_labels
 import feedback
 from firmware import Firmware
+import catalogue
 import ha_catalogue
 import light_effects
 import light_groups
@@ -1850,6 +1851,11 @@ class Manager:
         if tile['entity'].startswith('lock.'):
             for key,value in lock_extras(entry).items():
                 message.setdefault('x',{})[key]=value
+        # A remote's keypad (firmware 0.22.0): what its integration takes for each key, read from Home Assistant.
+        if tile['entity'].startswith('remote.'):
+            keys=catalogue.remote_keypad((entry or {}).get('platform'))
+            if keys:
+                message.setdefault('x',{})['keys']=keys
         # A second line set to a value of this entity (app 0.2.105): the finished line, or seconds for a moment in
         # time. The other three settings live in the option itself, so the screen keeps drawing them without us.
         for key,value in ha_catalogue.subtitle_message(tile,state).items():

@@ -1021,6 +1021,13 @@ font:
       - "\U000F0493" # cog
       - "\U000F00E2" # broom
       - "\U000F05D6" # alert-circle-outline
+      - "\U000F0143" # chevron-up
+      - "\U000F0140" # chevron-down
+      - "\U000F17B3" # arrow-u-left-top
+      - "\U000F040E" # play-pause
+      - "\U000F075D" # volume-plus
+      - "\U000F075E" # volume-minus
+      - "\U000F075F" # volume-mute
       - "\U000F012C" # check
       - "\U000F03E4" # pause
       - "\U000F04DB" # stop

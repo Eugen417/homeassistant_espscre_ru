@@ -210,6 +210,10 @@ struct Extra {
   std::vector<std::string> options;
   // The activity a remote runs (current_activity, firmware 0.22.0+): Harmony's and Android TV Remote's.
   std::string activity;
+  // A remote's keypad (firmware 0.22.0+): the command of each key in the order of catalogue/remote.yaml's keypad (up, down,
+  // left, right, OK, back, home, play, volume up, volume down, mute), empty where the remote has no such key. The add-on
+  // sends it for an integration whose commands it read from Home Assistant; a remote without one has none.
+  std::vector<std::string> keypad;
   // Weather: up to five days and eight hours.
   std::vector<Forecast> forecast;
   std::vector<Hour> hours;
@@ -268,7 +272,7 @@ struct Extra {
            choices.empty() && room.empty() && !charging && std::isnan(tilt) && action.empty() && action_data.empty() &&
            action_templates.empty() && state_word.empty() && subtitle.empty() && !subtitle_at && effect.empty() &&
            option_rows.empty() && number_rows.empty() && lamps.empty() && code_format.empty() && changed_by.empty() && !arm_code_free &&
-           !code_saved && !alarm_end && !alarm_delay && !assumed && activity.empty();
+           !code_saved && !alarm_end && !alarm_delay && !assumed && activity.empty() && keypad.empty();
   }
 };
 // The numbers of a clock text ("0:05:00", "07:45"), at most `max` of them, each after optional white space, up to the

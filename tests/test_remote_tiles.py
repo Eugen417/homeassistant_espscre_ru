@@ -120,6 +120,41 @@ class CommandsFromTheSource(unittest.TestCase):
         self.assertIn('field.suggestions?.length', (ROOT / 'web/src/components/ActionPicker.vue').read_text())
 
 
+class Keypad(unittest.TestCase):
+    """A remote's keypad (firmware 0.22.0): a ring of arrows round OK and the round keys its integration has, each key the
+    command that integration takes for it, checked against the list read from Home Assistant."""
+    def test_each_integration_sends_its_own_names(self):
+        self.assertEqual(catalogue.remote_keypad('apple_tv')[:6], ['up', 'down', 'left', 'right', 'select', 'menu'])
+        self.assertEqual(catalogue.remote_keypad('androidtv_remote')[4], 'DPAD_CENTER')
+        # A Sky box has no volume keys: the screen draws none.
+        self.assertEqual(catalogue.remote_keypad('sky_remote')[8:], ['', '', ''])
+        self.assertIsNone(catalogue.remote_keypad('broadlink'))
+        self.assertIsNone(catalogue.remote_keypad(None))
+        for platform, keys in catalogue.of_type('remote')['keypad'].items():
+            for command in keys.values():
+                self.assertIn(command, catalogue.remote_commands(platform), platform)
+
+    def test_a_name_home_assistant_does_not_take_stops_the_generator(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('generate_catalogue', ROOT / 'tools/generate_catalogue.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        commands = {'roku': {'commands': ['up', 'down', 'left', 'right', 'select']}}
+        module.keypad('remote', {'roku': {'up': 'up', 'down': 'down', 'left': 'left', 'right': 'right', 'ok': 'select'}}, commands)
+        with self.assertRaises(module.CatalogueError):
+            module.keypad('remote', {'roku': {'up': 'up', 'down': 'down', 'left': 'left', 'right': 'right', 'ok': 'enter'}}, commands)
+        with self.assertRaises(module.CatalogueError):
+            module.keypad('remote', {'harmony': {'up': 'up'}}, commands)
+
+    def test_the_screen_gets_and_sends_it(self):
+        server = (ROOT / 'screen_manager/app/server.py').read_text()
+        self.assertIn("keys=catalogue.remote_keypad((entry or {}).get('platform'))", server)
+        self.assertIn('if (extra["keys"].is<JsonArray>())', RECEIVER)
+        self.assertIn('request.service = esphome::StringRef("remote.send_command");', TILES)
+        # Every clean tap counts, as on the -/+ keys, and a key does not wait for a state that never comes.
+        self.assertIn('touch_guard.accept_repeat(esphome::millis(),300+cmd))return;\n    remote_key(t.entity,keys[i]);', TILES)
+
+
 class HomeAssistantsWay(unittest.TestCase):
     def test_icons(self):
         # remote/icons.json: mdi:remote, mdi:remote-off while off.

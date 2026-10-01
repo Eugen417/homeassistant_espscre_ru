@@ -1016,14 +1016,15 @@ class Run:
             return {'state': state, 'attributes': attributes, 'last_changed': MOMENT.isoformat()}
         hub = ['Watch TV', 'Watch a film', 'Listen to music', 'Play a game']
         states = {'remote.living_room': remote('on', 'Living room', 'Watch TV', hub),
+                  'remote.apple_tv': remote('on', 'Apple TV'),
                   'remote.bluray': remote('off', 'Blu-ray'),
                   'remote.shield': remote('on', 'Shield'),
                   'remote.bluray_ir': remote('on', 'Blu-ray IR'),
                   'remote.cinema': remote('unavailable', 'Cinema')}
         tiles_in = [dict(entity=e, name=states[e]['attributes']['friendly_name']) for e in states]
-        tiles_in[2]['options'] = {'tap': 'toggle'}
+        tiles_in[3]['options'] = {'tap': 'toggle'}
         # A key of the Blu-ray player: Perform action with the command typed, and the device a Broadlink asks for.
-        tiles_in[3].update(name='Play', options={'tap': 'action', 'icon': 'play', 'action': {
+        tiles_in[4].update(name='Play', options={'tap': 'action', 'icon': 'play', 'action': {
             'action': 'remote.send_command', 'data': {'command': 'play', 'device': 'bluray'}}})
         tiles_in = tiles_in[:grid.columns * grid.rows]
         for slot, tile in enumerate(tiles_in):
@@ -1032,8 +1033,15 @@ class Run:
         tiles = send_layout.compile_tiles(record['layout'], grid)
         region = dict(keepalive=120, clock_24h=True, numbers='point', group_min=1, percent_space=False)
         bars = [[{'k': 'clock'}] for _ in record['layout']['pages']]
+        # The Apple TV's keypad (firmware 0.22.0) as the add-on sends it for its integration (catalogue.remote_keypad).
+        import catalogue
+        keypads = {'remote.apple_tv': 'apple_tv'}
         async def push():
             values = [state_message(index, tile, states, extras(tile, states)) for index, tile in enumerate(tiles)]
+            for value in values:
+                keys = catalogue.remote_keypad(keypads.get(value['entity']))
+                if keys:
+                    value.setdefault('x', {})['keys'] = keys
             await self.sender.synchronize(self.inbox.object_id, record, region, values, bars)
         await push()
         await self.call('render_page', page=0)
@@ -1121,6 +1129,37 @@ class Run:
             sent = await call_for('remote.toggle', since)
             sent_as(sent, {'entity_id': 'remote.shield'})
             answer(sent)
+        # The keypad: power in the bar, four arrows and OK, Back, Home, Play/Pause, the volume.
+        if 'remote.apple_tv' in spots:
+            await self.tap(*spots['remote.apple_tv'])
+            card = await self.alarm_until(lambda c: c['open'] and len(c['modes']) >= 6, 'the Apple TV never opened its keypad')
+            faults += [f'keypad: {f}' for f in card['faults'].split(';') if f]
+            await self.render('remote-keypad')
+            # modes: the power key, the four arrows, OK, then the round keys.
+            for index, command in ((1, 'up'), (5, 'select'), (len(card['modes']) - 2, 'volume_up')):
+                since = len(calls)
+                await self.tap(*card['modes'][index][:2])
+                sent = await call_for('remote.send_command', since)
+                sent_as(sent, {'entity_id': 'remote.apple_tv', 'command': command})
+            # Down three times in quick succession, as on a remote: three commands, none dropped.
+            since = len(calls)
+            for _ in range(3):
+                await self.tap(*card['modes'][2][:2])
+                await asyncio.sleep(0.1)
+            await asyncio.sleep(1.0)
+            downs = [c for c in calls[since:] if c.service == 'remote.send_command' and dict(c.data).get('command') == 'down']
+            if len(downs) != 3:
+                faults.append(f'three quick taps on down sent {len(downs)} commands')
+            # Each integration's own keys, as Home Assistant's source has them: the row holds what that remote has.
+            for platform in ('androidtv_remote', 'roku', 'sky_remote', 'lg_netcast', 'jvc_projector'):
+                keypads['remote.apple_tv'] = platform
+                await push()
+                await asyncio.sleep(1.0)
+                card = await self.alarm_until(lambda c: c['open'], 'the card closed')
+                faults += [f'{platform} keypad: {f}' for f in card['faults'].split(';') if f]
+                await self.render(f'remote-keypad-{platform}')
+            await self.tap(*card['back'][:2])
+            await asyncio.sleep(0.6)
         await asyncio.sleep(1.6)
         await self.render('remote-tiles-end')
         self.failures += [f'remote: {f}' for f in faults]

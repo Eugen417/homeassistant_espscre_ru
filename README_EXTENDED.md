@@ -158,7 +158,9 @@ on the screen itself, and how updates work.
 - **Remote** (firmware 0.22.0, GitHub #117): a remote, such as a Harmony hub, an Android TV or an IR blaster, is a tile
   in Home Assistant's colours and icons, amber while on and a crossed-out remote while off. A tap opens its card, as
   Home Assistant's dialog does: the power key in the top bar and, where the remote has activities, one row per
-  activity, which turns it on with that activity. The tile names the activity it runs. Set **On tap** to **On / off**
+  activity, which turns it on with that activity. For a remote whose integration names its keys in its source (Apple
+  TV, Android TV, Roku, Sky, LG, Panasonic, Vizio, Xbox and more) the card is a keypad instead: four arrows round OK,
+  with Back, Home, Play/Pause and the volume where that remote has them. The tile names the activity it runs. Set **On tap** to **On / off**
   to switch it with a tap instead. Home Assistant lists no commands a remote knows, so a key is a tile of its own: set
   **On tap** to **Perform action**, choose **Send command** and pick the command, with the **Device** a Broadlink asks
   for, and give that tile its own name and icon. For thirteen integrations (Android TV, Apple TV, Roku, Sky, DirecTV,

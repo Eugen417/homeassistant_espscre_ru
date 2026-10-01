@@ -192,6 +192,15 @@ GROUPS = (
 # Glyphs the firmware draws itself (weather conditions, sun, checkmark, direct controls) that the picker does not offer.
 FIXED = (
     ('alert-circle-outline', 'F05D6'),
+    # A remote's keypad (firmware 0.22.0): the ring's arrows up and down beside chevron-left/-right, Back, Home,
+    # Play/Pause and the volume keys.
+    ('chevron-up', 'F0143'),
+    ('chevron-down', 'F0140'),
+    ('arrow-u-left-top', 'F17B3'),
+    ('play-pause', 'F040E'),
+    ('volume-plus', 'F075D'),
+    ('volume-minus', 'F075E'),
+    ('volume-mute', 'F075F'),
     ('check', 'F012C'),
     # Direct controls on wide cards (firmware 0.2.19+).
     ('pause', 'F03E4'),

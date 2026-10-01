@@ -31,7 +31,9 @@ VERSION = re.compile(r'^\d+\.\d+\.\d+$')
 FIRST_TYPES = frozenset('alarm_control_panel automation binary_sensor button camera climate cover fan image input_boolean input_button '
                         'input_number input_select light lock media_player number person scene screen script select sensor sun switch '
                         'timer vacuum weather'.split())
-TOP = {'domain', 'firmware', 'displays', 'controls', 'inline', 'toggle', 'taps', 'guards', 'picture', 'map', 'key'}
+TOP = {'domain', 'firmware', 'displays', 'controls', 'inline', 'toggle', 'taps', 'guards', 'picture', 'map', 'key', 'keypad'}
+# The keys of a remote's card (keypad): up, down, left, right and OK always, the rest where the remote has them.
+KEYPAD_KEYS = ('up', 'down', 'left', 'right', 'ok', 'back', 'home', 'play', 'volume_up', 'volume_down', 'mute')
 OPTION = {'needs', 'screen', 'sizes', 'wide', 'rows', 'of', 'one_row', 'fallback', 'range'}
 NEEDS = {'actions', 'features', 'history', 'attributes', 'unless'}
 SCREEN = {'firmware', 'feature', 'pictures', 'else'}
@@ -83,11 +85,32 @@ def load():
     return tile, types
 
 
-def normalise(tile, types, translations, facts):
+def keypad(where, value, commands):
+    """A remote's keypad per integration, every command one that integration takes (catalogue/_remote_commands.json)."""
+    if not isinstance(value, dict):
+        fail(where, 'must be a mapping of integrations')
+    out = {}
+    for platform, keys in value.items():
+        check_keys(f'{where} {platform}', keys, set(KEYPAD_KEYS))
+        if platform not in commands:
+            fail(where, f'{platform} has no commands in catalogue/_remote_commands.json: give it a rule in tools/read_remote_commands.py')
+        missing = {'up', 'down', 'left', 'right', 'ok'} - set(keys)
+        if missing:
+            fail(f'{where} {platform}', f'needs {", ".join(sorted(missing))}')
+        for key, command in keys.items():
+            if command not in commands[platform]['commands']:
+                fail(f'{where} {platform} {key}', f'{platform} takes no {command!r} (catalogue/_remote_commands.json)')
+        out[platform] = {key: keys[key] for key in KEYPAD_KEYS if key in keys}
+    return out
+
+
+def normalise(tile, types, translations, facts, commands=None):
     """The catalogue as its readers get it, checked across files and against Home Assistant's own facts
     (catalogue/_ha.json, read from its source by tools/read_ha_source.py): every action an option needs is one Home
     Assistant registers for that type, every feature one of its flags, every option named by another exists, every
     control has words."""
+    if commands is None:
+        commands = json.loads((SOURCE / '_remote_commands.json').read_text())['platforms']
     ha = {}
     for domain in types:
         known = facts['domains'].get(domain)
@@ -202,6 +225,7 @@ def normalise(tile, types, translations, facts):
             'guards': list(data.get('guards') or []),
             'picture': picture,
             'map': map_options,
+            'keypad': keypad(f'{where} keypad', data['keypad'], commands) if 'keypad' in data else None,
         }
     check_keys('catalogue/_tile.yaml', tile, {'taps', 'sizes', 'history_hours'})
     return {'version': 1, 'ha': facts['source'], 'tile': tile, 'domains': domains}
@@ -233,9 +257,9 @@ def outputs():
     tile, types = load()
     translations = json.loads((ROOT / 'screen_manager/translations/en.json').read_text())
     facts = json.loads((SOURCE / '_ha.json').read_text())
-    catalogue = normalise(tile, types, translations, facts)
-    text = json.dumps(catalogue, ensure_ascii=False, indent=1) + '\n'
     commands = json.loads((SOURCE / '_remote_commands.json').read_text())
+    catalogue = normalise(tile, types, translations, facts, commands['platforms'])
+    text = json.dumps(catalogue, ensure_ascii=False, indent=1) + '\n'
     return {'addon': text, 'editor': text, 'firmware': header(catalogue),
             'remote_commands': json.dumps(commands, ensure_ascii=False, indent=1) + '\n'}
 
