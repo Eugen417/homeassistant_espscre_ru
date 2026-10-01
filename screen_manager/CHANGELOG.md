@@ -1,3 +1,26 @@
+## 0.4.42 (firmware 0.24.0)
+
+- **The media card plays on the colours of its cover.** The card of a media player sits on a ground taken from the
+  cover that plays, with the speaker it plays on at the top: tap it to move the music to another one. Shuffle, repeat
+  and a bar you drag through the track are under the title, where the player has them.
+- **Your library on the screen.** The library key on the card opens what Home Assistant can browse on that player,
+  folder by folder (playlists, artists, albums and the rest), down to a page of covers with page dots for up to 48 of
+  them. A tap on a cover plays it on the speaker the card shows. Nothing is made for one service: it is the player and
+  its library as Home Assistant reports them.
+- **Favourite tiles.** A media player tile can be a favourite now (Display → Favourite): choose a playlist, album or
+  artist from the player's library in the editor and, if you like, the speaker it plays on. A tap starts it; the
+  favourite shows its cover behind its name, a play key, and a ring while it plays. Its picture waits with the same
+  spinner as every picture card.
+- **Spotify at rest keeps its card** (#88). A Spotify player that plays nothing still offers its library and its
+  speakers, so you choose a speaker and start from the screen, where the card used to have no keys at all.
+- **Cover is the default for a new media tile** on a screen that shows pictures. Tiles you already have stay as they
+  are; on the CYD and the other screens without pictures nothing changes.
+- The covers and the library need a screen with the memory for pictures. The CYD keeps the card on its cover colours,
+  the speakers and the favourites, drawn with icons.
+- Tested: on a Guition and a CYD on the bench with Spotify through Home Assistant: the card, the speakers, the
+  library, favourites, an alert camera and a camera full screen while covers load, and on the CYD 47 tiles through
+  restarts and resets. The CYD image is 92.9 % of its slot, 25 KB more than firmware 0.23.0.
+
 ## 0.4.41 (firmware 0.23.0)
 
 - **The editor draws what the screen draws, to the pixel.** A new check compares the editor's sizes and colours with
