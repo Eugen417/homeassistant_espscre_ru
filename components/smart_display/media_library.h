@@ -202,6 +202,15 @@ inline Menu menu_place(int width, int panel_w, int y, int room, int row_h, size_
 }
 
 // ---- what the rest of the firmware sees (media_library.cpp) ----
+// The library page is built on a board with PSRAM (every board that draws pictures): a board without it, such as the
+// CYD, has its flash nearly full and keeps the player, its speakers and the favourites, without the library. The host
+// renders and the editor's preview build it too.
+#if defined(USE_PSRAM) || !defined(USE_ESP32)
+constexpr bool LIBRARY = true;
+#else
+constexpr bool LIBRARY = false;
+#endif
+inline bool available() { return LIBRARY; }
 void open(const std::string &entity);
 void close();
 bool visible();

@@ -3689,9 +3689,10 @@ inline void media_top_bar(const Tile &t,lv_obj_t *back,lv_obj_t *heading,int wid
   set_color(heading,LV_STYLE_TEXT_COLOR,theme::rgb(media_ink()));
   auto cb=[](lv_event_t *e){detail_command((intptr_t)lv_event_get_user_data(e));};
   const lv_font_t *icons=mini_icon_font?mini_icon_font:detail_font;
-  const int right=x.media_library?bar+bar_x:0;
+  const bool library=x.media_library&&media_library::available();
+  const int right=library?bar+bar_x:0;
   media_pill_obj=media_library_key=nullptr;
-  if(x.media_library){
+  if(library){
     const media_card::Rect r{width-bar_x-bar,bar_y,bar,bar};
     auto *key=media_key(detail_root,nullptr,r,"\U000F0CB8",icons,false,false,true,cb,(void*)(intptr_t)27);
     media_dark_key(key,false,false,g);
@@ -3736,7 +3737,7 @@ inline void render_media_detail(Tile &t,unsigned index,bool large,int width,int 
   const uint32_t ink=media_ink(),soft=media_soft(g);
   // A player at rest whose library opens, with nothing to play or pause (Spotify playing nowhere): the card says how
   // to start it, and its one key is the library.
-  const bool rest=usable&&!track&&!media_off(t)&&x.media_library&&!(f&(feature::MEDIA_PLAY|feature::MEDIA_PAUSE));
+  const bool rest=usable&&!track&&!media_off(t)&&x.media_library&&media_library::available()&&!(f&(feature::MEDIA_PLAY|feature::MEDIA_PAUSE));
   // The cover, or its placeholder with the player's icon; the cover comes over it once the app served it.
   auto *frame=media_box(detail_root,nullptr,at(l.art),theme::hex(theme::CAMERA_PAGE),l.art_radius);
   lv_obj_set_style_bg_opa(frame,60,0);

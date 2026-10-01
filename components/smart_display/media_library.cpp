@@ -151,12 +151,13 @@ static void art_want() {
   art.feed.open(art.key, true);
 }
 void art_answer(const std::string &for_entity, const std::string &url) {
-  if (!root || for_entity != entity || !art.feed.open() || art.feed.loading) return;
+  if (!LIBRARY || !root || for_entity != entity || !art.feed.open() || art.feed.loading) return;
   art.feed.link(url);
   if (url.empty()) ESP_LOGI("library", "no covers for this page");
 }
 bool art_loading() { return art.feed.loading; }
 void art_loaded(bool ok) {
+  if (!LIBRARY) return;
   art.feed.finish(clock_ms(), ok);
   lv_image_dsc_t *src = ok && rt::camera_full.source ? rt::camera_full.source() : nullptr;
   lv_image_dsc_t *kept = src && src->data && !art.key.empty() && rt::pictures_kept() ? rt::pictures.put(art.key, *src, clock_ms()) : nullptr;
@@ -445,6 +446,7 @@ static void load(uint32_t token, const std::string &title) {
 
 // ---- the page ----
 void open(const std::string &id) {
+  if (!LIBRARY) return;
   const Tile *t = player(id);
   if (!t) return;
   close();
@@ -480,7 +482,7 @@ void close() {
   if (rt::detail_root && !lv_obj_has_flag(rt::detail_root, LV_OBJ_FLAG_HIDDEN) && rt::detail_index < rt::model.count) rt::refresh_detail(rt::detail_index);
 }
 void received(Answer &&answer) {
-  if (!root || answer.entity != entity) return;
+  if (!LIBRARY || !root || answer.entity != entity) return;
   if (!folder.take(std::move(answer))) return;
   tries = 0;
   if (!folder.complete) { ask(); return; }
@@ -633,13 +635,17 @@ void updated(const std::string &id) {
   }
 }
 void restyle() {
-  if (root) {
+  if (LIBRARY && root) {
     lv_obj_set_style_bg_color(root, theme::color(theme::PAGE), 0);
     draw();
   }
   if (menu_root) draw_menu();
 }
 void tick(uint32_t now) {
+  if (!LIBRARY) {
+    if (menu_root && menu_due && !finger_down()) draw_menu();
+    return;
+  }
   if (menu_root && menu_due && !finger_down()) draw_menu();
   if (root && !folder.complete && now - asked_at >= ASK_AGAIN_MS) {
     if (++tries >= ASK_TRIES) { folder.failed = folder.complete = true; draw(); }
