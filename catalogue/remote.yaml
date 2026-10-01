@@ -1,0 +1,13 @@
+# Remote. Home Assistant: homeassistant/components/remote.
+# Home Assistant's own facts for it (flags, actions) come from its source: catalogue/_ha.json (tools/read_ha_source.py).
+# docs/CATALOGUE.md says what every key means.
+# Home Assistant offers no list of the commands a remote knows, so a key for one is a tile set to Perform action with
+# remote.send_command, a command typed by hand (GitHub #117).
+domain: remote
+firmware: 0.22.0   # the first firmware that draws this type
+displays:
+  standard: {}
+  watch: {}
+controls:
+  toggle:
+    needs: {actions: [remote.toggle]}

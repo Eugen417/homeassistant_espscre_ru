@@ -98,7 +98,7 @@ REF = 'main'
 # The shared firmware of this app release: packages/core.yaml's SCREEN_FIRMWARE_VERSION, what every board builds
 # unless its own board file went ahead with a fix for that board alone (firmware_target, docs/BOARD_RELEASES.md). The
 # middle number is the core: the feature gates below name a shared X.Y.0, so a feature always ships with a new core.
-FIRMWARE_VERSION = '0.21.0'
+FIRMWARE_VERSION = '0.22.0'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -127,7 +127,7 @@ LOCK_GUARDS = tuple(catalogue.of_type('lock')['guards'])
 # An automation as a tile (GitHub #62): a tap switches it on or off and holding runs its actions, or with the tap option
 # `run` the other way round. Older firmware refuses the domain, so a layout with one waits for the update.
 AUTOMATION_MIN_FIRMWARE = catalogue.parse_version(catalogue.of_type('automation')['firmware'])
-ATTRS = frozenset('brightness percentage current_position current_tilt_position current_temperature temperature target_temp_low target_temp_high current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hvac_action hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level is_volume_muted media_title options min max step temperature_unit supported_features device_class next_rising next_setting finishes_at duration remaining humidity wind_speed wind_speed_unit apparent_temperature fan_modes swing_modes fan_mode swing_mode effect code_format code_arm_required changed_by assumed_state'.split())
+ATTRS = frozenset('brightness percentage current_position current_tilt_position current_temperature temperature target_temp_low target_temp_high current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hvac_action hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level is_volume_muted media_title options min max step temperature_unit supported_features device_class next_rising next_setting finishes_at duration remaining humidity wind_speed wind_speed_unit apparent_temperature fan_modes swing_modes fan_mode swing_mode effect code_format code_arm_required changed_by assumed_state activity_list current_activity'.split())
 # Attributes whose boolean value the screen needs; every other bool stays behind.
 BOOL_ATTRS = frozenset(['is_volume_muted', 'code_arm_required', 'assumed_state'])
 
@@ -2123,7 +2123,8 @@ def state_message(index, tile, states, extra=None, precision=None, entry=None, u
         elif isinstance(value, list):
             # Attribute lists have bounded lengths, strings and numeric ranges.
             # A select's options run to sixteen (firmware 0.3.3 pages through them; older firmware keeps the first eight).
-            limit = 2 if key == 'hs_color' else 4 if key == 'fan_speed_list' else 16 if key == 'options' else 8
+            # A remote's activities (firmware 0.22.0+) are a select's options on its card, so they run to sixteen too.
+            limit = 2 if key == 'hs_color' else 4 if key == 'fan_speed_list' else 16 if key in ('options', 'activity_list') else 8
             bounded[key] = [short(v, 48) if isinstance(v, str) else v for v in value[:limit]
                             if isinstance(v, str) or isinstance(v, (float, int)) and math.isfinite(v) and abs(v) <= 1000000]
     # A thermostat without a step of its own steps as Home Assistant's own controls step it: 1 degree in Fahrenheit,

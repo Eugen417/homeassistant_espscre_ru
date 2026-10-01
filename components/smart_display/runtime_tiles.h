@@ -906,6 +906,16 @@ inline void detail_command(int cmd){
   // A row of the select card: chosen at once on the card, confirmed by Home Assistant's next state.
   if(cmd>=SELECT_OPTION_FIRST&&cmd<SELECT_OPTION_FIRST+64&&cmd-SELECT_OPTION_FIRST<(int)t.extra().options.size()){
     const std::string option=t.extra().options[cmd-SELECT_OPTION_FIRST];
+    // A remote's activity (firmware 0.22.0+) turns it on with that activity, as Home Assistant's dialog does
+    // (more-info-remote.ts: remote.turn_on with `activity`). The row shows the choice at once.
+    if(t.domain()=="remote"){
+      if(option==t.extra().activity&&t.state=="on")return;
+      if(auto *x=t.extra_ptr())x->activity=option;
+      t.optimistic(true);t.begin(esphome::millis());
+      action("remote.turn_on",t.entity,"activity",option);
+      redraw_detail();
+      return;
+    }
     if(option==t.state)return;
     t.state=option;t.begin(esphome::millis());
     action(t.domain()+".select_option",t.entity,"option",option);
@@ -1165,7 +1175,8 @@ inline void select_pager_event(lv_event_t *e){
   select_page+=(int)(intptr_t)lv_event_get_user_data(e);
   redraw_detail();
 }
-inline void render_select_detail(const Tile &t,bool large,int width,int height,int pad,int top){
+// What is chosen: a select's state, or the activity a remote runs (firmware 0.22.0+).
+inline void render_select_detail(const Tile &t,bool large,int width,int height,int pad,int top,const std::string &current){
   const auto &options=t.extra().options;
   const int n=(int)options.size();
   if(!n)return;
@@ -1187,7 +1198,6 @@ inline void render_select_detail(const Tile &t,bool large,int width,int height,i
   const int card_h=2*inset+used_rows*row_h+(used_rows-1)*gap,x=(width-card_w)/2;
   auto *card=detail_card(x,top,card_w,card_h);
   const int col_w=(card_w-2*inset-(columns-1)*gap)/columns;
-  const std::string current=t.state;
   for(int k=0;k<shown;++k){
     const int i=first+k,c=k/used_rows,r=k%used_rows;
     const bool chosen=options[i]==current;
@@ -1741,6 +1751,32 @@ inline lv_obj_t *climate_round_key(const climate_card::Rect &r,const char *icon,
   lv_obj_set_style_text_color(glyph,theme::color(ink),0);
   lv_obj_set_size(glyph,LV_SIZE_CONTENT,LV_SIZE_CONTENT);lv_obj_center(glyph);
   return key;
+}
+// A remote's card (firmware 0.22.0+), what Home Assistant's dialog has for it (more-info-remote.ts): on and off, and its
+// activities where it supports them (Harmony, Android TV Remote), each of which turns it on with that activity. The power
+// key sits in the top bar across from the back key, where the light's and the thermostat's have theirs; the activities
+// are the select card's rows. Home Assistant lists no commands, so a remote's keys are tiles of their own that perform
+// remote.send_command.
+inline void render_remote_detail(const Tile &t,bool large,int width,int height,int pad,int top,int bar,int bar_x,int bar_y){
+  const bool on=t.state=="on";
+  const auto fill=on?theme::ACCENT_TINT:theme::KEY,ink=on?theme::ACCENT_ICON:theme::ICON_OFF;
+  if(t.extra().options.empty()){
+    // Nothing but on and off (a Broadlink, an Apple TV): one big power key in the middle, its state under it.
+    const lv_font_t *icons=tile_icon_font();
+    const int side=ui::px(large?120:76);
+    climate_round_key({(width-side)/2,top,side,side},tile_controls::glyph::POWER,icons?icons:detail_font,fill,ink,LIGHT_POWER);
+    if(detail_status)lv_obj_set_y(detail_status,top+side+ui::px(large?12:6));
+    return;
+  }
+  // The activities say what runs and the lit key that it is on, so the card draws no state line of its own. The key
+  // stays in the top bar while the rows below it are centred.
+  if(detail_status){lv_obj_add_flag(detail_status,LV_OBJ_FLAG_HIDDEN);detail_status=nullptr;}
+  auto *key=climate_round_key({width-bar_x-bar,bar_y,bar,bar},tile_controls::glyph::POWER,
+                              mini_icon_font?mini_icon_font:detail_font,fill,ink,LIGHT_POWER);
+  lv_obj_move_to_index(key,2);
+  render_select_detail(t,large,width,height,pad,top,on?t.extra().activity:std::string());
+  overlay_card::centre(detail_root,3);
+  detail_placed=true;
 }
 // ---- Light and fan card (firmware 0.2.80): the last card that was built in YAML ----
 // A light without colour and a fan open this: a white card with a standing slider, the value under it and what
@@ -3511,8 +3547,10 @@ inline void show_detail(unsigned index){
   }else if(d=="cover"){
     if(detail_status && control_font){lv_obj_set_style_text_font(detail_status,control_font,0);lv_obj_set_height(detail_status,lv_font_get_line_height(control_font));}
     render_cover_detail(t,large,width,height,pad,columns);
+  }else if(d=="remote"){
+    render_remote_detail(t,large,width,height,pad,top,bar,bar_x,bar_y);
   }else if(d=="select"||d=="input_select"){
-    render_select_detail(t,large,width,height,pad,top);
+    render_select_detail(t,large,width,height,pad,top,t.state);
   }else if(d=="media_player"){
     // "Now playing" (firmware 0.2.64+): the cover, the track, a running progress bar, round keys and the volume row.
     render_media_detail(t,index,large,width,height,bar_y+bar+(ui::px(large?8:4)));
@@ -3600,6 +3638,9 @@ inline const char *icon_for(const Tile &tile) {
   // Home Assistant's automation icons (automation/icons.json): a robot, crossed out while off.
   if (d == "automation" && tile.state == "off") return "\U000F16A7";
   if (d == "automation") return "\U000F06A9";
+  // Home Assistant's remote icons (remote/icons.json), crossed out while off (firmware 0.22.0+).
+  if (d == "remote" && tile.state == "off") return "\U000F0EC4";
+  if (d == "remote") return "\U000F0454";
   if (d == "weather") return tile.available() ? weather_icon(tile.state) : "\U000F0595";
   if (d == "sensor" || d == "binary_sensor") return "\U000F029A";
   if (d == "sun") return tile.state == "above_horizon" ? "\U000F059B" : "\U000F059C";
@@ -3734,7 +3775,7 @@ inline void event(lv_event_t *event) {
   switch (tap.route) {
     case tile_controls::TapRoute::ACTION:
       // On / off shows the new stand at once, as Home Assistant's switch does; other actions have nothing to show yet.
-      if (tap.service == d + ".toggle" && (d == "light" || d == "switch" || d == "input_boolean" || d == "fan" || d == "automation"))
+      if (tap.service == d + ".toggle" && (d == "light" || d == "switch" || d == "input_boolean" || d == "fan" || d == "automation" || d == "remote"))
         tile.optimistic(tile.state != "on");
       action(tap.service, tile.entity, "", "", true);
       return;
@@ -5926,6 +5967,8 @@ inline void render_slot(size_t slot) {
   else if (d == "script" || d == "scene" || d == "button" || d == "input_button") value = t.state == "on" ? std::string(tr(txt::script_running)) : last_run_text(t.last_run);
   // An automation that runs on a tap says what a script's button says, and Off while it is switched off: its actions
   // still run on a tap then, but nothing starts them on their own (firmware 0.7.0+).
+  // A remote that runs an activity names it, as the Harmony hub does (firmware 0.22.0+); otherwise On or Off.
+  else if (d == "remote" && t.state == "on" && !t.extra().activity.empty()) value = t.extra().activity;
   else if (t.runs()) value = t.running ? std::string(tr(txt::script_running)) : t.state == "off" ? std::string(tr(txt::ha_off)) : last_run_text(t.last_run);
   else if (d == "camera") value = tr(t.state == "streaming" ? txt::camera_live : t.state == "recording" ? txt::camera_recording : txt::camera_tap_to_view);
   else if (d == "image") value = tr(t.last_run ? txt::camera_tap_to_view : txt::camera_no_image_yet);
@@ -6439,7 +6482,7 @@ inline uint16_t prepare_joke(int page) {
     if (d == "vacuum" || d == "lawn_mower") return txt::preparing_vacuum;
     if (d == "sun") return txt::preparing_sun;
     if (d == "scene" || d == "script" || d == "automation") return txt::preparing_scene;
-    if (d == "switch" || d == "input_boolean" || d == "fan") return txt::preparing_switch;
+    if (d == "switch" || d == "input_boolean" || d == "fan" || d == "remote") return txt::preparing_switch;
     if (d == "sensor" || d == "binary_sensor") return txt::preparing_sensor;
   }
   return txt::preparing_default;

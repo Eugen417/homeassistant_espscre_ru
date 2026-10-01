@@ -843,6 +843,9 @@
         },
         "input_button": {
           "run": "Przycisk Naciśnij"
+        },
+        "remote": {
+          "toggle": "Przełącznik wł./wył."
         }
       },
       "top_bar": {
@@ -1428,6 +1431,7 @@
         "button": "Akcje",
         "script": "Skrypty",
         "automation": "Automatyzacje",
+        "remote": "Piloty",
         "fan": "Wentylatory",
         "cover": "Osłony",
         "scene": "Sceny",
@@ -1468,6 +1472,7 @@
       "switch": "Przełącznik",
       "input_boolean": "Przełącznik",
       "automation": "Automatyzacja",
+      "remote": "Pilot",
       "scene": "Scena",
       "script": "Skrypt",
       "weather": "Pogoda",

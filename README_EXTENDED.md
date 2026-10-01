@@ -155,6 +155,14 @@ on the screen itself, and how updates work.
   skipped. For an automation you mostly run by hand, set **On tap** to **Run automation actions**: then a tap runs it and holding
   the tile turns it on or off. That tile looks like a script's button: grey at rest with when it last ran, amber while
   its actions run, and Off while nothing starts it on its own. A double-width tile carries a switch or a Run key.
+- **Remote** (firmware 0.22.0, GitHub #117): a remote, such as a Harmony hub, an Android TV or an IR blaster, is a tile
+  in Home Assistant's colours and icons, amber while on and a crossed-out remote while off. A tap opens its card, as
+  Home Assistant's dialog does: the power key in the top bar and, where the remote has activities, one row per
+  activity, which turns it on with that activity. The tile names the activity it runs. Set **On tap** to **On / off**
+  to switch it with a tap instead. Home Assistant lists no commands a remote knows, so a key is a tile of its own: set
+  **On tap** to **Perform action**, choose **Send command** and type the command, such as `play`, with the **Device**
+  a Broadlink asks for, and give that tile its own name and icon. For an IR blaster "on" means it may send, not that
+  the device behind it runs: a Broadlink that is off drops every command.
 - **Direct control on double-width tiles** (firmware 0.2.19+), like the rows in
   Home Assistant: temperature − / + or mode buttons (climate), a toggle (switch,
   light, fan), start/stop/dock (vacuum), open/stop/close or a

@@ -519,6 +519,22 @@
    "enum": null,
    "features": {}
   },
+  "remote": {
+   "actions": {
+    "delete_command": [],
+    "learn_command": [],
+    "send_command": [],
+    "toggle": [],
+    "turn_off": [],
+    "turn_on": []
+   },
+   "enum": "RemoteEntityFeature",
+   "features": {
+    "ACTIVITY": 4,
+    "DELETE_COMMAND": 2,
+    "LEARN_COMMAND": 1
+   }
+  },
   "scene": {
    "actions": {
     "turn_on": []

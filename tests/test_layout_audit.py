@@ -60,6 +60,9 @@ KINDS = {
     'vacuum': ('vacuum.audit', 'docked', {'battery_level': 80, 'supported_features': 30524}, ()),
     'person': ('person.audit', 'home', {}, ()),
     'scene': ('scene.audit', 'scening', {}, ()),
+    # A remote (firmware 0.22.0): the activity it runs is its second line, long names included.
+    'remote': ('remote.audit', 'on', {'supported_features': 4, 'current_activity': 'Watch a film on the big screen downstairs',
+                                      'activity_list': ['Watch TV', 'Watch a film on the big screen downstairs', 'Listen to music']}, ()),
 }
 
 

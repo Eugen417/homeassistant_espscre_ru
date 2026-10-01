@@ -843,6 +843,9 @@
         },
         "input_button": {
           "run": "Botão para premir"
+        },
+        "remote": {
+          "toggle": "Interruptor"
         }
       },
       "top_bar": {
@@ -1428,6 +1431,7 @@
         "button": "Ações",
         "script": "Scripts",
         "automation": "Automatizações",
+        "remote": "Comandos",
         "fan": "Ventoinhas",
         "cover": "Coberturas",
         "scene": "Cenas",
@@ -1468,6 +1472,7 @@
       "switch": "Interruptor",
       "input_boolean": "Interruptor",
       "automation": "Automatização",
+      "remote": "Comando",
       "scene": "Cena",
       "script": "Script",
       "weather": "Clima",

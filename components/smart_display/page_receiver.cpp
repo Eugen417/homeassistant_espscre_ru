@@ -594,6 +594,11 @@ std::string receive(const std::string &payload) {
     // Sixteen options at most (firmware 0.3.3, eight before): the select card pages through what it cannot show at once.
     if (a["options"].is<JsonArray>()) for(JsonVariant option:a["options"].as<JsonArray>()) {
       if(next.options.size()==16)break;next.options.push_back(string(option,48)); }
+    // A remote's activities and the one it runs (firmware 0.22.0+): Home Assistant names them only where the remote
+    // supports ACTIVITY, and the card lists them as a select's options.
+    if (a["activity_list"].is<JsonArray>()) for(JsonVariant option:a["activity_list"].as<JsonArray>()) {
+      if(next.options.size()==16)break;next.options.push_back(string(option,48)); }
+    next.activity=string(a["current_activity"],48);
     tile.battery=number(a["battery_level"]);tile.volume=number(a["volume_level"]);
     tile.muted=a["is_volume_muted"].is<bool>() && a["is_volume_muted"].as<bool>();
     tile.device_class=string(a["device_class"],24);next.hvac_action=string(a["hvac_action"],24);

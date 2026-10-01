@@ -843,6 +843,9 @@
         },
         "input_button": {
           "run": "Pulsante Premi"
+        },
+        "remote": {
+          "toggle": "Interruttore acceso/spento"
         }
       },
       "top_bar": {
@@ -1428,6 +1431,7 @@
         "button": "Azioni",
         "script": "Script",
         "automation": "Automazioni",
+        "remote": "Telecomandi",
         "fan": "Ventilatori",
         "cover": "Coperture",
         "scene": "Scene",
@@ -1468,6 +1472,7 @@
       "switch": "Interruttore",
       "input_boolean": "Interruttore",
       "automation": "Automazione",
+      "remote": "Telecomando",
       "scene": "Scena",
       "script": "Script",
       "weather": "Meteo",

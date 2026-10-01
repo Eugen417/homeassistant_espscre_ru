@@ -18,7 +18,7 @@ import UiSwitch from "./ui/UiSwitch.vue";
 // The domains to filter on; the label of each is editor.library.filters.<domain>, "all" for no filter.
 const FILTERS = [
   "", "light", "climate", "switch", "binary_sensor", "button", "script", "automation", "fan", "cover", "scene", "vacuum", "sensor",
-  "media_player", "weather", "number", "select", "person", "timer", "screen", "alarm_control_panel", "lock",
+  "media_player", "remote", "weather", "number", "select", "person", "timer", "screen", "alarm_control_panel", "lock",
 ];
 const ALIAS: Record<string, string> = { switch: "input_boolean", number: "input_number", select: "input_select", weather: "sun", button: "input_button" };
 const SHOWN = 80;
@@ -101,7 +101,7 @@ const count = computed(() => state.inventory.entities.length);
 const tone = (e: { id: string; state?: string }) => {
   const domain = e.id.split(".")[0];
   if (e.state === "unavailable" || e.state === "unknown") return "gone";
-  if (["light", "switch", "input_boolean", "automation", "fan"].includes(domain) && e.state === "on") return "on";
+  if (["light", "switch", "input_boolean", "automation", "remote", "fan"].includes(domain) && e.state === "on") return "on";
   return "";
 };
 // The name without its device's name in front, the way Home Assistant shows an entity on its device's card:

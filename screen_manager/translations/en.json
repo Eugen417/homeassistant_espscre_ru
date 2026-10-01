@@ -843,6 +843,9 @@
         },
         "input_button": {
           "run": "Press button"
+        },
+        "remote": {
+          "toggle": "On/off switch"
         }
       },
       "top_bar": {
@@ -1428,6 +1431,7 @@
         "button": "Actions",
         "script": "Scripts",
         "automation": "Automations",
+        "remote": "Remotes",
         "fan": "Fans",
         "cover": "Covers",
         "scene": "Scenes",
@@ -1468,6 +1472,7 @@
       "switch": "Switch",
       "input_boolean": "Switch",
       "automation": "Automation",
+      "remote": "Remote",
       "scene": "Scene",
       "script": "Script",
       "weather": "Weather",

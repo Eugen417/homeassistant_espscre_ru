@@ -843,6 +843,9 @@
         },
         "input_button": {
           "run": "Bouton Appuyer"
+        },
+        "remote": {
+          "toggle": "Interrupteur marche/arrêt"
         }
       },
       "top_bar": {
@@ -1428,6 +1431,7 @@
         "button": "Actions",
         "script": "Scripts",
         "automation": "Automatisations",
+        "remote": "Télécommandes",
         "fan": "Ventilateurs",
         "cover": "Ouvertures",
         "scene": "Scènes",
@@ -1468,6 +1472,7 @@
       "switch": "Interrupteur",
       "input_boolean": "Interrupteur",
       "automation": "Automatisation",
+      "remote": "Télécommande",
       "scene": "Scène",
       "script": "Script",
       "weather": "Météo",

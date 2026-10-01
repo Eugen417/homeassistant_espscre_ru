@@ -166,8 +166,9 @@ inline uint32_t accent(const Tile &t) {
   using namespace theme::ha;
   const auto d = t.domain();
   if (d == "binary_sensor") return alarm_class(t.device_class) ? RED : AMBER;
-  // An automation has no colour of its own in Home Assistant: on (or running, when a tap runs it) is --state-active-color.
-  if (d == "light" || d == "switch" || d == "input_boolean" || d == "script" || d == "automation" || d == "timer" || d == "camera") return AMBER;
+  // An automation and a remote have no colour of their own in Home Assistant: on (or running, when a tap runs an
+  // automation) is --state-active-color.
+  if (d == "light" || d == "switch" || d == "input_boolean" || d == "script" || d == "automation" || d == "remote" || d == "timer" || d == "camera") return AMBER;
   if (d == "climate") { const uint32_t c = mode_color(t.state); return c == GREY ? AMBER : c; }
   if (d == "vacuum") return t.state == "error" ? RED : TEAL;
   if (d == "fan") return CYAN;
@@ -638,7 +639,7 @@ inline Action key_action(const Tile &t, int command, const std::string &arg = ""
       if (d == "automation") return {"automation.trigger", "", ""};
       return {};
     case TOGGLE:
-      if (d == "light" || d == "switch" || d == "input_boolean" || d == "fan" || d == "automation") return {d + (t.state == "on" ? ".turn_off" : ".turn_on"), "", ""};
+      if (d == "light" || d == "switch" || d == "input_boolean" || d == "fan" || d == "automation" || d == "remote") return {d + (t.state == "on" ? ".turn_off" : ".turn_on"), "", ""};
       return {};
     default: return {};
   }
@@ -760,7 +761,10 @@ struct Tap { TapRoute route = TapRoute::NONE; std::string service; bool busy = f
 inline bool runtime_card_domain(const std::string &d) {
   return d == "sensor" || d == "binary_sensor" || d == "weather" || d == "number" || d == "input_number" || d == "select" ||
          d == "input_select" || d == "media_player" || d == "vacuum" || d == "cover" || d == "sun" || d == "person" ||
-         d == "timer" || d == "climate" || d == "alarm_control_panel";
+         d == "timer" || d == "climate" || d == "alarm_control_panel" ||
+         // A remote opens its card, as Home Assistant's tile card opens its dialog: the power key and its activities
+         // (firmware 0.22.0+). The tap option `toggle` switches it instead.
+         d == "remote";
 }
 // Whether a light offers a colour or a colour temperature, and so opens the colour card instead of the card
 // with the brightness slider. The modes come from Home Assistant as one string (`supported_color_modes`) and
@@ -798,7 +802,7 @@ inline bool panel_available(const Tile &t) {
   if(mode=="volume")return domain=="media_player"&&(t.supported&(feature::MEDIA_VOLUME_SET|feature::MEDIA_VOLUME_MUTE));
   if(mode=="setpoint")return domain=="climate"&&(t.supported&(feature::CLIMATE_TEMPERATURE|feature::CLIMATE_RANGE)); // one or a range (firmware 0.19.0)
   if(mode=="slider"||mode=="stepper")return domain=="number"||domain=="input_number";
-  if(mode=="toggle")return domain=="light"||domain=="switch"||domain=="input_boolean"||domain=="fan"||domain=="automation";
+  if(mode=="toggle")return domain=="light"||domain=="switch"||domain=="input_boolean"||domain=="fan"||domain=="automation"||domain=="remote";
   if(mode=="run")return domain=="scene"||domain=="script"||domain=="button"||domain=="input_button"||domain=="automation";
   return false;
 }

@@ -311,6 +311,7 @@ export const domains: Record<string, [string, string, string]> = {
   switch: ["⏻", "#ad7600", "#fff3d3"],
   input_boolean: ["⏻", "#ad7600", "#fff3d3"],
   automation: ["⚙", "#ad7600", "#fff3d3"],
+  remote: ["⌘", "#ad7600", "#fff3d3"],
   scene: ["✦", "#8053af", "#eee5f8"],
   script: ["▷", "#8053af", "#eee5f8"],
   weather: ["☁", "#007cad", "#def2fc"],

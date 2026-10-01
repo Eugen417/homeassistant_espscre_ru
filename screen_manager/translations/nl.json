@@ -843,6 +843,9 @@
         },
         "input_button": {
           "run": "Knop Klik"
+        },
+        "remote": {
+          "toggle": "Aan/uit-schakelaar"
         }
       },
       "top_bar": {
@@ -1428,6 +1431,7 @@
         "button": "Acties",
         "script": "Scripts",
         "automation": "Automatiseringen",
+        "remote": "Afstandsbedieningen",
         "fan": "Ventilatoren",
         "cover": "Raambekleding",
         "scene": "Scènes",
@@ -1468,6 +1472,7 @@
       "switch": "Schakelaar",
       "input_boolean": "Schakelaar",
       "automation": "Automatisering",
+      "remote": "Afstandsbediening",
       "scene": "Scène",
       "script": "Script",
       "weather": "Weer",

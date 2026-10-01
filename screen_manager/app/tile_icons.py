@@ -331,6 +331,9 @@ HA_DEFAULTS = (
     ('robot', 'F06A9'),
     ('robot-confused', 'F169F'),
     ('robot-off', 'F16A7'),
+    # A remote (firmware 0.22.0+), as Home Assistant draws it on and off (remote/icons.json).
+    ('remote', 'F0454'),
+    ('remote-off', 'F0EC4'),
     ('script-text-play', 'F1727'),
     ('security', 'F0483'),
     ('shield', 'F0498'),
@@ -384,7 +387,7 @@ GLYPHS = {**{name: codepoint for name, (codepoint, _) in ICONS.items()}, **dict(
 
 # Mirrors runtime_tiles::icon_for() so the editor mockup shows what the screen draws.
 DEFAULTS = {'light': 'lightbulb', 'climate': 'air-conditioner', 'vacuum': 'robot-vacuum', 'fan': 'fan',
-            'cover': 'window-shutter', 'scene': 'sofa', 'script': 'sofa', 'automation': 'robot', 'sensor': 'gauge', 'binary_sensor': 'gauge',
+            'cover': 'window-shutter', 'scene': 'sofa', 'script': 'sofa', 'automation': 'robot', 'remote': 'remote', 'sensor': 'gauge', 'binary_sensor': 'gauge',
             'timer': 'timer-outline', 'person': 'account', 'camera': 'cctv', 'image': 'cctv', 'screen': 'clock-outline'}
 # The cards the screen brings itself: one icon per entity, not per domain.
 BUILTIN_TILES = {'screen.clock': 'clock-outline', 'screen.settings': 'cog', 'screen.map': 'map-marker', **{f'screen.page_{n}': 'arrow-right' for n in range(1, 9)}}
@@ -392,7 +395,7 @@ FALLBACK = 'power'
 # The large icon font of a card that takes the whole page (firmware 0.2.62+): what the screen draws on its own for a
 # domain, a state or a built-in card, at 64 px on the Guition and 40 px on the CYD. Kept to these so the CYD's flash
 # stays free; a chosen icon outside this set shows at its usual size in the big circle.
-BIG_GLYPHS = tuple(dict.fromkeys(list(DEFAULTS.values()) + list(BUILTIN_TILES.values()) + ['lightbulb-off', 'robot-off', FALLBACK] +
+BIG_GLYPHS = tuple(dict.fromkeys(list(DEFAULTS.values()) + list(BUILTIN_TILES.values()) + ['lightbulb-off', 'robot-off', 'remote-off', FALLBACK] +
                                  ['weather-sunny', 'weather-night', 'weather-cloudy', 'weather-partly-cloudy', 'weather-rainy',
                                   'weather-pouring', 'weather-snowy', 'weather-snowy-rainy', 'weather-fog', 'weather-hail',
                                   'weather-lightning', 'weather-lightning-rainy', 'weather-windy', 'alert-circle-outline',

@@ -206,8 +206,10 @@ struct Extra {
   // The range a thermostat keeps the room in (target_temp_low and target_temp_high, firmware 0.19.0), where it has
   // one instead of a single temperature: heat_cool, and auto on some.
   float target_low = NAN, target_high = NAN;
-  // A select's options, at most eight.
+  // A select's options, sixteen at most; a remote's activities (activity_list, firmware 0.22.0+) are these too.
   std::vector<std::string> options;
+  // The activity a remote runs (current_activity, firmware 0.22.0+): Harmony's and Android TV Remote's.
+  std::string activity;
   // Weather: up to five days and eight hours.
   std::vector<Forecast> forecast;
   std::vector<Hour> hours;
@@ -266,7 +268,7 @@ struct Extra {
            choices.empty() && room.empty() && !charging && std::isnan(tilt) && action.empty() && action_data.empty() &&
            action_templates.empty() && state_word.empty() && subtitle.empty() && !subtitle_at && effect.empty() &&
            option_rows.empty() && number_rows.empty() && lamps.empty() && code_format.empty() && changed_by.empty() && !arm_code_free &&
-           !code_saved && !alarm_end && !alarm_delay && !assumed;
+           !code_saved && !alarm_end && !alarm_delay && !assumed && activity.empty();
   }
 };
 // The numbers of a clock text ("0:05:00", "07:45"), at most `max` of them, each after optional white space, up to the

@@ -1,3 +1,19 @@
+## 0.4.38 (firmware 0.22.0)
+
+- **Remotes in the library** (#117). A remote (`remote.*`, such as a Harmony hub, an Android TV, or a Broadlink or other
+  IR blaster) is a tile now, with Home Assistant's icons and colours: amber while on, the crossed-out remote while off.
+  A tap opens its card, as Home Assistant's tile card opens its dialog: the power key in the top bar, where the light's
+  and the thermostat's have theirs, and the remote's activities where it has them (Harmony, Android TV Remote), each of
+  which turns it on with that activity. The tile names the activity it runs. Set the tap to **On / off** to switch it
+  with a tap instead; a wide tile carries the switch.
+- **A key of a remote is a tile of its own**: set its tap to **Perform action**, choose **Send command** and type the
+  command (`play`, `menu`, `power`), with the device for a Broadlink. Home Assistant lists no commands a remote knows,
+  so they are typed as in Home Assistant itself. Give each key its own name and icon.
+- A remote's "on" says the remote may send, not that the device behind it runs: a Broadlink that is off drops every
+  command. Name the tile after the remote, and power the player with a command tile of its own.
+- Needs firmware 0.22.0: a screen with a remote tile is offered the update before its layout goes out. CYD image is
+  1,672,272 B, 91.1 % of its slot, 3.8 KB more. Built: CYD, Guition 4848S040, JC8012P4A1, Waveshare 7.
+
 ## 0.4.37 (firmware 0.21.0)
 
 - **The editor on a phone** (#124). On a narrow window the library stood in the middle of the page with the pages

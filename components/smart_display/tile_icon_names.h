@@ -282,6 +282,8 @@ inline constexpr Named NAMES[] = {
   {"robot", 0xF06A9},
   {"robot-confused", 0xF169F},
   {"robot-off", 0xF16A7},
+  {"remote", 0xF0454},
+  {"remote-off", 0xF0EC4},
   {"script-text-play", 0xF1727},
   {"security", 0xF0483},
   {"shield", 0xF0498},

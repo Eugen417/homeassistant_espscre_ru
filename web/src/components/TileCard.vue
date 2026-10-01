@@ -185,7 +185,7 @@ const runs = computed(() => domain.value === "automation" && props.tile.options?
 const palette = computed(() => tilePalette(props.tile.entity, current.value, runs.value));
 const gone = computed(() => !current.value || ["unavailable", "unknown", ""].includes(current.value.state));
 const on = computed(() => tileActive(props.tile.entity, current.value, runs.value));
-const isOn = computed(() => (["light", "switch", "input_boolean", "fan"].includes(domain.value) || domain.value === "automation" && !runs.value) && current.value?.state === "on");
+const isOn = computed(() => (["light", "switch", "input_boolean", "fan", "remote"].includes(domain.value) || domain.value === "automation" && !runs.value) && current.value?.state === "on");
 const unit = computed(() => current.value?.a?.unit_of_measurement as string | undefined);
 const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1).replace(/_/g, " ");
 // Numbers as the screens write them, "1,234.5" or "1.234,5" (app 0.2.90): a state only with a unit, or of an entity
@@ -239,6 +239,8 @@ const status = computed(() => {
   if (domain.value === "weather") return `${word}${a.temperature !== undefined ? ` · ${num(a.temperature)}°` : ""}`;
   if (domain.value === "cover" && a.current_position !== undefined && a.current_position > 0 && a.current_position < 100) return `${word} · ${a.current_position}${unitSuffix("%")}`;
   if (domain.value === "media_player" && a.media_title) return `${word} · ${a.media_title}`;
+  // A remote that runs an activity names it (firmware 0.22.0+), as the screen does.
+  if (domain.value === "remote" && c.state === "on" && a.current_activity) return String(a.current_activity);
   if (domain.value === "sensor" || NUMERIC.includes(domain.value)) return value(c.state);
   return word;
 });

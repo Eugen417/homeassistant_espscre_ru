@@ -41,7 +41,7 @@ function accent(entity: string, value: Value) {
     const channel = (n: number) => { const k = (n + hue / 60) % 6; return Math.round(255 * (1 - saturation * Math.max(0, Math.min(k, 4 - k, 1)))); };
     return (channel(5) << 16) | (channel(3) << 8) | channel(1);
   }
-  if (["light", "switch", "input_boolean", "script", "automation", "timer", "camera"].includes(domain)) return c.AMBER;
+  if (["light", "switch", "input_boolean", "script", "automation", "remote", "timer", "camera"].includes(domain)) return c.AMBER;
   if (domain === "climate") return modes[state] || c.AMBER;
   if (domain === "vacuum") return state === "error" ? c.RED : c.TEAL;
   if (domain === "fan") return c.CYAN;

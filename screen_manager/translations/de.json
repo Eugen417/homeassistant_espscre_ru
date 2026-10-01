@@ -843,6 +843,9 @@
         },
         "input_button": {
           "run": "Taste „Drücken“"
+        },
+        "remote": {
+          "toggle": "Ein/Aus-Schalter"
         }
       },
       "top_bar": {
@@ -1428,6 +1431,7 @@
         "button": "Aktionen",
         "script": "Skripte",
         "automation": "Automationen",
+        "remote": "Fernbedienungen",
         "fan": "Ventilatoren",
         "cover": "Abdeckungen",
         "scene": "Szenen",
@@ -1468,6 +1472,7 @@
       "switch": "Schalter",
       "input_boolean": "Schalter",
       "automation": "Automation",
+      "remote": "Fernbedienung",
       "scene": "Szene",
       "script": "Skript",
       "weather": "Wetter",

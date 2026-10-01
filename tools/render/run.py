@@ -1002,6 +1002,130 @@ class Run:
                                  'box': tuple(int(n) for n in box.split(','))}
         return found
 
+    async def remote_panel(self, grid):
+        """A remote (firmware 0.22.0, GitHub #117) the way it is used: a tap opens its card, as Home Assistant's tile card
+        opens its dialog, with the power key in the top bar and the activities where the remote has them; the tap option
+        toggle switches it, and a key is a tile of its own that performs remote.send_command."""
+        from core import extras, state_message
+        calls = []
+        self.client.subscribe_service_calls(calls.append)
+        def remote(state, name, activity=None, activities=None):
+            attributes = {'friendly_name': name, 'supported_features': 4 if activities else 0}
+            if activities:
+                attributes.update(activity_list=activities, current_activity=activity)
+            return {'state': state, 'attributes': attributes, 'last_changed': MOMENT.isoformat()}
+        hub = ['Watch TV', 'Watch a film', 'Listen to music', 'Play a game']
+        states = {'remote.living_room': remote('on', 'Living room', 'Watch TV', hub),
+                  'remote.bluray': remote('off', 'Blu-ray'),
+                  'remote.shield': remote('on', 'Shield'),
+                  'remote.bluray_ir': remote('on', 'Blu-ray IR'),
+                  'remote.cinema': remote('unavailable', 'Cinema')}
+        tiles_in = [dict(entity=e, name=states[e]['attributes']['friendly_name']) for e in states]
+        tiles_in[2]['options'] = {'tap': 'toggle'}
+        # A key of the Blu-ray player: Perform action with the command typed, and the device a Broadlink asks for.
+        tiles_in[3].update(name='Play', options={'tap': 'action', 'icon': 'play', 'action': {
+            'action': 'remote.send_command', 'data': {'command': 'play', 'device': 'bluray'}}})
+        tiles_in = tiles_in[:grid.columns * grid.rows]
+        for slot, tile in enumerate(tiles_in):
+            tile['slot'] = slot
+        record = send_layout.migrate_legacy(dict(title='Remotes', tiles=tiles_in), grid)
+        tiles = send_layout.compile_tiles(record['layout'], grid)
+        region = dict(keepalive=120, clock_24h=True, numbers='point', group_min=1, percent_space=False)
+        bars = [[{'k': 'clock'}] for _ in record['layout']['pages']]
+        async def push():
+            values = [state_message(index, tile, states, extras(tile, states)) for index, tile in enumerate(tiles)]
+            await self.sender.synchronize(self.inbox.object_id, record, region, values, bars)
+        await push()
+        await self.call('render_page', page=0)
+        await self.page_done(0)
+        faults = []
+        async def call_for(service, since):
+            end = time.monotonic() + 8
+            while time.monotonic() < end:
+                found = [c for c in calls[since:] if c.service == service]
+                if found:
+                    return found[-1]
+                await asyncio.sleep(0.05)
+            raise RuntimeError(f'remote: the screen never sent {service}: {[c.service for c in calls[since:]]}')
+        def answer(sent, ok=True):
+            self.client.send_homeassistant_action_response(sent.call_id, ok, '', b'')
+        def sent_as(sent, data):
+            if dict(sent.data) != data:
+                faults.append(f'{sent.service} went out as {dict(sent.data)}, not {data}')
+        await asyncio.sleep(1.6)
+        await self.render('remote-tiles')
+        cards = await self.cards()
+        spots = await self.slots()
+        grey = cards['remote.bluray']['circle']
+        def expect(entity, value, lit, icon, where):
+            card = cards.get(entity)
+            if card is None:
+                faults.append(f'{where}: {entity} is not on the glass')
+                return
+            if card['value'] != value:
+                faults.append(f'{where}: {entity} says "{card["value"]}", not "{value}"')
+            if card['icon'] != icon:
+                faults.append(f'{where}: {entity} draws icon {card["icon"]}, not {icon}')
+            if (card['circle'] != grey) != lit:
+                faults.append(f'{where}: {entity} is {"coloured" if card["circle"] != grey else "grey"}, expected {"coloured" if lit else "grey"}')
+        expect('remote.living_room', 'Watch TV', True, 'F0454', 'start')
+        expect('remote.bluray', 'Off', False, 'F0EC4', 'start')
+        if 'remote.shield' in cards:
+            expect('remote.shield', 'On', True, 'F0454', 'start')
+        # A tap opens the card: the power key and the four activities, the one it runs marked.
+        await self.tap(*spots['remote.living_room'])
+        card = await self.alarm_until(lambda c: c['open'] and len(c['modes']) == 5, 'the hub never opened its card with power and four activities')
+        faults += [f'hub card: {f}' for f in card['faults'].split(';') if f]
+        await self.render('remote-card')
+        since = len(calls)
+        await self.tap(*card['modes'][2][:2])
+        sent = await call_for('remote.turn_on', since)
+        sent_as(sent, {'entity_id': 'remote.living_room', 'activity': 'Watch a film'})
+        answer(sent)
+        states['remote.living_room'] = remote('on', 'Living room', 'Watch a film', hub)
+        await push()
+        await asyncio.sleep(0.8)
+        await self.render('remote-card-activity')
+        # The power key turns it off; the card shows no activity then.
+        card = await self.alarm_until(lambda c: c['open'], 'the card closed')
+        since = len(calls)
+        await self.tap(*card['modes'][0][:2])
+        sent = await call_for('remote.turn_off', since)
+        sent_as(sent, {'entity_id': 'remote.living_room'})
+        answer(sent)
+        states['remote.living_room'] = remote('off', 'Living room', None, hub)
+        await push()
+        await asyncio.sleep(0.8)
+        await self.render('remote-card-off')
+        card = await self.alarm_until(lambda c: c['open'], 'the card closed')
+        await self.tap(*card['back'][:2])
+        await asyncio.sleep(0.6)
+        # A remote without activities: its card is the power key alone.
+        await self.tap(*spots['remote.bluray'])
+        card = await self.alarm_until(lambda c: c['open'] and len(c['modes']) == 1, 'the Blu-ray card never opened with its power key alone')
+        faults += [f'plain card: {f}' for f in card['faults'].split(';') if f]
+        await self.render('remote-card-plain')
+        await self.tap(*card['back'][:2])
+        await asyncio.sleep(0.6)
+        # A key: remote.send_command with the typed command and the device.
+        if 'remote.bluray_ir' in spots:
+            since = len(calls)
+            await self.tap(*spots['remote.bluray_ir'])
+            sent = await call_for('remote.send_command', since)
+            sent_as(sent, {'entity_id': 'remote.bluray_ir', 'command': 'play', 'device': 'bluray'})
+            answer(sent)
+        # Set to On / off, a tap switches it.
+        if 'remote.shield' in spots:
+            since = len(calls)
+            await self.tap(*spots['remote.shield'])
+            sent = await call_for('remote.toggle', since)
+            sent_as(sent, {'entity_id': 'remote.shield'})
+            answer(sent)
+        await asyncio.sleep(1.6)
+        await self.render('remote-tiles-end')
+        self.failures += [f'remote: {f}' for f in faults]
+        self.warnings.append(f'remote: card, activity, power, plain card, key, toggle; {len(calls)} calls')
+
     async def automation_panel(self, grid):
         """An automation (firmware 0.7.0, GitHub #62) the way it is used: a tap switches it on or off and holding runs its
         actions; a tile set to run does it the other way round and looks like a script's button, coloured only while
@@ -1251,6 +1375,8 @@ class Run:
             return 1, await self.lock_panel(grid)
         if self.only == 'automation':
             return 1, await self.automation_panel(grid)
+        if self.only == 'remote':
+            return 1, await self.remote_panel(grid)
         if self.only == 'bedside':
             return 1, await self.bedside_clock(grid)
         checks = await self.self_test()
@@ -1340,7 +1466,7 @@ def main():
     parser.add_argument('--out', type=Path, default=REPO / '.esphome' / 'render' / 'out')
     parser.add_argument('--work', type=Path, help='where the host builds go (default: .esphome/render/build)')
     parser.add_argument('--camera', default='960x540', help='the camera picture of the camera alert, WxH')
-    parser.add_argument('--only', choices=['alarm', 'lock', 'automation', 'bedside'], help='after the demo layout arrives, run only this stage')
+    parser.add_argument('--only', choices=['alarm', 'lock', 'automation', 'remote', 'bedside'], help='after the demo layout arrives, run only this stage')
     parser.add_argument('--port-base', type=int, help='the first API port (default host.PORT_BASE); another worktree may use it')
     args = parser.parse_args()
     # The programs write their pictures from their own folder, so every path they get is absolute.

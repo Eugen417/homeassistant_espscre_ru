@@ -7,7 +7,7 @@
 namespace tile_catalogue {
 
 // Every type a tile can show, the screen's own cards (screen.*) included.
-inline constexpr const char *DOMAINS[] = {"alarm_control_panel", "automation", "binary_sensor", "button", "camera", "climate", "cover", "fan", "image", "input_boolean", "input_button", "input_number", "input_select", "light", "lock", "media_player", "number", "person", "scene", "screen", "script", "select", "sensor", "sun", "switch", "timer", "vacuum", "weather"};
+inline constexpr const char *DOMAINS[] = {"alarm_control_panel", "automation", "binary_sensor", "button", "camera", "climate", "cover", "fan", "image", "input_boolean", "input_button", "input_number", "input_select", "light", "lock", "media_player", "number", "person", "remote", "scene", "screen", "script", "select", "sensor", "sun", "switch", "timer", "vacuum", "weather"};
 
 namespace alarm_control_panel {
 inline constexpr uint32_t ARM_AWAY = 2;
@@ -83,6 +83,11 @@ inline constexpr uint32_t VOLUME_MUTE = 8;
 inline constexpr uint32_t VOLUME_SET = 4;
 inline constexpr uint32_t VOLUME_STEP = 1024;
 }  // namespace VOLUME_STEP
+namespace remote {
+inline constexpr uint32_t ACTIVITY = 4;
+inline constexpr uint32_t DELETE_COMMAND = 2;
+inline constexpr uint32_t LEARN_COMMAND = 1;
+}  // namespace LEARN_COMMAND
 namespace vacuum {
 inline constexpr uint32_t CLEAN_AREA = 16384;
 inline constexpr uint32_t CLEAN_SPOT = 1024;

@@ -843,6 +843,9 @@
         },
         "input_button": {
           "run": "Botón para pulsar"
+        },
+        "remote": {
+          "toggle": "Interruptor"
         }
       },
       "top_bar": {
@@ -1428,6 +1431,7 @@
         "button": "Acciones",
         "script": "Scripts",
         "automation": "Automatizaciones",
+        "remote": "Mandos a distancia",
         "fan": "Ventiladores",
         "cover": "Persianas",
         "scene": "Escenas",
@@ -1468,6 +1472,7 @@
       "switch": "Interruptor",
       "input_boolean": "Interruptor",
       "automation": "Automatización",
+      "remote": "Mando a distancia",
       "scene": "Escena",
       "script": "Script",
       "weather": "Clima",
