@@ -125,6 +125,27 @@ home fits on one page.
 </p>
 <p align="center"><sub>The weather with the coming days, and on a bigger tile the whole week with a bar from each day's low to its high. A thermostat has its − / + and a bar with a key per mode; an airco shows heat and cool first and the rest behind "…". A live camera on a taller tile fills the card with its picture and its name, or shows the whole picture. Your alarm is a tile in Home Assistant's colours, with a key for every mode and Home Assistant's keypad when the panel asks for a code; someone coming in wakes every screen with the keypad to disarm. A lock locks with one tap and asks for a second one before it unlocks; its card has Open door where the lock can open its latch, and Home Assistant's keypad when the lock asks for a code. A select, such as a washing machine's programme, opens a list with a check at the one it is on. On every screen with the memory for it, every page is built ahead and kept, so the next one is there the moment you turn to it. Rendered from the firmware's own LVGL code with a demo home.</sub></p>
 
+## Music, from the speaker to the library
+
+<p align="center">
+  <img src="docs/images/media-guition-player.png" width="32%" alt="The player card on the 4-inch Guition: the album cover on a ground in the cover's own colours, the speaker Kitchen at the top, the title and artist, a bar to drag through the track, shuffle, previous, pause, next and repeat, and the volume">
+  <img src="docs/images/media-guition-speakers.png" width="32%" alt="The speaker menu open over the card: Bedroom, Kitchen with a check mark, and Living room">
+  <img src="docs/images/media-guition-favourites.png" width="32%" alt="A page of favourites: an album and a playlist with their covers dimmed behind the name and a play key, the playlist that plays ringed in blue with a pause key, an artist and the player itself">
+</p>
+<p align="center">
+  <img src="docs/images/media-guition-library.png" width="32%" alt="The library of the player: Playlists, Artists, Albums, Liked songs, Podcasts, Recently played, Top artists and Top tracks">
+  <img src="docs/images/media-guition-albums.png" width="32%" alt="A page of albums: six covers with their titles, page dots and arrows to turn to the next six">
+  <img src="docs/images/media-cyd-favourites.png" width="32%" alt="The same favourites on the 2.8-inch CYD, drawn with icons: an album, two playlists, an artist and the player">
+</p>
+<p align="center">
+  <img src="docs/images/media-waveshare43-player.png" width="49%" alt="The player card on the 4.3-inch Waveshare: the cover at the left on its coloured ground, the title, the bar and the keys beside it, the volume along the bottom">
+  <img src="docs/images/media-waveshare43-albums.png" width="49%" alt="A page of albums on the 4.3-inch Waveshare: five covers in a row with page arrows">
+</p>
+<p align="center">
+  <img src="docs/images/media-jc8012p4a1-albums.png" width="66%" alt="A page of albums on the 10.1-inch Guition: eighteen covers in three rows of six">
+</p>
+<p align="center"><sub>A media player's card sits on the colours of the cover that plays, and the speaker it plays on is at the top: tap it to move the music to another one. Shuffle, repeat and a bar you drag through the track sit under the title. The library key opens what Home Assistant can browse on that player, folder by folder down to a page of covers, and a tap on a cover plays it. A favourite is a tile that plays one playlist, album or artist on the speaker you choose, with its cover behind it, and a player at rest keeps its card, so you pick a speaker and start from there. Nothing here is made for one service: it is the player and its library as Home Assistant reports them, so Spotify works like any other player that can browse. The covers and the library need a screen with the memory for pictures (<a href="https://tessera-maxgramser.on-forge.com/docs/cameras">how</a>); the CYD keeps the card, the speakers and the favourites, drawn with icons. Rendered from the firmware's own LVGL code with made-up records.</sub></p>
+
 ## Where everyone is
 
 <p align="center">
@@ -168,12 +189,7 @@ home fits on one page.
   <img src="docs/images/guition-effects-picker.png" width="32%" alt="The effect picker: a drum with every effect Home Assistant lists, TV Simulator in the middle, and the check key at the top right that sends it">
   <img src="docs/images/cyd-effects.png" width="32%" alt="The same effects page on the CYD: four rows and the two sliders in 320 by 240 pixels">
 </p>
-<p align="center">
-  <img src="docs/images/guition-media.png" width="32%" alt="The media card on the Guition: the album cover, the title, artist and album, a progress bar with the elapsed and total time, previous, pause and next keys and the volume slider">
-  <img src="docs/images/guition-media-full.png" width="32%" alt="A media player over the whole page: the cover at the left, the track, the bar and the keys beside it, the volume row along the bottom">
-  <img src="docs/images/guition-dark-media.png" width="32%" alt="The media card in dark mode: the same cover and keys on a black page">
-</p>
-<p align="center"><sub>Tap a tile to switch it, hold it for the full card. Keys and sliders right on the tile, pastel colors, a clock, the weather and history you can read with a finger. A lamp with modes (a WLED) gets an effects page with a drum picker, named and filled from what Home Assistant lists for it. The media card shows what plays with its album cover, fetched by ESP Screens like a camera picture, and a media tile can show that cover in the icon's place (<a href="https://tessera-maxgramser.on-forge.com/docs/cameras">how</a>). Rendered from the firmware's own LVGL code with a demo home.</sub></p>
+<p align="center"><sub>Tap a tile to switch it, hold it for the full card. Keys and sliders right on the tile, pastel colors, a clock, the weather and history you can read with a finger. A lamp with modes (a WLED) gets an effects page with a drum picker, named and filled from what Home Assistant lists for it. Rendered from the firmware's own LVGL code with a demo home.</sub></p>
 <p align="center">
   <img src="docs/images/guition-camera-tiles.png" width="32%" alt="Cameras as tiles on the Guition: the front door camera filling a tall tile with its name at the bottom, a porch camera showing its whole picture with black above and below, the porch light and Sam at home">
   <img src="docs/images/guition-camera.png" width="32%" alt="A camera tile tapped: the front door camera full screen, with the round back key and the camera's name at the top">
