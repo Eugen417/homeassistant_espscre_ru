@@ -1200,6 +1200,7 @@ class Run:
         import camera_feed
         import media_library
         import tile_art
+        import media_art
         from PIL import Image as PILImage, ImageDraw as PILDraw
         calls = []
         self.client.subscribe_service_calls(calls.append)
@@ -1208,8 +1209,8 @@ class Run:
         def spotify(state='playing', features=PLAYING, **more):
             attributes = {'friendly_name': 'Spotify', 'supported_features': features, 'source_list': ['Bedroom', 'Kitchen', 'Living room']}
             if state in ('playing', 'paused'):
-                attributes.update(source='Kitchen', shuffle=True, repeat='all', volume_level=0.42, media_title='Give Life Back to Music',
-                                  media_artist='Daft Punk', media_album_name='Random Access Memories', media_duration=274,
+                attributes.update(source='Kitchen', shuffle=True, repeat='all', volume_level=0.42, media_title='Evening Drive',
+                                  media_artist='Nova Coast', media_album_name='Low Sun', media_duration=274,
                                   media_position=81, media_position_updated_at=MOMENT.isoformat(),
                                   entity_picture='/api/media_player_proxy/media_player.spotify?token=x&cache=ram')
             attributes.update(more)
@@ -1220,7 +1221,8 @@ class Run:
         tiles = send_layout.compile_tiles(record['layout'], grid)
         region = dict(keepalive=120, clock_24h=True, numbers='point', group_min=1, percent_space=False)
         bars = [[{'k': 'clock'}] for _ in record['layout']['pages']]
-        ground = {'g': '2B484F,121E20'}  # what the add-on reads from Random Access Memories (media_library.ground_colours)
+        # The card's ground as the add-on reads it from the cover that plays (media_library.ground_colours).
+        ground = {'g': media_library.ground_colours(media_art.png(0)) or '-'}
         async def push():
             values = [state_message(index, tile, states, extras(tile, states)) for index, tile in enumerate(tiles)]
             for value in values:
@@ -1232,16 +1234,8 @@ class Run:
         await self.page_done(0)
         faults = []
         def picture(seed, size=320):
-            """A cover: a field of two colours and a disc, different for every seed."""
-            hues = [(43, 72, 79), (97, 29, 24), (24, 71, 98), (98, 65, 24), (34, 40, 89), (29, 75, 93), (88, 30, 60), (60, 90, 40)]
-            a, b = hues[seed % len(hues)], hues[(seed * 3 + 1) % len(hues)]
-            image = PILImage.new('RGB', (size, size), a)
-            draw = PILDraw.Draw(image)
-            draw.rectangle((0, size * (seed % 3 + 1) // 4, size, size), fill=b)
-            draw.ellipse((size // 4, size // 4, size * 3 // 4, size * 3 // 4), outline=(240, 240, 240), width=max(2, size // 40))
-            out = io.BytesIO()
-            image.save(out, 'PNG')
-            return out.getvalue()
+            """A cover drawn for the renders (media_art): no real record's artwork."""
+            return media_art.png(seed, size)
         served = {'cover': 0, 'art': 0}
         async def answer_pictures(since):
             """The pictures the screen asked for since `since`: the card's cover and a page's covers."""
@@ -1285,8 +1279,7 @@ class Run:
                for name, kind in zip(folders, classes)]}
         albums = {'title': 'Albums', 'children': [{'title': title, 'media_class': 'album', 'media_content_type': 'spotify://album',
                   'media_content_id': f'spotify:album:{n}', 'can_play': True, 'can_expand': True, 'thumbnail': f'https://i.scdn.co/image/{n}'}
-                  for n, title in enumerate(['Random Access Memories', 'The Slow Rush', 'In Rainbows', 'Currents', 'Discovery',
-                                             'An Extra Long Album Title That Needs Two Lines And More', 'Blue', 'Melodrama'] * 6)]}
+                  for n, title in enumerate(([title for title, _ in media_art.ALBUMS[:7]] + ['An Extra Long Album Title That Needs Two Lines And More']) * 6)]}
         async def answer_browse(since):
             sent = await call_for('esphome.screen_browse', since)
             data = dict(sent.data)
@@ -1403,14 +1396,14 @@ class Run:
         states[ENTITY] = spotify(source='Kitchen')
         favorites = [
             {'entity': ENTITY, 'name': '', 'slot': 0, 'options': {'display': 'favorite', 'play': {'id': 'spotify:album:1', 'type': 'spotify://album',
-             'title': 'Random Access Memories', 'thumb': 'https://i.scdn.co/image/1', 'class': 'album'}}},
-            {'entity': ENTITY, 'name': 'Focus', 'slot': 1, 'options': {'display': 'favorite', 'play': {'id': 'spotify:playlist:2', 'type': 'spotify://playlist',
-             'title': 'Focus', 'thumb': 'https://i.scdn.co/image/2', 'class': 'playlist'}, 'speaker': 'Bedroom'}},
-            {'entity': ENTITY, 'name': '', 'slot': 2, 'options': {'display': 'favorite', 'size': 'wide', 'play': {'id': 'spotify:playlist:3', 'type': 'spotify://playlist',
-             'title': 'Electro Swing', 'thumb': 'https://i.scdn.co/image/3', 'class': 'playlist'}, 'speaker': 'Kitchen'}},
-            {'entity': ENTITY, 'name': '', 'slot': 4, 'options': {'display': 'favorite', 'play': {'id': 'spotify:artist:4', 'type': 'spotify://artist',
-             'title': 'Daft Punk', 'class': 'artist'}}},
-            {'entity': ENTITY, 'name': 'Spotify', 'slot': 5, 'options': {'display': 'cover'}}]
+             'title': 'Low Sun', 'thumb': 'https://i.scdn.co/image/1', 'class': 'album'}}},
+            {'entity': ENTITY, 'name': 'Deep Focus', 'slot': 1, 'options': {'display': 'favorite', 'play': {'id': 'spotify:playlist:2', 'type': 'spotify://playlist',
+             'title': 'Deep Focus', 'thumb': 'https://i.scdn.co/image/2', 'class': 'playlist'}, 'speaker': 'Bedroom'}},
+            {'entity': ENTITY, 'name': '', 'slot': grid.columns, 'options': {'display': 'favorite', 'size': 'wide', 'play': {'id': 'spotify:playlist:3', 'type': 'spotify://playlist',
+             'title': 'Sunday Morning', 'thumb': 'https://i.scdn.co/image/3', 'class': 'playlist'}, 'speaker': 'Kitchen'}},
+            {'entity': ENTITY, 'name': '', 'slot': 2 * grid.columns, 'options': {'display': 'favorite', 'play': {'id': 'spotify:artist:4', 'type': 'spotify://artist',
+             'title': 'Nova Coast', 'class': 'artist'}}},
+            {'entity': ENTITY, 'name': 'Spotify', 'slot': 2 * grid.columns + 1, 'options': {'display': 'cover'}}]
         favorites = [tile for tile in favorites if tile['slot'] < grid.columns * grid.rows]
         record = send_layout.migrate_legacy(dict(title='Favourites', tiles=favorites), grid)
         tiles = send_layout.compile_tiles(record['layout'], grid)
@@ -1483,12 +1476,12 @@ class Run:
             start = len(self.lines)
             await self.call('render_cards')
             line = await self.until(lambda l: 'cards ' in l, 10, 'render_cards', start)
-            if 'Starting on Kitchen' not in line or 'Playlist · Bedroom' not in line:
+            if 'Starting on Kitchen' not in line or 'Playlist · Bed' not in line:
                 faults.append(f'a favourite that starts does not say so: {line.split("cards ", 1)[1][:200]}')
             (await self.snapshot(self.out / 'media-favorites-starting.ppm')).save(self.out / 'media-favorites-starting.png')
             (self.out / 'media-favorites-starting.ppm').unlink(missing_ok=True)
             started['id'] = tiles[playlist]['options']['play']['id']
-            states[ENTITY] = spotify(source='Kitchen', media_title='Bella Ciao', media_artist='Electro Swing Band', media_playlist='Electro Swing')
+            states[ENTITY] = spotify(source='Kitchen', media_title='Coffee in the Garden', media_artist='Willow & Fern', media_playlist='Sunday Morning')
             await push_favorites()
             await asyncio.sleep(1.0)
             await answer_strip(since)
