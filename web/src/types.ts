@@ -11,6 +11,9 @@ export type TileOptions = {
   action?: { action: string; data?: Record<string, unknown> };
   [key: string]: unknown;
 };
+// What a favourite plays (app 0.4.42), as Home Assistant's library names it: its content id and type, the title and the
+// picture the library gave, and the class of thing it is.
+export type FavoritePlay = { id: string; type: string; title: string; thumb?: string; class?: string };
 // A key as the page document keeps it: a tile without a place of its own.
 export type ChildTile = {
   id: string;
@@ -33,7 +36,7 @@ export type PageTile = {
   appearance: { label: string; presentation?: "single" | "wide" | "tall" | "square" | "full" | `${number}x${number}`; display?: string; icon?: string; background?: string; historyHours?: number; refresh?: number; subtitle?: string; fit?: string; overlay?: string;
     mapEntities?: string[]; mapFraming?: string; mapDistance?: string; mapFollow?: string; mapMarkers?: string; mapNames?: string;
     mapZones?: string; mapStreets?: string; mapLook?: string };
-  interaction: { tap?: string; inline?: string; controls?: string; action?: TileOptions["action"]; guard?: string };
+  interaction: { tap?: string; inline?: string; controls?: string; action?: TileOptions["action"]; guard?: string; play?: FavoritePlay; speaker?: string };
   children?: ChildTile[];
 };
 export type Page = {

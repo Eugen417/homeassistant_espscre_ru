@@ -1120,6 +1120,9 @@ def tile_options(data, current=None):
             options[name] = int(value) if str(value).isdigit() else value
         elif name == 'size':
             options[name] = TILE_SIZES.get(loose(value), str(value))
+        elif name == 'play':
+            # What a favourite plays is an object, as the editor stores it (validate_favorite checks it).
+            options[name] = value
         else:
             options[name] = str(value).strip()
     # Perform action (app 0.2.67): `action` names Home Assistant's action and `data` its fields; the tap follows.

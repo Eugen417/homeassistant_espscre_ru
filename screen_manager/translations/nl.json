@@ -558,7 +558,8 @@
         "map_entities": "Een kaart toont hoogstens {n} personen en trackers, elk één keer, naast de eigen persoon van de tegel.",
         "firmware_first": "Installeer eerst schermfirmware {version} of nieuwer voor deze tegels.",
         "entity_gone": "Een gekozen entiteit bestaat niet meer. Zoek de nieuwe entiteit op.",
-        "ids_too_long": "De entiteits-ID's van deze tegels zijn samen te lang voor één bericht aan het scherm; verwijder een paar tegels."
+        "ids_too_long": "De entiteits-ID's van deze tegels zijn samen te lang voor één bericht aan het scherm; verwijder een paar tegels.",
+        "favorite_play": "Kies wat deze favoriet afspeelt."
       },
       "top_bar": {
         "invalid": "Ongeldige bovenbalk; vernieuw de beheerpagina.",
@@ -735,6 +736,9 @@
         "unknown_board": "Feedback is voor dit bord nog niet beschikbaar.",
         "deleting": "Je gedeelde antwoord wordt nog verwijderd. Antwoord opnieuw zodra dat klaar is.",
         "storage": "Feedback staat uit: de bewaarde gegevens zijn door een andere versie van Tessera geschreven."
+      },
+      "media": {
+        "browse": "{name} gaf zijn bibliotheek niet."
       }
     },
     "status": {
@@ -1182,6 +1186,18 @@
       "map": {
         "since_time": "sinds {time}",
         "battery": "Batterij"
+      },
+      "media": {
+        "playlist": "Playlist",
+        "album": "Album",
+        "artist": "Artiest",
+        "track": "Nummer",
+        "podcast": "Podcast",
+        "episode": "Aflevering",
+        "channel": "Zender",
+        "genre": "Genre",
+        "directory": "Map",
+        "music": "Muziek"
       }
     }
   },
@@ -1510,7 +1526,8 @@
       "sunpath": "zonnebaan",
       "live": "livebeeld",
       "cover": "albumhoes",
-      "map": "kaart"
+      "map": "kaart",
+      "favorite": "favoriet"
     },
     "sizes": {
       "single": "normaal",
@@ -1556,7 +1573,10 @@
         "no_forecast": "Deze weerdienst heeft geen dagverwachting in Home Assistant. Kies een andere weergave.",
         "tall_cover_hint": "Gebruikt de albumhoes als donkere achtergrond. Zonder afbeelding blijft de normale tegel zichtbaar.",
         "face_needs_firmware": "Deze klok heeft firmware 0.3.6 of nieuwer nodig: druk na het opslaan op Bijwerken bij het scherm. Tot dan toont het scherm de digitale klok.",
-        "map_tile_needs_firmware": "De kaarttegel heeft firmware 0.21.0 of nieuwer nodig: druk na het opslaan op Bijwerken bij het scherm."
+        "map_tile_needs_firmware": "De kaarttegel heeft firmware 0.21.0 of nieuwer nodig: druk na het opslaan op Bijwerken bij het scherm.",
+        "favorite": "Favoriet",
+        "favorite_hint": "Eén playlist, album of artiest van deze speler, gestart met een tik op zijn speaker; een tik terwijl hij speelt pauzeert, vasthouden opent de speler. Waar het scherm plaatjes tekent, vult de hoes de tegel.",
+        "favorite_needs_firmware": "Een favoriet heeft firmware 0.24.0 of nieuwer nodig: druk na het opslaan op Bijwerken bij het scherm."
       },
       "refresh": {
         "label": "Verversen",
@@ -1709,6 +1729,19 @@
         "under": "Onder de nachtkastjesklok: een tegel in zijn ronde vorm. Een tik doet wat hij op een tegel doet, en vasthouden opent zijn kaart.",
         "name_shown": "Naam onder de knop",
         "name_shown_hint": "Uit toont alleen het rondje."
+      },
+      "favorite": {
+        "plays": "Speelt",
+        "none": "Nog niets gekozen",
+        "choose": "Kiezen",
+        "done": "Klaar",
+        "back": "Terug",
+        "loading": "Bibliotheek laden…",
+        "empty": "Niets hier",
+        "open": "{name} openen",
+        "speaker": "Speaker",
+        "speaker_now": "Waar hij speelt",
+        "speaker_hint": "Waar hij start. \"Waar hij speelt\" vraagt op het scherm om een speaker als de speler nergens speelt."
       }
     },
     "tile_card": {

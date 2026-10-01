@@ -206,6 +206,8 @@ export const firmwareVersion = (screen: Screen | undefined) =>
   (screen && "firmware_known" in screen ? screen.firmware_known : screen?.firmware) || "";
 export const firmwareOf = computed(() => firmwareVersion(currentScreen.value));
 export const supports = (major: number, minor: number, patch: number) => supportsVersion(firmwareOf.value, major, minor, patch);
+// A new media tile starts with its album cover where the screen draws one (app 0.4.42): a board with pictures, firmware 0.2.78+.
+export const coversByDefault = () => pictures.value && supports(0, 2, 78);
 // What the screen holds and draws, as the add-on says (app 0.2.78), so a screen whose version Home Assistant can't
 // report for a moment keeps its 48 tiles instead of dropping to ten, and a copied or imported layout isn't cut to ten.
 export const tileLimit = computed(() => {
@@ -751,7 +753,7 @@ export function addTile(id: string) {
     }
     return;
   }
-  const tile = newTile(id);
+  const tile = newTile(id, coversByDefault());
   const page = Math.max(0, state.document!.pages.findIndex((page) => page.id === state.selectedPageId));
   const target = state.insertAt >= 0 ? state.insertAt : firstFree(occupied(entriesOf(layout)), sizeOf(tile), page * grid.slots);
   const slot = state.insertAt >= 0 || target < (page + 1) * grid.slots ? target : -1;

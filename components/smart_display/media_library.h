@@ -205,8 +205,9 @@ inline Menu menu_place(int width, int panel_w, int y, int room, int row_h, size_
 void open(const std::string &entity);
 void close();
 bool visible();
-// The speaker menu over the player's card or over the library; `then` is an item that plays once a speaker is chosen.
-void speakers(const std::string &entity, uint32_t then = 0);
+// The speaker menu over the player's card, over the library or over a page; `then` is an item of the library and
+// `tile` a favourite's tile that plays once a speaker is chosen.
+void speakers(const std::string &entity, uint32_t then = 0, int tile = -1);
 bool menu_visible();
 void received(Answer &&answer);
 // The covers of the page are here (or failed); a link from the app.

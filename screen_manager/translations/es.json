@@ -558,7 +558,8 @@
         "map_entities": "Un mapa muestra como máximo {n} personas y rastreadores, cada uno una vez, junto a la persona del mosaico.",
         "firmware_first": "Para estos mosaicos, instala antes el firmware {version} o posterior en la pantalla.",
         "entity_gone": "Una de las entidades elegidas ya no existe. Busca la entidad nueva.",
-        "ids_too_long": "Juntos, los ID de entidad de estos mosaicos son demasiado largos para caber en un mensaje a la pantalla; elimina algunos mosaicos."
+        "ids_too_long": "Juntos, los ID de entidad de estos mosaicos son demasiado largos para caber en un mensaje a la pantalla; elimina algunos mosaicos.",
+        "favorite_play": "Elige qué reproduce este favorito."
       },
       "top_bar": {
         "invalid": "Barra superior no válida; recarga la página de gestión.",
@@ -735,6 +736,9 @@
         "unknown_board": "Los comentarios aún no están disponibles para esta placa.",
         "deleting": "Tu respuesta compartida aún se está eliminando. Vuelve a responder cuando termine.",
         "storage": "Los comentarios están desactivados: sus datos guardados los escribió otra versión de Tessera."
+      },
+      "media": {
+        "browse": "{name} no respondió con su biblioteca."
       }
     },
     "status": {
@@ -1182,6 +1186,18 @@
       "map": {
         "since_time": "desde las {time}",
         "battery": "Batería"
+      },
+      "media": {
+        "playlist": "Lista",
+        "album": "Álbum",
+        "artist": "Artista",
+        "track": "Canción",
+        "podcast": "Pódcast",
+        "episode": "Episodio",
+        "channel": "Canal",
+        "genre": "Género",
+        "directory": "Carpeta",
+        "music": "Música"
       }
     }
   },
@@ -1510,7 +1526,8 @@
       "sunpath": "recorrido del sol",
       "live": "imagen en vivo",
       "cover": "carátula",
-      "map": "mapa"
+      "map": "mapa",
+      "favorite": "favorito"
     },
     "sizes": {
       "single": "normal",
@@ -1556,7 +1573,10 @@
         "no_forecast": "Este servicio meteorológico no tiene previsión diaria en Home Assistant. Elige otra presentación.",
         "tall_cover_hint": "",
         "face_needs_firmware": "Este reloj necesita el firmware 0.3.6 o posterior: pulsa Actualizar en la pantalla después de guardar. Hasta entonces la pantalla muestra el reloj digital.",
-        "map_tile_needs_firmware": "El mosaico de mapa necesita el firmware 0.21.0 o posterior: pulsa Actualizar en la pantalla después de guardar."
+        "map_tile_needs_firmware": "El mosaico de mapa necesita el firmware 0.21.0 o posterior: pulsa Actualizar en la pantalla después de guardar.",
+        "favorite": "Favorito",
+        "favorite_hint": "Una lista, un álbum o un artista de este reproductor, iniciado con un toque en su altavoz; un toque mientras suena lo pausa y mantener pulsado abre el reproductor. Donde la pantalla dibuja imágenes, la portada llena el mosaico.",
+        "favorite_needs_firmware": "Un favorito necesita el firmware 0.24.0 o más reciente: pulsa Actualizar en la pantalla después de guardar."
       },
       "refresh": {
         "label": "Actualizar",
@@ -1709,6 +1729,19 @@
         "under": "Bajo el reloj de mesita: un mosaico en su forma redonda. Un toque hace lo mismo que en un mosaico, y mantenerlo pulsado abre su tarjeta.",
         "name_shown": "Nombre bajo la tecla",
         "name_shown_hint": "Desactivado muestra solo el círculo."
+      },
+      "favorite": {
+        "plays": "Reproduce",
+        "none": "Nada elegido aún",
+        "choose": "Elegir",
+        "done": "Listo",
+        "back": "Atrás",
+        "loading": "Cargando la biblioteca…",
+        "empty": "No hay nada",
+        "open": "Abrir {name}",
+        "speaker": "Altavoz",
+        "speaker_now": "Donde suena",
+        "speaker_hint": "Dónde empieza. «Donde suena» pide un altavoz en la pantalla cuando el reproductor no suena en ninguno."
       }
     },
     "tile_card": {

@@ -558,7 +558,8 @@
         "map_entities": "Egy térkép legfeljebb {n} személyt és nyomkövetőt mutat, mindegyiket egyszer, a csempe saját személye mellett.",
         "firmware_first": "Ezekhez a csempékhez előbb telepíts {version} vagy újabb kijelző-firmware-t.",
         "entity_gone": "Egy kiválasztott entitás már nem létezik. Keresd meg az újat.",
-        "ids_too_long": "Ezeknek a csempéknek az entitásazonosítói együtt túl hosszúak ahhoz, hogy egy üzenetben elférjenek; távolíts el néhány csempét."
+        "ids_too_long": "Ezeknek a csempéknek az entitásazonosítói együtt túl hosszúak ahhoz, hogy egy üzenetben elférjenek; távolíts el néhány csempét.",
+        "favorite_play": "Válaszd ki, mit játsszon ez a kedvenc."
       },
       "top_bar": {
         "invalid": "Érvénytelen felső sáv; frissítsd a kezelőoldalt.",
@@ -735,6 +736,9 @@
         "unknown_board": "Ehhez a panelhez még nem érhető el visszajelzés.",
         "deleting": "A megosztott válaszod törlése még folyamatban van. Ha kész, válaszolj újra.",
         "storage": "A visszajelzés ki van kapcsolva: a mentett adatait a Tessera egy másik verziója írta."
+      },
+      "media": {
+        "browse": "{name} nem adta meg a könyvtárát."
       }
     },
     "status": {
@@ -1182,6 +1186,18 @@
       "map": {
         "since_time": "{time} óta",
         "battery": "Akkumulátor"
+      },
+      "media": {
+        "playlist": "Lejátszási lista",
+        "album": "Album",
+        "artist": "Előadó",
+        "track": "Szám",
+        "podcast": "Podcast",
+        "episode": "Epizód",
+        "channel": "Csatorna",
+        "genre": "Műfaj",
+        "directory": "Mappa",
+        "music": "Zene"
       }
     }
   },
@@ -1510,7 +1526,8 @@
       "sunpath": "napút",
       "live": "élő kép",
       "cover": "albumborító",
-      "map": "térkép"
+      "map": "térkép",
+      "favorite": "kedvenc"
     },
     "sizes": {
       "single": "normál",
@@ -1556,7 +1573,10 @@
         "no_forecast": "Ennek az időjárás-szolgáltatásnak nincs napi előrejelzése a Home Assistantban. Válassz másik megjelenítést.",
         "tall_cover_hint": "Az albumborítót sötétített háttérként használja. Borító nélkül a normál csempe látszik.",
         "face_needs_firmware": "Ehhez az órához 0.3.6 vagy újabb firmware kell: mentés után nyomd meg a Frissítés gombot a kijelzőnél. Addig a kijelző a digitális órát mutatja.",
-        "map_tile_needs_firmware": "A térképcsempéhez 0.21.0 vagy újabb firmware kell: mentés után nyomd meg a Frissítés gombot a kijelzőnél."
+        "map_tile_needs_firmware": "A térképcsempéhez 0.21.0 vagy újabb firmware kell: mentés után nyomd meg a Frissítés gombot a kijelzőnél.",
+        "favorite": "Kedvenc",
+        "favorite_hint": "Ennek a lejátszónak egy lejátszási listája, albuma vagy előadója, egy koppintással indítva a hangszóróján; lejátszás közbeni koppintás szünetel, nyomva tartás megnyitja a lejátszót. Ahol a képernyő képeket mutat, a borító kitölti a csempét.",
+        "favorite_needs_firmware": "A kedvenchez 0.24.0 vagy újabb firmware kell: mentés után nyomd meg a Frissítés gombot a képernyőnél."
       },
       "refresh": {
         "label": "Frissítés",
@@ -1709,6 +1729,19 @@
         "under": "Az éjjeliszekrény-óra alatt: egy csempe kerek formában. Koppintásra ugyanazt teszi, mint csempeként, nyomva tartva pedig megnyitja a kártyáját.",
         "name_shown": "Név a gomb alatt",
         "name_shown_hint": "Kikapcsolva csak a kör látszik."
+      },
+      "favorite": {
+        "plays": "Lejátssza",
+        "none": "Még nincs kiválasztva",
+        "choose": "Kiválasztás",
+        "done": "Kész",
+        "back": "Vissza",
+        "loading": "Könyvtár betöltése…",
+        "empty": "Itt nincs semmi",
+        "open": "{name} megnyitása",
+        "speaker": "Hangszóró",
+        "speaker_now": "Ahol éppen szól",
+        "speaker_hint": "Ahol indul. Az „Ahol éppen szól” a képernyőn kér hangszórót, ha a lejátszó sehol sem szól."
       }
     },
     "tile_card": {

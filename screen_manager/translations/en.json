@@ -558,7 +558,8 @@
         "map_entities": "A map shows at most {n} people and trackers, each once, beside the tile's own person.",
         "firmware_first": "Install screen firmware {version} or newer first for these tiles.",
         "entity_gone": "A chosen entity no longer exists. Look up the new entity.",
-        "ids_too_long": "These tiles' entity IDs are too long together to fit in one message to the screen; remove a few tiles."
+        "ids_too_long": "These tiles' entity IDs are too long together to fit in one message to the screen; remove a few tiles.",
+        "favorite_play": "Choose what this favourite plays."
       },
       "top_bar": {
         "invalid": "Invalid top bar; refresh the management page.",
@@ -735,6 +736,9 @@
         "unknown_board": "Feedback isn't available for this board yet.",
         "deleting": "Your shared answer is still being deleted. Answer again once that's done.",
         "storage": "Feedback is off: its saved data was written by another version of Tessera."
+      },
+      "media": {
+        "browse": "{name} did not answer with its library."
       }
     },
     "status": {
@@ -1182,6 +1186,18 @@
       "map": {
         "since_time": "since {time}",
         "battery": "Battery"
+      },
+      "media": {
+        "playlist": "Playlist",
+        "album": "Album",
+        "artist": "Artist",
+        "track": "Song",
+        "podcast": "Podcast",
+        "episode": "Episode",
+        "channel": "Channel",
+        "genre": "Genre",
+        "directory": "Folder",
+        "music": "Music"
       }
     }
   },
@@ -1510,7 +1526,8 @@
       "sunpath": "sun path",
       "live": "live picture",
       "cover": "album cover",
-      "map": "map"
+      "map": "map",
+      "favorite": "favourite"
     },
     "sizes": {
       "single": "normal",
@@ -1556,7 +1573,10 @@
         "no_forecast": "This weather service has no daily forecast in Home Assistant. Choose another display.",
         "tall_cover_hint": "Uses the album cover as a dimmed background. Without artwork the normal tile remains visible.",
         "face_needs_firmware": "This clock needs firmware 0.3.6 or newer: press Update on the screen after saving. Until then the screen shows the digital clock.",
-        "map_tile_needs_firmware": "The map tile needs firmware 0.21.0 or newer: press Update on the screen after saving."
+        "map_tile_needs_firmware": "The map tile needs firmware 0.21.0 or newer: press Update on the screen after saving.",
+        "favorite": "Favourite",
+        "favorite_hint": "One playlist, album or artist of this player, started with a tap on its speaker; a tap while it plays pauses it, holding opens the player. Where the screen draws pictures, its cover fills the tile.",
+        "favorite_needs_firmware": "A favourite needs firmware 0.24.0 or newer: press Update on the screen after saving."
       },
       "refresh": {
         "label": "Refresh",
@@ -1709,6 +1729,19 @@
         "under": "Under the bedside clock: a tile in its round form. A tap does what it does on a tile, and holding it opens its card.",
         "name_shown": "Name under the key",
         "name_shown_hint": "Off shows the circle alone."
+      },
+      "favorite": {
+        "plays": "Plays",
+        "none": "Nothing chosen yet",
+        "choose": "Choose",
+        "done": "Done",
+        "back": "Back",
+        "loading": "Loading the library…",
+        "empty": "Nothing here",
+        "open": "Open {name}",
+        "speaker": "Speaker",
+        "speaker_now": "Where it plays",
+        "speaker_hint": "Where it starts. \"Where it plays\" asks for a speaker on the screen when the player plays nowhere."
       }
     },
     "tile_card": {

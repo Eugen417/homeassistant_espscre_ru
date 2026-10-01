@@ -43,6 +43,7 @@ static std::string menu_entity;
 static std::string menu_drawn;   // the speakers and the one it plays on, as the menu shows them
 static bool menu_due = false;    // they changed while a finger was on the glass
 static uint32_t menu_then = 0;
+static int menu_tile = -1;  // a favourite that starts on the speaker chosen
 static unsigned menu_page = 0;
 
 static const Tile *tile() {
@@ -464,6 +465,7 @@ void close() {
   row_objs.clear();
   menu_entity.clear();
   menu_then = 0;
+  menu_tile = -1;
   if (!root) return;
   art_forget();
   lv_obj_delete(root);
@@ -494,6 +496,7 @@ static void menu_close() {
   const bool was_card = !root;
   menu_entity.clear();
   menu_then = 0;
+  menu_tile = -1;
   if (was_card && rt::detail_root && !lv_obj_has_flag(rt::detail_root, LV_OBJ_FLAG_HIDDEN) && rt::detail_index < rt::model.count) rt::refresh_detail(rt::detail_index);
 }
 static void menu_scrim_event(lv_event_t *e) {
@@ -510,10 +513,15 @@ static void choose(size_t index) {
   if (!t || index >= t->extra().media_sources.size()) return;
   const std::string name = t->extra().media_sources[index], id = menu_entity;
   const uint32_t then = menu_then;
+  const int favorite = menu_tile;
   // A speaker it plays on already is no change, unless it plays nowhere: then the choice wakes it.
   const bool change = name != t->extra().media_source || t->state == "idle";
   ESP_LOGI("library", "Speaker %s for %s", name.c_str(), id.c_str());
-  if (then) {
+  if (favorite >= 0) {
+    if (favorite < 64) rt::favorite_started_at[favorite] = std::max<uint32_t>(1, clock_ms());
+    rt::library_event("esphome.screen_play", {{"entity", id}, {"tile", std::to_string(favorite)}, {"source", name}});
+    rt::refresh_tile(static_cast<size_t>(favorite));
+  } else if (then) {
     starting = then;
     starting_at = clock_ms();
     rt::play_request(id, then, name);
@@ -591,11 +599,12 @@ static void draw_menu() {
     words(panel, page_text(menu_page, pages), font, theme::MUTED, LV_TEXT_ALIGN_CENTER, m.inset + key, py + (at.row_h - text_h) / 2, at.panel.w - 2 * (m.inset + key));
   }
 }
-void speakers(const std::string &id, uint32_t then) {
+void speakers(const std::string &id, uint32_t then, int tile) {
   const Tile *t = player(id);
   if (!t || t->extra().media_sources.empty()) return;
   menu_entity = id;
   menu_then = then;
+  menu_tile = tile;
   menu_page = 0;
   // Open on the page with the speaker it plays on.
   draw_menu();

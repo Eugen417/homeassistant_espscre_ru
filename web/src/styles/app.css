@@ -500,6 +500,10 @@ button.insp-sec-head:hover h3 { color: var(--ink); }
 .map-remove { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: 13px; color: var(--muted); }
 .map-remove:hover { background: var(--line); color: var(--ink); }
 .map-with .map-add { flex: 1 1 140px; min-width: 0; }
+/* A favourite (app 0.4.42): what it plays, and the key that opens the player's library under it. */
+.favorite-chosen { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; }
+.favorite-title { flex: 1; min-width: 0; font-weight: 500; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.favorite-chosen .help { flex: 1; }
 .gesture-note { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; color: var(--muted); line-height: 1.4; padding-left: 138px; }
 .gesture-note .ui-icon { font-size: 14px; margin-top: 1px; flex: none; }
 /* A longer list of choices: the current one in a field, the list under it. */

@@ -5981,6 +5981,12 @@ inline void favorite_tap(size_t index){
   if(index>=model.count)return;
   auto &t=model.tiles[index];
   if(t.extra().fav_playing&&t.state=="playing"){action("media_player.media_pause",t.entity);return;}
+  // No speaker of its own and the player plays nowhere: which speaker first, as a cover in the library asks.
+  const auto &x=t.extra();
+  if(x.fav_source.empty()&&x.media_source.empty()&&!(t.supported&tile_controls::feature::MEDIA_PLAY_MEDIA)&&!x.media_sources.empty()){
+    media_library::speakers(t.entity,0,static_cast<int>(index));
+    return;
+  }
   if(index<64)favorite_started_at[index]=std::max<uint32_t>(1,esphome::millis());
   library_event("esphome.screen_play",{{"entity",t.entity},{"tile",std::to_string(index)}});
   ESP_LOGI("library","Play favourite %u of %s",(unsigned)index,t.entity.c_str());
@@ -6447,9 +6453,10 @@ inline void render_slot(size_t slot) {
   else if (value == "cleaning") value = tr(txt::ha_vacuum_cleaning);
   else if (value == "docked") value = tr(txt::ha_vacuum_docked);
   // Home Assistant's word where the screen has none of its own (firmware 0.2.58+): a cover says Open, a washer Rinsing.
+  // A favourite says what it plays and where (firmware 0.24.0+), never the player's state.
+  else if (t.favorite()) value = favorite_line(t);
   else if (!t.extra().state_word.empty()) value = t.extra().state_word;
   // A player's state in the screen's own words where Home Assistant sent none (firmware 0.2.64+).
-  else if (t.favorite()) value = favorite_line(t);
   else if (d == "media_player") value = tile_controls::media_state_text(t.state);
   // A measurement in the screen's number format ("21,5 °C" in Dutch), as Home Assistant writes a state with a unit; a
   // number without one (a code, a year) stays as it is, as there.

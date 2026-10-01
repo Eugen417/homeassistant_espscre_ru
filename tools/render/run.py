@@ -1423,6 +1423,9 @@ class Run:
                 attributes = states[value['entity']]['attributes']
                 value.setdefault('x', {}).update(media_library.player_extras(attributes, PLAYING, '2B484F,121E20', True))
                 play = tile['options'].get('play')
+                # Home Assistant's word for the player's state rides along, as the add-on sends it (core.state_word):
+                # a favourite says what it plays all the same.
+                value['x']['w'] = 'Playing' if states[value['entity']]['state'] == 'playing' else 'Idle'
                 if play:
                     mine = started['id'] == play['id']
                     value['x'].update(media_library.favorite_extras(play, tile['options'].get('speaker'), attributes if mine else {},
@@ -1473,7 +1476,7 @@ class Run:
             start = len(self.lines)
             await self.call('render_cards')
             line = await self.until(lambda l: 'cards ' in l, 10, 'render_cards', start)
-            if 'Starting on Kitchen' not in line:
+            if 'Starting on Kitchen' not in line or 'Playlist · Bedroom' not in line:
                 faults.append(f'a favourite that starts does not say so: {line.split("cards ", 1)[1][:200]}')
             (await self.snapshot(self.out / 'media-favorites-starting.ppm')).save(self.out / 'media-favorites-starting.png')
             (self.out / 'media-favorites-starting.ppm').unlink(missing_ok=True)
