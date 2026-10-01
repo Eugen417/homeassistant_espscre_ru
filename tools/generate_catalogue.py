@@ -182,7 +182,8 @@ def normalise(tile, types, translations, facts):
         # ride along on it (docs/MAP.md).
         map_options = data.get('map')
         if map_options is not None:
-            check_keys(f'{where} map', map_options, {'framing', 'distance', 'overlay', 'with', 'max'})
+            check_keys(f'{where} map', map_options, {'framing', 'distance', 'overlay', 'follow', 'markers', 'names', 'zones', 'streets',
+                                                     'look', 'with', 'max'})
             if 'map' not in displays:
                 fail(where, 'map options need the map display')
         domains[domain] = {

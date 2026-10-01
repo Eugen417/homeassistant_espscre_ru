@@ -42,7 +42,7 @@ const base = computed<Entry[]>(() => {
   // The picker offers what a tile can show; camera and image tiles need a board that draws pictures (app 0.2.66).
   return [...(state.inventory.builtin || []), ...state.inventory.entities].filter((e) =>
     e.tile !== false &&
-    (pictures.value || !["camera", "image"].includes(e.id.split(".")[0])) &&
+    (pictures.value || (!["camera", "image"].includes(e.id.split(".")[0]) && e.id !== "screen.map")) &&
     (!state.hidePlaced || !onScreen(e.id)) &&
     `${e.name} ${e.id} ${e.device || ""} ${e.area || ""}`.toLocaleLowerCase().includes(q));
 });

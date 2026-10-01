@@ -317,6 +317,10 @@ static void test_map_tile() {
   t.entity = "person.robin";
   t.display = "standard";
   assert(!t.is_map() && !t.pictured());
+  // The map tile of the screen's own cards (firmware 0.21.0+).
+  t.entity = "screen.map";
+  t.display = "map";
+  assert(t.is_map() && t.pictured() && t.builtin());
   Tile camera;
   camera.entity = "camera.door";
   camera.display = "live";

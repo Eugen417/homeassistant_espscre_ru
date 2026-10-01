@@ -1114,7 +1114,8 @@
       "builtin": {
         "clock": "Reloj",
         "nightstand": "Reloj de mesita",
-        "page": "Ir a la página {page}"
+        "page": "Ir a la página {page}",
+        "map": "Mapa"
       },
       "identify": {
         "title": "Esta es {name}",
@@ -1168,6 +1169,11 @@
         "strong": "Fuerte",
         "max_plus": "Máx+",
         "auto": "Auto"
+      },
+      "map": {
+        "since": "{state} desde las {time}",
+        "activity": "Actividad",
+        "battery": "Batería {n} %"
       }
     }
   },
@@ -1534,12 +1540,13 @@
         "cover_hint": "La carátula de lo que suena en el lugar del icono, como en el propio mosaico de Home Assistant; un reproductor sin imagen conserva su icono. Un toque sigue abriendo la tarjeta.",
         "cover_needs_firmware": "La carátula en el mosaico necesita el firmware 0.2.78 o más reciente: pulsa Actualizar en la pantalla después de guardar.",
         "map": "Mapa",
-        "map_hint": "Dónde están esta persona y las que añadas, en un mapa tranquilo con los colores de la pantalla. Home Assistant aporta las calles de OpenStreetMap; la pantalla solo recibe la imagen, nunca una ubicación. Se vuelve a dibujar cuando alguien se mueve.",
+        "map_hint": "Dónde están esta persona y las que añadas, en un mapa tranquilo con los colores de la pantalla. Home Assistant aporta las calles de OpenStreetMap; la pantalla solo recibe la imagen, nunca una ubicación. Se vuelve a dibujar cuando alguien se mueve. Un toque lo abre en toda la pantalla.",
         "map_needs_firmware": "Un mapa necesita el firmware 0.20.0 o posterior: pulsa Actualizar en la pantalla después de guardar.",
         "no_graph": "Home Assistant no tiene valores numéricos para esta entidad, así que el gráfico queda vacío. Elige otra presentación.",
         "no_forecast": "Este servicio meteorológico no tiene previsión diaria en Home Assistant. Elige otra presentación.",
         "tall_cover_hint": "",
-        "face_needs_firmware": "Este reloj necesita el firmware 0.3.6 o posterior: pulsa Actualizar en la pantalla después de guardar. Hasta entonces la pantalla muestra el reloj digital."
+        "face_needs_firmware": "Este reloj necesita el firmware 0.3.6 o posterior: pulsa Actualizar en la pantalla después de guardar. Hasta entonces la pantalla muestra el reloj digital.",
+        "map_tile_needs_firmware": "El mosaico de mapa necesita el firmware 0.21.0 o posterior: pulsa Actualizar en la pantalla después de guardar."
       },
       "refresh": {
         "label": "Actualizar",
@@ -1576,6 +1583,43 @@
           "hint": "Las personas y rastreadores que se muestran junto a esta, cada uno con su color. Un rastreador es un teléfono, un coche o una etiqueta cuya ubicación conoce Home Assistant.",
           "add": "Añadir una persona o un rastreador",
           "remove": "Quitar a {name}"
+        },
+        "follow": {
+          "label": "Seguir",
+          "everyone": "A todos",
+          "chosen": "Elegidos",
+          "everyone_hint": "Todos de quienes Home Assistant conoce la ubicación: cada persona y cada rastreador que aún no es de nadie."
+        },
+        "markers": {
+          "label": "Marcadores",
+          "photo": "Foto",
+          "initials": "Iniciales"
+        },
+        "names": {
+          "label": "Nombres",
+          "auto": "Donde haya sitio",
+          "always": "Siempre",
+          "never": "Nunca"
+        },
+        "zones": {
+          "label": "Zonas",
+          "show": "Mostrar",
+          "hide": "Ocultar"
+        },
+        "streets": {
+          "label": "Calles",
+          "show": "Mostrar",
+          "hide": "Liso"
+        },
+        "look": {
+          "label": "Aspecto",
+          "auto": "Como la pantalla",
+          "light": "Claro",
+          "dark": "Oscuro"
+        },
+        "chosen": {
+          "label": "En el mapa",
+          "hint": "A quién sigue este mapa, cada uno con su color. Un rastreador es un teléfono, un coche o una etiqueta cuya ubicación conoce Home Assistant."
         }
       },
       "controls": {

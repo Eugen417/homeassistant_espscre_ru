@@ -1,3 +1,23 @@
+## 0.4.36 (firmware 0.21.0)
+
+The map grows up: a map tile of its own, a tap that opens it over the whole screen, people's photos, and many ways to make
+it yours.
+
+- **Tap a map to open it over the whole screen**, as a camera tile opens: drawn as large as the board takes a camera
+  picture, with the back key and the name at the top. A small 1 x 1 map you glance at becomes a full map with a tap.
+- **Tap someone on the full map** to focus on them, as Home Assistant's map does: they come to the middle, closer in, with
+  a card over the bottom: their state and since when, the battery where they report one, and the day's changes with
+  their times ("14:02 Office", "08:31 Away"). A tap beside them, or Back, shows everyone again.
+- **The map tile**: **Map** under the screen's own cards in the library. It follows **everyone** Home Assistant knows the
+  place of, as Home Assistant's own map card does, or only whom you choose: just the two of you, or only your devices.
+- **Photos in the markers**, as Home Assistant shows them: a person with a picture in Home Assistant has it in their
+  marker, everyone else their initials (the first letter of each word of their name, as Home Assistant writes them).
+- **As Home Assistant places people**: someone without GPS who is in a zone stands in the middle of that zone, a tracker a
+  person already follows is not shown twice, and everyone has the same colour as on Home Assistant's own maps, in the
+  order they were made. A faint circle shows a GPS accuracy wider than the marker.
+- **More choices** in the tile's new **Map** section: markers with photos or initials, names beside them where there is
+  room or always or never, zones on or off, streets or a plain ground, and a look of its own (as the screen, light or dark).
+
 ## 0.4.35 (firmware 0.20.0)
 
 - **A phone, a car or a tag on the map.** **Also on the map** now offers Home Assistant's device trackers that report a

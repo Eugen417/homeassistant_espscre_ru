@@ -12,9 +12,19 @@ displays:
 # How a map frames its people (everyone on it, around home, around this person), how far a fixed view reaches, whether
 # the tile's name is on it, and who may ride along beside the tile's own person: other people, and device trackers that
 # report a place (a phone, a car, a tag), eight in all.
+# The map tile of the screen's own cards (screen.map, firmware 0.21.0) has the same choices, and `follow`: everyone
+# Home Assistant knows the place of, as its own map card's show_all, or the people and trackers chosen.
+# How the map looks (app 0.4.36): a person's photo in their marker as Home Assistant shows it or their initials, the
+# first names beside the markers, the zones, the streets or a plain ground, and the screen's look or one of its own.
 map:
   framing: [everyone, home, person]
   distance: [neighbourhood, street, town, region]
   overlay: [name, none]
+  follow: [everyone, chosen]
+  markers: [photo, initials]
+  names: [auto, always, never]
+  zones: [show, hide]
+  streets: [show, hide]
+  look: [auto, light, dark]
   with: [person, device_tracker]
   max: 8

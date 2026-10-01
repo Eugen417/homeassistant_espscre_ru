@@ -1275,6 +1275,32 @@
      "name",
      "none"
     ],
+    "follow": [
+     "everyone",
+     "chosen"
+    ],
+    "markers": [
+     "photo",
+     "initials"
+    ],
+    "names": [
+     "auto",
+     "always",
+     "never"
+    ],
+    "zones": [
+     "show",
+     "hide"
+    ],
+    "streets": [
+     "show",
+     "hide"
+    ],
+    "look": [
+     "auto",
+     "light",
+     "dark"
+    ],
     "with": [
      "person",
      "device_tracker"

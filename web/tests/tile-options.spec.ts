@@ -201,6 +201,7 @@ describe("the tile panel", () => {
     { entity: "automation.a", name: "", slot: 0, options: { size: "wide", tap: "run" } },
     { entity: "person.p", name: "", slot: 0, options: { display: "map" } },
     { entity: "person.p", name: "", slot: 0, options: { size: "square", display: "map", framing: "home", map: ["person.q"] } },
+    { entity: "screen.map", name: "", slot: 0, options: { size: "wide", display: "map" } },
   ];
   it.each(kinds.map((tile) => [`${tile.entity} ${tile.options?.size || "single"}`, tile] as const))("saves every choice it shows: %s", async (_, kind) => {
     const tile: Tile = JSON.parse(JSON.stringify(kind));
@@ -270,6 +271,38 @@ describe("a map card in the panel (app 0.4.33)", () => {
     Object.assign(state.inventory.screens[0], { board: "cyd", pictures: false, firmware: "0.20.0" });
     const panel = mount(TileInspector, { props: { tile: current(tile)! } });
     expect(panel.findAll(".seg button").some((b) => b.text() === "Map")).toBe(false);
+    panel.unmount();
+  });
+});
+
+describe("the map tile (app 0.4.36)", () => {
+  it("follows everyone or whom it lists, and keeps its look", async () => {
+    const tile: Tile = { entity: "screen.map", name: "", slot: 0, options: { display: "map", size: "wide" } };
+    appendTiles(tile);
+    Object.assign(state.inventory.screens[0], { firmware: "0.21.0", pictures: true });
+    let panel = mount(TileInspector, { props: { tile: current(tile)! } });
+    // A map and nothing else: no display to pick, no second line; following everyone needs no list.
+    expect(panel.text()).toContain("Follow");
+    expect(panel.text()).not.toContain("On the map");
+    expect(panel.text()).not.toContain("Around this person");
+    await panel.findAll(".seg button").find((b) => b.text() === "Chosen")!.trigger("click");
+    panel.unmount();
+    // Chosen starts with nobody: the list to add someone to.
+    panel = mount(TileInspector, { props: { tile: current(tile)! } });
+    (panel.vm as any).addMapEntity("person.q");
+    panel.unmount();
+    panel = mount(TileInspector, { props: { tile: current(tile)! } });
+    expect(panel.text()).toContain("On the map");
+    for (const label of ["Initials", "Never", "Hide", "Plain", "Dark"]) {
+      const button = panel.findAll(".seg button").find((b) => b.text() === label);
+      if (button) await button.trigger("click");
+      panel.unmount();
+      panel = mount(TileInspector, { props: { tile: current(tile)! } });
+    }
+    expect(() => validatePages(state.document!, state.documentGrid!)).not.toThrow();
+    const saved = state.document!.pages.flatMap((page) => page.tiles)[0];
+    expect(saved.content).toEqual({ kind: "builtin", name: "map" });
+    expect(saved.appearance).toMatchObject({ display: "map", mapFollow: "chosen", mapEntities: ["person.q"] });
     panel.unmount();
   });
 });

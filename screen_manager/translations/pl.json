@@ -1114,7 +1114,8 @@
       "builtin": {
         "clock": "Zegar",
         "nightstand": "Zegar przy łóżku",
-        "page": "Przejdź do strony {page}"
+        "page": "Przejdź do strony {page}",
+        "map": "Mapa"
       },
       "identify": {
         "title": "To jest {name}",
@@ -1168,6 +1169,11 @@
         "strong": "Mocny",
         "max_plus": "Maks.+",
         "auto": "Auto"
+      },
+      "map": {
+        "since": "{state} od {time}",
+        "activity": "Aktywność",
+        "battery": "Bateria {n}%"
       }
     }
   },
@@ -1534,12 +1540,13 @@
         "cover_hint": "Okładka albumu tego, co gra, w miejscu ikony, jak na kafelku Home Assistant; odtwarzacz bez obrazu zachowuje ikonę. Dotknięcie nadal otwiera kartę.",
         "cover_needs_firmware": "Okładka albumu na kafelku wymaga firmware 0.2.78 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie.",
         "map": "Mapa",
-        "map_hint": "Gdzie jest ta osoba i osoby, które dodasz, na spokojnej mapie w kolorach ekranu. Home Assistant dostarcza ulice z OpenStreetMap; ekran dostaje tylko obraz, nigdy lokalizację. Mapa jest rysowana od nowa, gdy ktoś się przemieści.",
+        "map_hint": "Gdzie jest ta osoba i osoby, które dodasz, na spokojnej mapie w kolorach ekranu. Home Assistant dostarcza ulice z OpenStreetMap; ekran dostaje tylko obraz, nigdy lokalizację. Mapa jest rysowana od nowa, gdy ktoś się przemieści. Dotknięcie otwiera ją na cały ekran.",
         "map_needs_firmware": "Mapa wymaga oprogramowania 0.20.0 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie.",
         "no_graph": "Home Assistant nie ma wartości liczbowych dla tej encji, więc wykres pozostanie pusty. Wybierz inny widok.",
         "no_forecast": "Ta usługa pogodowa nie ma prognozy dziennej w Home Assistant. Wybierz inny widok.",
         "tall_cover_hint": "",
-        "face_needs_firmware": "Ten zegar wymaga oprogramowania 0.3.6 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie. Do tego czasu ekran pokazuje zegar cyfrowy."
+        "face_needs_firmware": "Ten zegar wymaga oprogramowania 0.3.6 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie. Do tego czasu ekran pokazuje zegar cyfrowy.",
+        "map_tile_needs_firmware": "Kafelek mapy wymaga oprogramowania 0.21.0 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie."
       },
       "refresh": {
         "label": "Odświeżanie",
@@ -1576,6 +1583,43 @@
           "hint": "Osoby i lokalizatory pokazane obok tej osoby, każdy w swoim kolorze. Lokalizator to telefon, samochód lub tag, którego położenie zna Home Assistant.",
           "add": "Dodaj osobę lub lokalizator",
           "remove": "Usuń {name}"
+        },
+        "follow": {
+          "label": "Śledź",
+          "everyone": "Wszystkich",
+          "chosen": "Wybranych",
+          "everyone_hint": "Wszyscy, których położenie zna Home Assistant: każda osoba i każdy lokalizator, który jeszcze do nikogo nie należy."
+        },
+        "markers": {
+          "label": "Znaczniki",
+          "photo": "Zdjęcie",
+          "initials": "Inicjały"
+        },
+        "names": {
+          "label": "Imiona",
+          "auto": "Gdy jest miejsce",
+          "always": "Zawsze",
+          "never": "Nigdy"
+        },
+        "zones": {
+          "label": "Strefy",
+          "show": "Pokaż",
+          "hide": "Ukryj"
+        },
+        "streets": {
+          "label": "Ulice",
+          "show": "Pokaż",
+          "hide": "Gładkie"
+        },
+        "look": {
+          "label": "Wygląd",
+          "auto": "Jak ekran",
+          "light": "Jasny",
+          "dark": "Ciemny"
+        },
+        "chosen": {
+          "label": "Na mapie",
+          "hint": "Kogo śledzi ta mapa, każdy w swoim kolorze. Lokalizator to telefon, samochód lub tag, którego położenie zna Home Assistant."
         }
       },
       "controls": {

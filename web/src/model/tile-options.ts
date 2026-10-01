@@ -12,25 +12,30 @@ import { ofType } from "./catalogue";
 import type { PageTile, Tile, TileOptions } from "../types";
 
 const APPEARANCE = { display: "display", icon: "icon", background: "background", historyHours: "history_hours", refresh: "refresh", subtitle: "sub", fit: "fit", overlay: "overlay",
-  mapEntities: "map", mapFraming: "framing", mapDistance: "distance" } as const;
+  mapEntities: "map", mapFraming: "framing", mapDistance: "distance",
+  mapFollow: "follow", mapMarkers: "markers", mapNames: "names", mapZones: "zones", mapStreets: "streets", mapLook: "look" } as const;
 const INTERACTION = ["tap", "inline", "controls", "action"] as const;
 const PICTURE_OWN = ["refresh", ...Object.keys(rules.picture)];
 // A map card's own choices (app 0.4.33); its name on the picture is the live picture's `overlay`.
 const MAP = ofType("person")?.map;
-const MAP_OWN = ["map", "framing", "distance"];
+const MAP_OWN = ["map", "framing", "distance", "follow", "markers", "names", "zones", "streets", "look"];
+// The map tile of the screen's own cards (app 0.4.36): a map and nothing else.
+const MAP_TILE = "screen.map";
 
 // What a choice that asks a second step stands for while the inspector tries it: Perform action asks which action,
 // a value of the entity which value, words of your own the words. The step itself is checked when it is taken.
 const SAMPLE_ACTION = { action: "homeassistant.turn_on" };
 // The value an option means when it is not stored, where the add-on drops the stored one (core.validate_layout).
 export const DEFAULTS: Record<string, unknown> = { sub: "auto", fit: rules.picture.fit[0], overlay: rules.picture.overlay[0],
-  framing: MAP?.framing[0], distance: MAP?.distance[0] };
+  framing: MAP?.framing[0], distance: MAP?.distance[0], follow: MAP?.follow[0], markers: MAP?.markers[0], names: MAP?.names[0],
+  zones: MAP?.zones[0], streets: MAP?.streets[0], look: MAP?.look[0] };
 
 const pageTile = (entity: string) => /^screen\.page_\d+$/.test(entity);
 
 /** Mirrors core.validate_layout's normalization, so the document the editor saves is already canonical. */
 export function canonicalOptions(entity: string, options: TileOptions = {}, key = false): TileOptions {
   const out: TileOptions = { ...options };
+  if (entity === MAP_TILE) { out.display = "map"; for (const field of ["inline", "controls", "history_hours", "sub"]) delete out[field]; }
   if (typeof out.sub === "string" && out.sub.startsWith("text:")) {
     const words = out.sub.slice(5).trim();
     out.sub = words ? `text:${words}` : "none";
@@ -44,6 +49,8 @@ export function canonicalOptions(entity: string, options: TileOptions = {}, key 
   // A map keeps who rides along and how it frames them; an empty list is no list, as the add-on stores it.
   if (out.display !== "map") for (const field of MAP_OWN) delete out[field];
   if (Array.isArray(out.map) && !out.map.length) delete out.map;
+  // Following is the map tile's own; a person's map follows that person.
+  if (entity !== MAP_TILE) delete out.follow;
   for (const [key, value] of Object.entries(DEFAULTS)) if (out[key] === value) delete out[key];
   // A Go to page tile has a name, an icon, a colour and a width, nothing else.
   if (pageTile(entity)) for (const key of ["display", "inline", "controls", "history_hours"]) delete out[key];
@@ -74,7 +81,7 @@ function cardOf(tile: Tile, options: TileOptions): PageTile {
   const interaction: PageTile["interaction"] = {};
   for (const key of INTERACTION) if (options[key] !== undefined) Object.assign(interaction, { [key]: options[key] });
   const content: PageTile["content"] = pageTile(tile.entity) ? { kind: "navigation", target: { kind: "home" } }
-    : tile.entity === "screen.clock" || tile.entity === "screen.nightstand" || tile.entity === "screen.settings" ? { kind: "builtin", name: tile.entity.slice(7) as "clock" | "nightstand" | "settings" }
+    : tile.entity === "screen.clock" || tile.entity === "screen.nightstand" || tile.entity === "screen.settings" || tile.entity === "screen.map" ? { kind: "builtin", name: tile.entity.slice(7) as "clock" | "nightstand" | "settings" | "map" }
     : { kind: "entity", entityId: tile.entity };
   return { id: tile.id || "trial", content, appearance, interaction, placement: { row: 0, column: 0, columns: 1, rows: 1 } };
 }

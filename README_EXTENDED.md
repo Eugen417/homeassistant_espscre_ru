@@ -213,7 +213,9 @@ on the screen itself, and how updates work.
   zones, and a marker with the initials of each person or tracker (a phone, a car, a tag) on it, framed around
   everyone, around home or around that person.
   ESP Screens draws it in the screen's own colours, light or dark, from Home Assistant's own map tiles, and the
-  screen gets a picture, never a location. It is drawn again when someone moves. [docs/MAP.md](docs/MAP.md).
+  screen gets a picture, never a location. It is drawn again when someone moves, and a tap opens it over the whole
+  screen. The map tile (app 0.4.36 / firmware 0.21.0) is the same map without a person of its own, following everyone
+  Home Assistant knows the place of or only whom you choose, with photos in the markers. [docs/MAP.md](docs/MAP.md).
 - **History card** for sensors, numbers, binary sensors, people, and switches, the way Home
   Assistant shows history: a line with an axis in round steps and clock times for numbers,
   with the highest and lowest moment, and a timeline with the time in each state for on/off,

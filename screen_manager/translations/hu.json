@@ -1114,7 +1114,8 @@
       "builtin": {
         "clock": "Óra",
         "nightstand": "Éjjeliszekrény-óra",
-        "page": "Ugrás: {page}. oldal"
+        "page": "Ugrás: {page}. oldal",
+        "map": "Térkép"
       },
       "identify": {
         "title": "Ez itt: {name}",
@@ -1168,6 +1169,11 @@
         "strong": "Erős",
         "max_plus": "Max+",
         "auto": "Auto"
+      },
+      "map": {
+        "since": "{state} {time} óta",
+        "activity": "Tevékenység",
+        "battery": "Akkumulátor {n}%"
       }
     }
   },
@@ -1534,12 +1540,13 @@
         "cover_hint": "Az éppen szóló zene albumborítója az ikon helyén, mint a Home Assistant saját csempéjén; kép nélküli lejátszónál az ikon marad. Koppintásra továbbra is a kártya nyílik meg.",
         "cover_needs_firmware": "A csempén lévő albumborítóhoz 0.2.78 vagy újabb firmware kell: mentés után nyomd meg a Frissítés gombot a kijelzőnél.",
         "map": "Térkép",
-        "map_hint": "Hol van ez a személy és akiket hozzáadsz, egy nyugodt térképen a kijelző színeiben. Az utcákat a Home Assistant adja az OpenStreetMapből; a kijelző csak a képet kapja, soha nem helyet. Újrarajzolódik, ha valaki elmozdul.",
+        "map_hint": "Hol van ez a személy és akiket hozzáadsz, egy nyugodt térképen a kijelző színeiben. Az utcákat a Home Assistant adja az OpenStreetMapből; a kijelző csak a képet kapja, soha nem helyet. Újrarajzolódik, ha valaki elmozdul. Egy érintés a teljes képernyőn nyitja meg.",
         "map_needs_firmware": "A térképhez 0.20.0 vagy újabb firmware kell: mentés után nyomd meg a Frissítés gombot a kijelzőnél.",
         "no_graph": "A Home Assistantban nincsenek számértékek ehhez az entitáshoz, így a grafikon üres marad. Válassz másik megjelenítést.",
         "no_forecast": "Ennek az időjárás-szolgáltatásnak nincs napi előrejelzése a Home Assistantban. Válassz másik megjelenítést.",
         "tall_cover_hint": "Az albumborítót sötétített háttérként használja. Borító nélkül a normál csempe látszik.",
-        "face_needs_firmware": "Ehhez az órához 0.3.6 vagy újabb firmware kell: mentés után nyomd meg a Frissítés gombot a kijelzőnél. Addig a kijelző a digitális órát mutatja."
+        "face_needs_firmware": "Ehhez az órához 0.3.6 vagy újabb firmware kell: mentés után nyomd meg a Frissítés gombot a kijelzőnél. Addig a kijelző a digitális órát mutatja.",
+        "map_tile_needs_firmware": "A térképcsempéhez 0.21.0 vagy újabb firmware kell: mentés után nyomd meg a Frissítés gombot a kijelzőnél."
       },
       "refresh": {
         "label": "Frissítés",
@@ -1576,6 +1583,43 @@
           "hint": "Az e személy mellett mutatott emberek és nyomkövetők, mindegyik a saját színében. Nyomkövető egy telefon, autó vagy címke, amelynek helyét a Home Assistant ismeri.",
           "add": "Személy vagy nyomkövető hozzáadása",
           "remove": "{name} eltávolítása"
+        },
+        "follow": {
+          "label": "Követés",
+          "everyone": "Mindenki",
+          "chosen": "Kiválasztottak",
+          "everyone_hint": "Mindenki, akinek a helyét a Home Assistant ismeri: minden személy, és minden nyomkövető, amely még senkihez sem tartozik."
+        },
+        "markers": {
+          "label": "Jelölők",
+          "photo": "Fénykép",
+          "initials": "Monogram"
+        },
+        "names": {
+          "label": "Nevek",
+          "auto": "Ahol van hely",
+          "always": "Mindig",
+          "never": "Soha"
+        },
+        "zones": {
+          "label": "Zónák",
+          "show": "Mutat",
+          "hide": "Elrejt"
+        },
+        "streets": {
+          "label": "Utcák",
+          "show": "Mutat",
+          "hide": "Sima"
+        },
+        "look": {
+          "label": "Megjelenés",
+          "auto": "Mint a kijelző",
+          "light": "Világos",
+          "dark": "Sötét"
+        },
+        "chosen": {
+          "label": "A térképen",
+          "hint": "Kiket követ ez a térkép, mindegyiket a saját színében. Nyomkövető egy telefon, autó vagy címke, amelynek helyét a Home Assistant ismeri."
         }
       },
       "controls": {

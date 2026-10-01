@@ -1114,7 +1114,8 @@
       "builtin": {
         "clock": "Horloge",
         "nightstand": "Horloge de chevet",
-        "page": "Aller à la page {page}"
+        "page": "Aller à la page {page}",
+        "map": "Carte"
       },
       "identify": {
         "title": "Voici {name}",
@@ -1168,6 +1169,11 @@
         "strong": "Fort",
         "max_plus": "Max+",
         "auto": "Auto"
+      },
+      "map": {
+        "since": "{state} depuis {time}",
+        "activity": "Activité",
+        "battery": "Batterie {n} %"
       }
     }
   },
@@ -1534,12 +1540,13 @@
         "cover_hint": "La pochette de ce qui joue à la place de l'icône, comme la tuile de Home Assistant ; un lecteur sans image garde son icône. Un appui ouvre toujours la carte.",
         "cover_needs_firmware": "La pochette sur la tuile demande le firmware 0.2.78 ou plus récent : appuyez sur Mettre à jour sur l'écran après l'enregistrement.",
         "map": "Carte",
-        "map_hint": "Où se trouvent cette personne et celles que vous ajoutez, sur une carte calme aux couleurs de l'écran. Home Assistant fournit les rues d'OpenStreetMap ; l'écran ne reçoit que l'image, jamais une position. Elle est redessinée quand quelqu'un se déplace.",
+        "map_hint": "Où se trouvent cette personne et celles que vous ajoutez, sur une carte calme aux couleurs de l'écran. Home Assistant fournit les rues d'OpenStreetMap ; l'écran ne reçoit que l'image, jamais une position. Elle est redessinée quand quelqu'un se déplace. Un appui l'ouvre sur tout l'écran.",
         "map_needs_firmware": "Une carte nécessite le firmware 0.20.0 ou plus récent : appuyez sur Mettre à jour sur l'écran après l'enregistrement.",
         "no_graph": "Home Assistant n'a pas de valeurs numériques pour cette entité : le graphique reste donc vide. Choisissez un autre affichage.",
         "no_forecast": "Ce service météo n'a pas de prévisions journalières dans Home Assistant. Choisissez un autre affichage.",
         "tall_cover_hint": "",
-        "face_needs_firmware": "Cette horloge demande le firmware 0.3.6 ou plus récent : appuyez sur Mettre à jour pour l'écran après l'enregistrement. D'ici là, l'écran affiche l'horloge numérique."
+        "face_needs_firmware": "Cette horloge demande le firmware 0.3.6 ou plus récent : appuyez sur Mettre à jour pour l'écran après l'enregistrement. D'ici là, l'écran affiche l'horloge numérique.",
+        "map_tile_needs_firmware": "La tuile carte nécessite le firmware 0.21.0 ou plus récent : appuyez sur Mettre à jour sur l'écran après l'enregistrement."
       },
       "refresh": {
         "label": "Rafraîchir",
@@ -1576,6 +1583,43 @@
           "hint": "Les personnes et traceurs affichés à côté de celle-ci, chacun dans sa couleur. Un traceur est un téléphone, une voiture ou une balise dont Home Assistant connaît la position.",
           "add": "Ajouter une personne ou un traceur",
           "remove": "Retirer {name}"
+        },
+        "follow": {
+          "label": "Suivre",
+          "everyone": "Tout le monde",
+          "chosen": "Choisis",
+          "everyone_hint": "Tous ceux dont Home Assistant connaît la position : chaque personne, et chaque traceur qui n'appartient encore à personne."
+        },
+        "markers": {
+          "label": "Marqueurs",
+          "photo": "Photo",
+          "initials": "Initiales"
+        },
+        "names": {
+          "label": "Noms",
+          "auto": "Si la place le permet",
+          "always": "Toujours",
+          "never": "Jamais"
+        },
+        "zones": {
+          "label": "Zones",
+          "show": "Afficher",
+          "hide": "Masquer"
+        },
+        "streets": {
+          "label": "Rues",
+          "show": "Afficher",
+          "hide": "Uni"
+        },
+        "look": {
+          "label": "Apparence",
+          "auto": "Comme l'écran",
+          "light": "Clair",
+          "dark": "Sombre"
+        },
+        "chosen": {
+          "label": "Sur la carte",
+          "hint": "Qui cette carte suit, chacun dans sa couleur. Un traceur est un téléphone, une voiture ou une balise dont Home Assistant connaît la position."
         }
       },
       "controls": {

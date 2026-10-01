@@ -1114,7 +1114,8 @@
       "builtin": {
         "clock": "Relógio",
         "nightstand": "Relógio de cabeceira",
-        "page": "Ir para a página {page}"
+        "page": "Ir para a página {page}",
+        "map": "Mapa"
       },
       "identify": {
         "title": "Este é {name}",
@@ -1168,6 +1169,11 @@
         "strong": "Forte",
         "max_plus": "Máx+",
         "auto": "Auto"
+      },
+      "map": {
+        "since": "{state} desde as {time}",
+        "activity": "Atividade",
+        "battery": "Bateria {n}%"
       }
     }
   },
@@ -1534,12 +1540,13 @@
         "cover_hint": "A capa do álbum do que está a tocar no lugar do ícone, como no próprio mosaico do Home Assistant; um leitor sem imagem mantém o seu ícone. Um toque continua a abrir o cartão.",
         "cover_needs_firmware": "A capa do álbum no mosaico precisa do firmware 0.2.78 ou mais recente: prima Atualizar no ecrã depois de guardar.",
         "map": "Mapa",
-        "map_hint": "Onde estão esta pessoa e as que adicionar, num mapa calmo nas cores do ecrã. O Home Assistant fornece as ruas do OpenStreetMap; o ecrã só recebe a imagem, nunca uma localização. É redesenhado quando alguém se move.",
+        "map_hint": "Onde estão esta pessoa e as que adicionar, num mapa calmo nas cores do ecrã. O Home Assistant fornece as ruas do OpenStreetMap; o ecrã só recebe a imagem, nunca uma localização. É redesenhado quando alguém se move. Um toque abre-o em todo o ecrã.",
         "map_needs_firmware": "Um mapa precisa do firmware 0.20.0 ou mais recente: carregue em Atualizar no ecrã depois de guardar.",
         "no_graph": "O Home Assistant não tem valores numéricos para esta entidade, por isso o gráfico fica vazio. Escolha outra apresentação.",
         "no_forecast": "Este serviço meteorológico não tem previsão diária no Home Assistant. Escolha outra apresentação.",
         "tall_cover_hint": "",
-        "face_needs_firmware": "Este relógio precisa do firmware 0.3.6 ou mais recente: prima Atualizar no ecrã depois de guardar. Até lá, o ecrã mostra o relógio digital."
+        "face_needs_firmware": "Este relógio precisa do firmware 0.3.6 ou mais recente: prima Atualizar no ecrã depois de guardar. Até lá, o ecrã mostra o relógio digital.",
+        "map_tile_needs_firmware": "O mosaico de mapa precisa do firmware 0.21.0 ou mais recente: carregue em Atualizar no ecrã depois de guardar."
       },
       "refresh": {
         "label": "Atualizar",
@@ -1576,6 +1583,43 @@
           "hint": "As pessoas e localizadores mostrados ao lado desta, cada um com a sua cor. Um localizador é um telemóvel, um carro ou uma etiqueta cuja localização o Home Assistant conhece.",
           "add": "Adicionar uma pessoa ou localizador",
           "remove": "Remover {name}"
+        },
+        "follow": {
+          "label": "Seguir",
+          "everyone": "Todos",
+          "chosen": "Escolhidos",
+          "everyone_hint": "Todos cuja localização o Home Assistant conhece: cada pessoa e cada localizador que ainda não é de ninguém."
+        },
+        "markers": {
+          "label": "Marcadores",
+          "photo": "Foto",
+          "initials": "Iniciais"
+        },
+        "names": {
+          "label": "Nomes",
+          "auto": "Onde houver espaço",
+          "always": "Sempre",
+          "never": "Nunca"
+        },
+        "zones": {
+          "label": "Zonas",
+          "show": "Mostrar",
+          "hide": "Ocultar"
+        },
+        "streets": {
+          "label": "Ruas",
+          "show": "Mostrar",
+          "hide": "Liso"
+        },
+        "look": {
+          "label": "Aspeto",
+          "auto": "Como o ecrã",
+          "light": "Claro",
+          "dark": "Escuro"
+        },
+        "chosen": {
+          "label": "No mapa",
+          "hint": "Quem este mapa segue, cada um com a sua cor. Um localizador é um telemóvel, um carro ou uma etiqueta cuja localização o Home Assistant conhece."
         }
       },
       "controls": {

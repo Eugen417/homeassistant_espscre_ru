@@ -117,7 +117,8 @@ inline bool valid_entity(const std::string &entity) {
   // screen.* are built-in cards without a Home Assistant entity behind them; screen.page_<n> (firmware 0.2.62+)
   // only goes to page n. Several pages may each carry the same one (firmware 0.2.65+, Model::set_layout).
   if (domain == "screen") {
-    if (entity == "screen.clock" || entity == "screen.settings" || entity == "screen.nightstand") return true;
+    // screen.map (firmware 0.21.0+): the map of the screen's own cards, a picture the app draws.
+    if (entity == "screen.clock" || entity == "screen.settings" || entity == "screen.nightstand" || entity == "screen.map") return true;
     return page_entity(entity) && entity[12] >= '1' && entity[12] <= static_cast<char>('0' + grid.pages());
   }
   // The types the tile catalogue has (catalogue/*.yaml, tile_catalogue.h): the same list the add-on and the editor take.
@@ -341,7 +342,8 @@ struct Tile {
   bool cover_tile() const { return display == "cover" && domain() == "media_player" && !full && !extra().media_picture.empty(); }
   // A map of where this person and the people with them are (firmware 0.20.0+, app 0.4.33): the app draws the whole
   // card, its name included, and sends it in the page's strip like a live camera, so no map arithmetic lives here.
-  bool is_map() const { return display == "map" && domain() == "person"; }
+  // The map tile of the screen's own cards (firmware 0.21.0+) is the same picture, following whom the app is told to.
+  bool is_map() const { return display == "map" && (domain() == "person" || entity == "screen.map"); }
   // A tile that draws its picture out of the page's strip (runtime_tiles.h, live_*).
   bool pictured() const { return live() || cover_tile() || is_map(); }
   // Double width takes a row; full (firmware 0.2.62+) takes the whole page, all six slots, and is also wide.

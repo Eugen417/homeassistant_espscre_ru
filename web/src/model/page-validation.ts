@@ -54,7 +54,7 @@ export function validatePageShape(layout: PageLayout) {
       fields(tile, ['id', 'content', 'placement', 'appearance', 'interaction', 'children'], ['id', 'content', 'placement', 'appearance', 'interaction']);
       fields(tile.placement, ['row', 'column', 'columns', 'rows']);
       fields(tile.appearance, ['label', 'presentation', 'display', 'icon', 'background', 'historyHours', 'refresh', 'subtitle', 'fit', 'overlay',
-        'mapEntities', 'mapFraming', 'mapDistance'], ['label']);
+        'mapEntities', 'mapFraming', 'mapDistance', 'mapFollow', 'mapMarkers', 'mapNames', 'mapZones', 'mapStreets', 'mapLook'], ['label']);
       fields(tile.interaction, ['tap', 'inline', 'controls', 'action', 'guard'], []);
       const content = tile.content;
       fields(content, ['kind', 'entityId', 'name', 'target'], ['kind']);
@@ -92,7 +92,8 @@ export function validateCardOptions(tile: PageTile, entityId: string, size: stri
   // A name too long for the screen says so (app 0.4.1): emoji and accents count their bytes, not their letters.
   if (typeof a.label === 'string' && bytes(a.label) > 80) throw new Error(t('addon.errors.layout.tile_name'));
   if (typeof a.label !== 'string' || a.label !== a.label.trim()) fail('normalization');
-  const displays = (rules.displays as Record<string, string[]>)[domain] || ['standard', 'watch'];
+  // The map tile (app 0.4.36) is a map and nothing else.
+  const displays = entityId === 'screen.map' ? ['map'] : (rules.displays as Record<string, string[]>)[domain] || ['standard', 'watch'];
   const controls = ['none', ...((rules.controls as Record<string, string[]>)[domain] || [])];
   // Every choice from the tile catalogue (model/catalogue.ts): a type's taps, its guards, the hours a graph shows.
   for (const [value, choices] of [[a.display, displays], [a.background, rules.backgrounds], [a.historyHours, TILE.history_hours],
@@ -111,12 +112,18 @@ export function validateCardOptions(tile: PageTile, entityId: string, size: stri
     if (a[key] !== undefined && ((a.display !== 'live' && !(key === 'overlay' && a.display === 'map')) || !choices.includes(a[key]!) || a[key] === choices[0])) fail('normalization');
   // A map card (app 0.4.33): its framing and distance, defaults never stored, and who rides along beside its person.
   const map = ofType('person')?.map;
-  for (const [value, choices] of [[a.mapFraming, map?.framing ?? []], [a.mapDistance, map?.distance ?? []]] as [string | undefined, string[]][])
+  for (const [value, choices] of [[a.mapFraming, map?.framing ?? []], [a.mapDistance, map?.distance ?? []], [a.mapFollow, map?.follow ?? []],
+    [a.mapMarkers, map?.markers ?? []], [a.mapNames, map?.names ?? []], [a.mapZones, map?.zones ?? []], [a.mapStreets, map?.streets ?? []],
+    [a.mapLook, map?.look ?? []]] as [string | undefined, string[]][])
     if (value !== undefined && (a.display !== 'map' || !choices.includes(value) || value === choices[0])) fail('normalization');
+  // The map tile (app 0.4.36) is a map, follows everyone or whom it lists, and alone has the choice.
+  const mapTile = entityId === 'screen.map';
+  if (mapTile && a.display !== 'map') fail('normalization');
+  if (a.mapFollow !== undefined && !mapTile) fail('normalization');
   if (a.mapEntities !== undefined) {
     const list = a.mapEntities;
     if (a.display !== 'map' || !Array.isArray(list) || !list.length) fail('normalization');
-    if (list.length > (map?.max ?? 8) - 1 || new Set(list).size !== list.length ||
+    if (list.length > (map?.max ?? 8) - (mapTile ? 0 : 1) || new Set(list).size !== list.length ||
         list.some((id) => typeof id !== 'string' || !matches(/^[a-z0-9_]+\.[a-z0-9_]+$/, id) || !(map?.with ?? []).includes(id.split('.')[0]) || id === entityId)) fail();
   }
   if (a.subtitle !== undefined) {

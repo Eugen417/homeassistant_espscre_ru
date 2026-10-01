@@ -22,6 +22,9 @@ APPEARANCE = {
     "historyHours": "history_hours", "refresh": "refresh", "subtitle": "sub", "fit": "fit", "overlay": "overlay",
     # A map card (app 0.4.33): who rides along and how it frames them. None of the three ever reaches a screen.
     "mapEntities": "map", "mapFraming": "framing", "mapDistance": "distance",
+    # How a map looks and, on the map tile, whom it follows (app 0.4.36).
+    "mapFollow": "follow", "mapMarkers": "markers", "mapNames": "names", "mapZones": "zones", "mapStreets": "streets",
+    "mapLook": "look",
 }
 INTERACTION = {"tap": "tap", "inline": "inline", "controls": "controls", "action": "action", "guard": "guard"}
 
@@ -178,7 +181,7 @@ def _entity(content, page_indexes, home):
         return entity
     if content["kind"] == "builtin":
         _object(content, {"kind", "name"}, {"kind", "name"})
-        if content["name"] not in ("clock", "nightstand", "settings"):
+        if content["name"] not in ("clock", "nightstand", "settings", "map"):
             raise LayoutError(t('addon.errors.layout.unsupported'))
         return "screen." + content["name"]
     if content["kind"] == "navigation":

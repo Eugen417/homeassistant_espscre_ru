@@ -12,7 +12,8 @@ type Option = { key: string; needs?: Needs; screen?: Screen; sizes?: { full: boo
   one_row?: string; fallback?: string; range?: { when?: Needs; screen?: Screen } };
 type Type = { firmware: string | null; key: boolean; features: Record<string, number>; actions: Record<string, string[][]>;
   displays: Option[]; controls: Option[]; inline: Option | null; toggle: Needs | null; taps: string[]; guards: string[]; picture: Record<string, unknown[]> | null;
-  map: { framing: string[]; distance: string[]; overlay: string[]; with: string[]; max: number } | null };
+  map: { framing: string[]; distance: string[]; overlay: string[]; follow: string[]; markers: string[]; names: string[];
+    zones: string[]; streets: string[]; look: string[]; with: string[]; max: number } | null };
 type Attributes = Record<string, any>;
 
 export const TYPES = data.domains as unknown as Record<string, Type>;

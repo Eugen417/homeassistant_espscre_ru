@@ -17,7 +17,7 @@ import tile_icons
 DOMAINS = catalogue.DOMAINS
 # Built-in cards without a Home Assistant entity; firmware 0.2.14+ renders them. The names in English: a screen gets them in
 # its language and the editor in its own (builtin_name, app 0.2.90).
-BUILTIN = {'screen.clock': 'Clock', 'screen.nightstand': 'Bedside clock', 'screen.settings': 'Settings', **{f'screen.page_{n}': f'Go to page {n}' for n in range(1, 9)}}
+BUILTIN = {'screen.clock': 'Clock', 'screen.nightstand': 'Bedside clock', 'screen.settings': 'Settings', 'screen.map': 'Map', **{f'screen.page_{n}': f'Go to page {n}' for n in range(1, 9)}}
 # A navigation tile (firmware 0.2.62+): screen.page_<n> goes to page n. Firmware 0.2.65+ takes the same one on several
 # pages (a "Back to page 1" on every page), firmware 0.16.0+ any entity on several tiles (GitHub #83) but the bedside
 # clock, whose keys name it by its entity.
@@ -42,6 +42,8 @@ def builtin_name(entity, text=screen_t):
     # The settings tile is named like the settings page it opens.
     if entity == 'screen.nightstand':
         return text('addon.screen.builtin.nightstand')
+    if entity == MAP_TILE:
+        return text('addon.screen.builtin.map')
     return text('screen.settings.title' if entity == 'screen.settings' else 'addon.screen.builtin.clock')
 # A camera or an image entity opens full screen on a Guition with firmware 0.2.57+ (camera_feed.py).
 CAMERA_DOMAINS = frozenset(('camera', 'image'))
@@ -96,7 +98,7 @@ REF = 'main'
 # The shared firmware of this app release: packages/core.yaml's SCREEN_FIRMWARE_VERSION, what every board builds
 # unless its own board file went ahead with a fix for that board alone (firmware_target, docs/BOARD_RELEASES.md). The
 # middle number is the core: the feature gates below name a shared X.Y.0, so a feature always ships with a new core.
-FIRMWARE_VERSION = '0.20.0'
+FIRMWARE_VERSION = '0.21.0'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -161,7 +163,11 @@ PICTURE_OPTIONS = {key: tuple(catalogue.of_type('camera')['picture'][key]) for k
 # default and is never stored. `map` lists who rides along beside the tile's own person, people and device trackers.
 # None of it reaches a screen (screen_options): the screen gets pixels, never a place.
 MAP_CARD = catalogue.of_type('person')['map']
-MAP_OPTIONS = {key: tuple(MAP_CARD[key]) for key in ('framing', 'distance')}
+MAP_OPTIONS = {key: tuple(MAP_CARD[key]) for key in ('framing', 'distance', 'follow', 'markers', 'names', 'zones', 'streets', 'look')}
+# The map of the screen's own cards (app 0.4.36, firmware 0.21.0): the same map without a person of its own, following
+# everyone Home Assistant knows the place of or the people and trackers chosen (`follow`).
+MAP_TILE = 'screen.map'
+MAP_TILE_MIN_FIRMWARE = (0, 21, 0)
 MAP_DOMAINS = frozenset(MAP_CARD['with'])
 MAP_MAX_ENTITIES = MAP_CARD['max']
 MAP_OWN = ('map', *MAP_OPTIONS)
@@ -965,7 +971,8 @@ def map_entities(value, own):
     """Who rides along on a map tile, checked: people and device trackers, each once, never the tile's own person, so
     the card never draws more than MAP_MAX_ENTITIES. The list stays in the app (screen_options) and a map is drawn from
     the saved tile alone (server.Manager.answer_live)."""
-    if not isinstance(value, list) or len(value) > MAP_MAX_ENTITIES - 1:
+    # The map tile has no person of its own, so all eight may be chosen.
+    if not isinstance(value, list) or len(value) > MAP_MAX_ENTITIES - (0 if own == MAP_TILE else 1):
         raise ValueError(t('addon.errors.layout.map_entities', n=MAP_MAX_ENTITIES))
     for entity in value:
         if not isinstance(entity, str) or not ACTION_NAME.fullmatch(entity) or entity.split('.')[0] not in MAP_DOMAINS \
@@ -992,6 +999,7 @@ def min_firmware(layout):
         (repeated_page_tiles(tiles), PAGE_TILE_REPEAT_MIN_FIRMWARE),
         (repeated_entities(tiles), ENTITY_REPEAT_MIN_FIRMWARE),
         (layout.get('title') == '', NO_TITLE_MIN_FIRMWARE),
+        (any(t['entity'] == MAP_TILE for t in tiles), MAP_TILE_MIN_FIRMWARE),
         (len(tiles) > LEGACY_MAX_TILES or any(is_full(t) or page_target(t['entity']) for t in tiles), FULL_PAGE_MIN_FIRMWARE),
         (any(t['entity'] == 'screen.settings' for t in tiles), (0, 2, 44)),
         (any(o.get('background') == 'none' for o in options), (0, 2, 16)),
@@ -1521,6 +1529,10 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
             if is_key(tile) and set(options) - set(KEY_OPTIONS):
                 raise ValueError(t('addon.errors.layout.unknown_settings'))
             displays = DISPLAYS.get(domain, ('standard', 'watch'))
+            # The map tile (app 0.4.36) is a map and nothing else, and has no slider or controls of its own.
+            if tile['entity'] == MAP_TILE:
+                displays = ('map',)
+                options = {**{k: v for k, v in options.items() if k not in ('inline', 'controls', 'history_hours', 'sub')}, 'display': 'map'}
             # Every tile's taps and its type's own (run, an automation's alone: firmware 0.7.0+), from the catalogue.
             taps = tuple(catalogue.taps(domain))
             choices = {'tap': taps, 'display': displays, 'inline': ('none', 'slider')}
@@ -1592,6 +1604,10 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
                 if 'map' in options:
                     options = {**options, 'map': map_entities(options['map'], tile['entity'])}
                 allowed = {**MAP_OPTIONS, 'overlay': PICTURE_OPTIONS['overlay']}
+                # Following is the map tile's own: a person's map follows that person and who rides along.
+                # Chosen with nobody yet is a map of the zones until someone is added.
+                if tile['entity'] != MAP_TILE:
+                    options = {k: v for k, v in options.items() if k != 'follow'}
                 for key, choices in allowed.items():
                     if key in options and options[key] not in choices:
                         raise ValueError(t('addon.errors.layout.invalid_setting', setting=key))
@@ -1925,7 +1941,7 @@ def extras(tile, states, forecast=None, tz=None, hourly=None, now=None, device=N
     # nothing polls and no place goes out (map_card.fingerprint).
     if (tile.get('options') or {}).get('display') == 'map':
         import map_card
-        return {'mk': map_card.fingerprint(tile, states)}
+        return {'mk': map_card.fingerprint(tile, states, entries)}
     if domain == 'light':
         # The effects page (app 0.2.83): the select and number entities of the light's device, named as Home Assistant
         # names them; the effect itself travels as the `effect` attribute.
@@ -2082,6 +2098,9 @@ def state_message(index, tile, states, extra=None, precision=None, entry=None, u
         options = screen_options(tile, {})
         if options is not None:
             message['o'] = options
+        # The map tile's movement mark (app 0.4.36), as any map's.
+        if extra:
+            message['x'] = extra
         return message
     state = states.get(tile['entity'], {})
     attrs = state.get('attributes', {})

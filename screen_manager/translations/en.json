@@ -1114,7 +1114,8 @@
       "builtin": {
         "clock": "Clock",
         "nightstand": "Bedside clock",
-        "page": "Go to page {page}"
+        "page": "Go to page {page}",
+        "map": "Map"
       },
       "identify": {
         "title": "This is {name}",
@@ -1168,6 +1169,11 @@
         "strong": "Strong",
         "max_plus": "Max+",
         "auto": "Auto"
+      },
+      "map": {
+        "since": "{state} since {time}",
+        "activity": "Activity",
+        "battery": "Battery {n}%"
       }
     }
   },
@@ -1534,12 +1540,13 @@
         "cover_hint": "The album cover of what plays in the icon's place, like Home Assistant's own tile; a player without a picture keeps its icon. A tap still opens the card.",
         "cover_needs_firmware": "The album cover on the tile needs firmware 0.2.78 or newer: press Update on the screen after saving.",
         "map": "Map",
-        "map_hint": "Where this person and the people you add are, on a calm map drawn in the screen's colours. Home Assistant supplies the streets from OpenStreetMap; the screen only gets the picture, never a location. It is drawn again when someone moves.",
+        "map_hint": "Where this person and the people you add are, on a calm map drawn in the screen's colours. Home Assistant supplies the streets from OpenStreetMap; the screen only gets the picture, never a location. It is drawn again when someone moves. A tap opens it over the whole screen.",
         "map_needs_firmware": "A map needs firmware 0.20.0 or newer: press Update on the screen after saving.",
         "no_graph": "Home Assistant has no numbers for this entity, so the graph stays empty. Choose another display.",
         "no_forecast": "This weather service has no daily forecast in Home Assistant. Choose another display.",
         "tall_cover_hint": "Uses the album cover as a dimmed background. Without artwork the normal tile remains visible.",
-        "face_needs_firmware": "This clock needs firmware 0.3.6 or newer: press Update on the screen after saving. Until then the screen shows the digital clock."
+        "face_needs_firmware": "This clock needs firmware 0.3.6 or newer: press Update on the screen after saving. Until then the screen shows the digital clock.",
+        "map_tile_needs_firmware": "The map tile needs firmware 0.21.0 or newer: press Update on the screen after saving."
       },
       "refresh": {
         "label": "Refresh",
@@ -1576,6 +1583,43 @@
           "hint": "The people and trackers shown beside this one, each in their own colour. A tracker is a phone, a car or a tag Home Assistant knows the place of.",
           "add": "Add a person or tracker",
           "remove": "Remove {name}"
+        },
+        "follow": {
+          "label": "Follow",
+          "everyone": "Everyone",
+          "chosen": "Chosen",
+          "everyone_hint": "Everyone Home Assistant knows the place of: every person, and every tracker that is not already someone's."
+        },
+        "markers": {
+          "label": "Markers",
+          "photo": "Photo",
+          "initials": "Initials"
+        },
+        "names": {
+          "label": "Names",
+          "auto": "Where there is room",
+          "always": "Always",
+          "never": "Never"
+        },
+        "zones": {
+          "label": "Zones",
+          "show": "Show",
+          "hide": "Hide"
+        },
+        "streets": {
+          "label": "Streets",
+          "show": "Show",
+          "hide": "Plain"
+        },
+        "look": {
+          "label": "Look",
+          "auto": "As the screen",
+          "light": "Light",
+          "dark": "Dark"
+        },
+        "chosen": {
+          "label": "On the map",
+          "hint": "Who this map follows, each in their own colour. A tracker is a phone, a car or a tag Home Assistant knows the place of."
         }
       },
       "controls": {

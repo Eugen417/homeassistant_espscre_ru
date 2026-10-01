@@ -89,12 +89,20 @@ const displayWarns = computed(() => !(display.value === "live" && cardFilled.val
 const MAP = ofType("person")?.map;
 const mapCard = computed(() => display.value === "map");
 const mapWith = computed(() => (props.tile.options?.map as string[] | undefined) ?? []);
-const mapFull = computed(() => mapWith.value.length >= (MAP?.max ?? 8) - 1);
+// The map tile of the screen's own cards (app 0.4.36): no person of its own, following everyone or whom it lists.
+const mapTile = computed(() => props.tile.entity === "screen.map");
+const mapFollow = computed(() => current("follow", MAP?.follow[0]) as string);
+const mapListed = computed(() => !mapTile.value || mapFollow.value === "chosen");
+const mapFull = computed(() => mapWith.value.length >= (MAP?.max ?? 8) - (mapTile.value ? 0 : 1));
 const mapOffered = computed(() => [...(state.inventory.entities || []), ...(state.inventory.trackers || [])]
   .filter((item) => (MAP?.with ?? []).includes(item.id.split(".")[0]) && item.id !== props.tile.entity && !mapWith.value.includes(item.id))
   .map((item) => [item.id, item.name || item.id] as [string, string]));
 const mapFraming = computed(() => current("framing", MAP?.framing[0]) as string);
-const mapChoices = (key: "framing" | "distance") => offer(key, (MAP?.[key] ?? []).map((value) => [value, t(`editor.tile.map.${key}.${value}`)] as [string, string]), current(key, MAP?.[key][0]));
+type MapChoice = "framing" | "distance" | "follow" | "markers" | "names" | "zones" | "streets" | "look";
+const mapChoices = (key: MapChoice) => offer(key, (MAP?.[key] ?? [])
+  // Around this person is a person's map: the map tile has no person of its own.
+  .filter((value) => !(key === "framing" && value === "person" && mapTile.value))
+  .map((value) => [value, t(`editor.tile.map.${key}.${value}`)] as [string, string]), current(key, MAP?.[key][0]));
 function addMapEntity(id: string) { if (id) setTileOption(props.tile, "map", [...mapWith.value, id]); }
 function removeMapEntity(id: string) { setTileOption(props.tile, "map", mapWith.value.filter((item) => item !== id)); }
 const pictureChoices = (key: "fit" | "overlay") => offer(key, rules.picture[key].map((value) => [value, t(`editor.tile.picture.${key}.${value}`)] as [string, string]), current(key, rules.picture[key][0]));
@@ -280,12 +288,12 @@ const backgroundName = computed(() => state.inventory.backgrounds?.[props.tile.o
 
     <!-- What the card shows first, then where it stands, what a finger does to it, and last its icon and colour. -->
     <Section v-if="lookShown || (!bedside && !key)" :title="t('editor.tile.sections.look')">
-      <PropRow v-if="lookShown && tile.entity !== 'screen.settings'" :label="t('editor.tile.display.label')" icon="eye-outline" :hint="displayHint && !displayWarns ? displayHint : undefined">
+      <PropRow v-if="lookShown && tile.entity !== 'screen.settings' && !mapTile" :label="t('editor.tile.display.label')" icon="eye-outline" :hint="displayHint && !displayWarns ? displayHint : undefined">
         <ChoiceField :choices="displays" :value="display" :tile="tile" preview-key="display" :aria-label="t('editor.tile.display.label')" @pick="(v) => setTileOption(tile, 'display', v)" />
         <template v-if="displayHint && displayWarns" #note><small class="help warn">{{ displayHint }}</small></template>
       </PropRow>
       <!-- A bedside clock and its keys have no second line: the clock draws the time, a key its name alone. -->
-      <PropRow v-if="!bedside && !key" :label="t('editor.tile.sub.label')" icon="text-short" :hint="t(`editor.tile.sub.hint_${subKind}`)">
+      <PropRow v-if="!bedside && !key && !mapCard" :label="t('editor.tile.sub.label')" icon="text-short" :hint="t(`editor.tile.sub.hint_${subKind}`)">
         <ChoiceField :choices="subChoices" :value="subKind" :tile="tile" preview-key="sub" :sample="subSample" :aria-label="t('editor.tile.sub.label')" @pick="pickSubKind" />
         <template v-if="subKind === 'attr' || subKind === 'text'" #note>
           <UiSelect v-if="subKind === 'attr'" class="sub-value" :model-value="subAttribute" :options="subValues.map((value) => [value.key, value.name] as [string, string])"
@@ -302,13 +310,24 @@ const backgroundName = computed(() => state.inventory.backgrounds?.[props.tile.o
       <PropRow v-if="lookShown && pictureCard" :label="t('editor.tile.picture.fit.label')" icon="resize">
         <ChoiceField :choices="pictureChoices('fit')" :value="current('fit', 'fill')" :tile="tile" preview-key="fit" :aria-label="t('editor.tile.picture.fit.label')" @pick="(v) => setTileOption(tile, 'fit', v)" />
       </PropRow>
-      <PropRow v-if="lookShown && mapCard" :label="t('editor.tile.map.framing.label')" icon="crosshairs-gps">
-        <ChoiceField :choices="mapChoices('framing')" :value="mapFraming" :tile="tile" preview-key="framing" :aria-label="t('editor.tile.map.framing.label')" @pick="(v) => setTileOption(tile, 'framing', v)" />
+      <PropRow v-if="lookShown && pictureCard" :label="t('editor.tile.picture.overlay.label')" icon="format-title">
+        <ChoiceField :choices="pictureChoices('overlay')" :value="current('overlay', 'name')" :tile="tile" preview-key="overlay" :aria-label="t('editor.tile.picture.overlay.label')" @pick="(v) => setTileOption(tile, 'overlay', v)" />
       </PropRow>
-      <PropRow v-if="lookShown && mapCard && mapFraming !== 'everyone'" :label="t('editor.tile.map.distance.label')" icon="magnify-plus-outline">
-        <ChoiceField :choices="mapChoices('distance')" :value="current('distance', MAP?.distance[0])" :tile="tile" preview-key="distance" :aria-label="t('editor.tile.map.distance.label')" @pick="(v) => setTileOption(tile, 'distance', v)" />
+      <PropRow v-if="lookShown && domain === 'sensor'" :label="t('editor.tile.history.label')" icon="clock-outline">
+        <ChoiceField :choices="historyChoices" :value="history" :tile="tile" preview-key="history_hours" :aria-label="t('editor.tile.history.label')" @pick="(v) => setTileOption(tile, 'history_hours', Number(v))" />
       </PropRow>
-      <PropRow v-if="lookShown && mapCard" :label="t('editor.tile.map.with.label')" icon="account-multiple-outline" :hint="t('editor.tile.map.with.hint')">
+    </Section>
+
+
+    <!-- A map (app 0.4.33, the map tile and these choices 0.4.36): whom it follows, how it frames them, how it looks. -->
+    <Section v-if="lookShown && mapCard" :title="t('editor.tile.display.map')">
+      <p v-if="mapTile" class="hint">{{ t(supports(0, 21, 0) ? "editor.tile.display.map_hint" : "editor.tile.display.map_tile_needs_firmware") }}</p>
+      <PropRow v-if="mapTile" :label="t('editor.tile.map.follow.label')" icon="account-eye-outline"
+        :hint="mapFollow === 'everyone' ? t('editor.tile.map.follow.everyone_hint') : undefined">
+        <ChoiceField :choices="mapChoices('follow')" :value="mapFollow" :tile="tile" preview-key="follow" :aria-label="t('editor.tile.map.follow.label')" @pick="(v) => setTileOption(tile, 'follow', v)" />
+      </PropRow>
+      <PropRow v-if="mapListed" :label="t(mapTile ? 'editor.tile.map.chosen.label' : 'editor.tile.map.with.label')" icon="account-multiple-outline"
+        :hint="t(mapTile ? 'editor.tile.map.chosen.hint' : 'editor.tile.map.with.hint')">
         <div class="map-with">
           <span v-for="item in mapWith" :key="item" class="map-person">
             {{ entityName(item) }}
@@ -318,14 +337,31 @@ const backgroundName = computed(() => state.inventory.backgrounds?.[props.tile.o
             :placeholder="t('editor.tile.map.with.add')" :aria-label="t('editor.tile.map.with.add')" @update:model-value="addMapEntity" />
         </div>
       </PropRow>
-      <PropRow v-if="lookShown && (pictureCard || mapCard)" :label="t('editor.tile.picture.overlay.label')" icon="format-title">
+      <PropRow :label="t('editor.tile.map.framing.label')" icon="crosshairs-gps">
+        <ChoiceField :choices="mapChoices('framing')" :value="mapFraming" :tile="tile" preview-key="framing" :aria-label="t('editor.tile.map.framing.label')" @pick="(v) => setTileOption(tile, 'framing', v)" />
+      </PropRow>
+      <PropRow v-if="mapFraming !== 'everyone'" :label="t('editor.tile.map.distance.label')" icon="magnify-plus-outline">
+        <ChoiceField :choices="mapChoices('distance')" :value="current('distance', MAP?.distance[0])" :tile="tile" preview-key="distance" :aria-label="t('editor.tile.map.distance.label')" @pick="(v) => setTileOption(tile, 'distance', v)" />
+      </PropRow>
+      <PropRow :label="t('editor.tile.map.markers.label')" icon="account-circle-outline">
+        <ChoiceField :choices="mapChoices('markers')" :value="current('markers', MAP?.markers[0])" :tile="tile" preview-key="markers" :aria-label="t('editor.tile.map.markers.label')" @pick="(v) => setTileOption(tile, 'markers', v)" />
+      </PropRow>
+      <PropRow :label="t('editor.tile.map.names.label')" icon="label-outline">
+        <ChoiceField :choices="mapChoices('names')" :value="current('names', MAP?.names[0])" :tile="tile" preview-key="names" :aria-label="t('editor.tile.map.names.label')" @pick="(v) => setTileOption(tile, 'names', v)" />
+      </PropRow>
+      <PropRow :label="t('editor.tile.map.zones.label')" icon="map-marker-radius-outline">
+        <ChoiceField :choices="mapChoices('zones')" :value="current('zones', MAP?.zones[0])" :tile="tile" preview-key="zones" :aria-label="t('editor.tile.map.zones.label')" @pick="(v) => setTileOption(tile, 'zones', v)" />
+      </PropRow>
+      <PropRow :label="t('editor.tile.map.streets.label')" icon="road-variant">
+        <ChoiceField :choices="mapChoices('streets')" :value="current('streets', MAP?.streets[0])" :tile="tile" preview-key="streets" :aria-label="t('editor.tile.map.streets.label')" @pick="(v) => setTileOption(tile, 'streets', v)" />
+      </PropRow>
+      <PropRow :label="t('editor.tile.map.look.label')" icon="theme-light-dark">
+        <ChoiceField :choices="mapChoices('look')" :value="current('look', MAP?.look[0])" :tile="tile" preview-key="look" :aria-label="t('editor.tile.map.look.label')" @pick="(v) => setTileOption(tile, 'look', v)" />
+      </PropRow>
+      <PropRow :label="t('editor.tile.picture.overlay.label')" icon="format-title">
         <ChoiceField :choices="pictureChoices('overlay')" :value="current('overlay', 'name')" :tile="tile" preview-key="overlay" :aria-label="t('editor.tile.picture.overlay.label')" @pick="(v) => setTileOption(tile, 'overlay', v)" />
       </PropRow>
-      <PropRow v-if="lookShown && domain === 'sensor'" :label="t('editor.tile.history.label')" icon="clock-outline">
-        <ChoiceField :choices="historyChoices" :value="history" :tile="tile" preview-key="history_hours" :aria-label="t('editor.tile.history.label')" @pick="(v) => setTileOption(tile, 'history_hours', Number(v))" />
-      </PropRow>
     </Section>
-
 
     <!-- A tile's size is set on the tile itself, with its handles (app 0.4.32): the settings keep what it does. -->
     <Section v-if="controlsShown || goesTo" :title="t('editor.tile.sections.controls')">

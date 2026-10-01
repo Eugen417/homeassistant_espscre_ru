@@ -180,7 +180,7 @@ inline std::string hhmm(const esphome::ESPTime &time) {
 }
 inline void history_received();
 // Camera images full screen and on an alert (firmware 0.2.57+, the Guition binds them; see the end of this file).
-inline void camera_open(const std::string &entity, const std::string &name);
+inline void camera_open(const std::string &entity, const std::string &name, int map_index = -1);
 inline void live_tick(uint32_t now);
 inline void camera_answer(const std::string &view, const std::string &entity, const std::string &url);
 inline bool camera_supported();
@@ -3605,7 +3605,8 @@ inline const char *icon_for(const Tile &tile) {
   if (d == "sun") return tile.state == "above_horizon" ? "\U000F059B" : "\U000F059C";
   if (d == "timer") return "\U000F051B";
   if (d == "person") return "\U000F0004";
-  if (d == "screen") return tile.is_settings() ? "\U000F0493" : tile.is_page() ? "\U000F0054" : "\U000F0150";
+  // The map tile's marker (firmware 0.21.0) only shows while its picture is on its way.
+  if (d == "screen") return tile.is_settings() ? "\U000F0493" : tile.is_page() ? "\U000F0054" : tile.entity == "screen.map" ? "\U000F034E" : "\U000F0150";
   if (d == "camera" || d == "image") return "\U000F07AE";
   if (d == "alarm_control_panel") return alarm_panel::icon(tile.state);
   if (d == "lock") return lock_icon(tile);
@@ -3702,6 +3703,12 @@ inline void event(lv_event_t *event) {
       if (allowed(esphome::millis(), 100 + w.index, card.entity)) go_to_page(card.page_target() - 1);
       return;
     }
+    // The map tile opens full screen as any map does (firmware 0.21.0+).
+    if (card.is_map()) {
+      if (code == LV_EVENT_SHORT_CLICKED && card.tap != "none" && camera_supported() && allowed(esphome::millis(), 100 + w.index, card.entity))
+        camera_open(card.entity, card.name, (int)w.index);  // its name comes with its state ("Map")
+      return;
+    }
     if (!card.is_settings() || card.tap == "none" || (settings_screen::may_open && !settings_screen::may_open())) return;
     if (allowed(esphome::millis(), 100 + w.index, card.entity)) settings_screen::open();
     return;
@@ -3714,6 +3721,9 @@ inline void event(lv_event_t *event) {
   if (!tile.available() || tile.waiting(esphome::millis()) || tile.tap=="none") return;
   // A camera or an image entity opens full screen on a board that draws images (firmware 0.2.57+).
   if(d=="camera" || d=="image"){if(camera_supported())camera_open(tile.entity,tile.name);return;}
+  // A map opens full screen as a camera does (firmware 0.21.0+): the app draws it as large as the board takes a camera,
+  // from this tile's own choices (its index), in the screen's look.
+  if(tile.is_map()){if(camera_supported())camera_open(tile.entity,tile.name.empty()?tile.entity:tile.name,(int)w.index);return;}
   // tile_controls::tap_route decides; tests/test_tile_controls.cpp keeps every older tap choice routed as before.
   auto tap = tile_controls::tap_route(tile, code == LV_EVENT_LONG_PRESSED);
   switch (tap.route) {
@@ -7566,6 +7576,20 @@ inline lv_image_dsc_t *kept_cover(const Widgets &w) {
 }
 inline camera_view::Feed cover;
 inline void camera_release();
+// The map tile a full view shows (firmware 0.21.0+), -1 for a camera: its index goes with every ask for its picture.
+inline int camera_map_index = -1;
+// A map's full view (firmware 0.21.0+): where its markers are on the picture, the one a finger picked (`focus`, asked
+// for with the picture) and that one's card, as Home Assistant's own map shows a selected person (app 0.4.36).
+struct MapSheet {
+  struct Hit { std::string entity; int x, y, r; };
+  std::string entity, focus, title, line, heading;
+  std::vector<Hit> hits;
+  std::vector<std::pair<std::string, std::string>> rows;
+};
+inline MapSheet map_sheet;
+inline std::string map_focus;
+inline lv_obj_t *map_card_obj = nullptr;
+inline void camera_map_sheet(const MapSheet &next);
 inline void camera_request(const std::string &entity, int size = 0, uint32_t background = 0);
 // The pictures on screen go before their buffer does.
 inline void cover_forget_pictures() {
@@ -8033,8 +8057,11 @@ inline void camera_request(const std::string &entity, int size, uint32_t backgro
   request.is_event = true;
   char size_text[12] = "", background_text[8] = "";
   if (size > 0) { snprintf(size_text, sizeof(size_text), "%d", size); snprintf(background_text, sizeof(background_text), "%06X", (unsigned) background); }
-  const std::string keys[] = {"inbox", "entity", "size", "bg", "session", "rev", "view"}, values[] = {inbox, entity, size_text, background_text, protocol_key(transfer.lease), layout_rev, std::to_string(size > 0 ? ++cover_view_id : ++camera_view_id)};
-  const int count = 7;
+  // A map's full view (firmware 0.21.0+) adds its tile's index and the look, which the app draws it in; an older app
+  // reads the keys it knows.
+  const bool map = size <= 0 && camera_map_index >= 0;
+  const std::string keys[] = {"inbox", "entity", "size", "bg", "session", "rev", "view", "idx", "dark", "focus"}, values[] = {inbox, entity, size_text, background_text, protocol_key(transfer.lease), layout_rev, std::to_string(size > 0 ? ++cover_view_id : ++camera_view_id), std::to_string(camera_map_index), theme::dark ? "1" : "0", map_focus};
+  const int count = map ? 10 : 7;
   request.data.init(count);
   for (int i = 0; i < count; ++i) {
     esphome::api::HomeassistantServiceMap entry;
@@ -8065,7 +8092,9 @@ inline std::string camera_key(const std::string &entity) { return "camera|" + en
 inline void camera_close() {
   if (!camera_root) return;
   lv_obj_delete(camera_root);
-  camera_root = camera_picture = camera_note = camera_back = camera_title = camera_spinner = nullptr;
+  camera_root = camera_picture = camera_note = camera_back = camera_title = camera_spinner = map_card_obj = nullptr;
+  map_focus.clear();
+  map_sheet = MapSheet{};
   camera_release_due = true;
   // Its copy goes with it, on the next tick (pictures_collect), as the download's buffer does.
   pictures.retire(camera_key(camera.entity));
@@ -8073,10 +8102,76 @@ inline void camera_close() {
   camera = camera_view::Feed{};
 }
 
-inline void camera_open(const std::string &entity, const std::string &name) {
+// The map's card at the bottom of its full view: the name, the state since when, and the day's changes with their
+// times, in the card's own colours as a tile's card (firmware 0.21.0+). Every word comes ready from the app.
+inline void map_sheet_draw() {
+  if (map_card_obj) { lv_obj_delete(map_card_obj); map_card_obj = nullptr; }
+  if (!camera_root || map_focus.empty() || map_sheet.focus != map_focus || map_sheet.title.empty()) return;
+  const bool large = ui::large();
+  const int margin = ui::px(large ? 16 : 10), pad = ui::px(large ? 20 : 14), gap = ui::px(large ? 6 : 4);
+  const int width = lv_display_get_horizontal_resolution(lv_display_get_default()) - 2 * margin, inner = width - 2 * pad;
+  map_card_obj = lv_obj_create(camera_root);
+  lv_obj_remove_style_all(map_card_obj);
+  lv_obj_add_flag(map_card_obj, LV_OBJ_FLAG_CLICKABLE);  // a finger on the card is no finger on the map
+  lv_obj_remove_flag(map_card_obj, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_style_bg_color(map_card_obj, theme::color(theme::CARD), 0);
+  lv_obj_set_style_bg_opa(map_card_obj, LV_OPA_COVER, 0);
+  lv_obj_set_style_radius(map_card_obj, ui::px(large ? 24 : 18), 0);
+  int y = pad;
+  // One line of text at (x, y), `w` wide; the next line goes under it.
+  auto text = [&](const std::string &words, const lv_font_t *font, theme::Role role, int x, int w, bool advance) {
+    auto *label = lv_label_create(map_card_obj);
+    if (font) lv_obj_set_style_text_font(label, font, 0);
+    lv_obj_set_style_text_color(label, theme::color(role), 0);
+    lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
+    const int h = font ? lv_font_get_line_height(font) : 20;
+    lv_obj_set_size(label, w, h);
+    lv_obj_set_pos(label, x, y);
+    lv_label_set_text(label, words.c_str());
+    if (advance) y += h + gap;
+    return h;
+  };
+  const lv_font_t *title = watch_font ? watch_font : detail_font, *body = control_font ? control_font : detail_font,
+                  *small = small_font ? small_font : detail_font;
+  text(map_sheet.title, title, theme::INK, pad, inner, true);
+  if (!map_sheet.line.empty()) text(map_sheet.line, body, theme::MUTED, pad, inner, true);
+  // As many of the day's changes as the card has room for: it keeps to the bottom part of the glass the app left free.
+  const int room = lv_display_get_vertical_resolution(lv_display_get_default()) / 2 - margin;  // map_card.SHEET_SHARE
+  const int line = body ? lv_font_get_line_height(body) : 20, heading = small ? lv_font_get_line_height(small) : 16;
+  const int rows = std::max(0, std::min<int>(map_sheet.rows.size(), (room - y - pad - heading - 2 * gap) / (line + gap)));
+  if (rows && !map_sheet.heading.empty()) { y += gap; text(map_sheet.heading, small, theme::MUTED, pad, inner, true); }
+  const int when = ui::px(large ? 96 : 66), column = ui::px(large ? 14 : 10);
+  for (int n = 0; n < rows; ++n) {
+    text(map_sheet.rows[n].first, body, theme::MUTED, pad, when, false);
+    text(map_sheet.rows[n].second, body, theme::INK, pad + when + column, inner - when - column, true);
+  }
+  lv_obj_set_size(map_card_obj, width, y - gap + pad);
+  lv_obj_align(map_card_obj, LV_ALIGN_BOTTOM_MID, 0, -margin);
+}
+
+inline void camera_map_sheet(const MapSheet &next) {
+  if (!camera_root || camera_map_index < 0 || camera.entity != next.entity) return;
+  // An answer for another focus than the one picked since is not this one's.
+  if (next.focus != map_focus) return;
+  map_sheet = next;
+  map_sheet_draw();
+}
+
+// Focus a marker (or everyone again with ""): the card goes at once, the new picture and card come with the answer.
+inline void map_focus_on(const std::string &entity) {
+  map_focus = entity;
+  map_sheet.focus.clear();
+  map_sheet_draw();
+  if (!camera_root || !fresh()) return;
+  camera.ask(esphome::millis());
+  camera_request(camera.entity);
+}
+
+inline void camera_open(const std::string &entity, const std::string &name, int map_index) {
   cover_in_flight.clear();  // the full camera takes the cover's image buffer
   if (!camera_supported() || !valid_entity(entity)) return;
   camera_close();
+  camera_map_index = map_index;
   // The last camera's image, or a media card's cover, goes before this one loads into the same online_image; the
   // cover is asked for again once the camera closes (cover_tick).
   cover_release();
@@ -8120,8 +8215,29 @@ inline void camera_open(const std::string &entity, const std::string &name) {
   lv_label_set_text(arrow, "\U000F004D");
   lv_obj_center(arrow);
   lv_obj_add_event_cb(camera_back, [](lv_event_t *) {
+    // A map focused on someone goes back to everyone first (firmware 0.21.0+); then the key closes the view.
+    if (!map_focus.empty()) { map_focus_on(""); return; }
     // Closed after this event: the key that sends it goes with the view.
     lv_async_call([](void *) { camera_close(); }, nullptr);
+  }, LV_EVENT_SHORT_CLICKED, nullptr);
+  // A finger on a map's marker focuses that person or tracker, on the map beside it everyone again (firmware 0.21.0+).
+  if (map_index >= 0) lv_obj_add_event_cb(camera_root, [](lv_event_t *) {
+    lv_point_t point;
+    lv_indev_t *input = lv_indev_active();
+    if (!input || !camera_picture) return;
+    lv_indev_get_point(input, &point);
+    lv_area_t area;
+    lv_obj_get_coords(camera_picture, &area);
+    const int x = point.x - area.x1, y = point.y - area.y1;
+    const MapSheet::Hit *best = nullptr;
+    long nearest = 0;
+    for (const auto &hit : map_sheet.hits) {
+      const long dx = x - hit.x, dy = y - hit.y, reach = hit.r + ui::px(10);
+      if (dx * dx + dy * dy > reach * reach) continue;
+      if (!best || dx * dx + dy * dy < nearest) { best = &hit; nearest = dx * dx + dy * dy; }
+    }
+    if (best && best->entity != map_focus) map_focus_on(best->entity);
+    else if (!best && !map_focus.empty()) map_focus_on("");
   }, LV_EVENT_SHORT_CLICKED, nullptr);
   const lv_font_t *title_font = watch_font ? watch_font : detail_font;
   camera_title = lv_label_create(camera_root);
@@ -8132,6 +8248,20 @@ inline void camera_open(const std::string &entity, const std::string &name) {
   lv_obj_set_pos(camera_title, bar_x + bar + 8, bar_y + (bar - (title_font ? lv_font_get_line_height(title_font) : 20)) / 2);
   lv_obj_set_size(camera_title, width - 2 * (bar_x + bar + 8), title_font ? lv_font_get_line_height(title_font) : 20);
   lv_label_set_text(camera_title, name.c_str());
+  // A map (firmware 0.21.0+) is light in the light look, where the camera's white name would vanish: its name is the
+  // pill its tile carries, ink on the card's colour, as high as the back key and centred over the map.
+  if (map_index >= 0) {
+    const int line = title_font ? lv_font_get_line_height(title_font) : 20;
+    lv_obj_set_style_text_color(camera_title, theme::color(theme::INK), 0);
+    lv_obj_set_style_bg_color(camera_title, theme::color(theme::CARD), 0);
+    lv_obj_set_style_bg_opa(camera_title, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(camera_title, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_pad_hor(camera_title, ui::px(large ? 22 : 16), 0);
+    lv_obj_set_style_pad_ver(camera_title, std::max(0, (bar - line) / 2), 0);
+    lv_obj_set_style_max_width(camera_title, width - 2 * (bar_x + bar + 8), 0);
+    lv_obj_set_size(camera_title, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_align(camera_title, LV_ALIGN_TOP_MID, 0, bar_y);
+  }
   ESP_LOGI("camera", "open %s", entity.c_str());
   // Asked for now rather than on the next tick (firmware 0.2.73+): the answer is most of the wait.
   const uint32_t now = esphome::millis();

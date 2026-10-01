@@ -1114,7 +1114,8 @@
       "builtin": {
         "clock": "Klok",
         "nightstand": "Nachtkastjesklok",
-        "page": "Ga naar pagina {page}"
+        "page": "Ga naar pagina {page}",
+        "map": "Kaart"
       },
       "identify": {
         "title": "Dit is {name}",
@@ -1168,6 +1169,11 @@
         "strong": "Sterk",
         "max_plus": "Max+",
         "auto": "Auto"
+      },
+      "map": {
+        "since": "{state} sinds {time}",
+        "activity": "Activiteit",
+        "battery": "Batterij {n}%"
       }
     }
   },
@@ -1534,12 +1540,13 @@
         "cover_hint": "De albumhoes van wat er speelt op de plek van het icoon, zoals de eigen tile van Home Assistant; een speler zonder afbeelding houdt zijn icoon. Een tik opent nog steeds de kaart.",
         "cover_needs_firmware": "De albumhoes op de tile heeft firmware 0.2.78 of nieuwer nodig: druk na het opslaan op Bijwerken bij het scherm.",
         "map": "Kaart",
-        "map_hint": "Waar deze persoon en de mensen die je toevoegt zijn, op een rustige kaart in de kleuren van het scherm. Home Assistant levert de straten van OpenStreetMap; het scherm krijgt alleen het plaatje, nooit een locatie. De kaart wordt opnieuw getekend als iemand zich verplaatst.",
+        "map_hint": "Waar deze persoon en de mensen die je toevoegt zijn, op een rustige kaart in de kleuren van het scherm. Home Assistant levert de straten van OpenStreetMap; het scherm krijgt alleen het plaatje, nooit een locatie. De kaart wordt opnieuw getekend als iemand zich verplaatst. Een tik opent hem over het hele scherm.",
         "map_needs_firmware": "Een kaart heeft firmware 0.20.0 of nieuwer nodig: druk na het opslaan op Bijwerken bij het scherm.",
         "no_graph": "Home Assistant heeft geen getallen voor deze entiteit, dus de grafiek blijft leeg. Kies een andere weergave.",
         "no_forecast": "Deze weerdienst heeft geen dagverwachting in Home Assistant. Kies een andere weergave.",
         "tall_cover_hint": "Gebruikt de albumhoes als donkere achtergrond. Zonder afbeelding blijft de normale tegel zichtbaar.",
-        "face_needs_firmware": "Deze klok heeft firmware 0.3.6 of nieuwer nodig: druk na het opslaan op Bijwerken bij het scherm. Tot dan toont het scherm de digitale klok."
+        "face_needs_firmware": "Deze klok heeft firmware 0.3.6 of nieuwer nodig: druk na het opslaan op Bijwerken bij het scherm. Tot dan toont het scherm de digitale klok.",
+        "map_tile_needs_firmware": "De kaarttegel heeft firmware 0.21.0 of nieuwer nodig: druk na het opslaan op Bijwerken bij het scherm."
       },
       "refresh": {
         "label": "Verversen",
@@ -1576,6 +1583,43 @@
           "hint": "De personen en trackers die naast deze persoon worden getoond, elk in een eigen kleur. Een tracker is een telefoon, auto of tag waarvan Home Assistant de plek kent.",
           "add": "Persoon of tracker toevoegen",
           "remove": "{name} verwijderen"
+        },
+        "follow": {
+          "label": "Volgen",
+          "everyone": "Iedereen",
+          "chosen": "Gekozen",
+          "everyone_hint": "Iedereen van wie Home Assistant de plek kent: elke persoon, en elke tracker die nog niet bij iemand hoort."
+        },
+        "markers": {
+          "label": "Markers",
+          "photo": "Foto",
+          "initials": "Initialen"
+        },
+        "names": {
+          "label": "Namen",
+          "auto": "Waar er ruimte is",
+          "always": "Altijd",
+          "never": "Nooit"
+        },
+        "zones": {
+          "label": "Zones",
+          "show": "Tonen",
+          "hide": "Verbergen"
+        },
+        "streets": {
+          "label": "Straten",
+          "show": "Tonen",
+          "hide": "Effen"
+        },
+        "look": {
+          "label": "Uiterlijk",
+          "auto": "Zoals het scherm",
+          "light": "Licht",
+          "dark": "Donker"
+        },
+        "chosen": {
+          "label": "Op de kaart",
+          "hint": "Wie deze kaart volgt, elk in een eigen kleur. Een tracker is een telefoon, auto of tag waarvan Home Assistant de plek kent."
         }
       },
       "controls": {

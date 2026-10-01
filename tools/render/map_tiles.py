@@ -48,7 +48,24 @@ STATES = dict([
     place('person.jo', 'Jo', 'home', 52.35862, 4.86800),
     place('person.sam', 'Sam', 'Office', 52.37590, 4.89800),
     place('person.robin', 'Robin', 'not_home', 52.36420, 4.88310),
+    place('device_tracker.car', 'Car', 'not_home', 52.37120, 4.87150),
 ])
+# Drawn avatars, no one's face: Alex and Sam have a picture in Home Assistant, the others their initials.
+STATES['person.alex']['attributes']['entity_picture'] = '/api/image/serve/alex/512x512'
+STATES['person.sam']['attributes']['entity_picture'] = '/api/image/serve/sam/512x512'
+
+
+def avatar(background, skin, hair):
+    image = Image.new('RGB', (256, 256), background)
+    draw = ImageDraw.Draw(image)
+    draw.ellipse((48, 170, 208, 330), fill=hair)
+    draw.ellipse((78, 52, 178, 162), fill=skin)
+    draw.chord((70, 36, 186, 130), 180, 360, fill=hair)
+    return image
+
+
+PHOTOS = {'person.alex': avatar((200, 228, 245), (236, 196, 170), (70, 50, 40)),
+          'person.sam': avatar((246, 224, 200), (198, 150, 120), (30, 30, 34))}
 EVERYONE = ['person.jo', 'person.sam', 'person.robin']
 NEIGHBOURS = [
     ('light.demo', 'Table lamp', {'state': 'on', 'attributes': {'brightness': 180}}),
@@ -68,6 +85,8 @@ PAGES = [
                    ('person.jo', 'Home', 'wide', {'map': ['person.sam', 'person.robin'], 'framing': 'home'})]),
     ('singles', [('person.alex', 'Alex', 'single', {'framing': 'person'}),
                  ('person.sam', 'Sam', 'single', {'framing': 'person', 'distance': 'street'})]),
+    # The map of the screen's own cards (firmware 0.21.0): everyone Home Assistant knows the place of.
+    ('map-tile', [('screen.map', '', 'square', {})]),
 ]
 
 
@@ -77,9 +96,10 @@ class Study(run.Run):
         self.streets = streets
 
     def answer(self, call):
-        if call.service != 'esphome.screen_camera' or 'tiles' not in call.data:
+        if call.service != 'esphome.screen_camera':
             return
-        task = asyncio.get_running_loop().create_task(self.live(dict(call.data)))
+        work = self.live(dict(call.data)) if 'tiles' in call.data else self.full(dict(call.data))
+        task = asyncio.get_running_loop().create_task(work)
         task.add_done_callback(lambda t: t.exception() and 'superseded' not in str(t.exception()) and self.warnings.append(f'answer failed: {t.exception()!r}'))
 
     async def live(self, data):
@@ -94,15 +114,37 @@ class Study(run.Run):
         for n, entity in enumerate(entities):
             tile = self.compiled[own[n]]
             _, _, w, h, _, _ = atlas[2][n]
-            view = map_card.view_for(tile, STATES, (w, h), self.board)
-            streets = {key: self.streets[key] for key in view.tiles() if key in self.streets}
-            raws.append(map_card.render_tile(tile, STATES, (w, h), self.board, dark, streets))
+            raws.append(self.draw(tile, (w, h), dark))
         grounds = [int(c, 16) for c in data['bg'].split(',')]
         body = tile_art.encode(raws, grounds, atlas, None, True)
         self.served += 1
         url = self.pictures.url(f'map-{self.served}.bmp', body)
         async with self.turn:
             await self.send({'v': 1, 'op': 'camera', 't': 'live', 'e': data['tiles'], 'u': url, 'view': int(data['view'])})
+
+    def draw(self, tile, size, dark, full=False, focus=None):
+        view = map_card.view_for(tile, STATES, size, self.board, None, full, focus)
+        streets = {key: self.streets[key] for key in view.tiles() if key in self.streets}
+        photos = {e: PHOTOS[e] for e in map_card.pictures_wanted(tile, STATES) if e in PHOTOS}
+        return map_card.render_tile(tile, STATES, size, self.board, dark, streets, None, photos, full, focus)
+
+    async def full(self, data):
+        """A map tapped open: drawn at the board's camera size, as server.Manager.answer_map_full answers."""
+        tile = self.compiled[int(data.get('idx', 0))]
+        w, h = self.full_box
+        focus = data.get('focus') or ''
+        image = self.draw(tile, (w, h), camera_feed.live_dark(data), True, focus or None)
+        self.hits = image.info.get('hits', [])
+        body = tile_art.encode([image], [0], (w, h, ((0, 0, w, h, 0, 0),)), None, True)
+        self.served += 1
+        url = self.pictures.url(f'map-full-{self.served}.bmp', body)
+        sheet = {'h': self.hits, 'f': focus}
+        if focus:
+            name = STATES[focus]['attributes']['friendly_name']
+            sheet['c'] = {'t': name, 's': 'Office since 14:02 · Battery 82%' if focus == 'person.sam' else 'Away since 09:40',
+                          'a': 'Activity', 'r': [['14:02', 'Office'], ['08:31', 'Away'], ['07:12', 'Home']]}
+        async with self.turn:
+            await self.send({'v': 1, 'op': 'camera', 't': 'full', 'e': data['entity'], 'u': url, 'view': int(data['view']), 'm': sheet})
 
     async def picture(self, what, tries=4):
         for attempt in range(tries):
@@ -119,7 +161,7 @@ class Study(run.Run):
                 await asyncio.sleep(1)
 
     async def drive(self):
-        self.served, self.turn = 0, asyncio.Lock()
+        self.served, self.turn, self.hits = 0, asyncio.Lock(), []
         self.client = run.APIClient('127.0.0.1', self.item.port, None)
         for _ in range(240):
             if self.process.poll() is not None:
@@ -143,6 +185,7 @@ class Study(run.Run):
         grid = send_layout.Grid(side['columns'], side['rows'])
         self.canvas = (side['width'], side['height'])
         self.board = map_card.Board(shape)
+        self.full_box = camera_feed.box({'board': self.item.board, 'firmware': core.FIRMWARE_VERSION}, 'full') or self.canvas
         self.sender = send_layout.api_sender(self.client, services)
         region = dict(keepalive=120, clock_24h=True, numbers='point', group_min=1, percent_space=False)
         states = dict(STATES)
@@ -178,6 +221,32 @@ class Study(run.Run):
                 await self.picture(f'{name} {look}')
                 await self.render(f'{name}-{look}')
                 shots += 1
+                # A tap opens the map over the whole glass, as a camera does: the first card of the page.
+                if name in ('square', 'singles'):
+                    first = next(t for t in self.compiled if t.get('slot', 0) // grid.slots == page)
+                    cells = side['width'] // grid.columns, (side['height'] - 60) // grid.rows
+                    col, row = (first['slot'] % grid.slots) % grid.columns, (first['slot'] % grid.slots) // grid.columns
+                    start = len(self.lines)
+                    await self.tap(col * cells[0] + cells[0] // 2, 60 + row * cells[1] + cells[1] // 2)
+                    try:
+                        await self.until(lambda line: 'Downloading image' in line, 15, f'{name} full', start)
+                        await asyncio.sleep(2.5)
+                        await self.render(f'{name}-full-{look}', timeout=8)
+                        # A finger on Sam's marker: Sam in the middle, closer in, with Sam's card over the bottom.
+                        hit = next((h for h in self.hits if h[0] == 'person.sam'), None)
+                        if hit and name == 'square':
+                            ox, oy = (side['width'] - self.full_box[0]) // 2, (side['height'] - self.full_box[1]) // 2
+                            start = len(self.lines)
+                            await self.tap(ox + hit[1], oy + hit[2])
+                            await self.until(lambda line: 'Downloading image' in line, 15, f'{name} focus', start)
+                            await asyncio.sleep(2.5)
+                            await self.render(f'{name}-focus-{look}', timeout=8)
+                            await self.tap(30, 30)
+                            await asyncio.sleep(0.8)
+                    except RuntimeError as error:
+                        self.warnings.append(str(error))
+                    await self.tap(30, 30)
+                    await asyncio.sleep(0.8)
         self.client.switch_command(dark.key, False)
         return len(pages), shots
 

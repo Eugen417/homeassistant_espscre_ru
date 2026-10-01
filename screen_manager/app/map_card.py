@@ -120,11 +120,14 @@ class Zone:
 
 
 class Person:
-    __slots__ = ('entity', 'name', 'state', 'lat', 'lon', 'accuracy', 'colour', 'picture')
+    """Someone or something on the map: a person or a device tracker, where Home Assistant puts it (`locate`), with the
+    colour Home Assistant gives it on every map and its picture when it has one."""
+    __slots__ = ('entity', 'name', 'state', 'lat', 'lon', 'accuracy', 'colour', 'picture', 'zone_only')
 
-    def __init__(self, entity, name, state, lat=None, lon=None, accuracy=0, colour=0, picture=None):
+    def __init__(self, entity, name, state, lat=None, lon=None, accuracy=0, colour=0, picture=None, zone_only=False):
         self.entity, self.name, self.state = entity, name, state
         self.lat, self.lon, self.accuracy, self.colour, self.picture = lat, lon, accuracy, colour, picture
+        self.zone_only = zone_only
 
     @property
     def placed(self):
@@ -132,36 +135,102 @@ class Person:
 
 
 def zones_of(states):
-    """The zones Home Assistant has a place for, the home zone first."""
+    """The zones Home Assistant has a place for, the home zone first; a passive zone is no place on a map, as on Home
+    Assistant's own (ha-map.ts draws one only when asked to)."""
     found = []
     for entity, state in states.items():
-        if not entity.startswith('zone.'):
+        if not isinstance(entity, str) or not entity.startswith('zone.'):
             continue
         a = (state or {}).get('attributes') or {}
-        try:
-            lat, lon = float(a['latitude']), float(a['longitude'])
-        except (KeyError, TypeError, ValueError):
-            continue
-        if a.get('passive'):
+        lat, lon = _number(a.get('latitude')), _number(a.get('longitude'))
+        if lat is None or lon is None or a.get('passive'):
             continue
         found.append(Zone(entity, a.get('friendly_name') or entity.split('.', 1)[1], lat, lon,
-                          float(a.get('radius') or 100.0), a.get('icon')))
+                          _number(a.get('radius')) or 100.0, a.get('icon')))
     return sorted(found, key=lambda z: (not z.home, z.name))
 
 
-def people_of(entities, states):
-    """The people and trackers on the card, in the card's order, each with the colour slot it keeps."""
+def _number(value):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def locate(entity, states):
+    """(lat, lon, accuracy, zone_only) as Home Assistant's frontend places an entity (get_entity_location.ts): its own
+    latitude and longitude, else, for a person, the first zone of `in_zones` that is on the map; None without either."""
+    state = states.get(entity) or {}
+    a = state.get('attributes') or {}
+    lat, lon = _number(a.get('latitude')), _number(a.get('longitude'))
+    if lat is not None and lon is not None:
+        return lat, lon, _number(a.get('gps_accuracy')) or 0.0, False
+    if not entity.startswith('person.'):
+        return None
+    for zone in a.get('in_zones') or ():
+        z = (states.get(zone) or {}).get('attributes') or {}
+        zlat, zlon = _number(z.get('latitude')), _number(z.get('longitude'))
+        if zlat is not None and zlon is not None and not z.get('passive'):
+            return zlat, zlon, 0.0, True
+    return None
+
+
+COLOUR_DOMAINS = ('zone', 'person', 'device_tracker')
+
+
+def colour_order(registry):
+    """{entity: index} as Home Assistant hands out map colours (entity-map-colors.ts): zones, people and trackers in the
+    order they were made, the home zone apart, so someone has the same colour on every map."""
+    entries = [e for e in (registry or {}).values()
+               if isinstance(e, dict) and str(e.get('entity_id', '')).split('.')[0] in COLOUR_DOMAINS
+               and e.get('entity_id') != 'zone.home']
+    entries.sort(key=lambda e: (float(e.get('created_at') or 0), str(e.get('id') or e['entity_id'])))
+    return {e['entity_id']: n for n, e in enumerate(entries)}
+
+
+def colour_of(entity, order):
+    """An entity's colour slot: its place in Home Assistant's order, else the hash Home Assistant falls back on."""
+    if entity in order:
+        return order[entity]
+    value = 5381
+    for char in entity:
+        value = (value * 33 + ord(char)) % 2147483647
+    return value
+
+
+def people_of(entities, states, registry=None):
+    """The people and trackers on the card, in the card's order, each where Home Assistant puts it and in its colour."""
+    order = colour_order(registry)
     out = []
-    for slot, entity in enumerate(entities):
+    for entity in entities:
         state = states.get(entity) or {}
         a = state.get('attributes') or {}
-        try:
-            lat, lon = float(a['latitude']), float(a['longitude'])
-        except (KeyError, TypeError, ValueError):
-            lat = lon = None
+        found = locate(entity, states)
+        lat, lon, accuracy, zone_only = found if found else (None, None, 0.0, False)
         out.append(Person(entity, a.get('friendly_name') or entity.split('.', 1)[1], state.get('state'), lat, lon,
-                          float(a.get('gps_accuracy') or 0), slot, a.get('entity_picture')))
+                          accuracy, colour_of(entity, order), a.get('entity_picture') or None, zone_only))
     return out
+
+
+def everyone(states, registry=None):
+    """Everyone Home Assistant knows the place of, as its map card's show_all (hui-map-card.ts): every person and every
+    device tracker with a place, but not a tracker a person already follows (its `source`) or one hidden in the
+    registry. People first, then trackers, each by name; at most EVERYONE_MAX."""
+    registry = registry or {}
+    sources = {(s.get('attributes') or {}).get('source') for e, s in states.items() if isinstance(e, str) and e.startswith('person.')}
+    found = []
+    for entity in states:
+        if not isinstance(entity, str) or entity.split('.')[0] not in ('person', 'device_tracker'):
+            continue
+        if entity in sources or (registry.get(entity) or {}).get('hidden_by') or locate(entity, states) is None:
+            continue
+        name = ((states[entity] or {}).get('attributes') or {}).get('friendly_name') or entity
+        found.append((not entity.startswith('person.'), str(name).lower(), entity))
+    return [entity for _, _, entity in sorted(found)][:EVERYONE_MAX]
+
+
+EVERYONE_MAX = 12
 
 
 def trackers(states):
@@ -253,10 +322,12 @@ def _rgb(value):
     return ((value >> 16) & 255, (value >> 8) & 255, value & 255)
 
 
+# The greys are pure (red, green and blue alike): the glass shows 16-bit colour (RGB565), which cuts red and blue to five
+# bits and green to six, so a warm grey such as E8E7E4 comes out pink there; a pure grey stays grey.
 LIGHT = {
-    'land': 0xF3F3F1, 'green': 0xE1EDDF, 'water': 0xCFE3EE, 'water_line': 0xB9D6E6, 'building': 0xE8E7E4,
-    'road': 0xFFFFFF, 'road_case': 0xDCDCDA, 'major': 0xFFFFFF, 'major_case': 0xCFCFCC, 'path': 0xE2E2DF,
-    'rail': 0xCDCDCA, 'place': 0x8A8A88, 'halo': 0xFFFFFF, 'ink': 0x1B1B1B, 'muted': 0x616161, 'card': 0xFFFFFF,
+    'land': 0xF2F2F2, 'green': 0xE1EDDF, 'water': 0xCFE3EE, 'water_line': 0xB9D6E6, 'building': 0xE6E6E6,
+    'road': 0xFFFFFF, 'road_case': 0xDBDBDB, 'major': 0xFFFFFF, 'major_case': 0xCECECE, 'path': 0xE1E1E1,
+    'rail': 0xCCCCCC, 'place': 0x898989, 'halo': 0xFFFFFF, 'ink': 0x1B1B1B, 'muted': 0x616161, 'card': 0xFFFFFF,
     'accent': 0x009FE3, 'zone_fill': 0x009FE3, 'zone_alpha': 30, 'zone_edge': 0x009FE3, 'shadow': 0x000000,
     'shadow_alpha': 60,
 }
@@ -512,12 +583,9 @@ def draw_zones(canvas, view, zones, look, dpi_scale, marker, occupied=()):
 
 
 def initials(name):
-    words = [w for w in re.split(r'[\s\-_.]+', name or '') if w]
-    if not words:
-        return '?'
-    if len(words) == 1:
-        return words[0][:1].upper()
-    return (words[0][:1] + words[-1][:1]).upper()
+    """The letters in a marker, as Home Assistant's map writes them (ha-map.ts): the first letter of each word of the
+    name, at most three."""
+    return ''.join(part[:1] for part in str(name or '').split(' ') if part)[:3] or '?'
 
 
 def _spread(points, gap):
@@ -535,11 +603,14 @@ def _spread(points, gap):
     return out
 
 
-def draw_people(canvas, view, people, look, dpi_scale, marker, names=False):
-    """A disc per person, Home Assistant's own marker: the card's colour inside a ring in the person's colour,
-    their initials in the middle. Who is outside the view is a small chip at the edge that points the way."""
+def draw_people(canvas, view, people, look, dpi_scale, marker, names=False, photos=None, focus=None, hits=None):
+    """A disc per person, Home Assistant's own marker (ha-entity-marker.ts): a ring in the person's colour around their
+    picture when they have one (`photos`), else around their initials on the card's colour. Where Home Assistant
+    reports how sure it is of a place and that is wider than the marker, a faint circle in the same colour says so.
+    Who is outside the view is a small chip at the edge that points the way."""
     from PIL import Image, ImageDraw, ImageFilter
     s = SUPERSAMPLE
+    photos = photos or {}
     placed = [p for p in people if p.placed]
     edge_margin = marker * 0.5 + 4 * dpi_scale
     inside = [p for p in placed if view.inside(p.lat, p.lon, -marker * 0.2)]
@@ -552,10 +623,31 @@ def draw_people(canvas, view, people, look, dpi_scale, marker, names=False):
         dx, dy = x - cx, y - cy
         t = min((cx - edge_margin) / abs(dx) if dx else 1e9, (cy - edge_margin) / abs(dy) if dy else 1e9)
         chips.append((p, (cx + dx * t, cy + dy * t), math.atan2(dy, dx)))
+    accuracy = Image.new('RGBA', canvas.image.size, (0, 0, 0, 0))
+    ad = ImageDraw.Draw(accuracy)
+    drawn = False
+    for p in inside:
+        r = p.accuracy / metres_per_pixel(p.lat, view.zoom) if p.accuracy else 0
+        if r > marker * 0.75 and not p.zone_only:
+            x, y = view.point(p.lat, p.lon)
+            colour = PEOPLE_RGB[p.colour % len(PEOPLE_RGB)]
+            ad.ellipse((x * s - r * s, y * s - r * s, x * s + r * s, y * s + r * s), fill=colour + (26,),
+                       outline=colour + (110,), width=max(1, round(1.0 * dpi_scale * s)))
+            drawn = True
+    if drawn:
+        canvas.image.paste(Image.alpha_composite(canvas.image.convert('RGBA'), accuracy).convert('RGB'))
     shadow = Image.new('L', canvas.image.size)
     sd = ImageDraw.Draw(shadow)
-    discs = [(p, x, y, marker) for p, (x, y) in zip(inside, spots)]
-    discs += [(p, x, y, marker * 0.72) for p, (x, y), _ in chips]
+    # The one a finger picked on the full view (focus) is a size larger, so the eye finds it at once.
+    shown = [(p, x, y, marker * (1.3 if p.entity == focus else 1.0)) for p, (x, y) in zip(inside, spots)
+             # Under the card the screen lays over a focused view's bottom, a marker would only peek out.
+             if not (focus and y > canvas.height * (1 - SHEET_SHARE) - marker * 0.3)]
+    if focus:
+        chips = [(p, (x, y), a) for p, (x, y), a in chips if y < canvas.height * (1 - SHEET_SHARE) - marker * 0.3]
+    discs = shown + [(p, x, y, marker * 0.72) for p, (x, y), _ in chips]
+    # Where each marker is on the picture, for the screen to know which one a finger is on: pixels, never a place.
+    if hits is not None:
+        hits.extend([p.entity, round(x), round(y), round(max(d / 2, marker * 0.6))] for p, x, y, d in discs)
     for p, x, y, d in discs:
         R = d / 2 * s
         oy = 1.2 * dpi_scale * s
@@ -579,14 +671,24 @@ def draw_people(canvas, view, people, look, dpi_scale, marker, names=False):
         R, ring = d / 2 * s, max(2, round(0.12 * d * s))
         draw.ellipse((x * s - R, y * s - R, x * s + R, y * s + R), fill=colour)
         r = R - ring
-        draw.ellipse((x * s - r, y * s - r, x * s + r, y * s + r), fill=_rgb(look['card']))
-        face = font(d * 0.40 * s, 500)
-        draw.text((x * s, y * s + 0.5 * s), initials(p.name), font=face, anchor='mm', fill=_rgb(look['ink']))
+        picture = photos.get(p.entity)
+        if picture is not None:
+            side = max(2, round(2 * r))
+            from PIL import ImageOps
+            face_image = ImageOps.fit(picture.convert('RGB'), (side, side), method=Image.Resampling.LANCZOS)
+            mask = Image.new('L', (side, side))
+            ImageDraw.Draw(mask).ellipse((0, 0, side - 1, side - 1), fill=255)
+            canvas.image.paste(face_image, (round(x * s - side / 2), round(y * s - side / 2)), mask)
+        else:
+            draw.ellipse((x * s - r, y * s - r, x * s + r, y * s + r), fill=_rgb(look['card']))
+            letters = initials(p.name)
+            face = font(d * (0.40 if len(letters) < 3 else 0.31) * s, 500)
+            draw.text((x * s, y * s + 0.5 * s), letters, font=face, anchor='mm', fill=_rgb(look['ink']))
         boxes.append((x * s - R, y * s - R, x * s + R, y * s + R))
     if names:
         # The first name beside each marker, on the card's colour, where it does not cover another marker.
         face = font(12.5 * dpi_scale * s, 500)
-        for p, x, y, d in discs[:len(inside)]:
+        for p, x, y, d in shown:
             text = (p.name or '').split(' ')[0]
             w = draw.textlength(text, font=face)
             h, pad = 19 * dpi_scale * s, 7 * dpi_scale * s
@@ -606,13 +708,17 @@ PEOPLE_RGB = [_rgb(c) for c in PEOPLE]
 ATTRIBUTION = '© OpenStreetMap'
 
 
-def draw_attribution(canvas, look, dpi_scale):
+# The full view's top bar (runtime_tiles.h camera_open: a 40 px key 8 px down on a 170 dpi board, 60 and 16 on a large one).
+BAR = 60
+
+
+def draw_attribution(canvas, look, dpi_scale, bottom=False):
     from PIL import ImageDraw
     s = SUPERSAMPLE
     draw = ImageDraw.Draw(canvas.image)
     face = font(9.5 * dpi_scale * s, 400)
-    x, y = canvas.width * s - 7 * dpi_scale * s, 6 * dpi_scale * s
-    draw.text((x, y), ATTRIBUTION, font=face, anchor='ra', fill=_rgb(look['muted']),
+    x, y = canvas.width * s - 7 * dpi_scale * s, (canvas.height - 6 * dpi_scale) * s if bottom else 6 * dpi_scale * s
+    draw.text((x, y), ATTRIBUTION, font=face, anchor='rd' if bottom else 'ra', fill=_rgb(look['muted']),
               stroke_width=round(1.6 * s * dpi_scale), stroke_fill=_rgb(look['halo']))
 
 
@@ -623,32 +729,58 @@ def marker_size(size, dpi_scale):
 
 
 def render(size, people, zones, tiles, framing='everyone', distance=DEFAULT_DISTANCE, dark=False, dpi_scale=1.0,
-           own=None, names=None, name=None, label_px=None, inset=None):
-    """The card's picture: the streets, the zones, the people and the tile's name, in the look the screen is in.
+           own=None, names=None, name=None, label_px=None, inset=None, photos=None, show_zones=True, full=False, focus=None):
+    """The card's picture: the streets, the zones, the people and the tile's name, in the look asked for.
 
-    `tiles` are the decoded vector tiles of `view_for` ({} draws the card without streets); `name` goes on a pill at the
-    bottom left in the card's own colours, `label_px` high as the screen writes a tile's name (its FONT_LABEL_SIZE)."""
+    `tiles` are the decoded vector tiles of `view_for` ({} draws a plain ground without streets); `name` goes on a pill at
+    the bottom left in the card's own colours, `label_px` high as the screen writes a tile's name (its FONT_LABEL_SIZE).
+    `names`: None puts first names beside the markers where the card has room for them, True and False always and never.
+    `photos` has a picture per entity that shows one in its marker. `full`: the view over the whole glass a tap opens,
+    under the screen's own top bar (its round back key and the name), so the top keeps clear of people and the
+    attribution goes to the bottom."""
     look = DARK if dark else LIGHT
     label_px = label_px or 18 * dpi_scale
     inset = inset if inset is not None else 8 * dpi_scale
     pill_h = round(label_px * 1.55)
     marker = marker_size(size, dpi_scale)
-    view = frame_view(framing, distance, people, zones, size, own, reserve(dpi_scale, pill_h, inset, bool(name)), marker * 0.6)
+    shown_zones = zones if show_zones else []
+    keep = (BAR * dpi_scale, 16 * dpi_scale) if full else reserve(dpi_scale, pill_h, inset, bool(name))
+    view = focus_view(focus, people, size, dpi_scale) or frame_view(framing, distance, people, zones, size, own, keep, marker * 0.6)
     canvas = Canvas(size, _rgb(look['land']))
     if tiles:
         draw_basemap(canvas, view, tiles, look, dpi_scale)
     occupied = {z.entity for z in (zone_of(p, zones) for p in people) if z}
-    zone_boxes = draw_zones(canvas, view, zones, look, dpi_scale, marker, occupied)
+    zone_boxes = draw_zones(canvas, view, shown_zones, look, dpi_scale, marker, occupied)
     if names is None:
         names = min(size) >= 200 * dpi_scale
-    people_boxes = draw_people(canvas, view, people, look, dpi_scale, marker, names)
+    hits = []
+    people_boxes = draw_people(canvas, view, people, look, dpi_scale, marker, names, photos, focus, hits)
     if tiles and min(size) >= 150 * dpi_scale:
         draw_places(canvas, view, tiles, look, dpi_scale, people_boxes + zone_boxes)
     if tiles:
-        draw_attribution(canvas, look, dpi_scale)
+        draw_attribution(canvas, look, dpi_scale, bottom=full)
     if name:
         draw_name(canvas, name, look, label_px, pill_h, inset)
-    return canvas.finish(), view
+    image = canvas.finish()
+    image.info['hits'] = hits
+    return image, view
+
+
+# A marker picked on the full view: closer in, in the middle of what the card over the bottom leaves free.
+FOCUS_ZOOM = 16.0
+SHEET_SHARE = 0.5
+
+
+def focus_view(focus, people, size, dpi_scale):
+    """The full view around the one a finger picked: that person or tracker in the middle of the map above the card the
+    screen lays over the bottom, closer in, as Home Assistant's map focuses an entity."""
+    picked = next((p for p in people if p.entity == focus and p.placed), None) if focus else None
+    if picked is None:
+        return None
+    view = View(picked.lat, picked.lon, FOCUS_ZOOM, size)
+    top, free = BAR * dpi_scale, size[1] * (1 - SHEET_SHARE) - BAR * dpi_scale
+    view.top += size[1] / 2 - (top + free / 2)
+    return view
 
 
 def reserve(dpi_scale, pill_h, inset, named):
@@ -678,54 +810,74 @@ def draw_name(canvas, name, look, label_px, pill_h, inset):
 
 # ----- A map tile of a layout -----
 
+MAP_TILE = 'screen.map'
 # Places go into the mark on a grid of about this many metres, so a phone's drift does not ask for a new picture.
 MARK_METRES = 25
 MARK_DEGREES = MARK_METRES / 111320.0
+# Every choice of a map and its default, the first of the catalogue's (catalogue/person.yaml `map`).
+CHOICES = {'framing': FRAMINGS, 'distance': tuple(DISTANCES), 'overlay': ('name', 'none'), 'follow': ('everyone', 'chosen'),
+           'markers': ('photo', 'initials'), 'names': ('auto', 'always', 'never'), 'zones': ('show', 'hide'),
+           'streets': ('show', 'hide'), 'look': ('auto', 'light', 'dark')}
+DEFAULTS = {'framing': 'everyone', 'distance': DEFAULT_DISTANCE, 'overlay': 'name', 'follow': 'everyone',
+            'markers': 'photo', 'names': 'auto', 'zones': 'show', 'streets': 'show', 'look': 'auto'}
 
 
 def options_of(tile):
+    """Every choice of a map tile, a stored one or its default."""
     options = tile.get('options') or {}
-    framing = options.get('framing', FRAMINGS[0])
-    distance = options.get('distance', DEFAULT_DISTANCE)
-    return (framing if framing in FRAMINGS else FRAMINGS[0], distance if distance in DISTANCES else DEFAULT_DISTANCE,
-            options.get('overlay', 'name') != 'none')
+    return {key: options.get(key) if options.get(key) in CHOICES[key] else DEFAULTS[key] for key in CHOICES}
 
 
-def shown(tile):
-    """Everyone on the card: the tile's own person first, then who rides along, each once."""
-    out = [tile['entity']]
-    for entity in (tile.get('options') or {}).get('map') or ():
-        if isinstance(entity, str) and entity not in out:
+def shown(tile, states=None, registry=None):
+    """Everyone on the card, in its order. A person's map: the person first, then who rides along. The map tile: everyone
+    Home Assistant knows the place of (as its own map card's show_all), or the people and trackers chosen."""
+    chosen = [e for e in (tile.get('options') or {}).get('map') or () if isinstance(e, str)]
+    if tile['entity'] == MAP_TILE:
+        if options_of(tile)['follow'] == 'everyone':
+            return everyone(states or {}, registry)
+        out = []
+    else:
+        out = [tile['entity']]
+    for entity in chosen:
+        if entity not in out:
             out.append(entity)
     return out
 
 
 def name_of(tile, states):
-    """The tile's name as the screen would write it: its own, else Home Assistant's."""
+    """The tile's name as the screen would write it: its own, else Home Assistant's, else the map's."""
     if tile.get('name'):
         return tile['name']
+    if tile['entity'] == MAP_TILE:
+        return ''
     attributes = (states.get(tile['entity']) or {}).get('attributes') or {}
     return attributes.get('friendly_name') or tile['entity'].split('.', 1)[1]
 
 
-def fingerprint(tile, states):
-    """The movement mark: a short hash of all a card is drawn from (its choices and name, where its people are on a
-    grid of MARK_METRES, their states and names, the zones), never a place itself. The screen asks for a new picture
-    when it changes and never otherwise."""
+def dark_for(tile, dark):
+    """The look a card is drawn in: the screen's, or the one the card keeps whatever the screen does."""
+    look = options_of(tile)['look']
+    return dark if look == 'auto' else look == 'dark'
+
+
+def fingerprint(tile, states, registry=None):
+    """The movement mark: a short hash of all a card is drawn from (its choices and name, who is on it and where on a
+    grid of MARK_METRES, their states, names, pictures and colours, the zones), never a place itself. The screen asks for
+    a new picture when it changes and never otherwise."""
     import hashlib
     import json
-    framing, distance, overlay = options_of(tile)
+    options = options_of(tile)
+    order = colour_order(registry)
     people = []
-    for entity in shown(tile):
+    for entity in shown(tile, states, registry):
         state = states.get(entity) or {}
         a = state.get('attributes') or {}
-        try:
-            cell = (round(float(a['latitude']) / MARK_DEGREES), round(float(a['longitude']) / MARK_DEGREES))
-        except (KeyError, TypeError, ValueError):
-            cell = None
-        people.append((entity, state.get('state'), a.get('friendly_name'), cell))
+        found = locate(entity, states)
+        cell = (round(found[0] / MARK_DEGREES), round(found[1] / MARK_DEGREES), round((found[2] or 0) / 50)) if found else None
+        people.append((entity, state.get('state'), a.get('friendly_name'), a.get('entity_picture'), cell, colour_of(entity, order)))
     zones = [(z.entity, z.name, round(z.lat, 5), round(z.lon, 5), round(z.radius)) for z in zones_of(states)]
-    what = [framing, distance, overlay, name_of(tile, states) if overlay else '', people, zones]
+    what = [sorted(options.items()), (tile.get('options') or {}).get('map') or [],
+            name_of(tile, states) if options['overlay'] == 'name' else '', people, zones]
     return hashlib.sha1(json.dumps(what, sort_keys=True, default=str).encode()).hexdigest()[:12]
 
 
@@ -740,19 +892,48 @@ class Board:
         self.inset = round(((shape.get('spacing') or {}).get('tile_pad') or 12) * 0.7)
 
 
-def view_for(tile, states, size, board):
+def _card(tile, states, registry):
+    options = options_of(tile)
+    people = people_of(shown(tile, states, registry), states, registry)
+    return options, people, zones_of(states)
+
+
+def view_for(tile, states, size, board, registry=None, full=False, focus=None):
     """The view a map tile shows at `size`: what its tiles are asked for with (View.tiles)."""
-    framing, distance, overlay = options_of(tile)
-    people, zones = people_of(shown(tile), states), zones_of(states)
+    options, people, zones = _card(tile, states, registry)
+    focused = focus_view(focus, people, size, board.scale) if full else None
+    if focused:
+        return focused
     pill_h = round(board.label * 1.55)
-    return frame_view(framing, distance, people, zones, size, people[0],
-                      reserve(board.scale, pill_h, board.inset, overlay), marker_size(size, board.scale) * 0.6)
+    own = people[0] if people else None
+    keep = (BAR * board.scale, 16 * board.scale) if full else \
+        reserve(board.scale, pill_h, board.inset, options['overlay'] == 'name' and bool(name_of(tile, states)))
+    return frame_view(options['framing'], options['distance'], people, zones, size, own, keep, marker_size(size, board.scale) * 0.6)
 
 
-def render_tile(tile, states, size, board, dark=False, tiles=None):
-    """The picture of one map tile of a layout at exactly `size`."""
-    framing, distance, overlay = options_of(tile)
-    people, zones = people_of(shown(tile), states), zones_of(states)
-    image, _ = render(size, people, zones, tiles or {}, framing, distance, dark, board.scale, people[0],
-                      name=name_of(tile, states) if overlay else None, label_px=board.label, inset=board.inset)
+def wants_streets(tile):
+    return options_of(tile)['streets'] == 'show'
+
+
+def pictures_wanted(tile, states, registry=None):
+    """{entity: picture address} of everyone on the card who shows a picture in their marker."""
+    if options_of(tile)['markers'] != 'photo':
+        return {}
+    out = {}
+    for entity in shown(tile, states, registry):
+        picture = ((states.get(entity) or {}).get('attributes') or {}).get('entity_picture')
+        if isinstance(picture, str) and picture:
+            out[entity] = picture
+    return out
+
+
+def render_tile(tile, states, size, board, dark=False, tiles=None, registry=None, photos=None, full=False, focus=None):
+    """The picture of one map tile of a layout at exactly `size`, in the look `dark_for` gives it; `full` the view over
+    the whole glass a tap on it opens, where the screen writes the name in its top bar."""
+    options, people, zones = _card(tile, states, registry)
+    names = {'auto': True if full else None, 'always': True, 'never': False}[options['names']]
+    name = name_of(tile, states) if options['overlay'] == 'name' and not full else None
+    image, _ = render(size, people, zones, (tiles or {}) if options['streets'] == 'show' else {}, options['framing'],
+                      options['distance'], dark_for(tile, dark), board.scale, people[0] if people else None, names,
+                      name or None, board.label, board.inset, photos, options['zones'] == 'show', full, focus if full else None)
     return image

@@ -133,12 +133,32 @@ class Card(unittest.TestCase):
     def test_zones_and_people(self):
         zones = map_card.zones_of(STATES)
         self.assertEqual([z.entity for z in zones], ['zone.home', 'zone.office'], 'home first; a passive zone is no place')
-        alex, sam, jo = map_card.people_of(['person.alex', 'person.sam', 'person.jo'], STATES)
-        self.assertEqual((alex.colour, sam.colour, jo.colour), (0, 1, 2), 'a colour per place on the card')
+        # Colours in the order Home Assistant made the entities, the home zone apart (entity-map-colors.ts).
+        registry = {e: {'entity_id': e, 'created_at': n} for n, e in enumerate(['zone.home', 'person.sam', 'zone.office', 'person.alex'])}
+        alex, sam, jo = map_card.people_of(['person.alex', 'person.sam', 'person.jo'], STATES, registry)
+        self.assertEqual((sam.colour, alex.colour), (0, 2))
+        self.assertEqual(jo.colour, map_card.colour_of('person.jo', {}), 'without an entry: the hash Home Assistant falls back on')
         self.assertFalse(jo.placed)
         self.assertEqual(map_card.zone_of(alex, zones).entity, 'zone.home')
+        # Initials as Home Assistant's map writes them: the first letter of each word, at most three.
         self.assertEqual(map_card.initials('Alex Morgan'), 'AM')
-        self.assertEqual(map_card.initials('sam'), 'S')
+        self.assertEqual(map_card.initials('sam'), 's')
+        self.assertEqual(map_card.initials('Anne Marie de Vries'), 'AMd')
+
+    def test_where_home_assistant_puts_someone(self):
+        # A person without a place of their own but in a zone stands in its middle (get_entity_location.ts).
+        states = {**STATES, 'person.jo': {'state': 'Office', 'attributes': {'friendly_name': 'Jo', 'in_zones': ['zone.away', 'zone.office']}}}
+        self.assertEqual(map_card.locate('person.jo', states), (52.3760, 4.8978, 0.0, True), 'the first zone that is on the map')
+        self.assertIsNone(map_card.locate('device_tracker.router_phone', states))
+        self.assertEqual(map_card.locate('device_tracker.car', states)[:2], (52.37, 4.89))
+
+    def test_everyone_is_home_assistants_show_all(self):
+        states = {**STATES, 'person.sam': {**STATES['person.sam'], 'attributes': {**STATES['person.sam']['attributes'], 'source': 'device_tracker.car'}},
+                  'device_tracker.tag': person('device_tracker.tag', 'Bag tag', 'not_home', 52.36, 4.88)[1]}
+        registry = {'device_tracker.tag': {'entity_id': 'device_tracker.tag', 'hidden_by': 'user'}}
+        # People first, then trackers; not the car Sam already follows, not the hidden tag, not who has no place.
+        self.assertEqual(map_card.everyone(states, registry), ['person.alex', 'person.sam'])
+        self.assertEqual(map_card.everyone(states), ['person.alex', 'person.sam', 'device_tracker.tag'])
 
     def test_everyone_stays_inside_the_card_clear_of_its_name(self):
         people = map_card.people_of(['person.alex', 'person.sam'], STATES)
@@ -221,6 +241,18 @@ class Drawing(unittest.TestCase):
         # The name's pill in the card's colour at the bottom left.
         self.assertEqual(light.getpixel((14, 118 - 8 - 14)), (255, 255, 255))
 
+    def test_a_photo_in_the_marker(self):
+        from PIL import Image
+        board = map_card.Board(None)
+        tile = {'entity': 'person.alex', 'name': '', 'options': {'display': 'map', 'overlay': 'none'}}
+        photo = Image.new('RGB', (64, 64), (200, 30, 90))
+        with_photo = map_card.render_tile(tile, STATES, (220, 140), board, False, {}, None, {'person.alex': photo})
+        plain = map_card.render_tile(tile, STATES, (220, 140), board, False, {}, None, {})
+        # The marker sits in the middle of a single person's card.
+        self.assertGreater(with_photo.getpixel((110, 70))[0], 150)
+        self.assertLess(abs(with_photo.getpixel((110, 70))[1] - 30), 40)
+        self.assertNotEqual(with_photo.getpixel((110, 70)), plain.getpixel((110, 70)))
+
     def test_without_streets_or_a_name_it_still_draws(self):
         board = map_card.Board(None)
         image = map_card.render_tile(self.tile(overlay='none'), STATES, (160, 100), board, False, {})
@@ -253,6 +285,33 @@ class Layout(unittest.TestCase):
         mark = map_card.fingerprint(tile, STATES)
         moved = {**STATES, 'device_tracker.car': person('device_tracker.car', 'Car', 'not_home', 52.3800, 4.9000)[1]}
         self.assertNotEqual(map_card.fingerprint(tile, moved), mark, 'the car drove off: a new picture')
+
+    def test_the_map_tile_follows_everyone_or_whom_it_lists(self):
+        tile = self.save({'framing': 'home', 'look': 'dark', 'markers': 'initials'}, entity='screen.map')
+        self.assertEqual(tile['options'], {'display': 'map', 'framing': 'home', 'look': 'dark', 'markers': 'initials'})
+        self.assertEqual(min_firmware({'tiles': [tile]}), (0, 21, 0))
+        self.assertEqual(map_card.shown(tile, STATES), ['person.alex', 'person.sam', 'device_tracker.car'])
+        chosen = self.save({'follow': 'chosen', 'map': ['device_tracker.car']}, entity='screen.map')
+        self.assertEqual(map_card.shown(chosen, STATES), ['device_tracker.car'])
+        self.assertEqual(len(self.save({'follow': 'chosen', 'map': [f'person.p{n}' for n in range(8)]}, entity='screen.map')['options']['map']), 8)
+        # Chosen with nobody yet: a map of the zones until someone is added.
+        self.assertEqual(map_card.shown(self.save({'follow': 'chosen'}, entity='screen.map'), STATES), [])
+        # A person's map follows that person: no follow to choose.
+        self.assertNotIn('follow', self.save({'display': 'map', 'follow': 'chosen', 'map': ['person.sam']})['options'])
+        # The screen gets the map's mark with the built-in card.
+        from core import state_message
+        message = state_message(0, tile, STATES, extras(tile, STATES))
+        self.assertEqual(message['o']['display'], 'map')
+        self.assertEqual(list(message['x']), ['mk'])
+
+    def test_how_a_map_looks_is_its_own(self):
+        tile = self.save({'display': 'map', 'look': 'light', 'streets': 'hide', 'markers': 'initials', 'zones': 'hide', 'names': 'never'})
+        self.assertFalse(map_card.dark_for(tile, True), 'a light card stays light on a dark screen')
+        self.assertTrue(map_card.dark_for(self.save({'display': 'map'}), True))
+        self.assertFalse(map_card.wants_streets(tile))
+        self.assertEqual(map_card.pictures_wanted(tile, {**STATES, 'person.alex': {**STATES['person.alex'], 'attributes': {
+            **STATES['person.alex']['attributes'], 'entity_picture': '/api/image/serve/abc/512x512'}}}), {})
+        self.assertNotEqual(map_card.fingerprint(tile, STATES), map_card.fingerprint(self.save({'display': 'map'}), STATES))
 
     def test_who_rides_along_is_checked(self):
         for bad in ({'framing': 'nowhere'}, {'distance': 'moon'}, {'map': 'person.sam'}, {'map': ['person.alex']},
@@ -370,6 +429,104 @@ class Screens(unittest.IsolatedAsyncioTestCase):
             for tiles, idx, inbox in (('person.sam', '2', 'text.d1_tiles'), ('person.alex', '0', 'text.d3_tiles')):
                 with self.assertLogs('screen_manager', 'INFO'):
                     self.assertIsNone(await ask('0', tiles, idx, inbox))
+
+    async def test_a_markers_picture_comes_only_from_home_assistant_or_the_internet(self):
+        from test_camera import RecordingSession
+        from server import HomeAssistant
+        session = RecordingSession()
+        ha = HomeAssistant(session, 'http://ha/api', 'token')
+        self.assertEqual(await ha.entity_picture('/api/image/serve/abc123/512x512'), b'picture')
+        self.assertEqual(session.calls[-1], ('http://ha/api/image/serve/abc123/512x512', 'Bearer token', False))
+        for bad in ('/api/states', '/api/image/serve/../../states', '//elsewhere/api/image/serve/x', 'http://127.0.0.1/me.jpg', 'file:///etc/passwd'):
+            with self.subTest(bad=bad), self.assertRaisesRegex(ValueError, 'picture address'):
+                await ha.entity_picture(bad)
+
+    async def test_the_map_tile_on_a_screen(self):
+        from test_camera import fake_ha, picture
+        from server import Manager
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as tmp:
+            ha = fake_ha()
+            ha.states.update(STATES)
+            ha.states['person.alex']['attributes']['entity_picture'] = '/api/image/serve/alex/512x512'
+            ha.states['sensor.d1_fw']['state'] = '0.21.0'
+
+            async def map_tile(z, x, y):
+                return TILE
+
+            async def entity_picture(address):
+                ha.log.append(('picture', address))
+                return picture('PNG', (80, 80))
+            ha.map_tile, ha.entity_picture = map_tile, entity_picture
+            m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
+            seed_layout(m, 'text.d1_tiles', validate_layout({'title': 'Home', 'tiles': [
+                {'entity': 'screen.map', 'name': '', 'options': {'size': 'wide'}}]}))
+            with self.assertLogs('screen_manager', 'INFO'):
+                await m.answer_camera({'inbox': 'text.d1_tiles', 'tiles': 'screen.map', 'idx': '0', 'size': '54', 'bg': 'E7E7E7',
+                                       'atlas': json.dumps([[0, 0, 448, 118, 14, 0]]), 'dark': '0'})
+            sent = [entry[2] for entry in ha.log if entry[0] == 'send']
+            self.assertEqual(sent[0]['e'], 'screen.map')
+            self.assertIn(('picture', '/api/image/serve/alex/512x512'), ha.log, 'a photo in the marker, as Home Assistant shows it')
+            status, raw, _ = await m.camera.serve(sent[0]['u'].rsplit('/', 1)[1][:-4])
+            with Image.open(io.BytesIO(raw)) as image:
+                self.assertEqual((status, image.size), (200, (448, 118)))
+
+    async def test_a_tap_opens_the_map_over_the_whole_glass(self):
+        from test_camera import fake_ha
+        from server import Manager
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as tmp:
+            ha = fake_ha()
+            ha.states.update(STATES)
+            ha.states['sensor.d1_fw']['state'] = '0.21.0'
+
+            async def map_tile(z, x, y):
+                return TILE
+            ha.map_tile = map_tile
+            m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
+            seed_layout(m, 'text.d1_tiles', validate_layout({'title': 'Home', 'tiles': [
+                {'entity': 'person.alex', 'name': 'Family', 'options': {'display': 'map', 'map': ['person.sam']}},
+                {'entity': 'screen.map', 'name': '', 'options': {'follow': 'chosen', 'map': ['device_tracker.car']}}]}))
+            for entity, idx in (('person.alex', '0'), ('screen.map', '1')):
+                ha.log.clear()
+                with self.assertLogs('screen_manager', 'INFO'):
+                    await m.answer_camera({'inbox': 'text.d1_tiles', 'entity': entity, 'idx': idx, 'dark': '1'})
+                message, = [entry[2] for entry in ha.log if entry[0] == 'send']
+                self.assertEqual((message['t'], message['e']), ('full', entity))
+                status, raw, _ = await m.camera.serve(message['u'].rsplit('/', 1)[1][:-4])
+                with Image.open(io.BytesIO(raw)) as image:
+                    # As large as the board takes a camera, in the screen's look: dark.
+                    self.assertEqual((status, image.size), (200, camera_feed.box(m.screen('text.d1_tiles'), 'full')))
+                    self.assertLess(sum(image.convert('RGB').getpixel((10, 240))), 150)
+            # A finger on Sam (firmware 0.21.0+): Sam's card, as Home Assistant shows a selected person, and every marker's
+            # place on the picture for the next finger. Pixels and words, never a place.
+            import time as clock
+            now = clock.time()
+
+            async def state_changes(entity, hours):
+                return [(now - 20000, 'home'), (now - 9000, 'not_home'), (now - 3600, 'unavailable'), (now - 1800, 'Office')]
+            ha.state_changes = state_changes
+            ha.log.clear()
+            with self.assertLogs('screen_manager', 'INFO'):
+                await m.answer_camera({'inbox': 'text.d1_tiles', 'entity': 'person.alex', 'idx': '0', 'focus': 'person.sam'})
+            message, = [entry[2] for entry in ha.log if entry[0] == 'send']
+            sheet = message['m']
+            self.assertEqual(sheet['f'], 'person.sam')
+            self.assertEqual({hit[0] for hit in sheet['h']} >= {'person.sam'}, True)
+            self.assertEqual(sheet['c']['t'], 'Sam')
+            self.assertEqual([row[1] for row in sheet['c']['r']], ['Office', 'not_home'], 'newest first; the day began at home')
+            self.assertNotIn('52.', json.dumps(sheet))
+            # Someone who is not on that map is no focus.
+            ha.log.clear()
+            with self.assertLogs('screen_manager', 'INFO'):
+                await m.answer_camera({'inbox': 'text.d1_tiles', 'entity': 'person.alex', 'idx': '0', 'focus': 'person.jo'})
+            message, = [entry[2] for entry in ha.log if entry[0] == 'send']
+            self.assertEqual((message['m']['f'], 'c' in message['m']), ('', False))
+            # A person who has no map tile on the screen gets none.
+            ha.log.clear()
+            with self.assertLogs('screen_manager', 'INFO'):
+                await m.answer_camera({'inbox': 'text.d1_tiles', 'entity': 'person.sam'})
+            self.assertEqual([entry for entry in ha.log if entry[0] == 'send'], [])
 
     async def test_a_screen_without_pictures_cannot_save_a_map(self):
         from test_camera import fake_ha

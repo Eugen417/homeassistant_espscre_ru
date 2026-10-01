@@ -311,6 +311,27 @@ std::string receive(const std::string &payload) {
       if (view != "alert" && (!root["view"].is<unsigned>() || root["view"].as<unsigned>() != expected_view)) {
         result = "Synced"; return true;
       }
+      // A map's full view (app 0.4.36, firmware 0.21.0+): where its markers are on the picture, the one a finger
+      // picked, and that one's card. Pixels and words, never a place; checked whole before it replaces the last.
+      if (view == "full" && root["m"].is<JsonObject>()) {
+        auto m = root["m"];
+        MapSheet next;
+        next.entity = entity;
+        next.focus = string(m["f"], 120);
+        if (m["h"].is<JsonArray>()) for (JsonVariant hit : m["h"].as<JsonArray>()) {
+          if (!hit.is<JsonArray>() || hit.size() != 4 || next.hits.size() >= 16) continue;
+          const std::string id = string(hit[0], 120);
+          if (!valid_entity(id) || !hit[1].is<int>() || !hit[2].is<int>() || !hit[3].is<int>()) continue;
+          next.hits.push_back({id, hit[1].as<int>(), hit[2].as<int>(), std::max(1, std::min(200, hit[3].as<int>()))});
+        }
+        if (m["c"].is<JsonObject>()) {
+          auto c = m["c"];
+          next.title = string(c["t"], 60); next.line = string(c["s"], 80); next.heading = string(c["a"], 40);
+          if (c["r"].is<JsonArray>()) for (JsonVariant row : c["r"].as<JsonArray>())
+            if (row.is<JsonArray>() && row.size() == 2 && next.rows.size() < 5) next.rows.push_back({string(row[0], 12), string(row[1], 40)});
+        }
+        camera_map_sheet(next);
+      }
       camera_answer(view, entity, url);
       result = model.ready() ? "Synced" : "Loading tiles";
       return true;

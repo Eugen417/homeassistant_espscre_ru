@@ -128,11 +128,11 @@ home fits on one page.
 ## Where everyone is
 
 <p align="center">
-  <img src="docs/images/guition-map.png" width="25%" alt="The 4-inch Guition with a map tile of two by two cells: the streets and canals of a city in soft greys, a marker with initials for each of four people, their first names beside them, and the tile's name Family at the bottom, above a lamp and a temperature">
-  <img src="docs/images/guition-map-dark.png" width="25%" alt="The same map over the whole page in Dark mode: dark streets, the four people in their own colours, and the name Family at the bottom">
-  <img src="docs/images/waveshare43-map.png" width="41%" alt="The 4.3-inch Waveshare with a tall map of the family and a wide map around home, where the people away from home are small markers at the edge pointing the way to them">
+  <img src="docs/images/guition-map.png" width="25%" alt="The 4-inch Guition with a map tile of two by two cells: the streets and canals of a city in soft greys, a marker for each person with a photo or initials and their first name beside it, and the tile's name Family at the bottom, above a lamp and a temperature">
+  <img src="docs/images/guition-map-dark.png" width="25%" alt="The same map tapped open over the whole screen in Dark mode: dark streets, the people in their own colours, the round back key and the name Family at the top">
+  <img src="docs/images/waveshare43-map.png" width="41%" alt="The 4.3-inch Waveshare with the map tile following everyone: four people, two with a photo in their marker, and a car">
 </p>
-<p align="center"><sub>A person tile can be a map of where everyone on it is: framed around everyone, around home or around that person, on every tile size of a screen with room for pictures. ESP Screens draws it in the screen's own colours, light or dark, from Home Assistant's own map tiles, and draws it again only when someone moves; the screen gets a picture, never a location (<a href="docs/MAP.md">how</a>). Rendered from the firmware's own LVGL code with a made-up household; map data © OpenStreetMap contributors.</sub></p>
+<p align="center"><sub>A person tile can be a map of where they and the people with them are, and the map tile follows everyone Home Assistant knows the place of, or only whom you choose. Photos in the markers and the same colours as Home Assistant's own maps; a tap opens the map over the whole screen. ESP Screens draws it in the screen's own colours, light or dark, from Home Assistant's own map tiles, and draws it again only when someone moves; the screen gets a picture, never a location (<a href="docs/MAP.md">how</a>). Rendered from the firmware's own LVGL code with a made-up household; map data © OpenStreetMap contributors.</sub></p>
 
 ## A clock beside your bed
 

@@ -249,6 +249,8 @@ export function defaultOptions(id: string): Partial<Tile> {
   if (id === "screen.clock") return { options: { display: "dial", size: "wide" } };
   // The bedside clock is the whole page, always, and starts without a card: its digits on the dark page (app 0.4.12).
   if (id === "screen.nightstand") return { options: { size: "full", background: "none" } };
+  // The map tile (app 0.4.36) starts double width, following everyone Home Assistant knows the place of.
+  if (id === "screen.map") return { options: { display: "map", size: "wide" } };
   return {};
 }
 export const newTile = (id: string): Tile => ({ entity: id, name: "", slot: -1, ...defaultOptions(id) } as Tile);

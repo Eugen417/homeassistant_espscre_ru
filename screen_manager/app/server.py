@@ -2,6 +2,7 @@
 import asyncio
 from collections import Counter, OrderedDict
 import contextlib
+import io
 import ipaddress
 import json
 import logging
@@ -29,7 +30,7 @@ from updates import Updater
 
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
 from core import alarm_extras, lock_extras, ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_choice, alert_data, choice_service, ALERT_CHOICE_ACTION, ALERT_CHOICE_MIN_FIRMWARE, parse_firmware, alert_reference, alert_screen_choice, alert_screen_names, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, entity_slug, extras, media_cover, media_extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, name_clash, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
-from core import calibrate_entity, can_standby, dimmable, SETTING_ENTITIES, SETTING_RULES, STANDBY_KEYS, setting_action, setting_entities, setting_from_state, state_word
+from core import MAP_TILE_MIN_FIRMWARE, calibrate_entity, can_standby, dimmable, SETTING_ENTITIES, SETTING_RULES, STANDBY_KEYS, setting_action, setting_entities, setting_from_state, state_word
 from core import BOARD_KEYS, is_key, drawn_controls
 from core import (Grid, page_target, PAGE_TILE_REPEAT_MIN_FIRMWARE, ENTITY_REPEAT_MIN_FIRMWARE, ROTATION_MIN_FIRMWARE, SHAPES, firmware_features, grid_of, orientation_at,
                   packed_slots, run_tile_event, screen_firmware, shape_of, turns_of, version_text)
@@ -566,6 +567,32 @@ class HomeAssistant:
                     raise ValueError('tile too large')
             return bytes(raw)
 
+    async def entity_picture(self, picture):
+        """An entity's picture (`entity_picture`) for a marker on a map (app 0.4.36), from where Home Assistant's own map
+        takes it: its own address through Home Assistant (a person's uploaded picture), or a public address on the
+        internet; never a private one, never a redirect, as a media cover (media_image)."""
+        root = self.base[:-4] if self.base.endswith('/api') else self.base
+        if picture.startswith('/'):
+            parsed = urlsplit(picture)
+            if parsed.netloc or not parsed.path.startswith(('/api/image/serve/', '/api/image_proxy/', '/local/')) or '..' in parsed.path:
+                raise ValueError('unsafe picture address')
+            url, headers = f'{root}{picture}', {'Authorization': 'Bearer ' + self.token}
+        elif picture.startswith(('http://', 'https://')):
+            if not await self._allow_media_url(picture):
+                raise ValueError('unsafe picture address')
+            url, headers = picture, {}
+        else:
+            raise ValueError('unknown picture address')
+        async with self.session.get(url, headers=headers, timeout=ClientTimeout(total=camera_feed.FETCH_SECONDS),
+                                    allow_redirects=False) as response:
+            response.raise_for_status()
+            raw = bytearray()
+            async for chunk in response.content.iter_chunked(65536):
+                raw += chunk
+                if len(raw) > 4 * 1024 * 1024:
+                    raise ValueError('picture too large')
+            return bytes(raw)
+
     async def media_image(self, entity):
         """The cover of a media player (app 0.2.77), fetched only from trusted Home Assistant local routes or from a
         non-private external URL. We do not follow redirects, and we reject private/loopback addresses and path traversal
@@ -778,6 +805,8 @@ class Manager:
         self.map_source = map_tiles.TileSource(lambda z, x, y: self.ha.map_tile(z, x, y))
         self.map_renders = OrderedDict()
         self.preview_tiles = []
+        self.map_pictures = OrderedDict()
+        self.map_hits = {}
         # The action behind an alert's button (app 0.2.91): node -> (key, action, data) of the alert on that screen.
         self.alert_actions = {}
         self.store = LayoutStore(self.path, self.verified_grid)
@@ -1547,7 +1576,11 @@ class Manager:
         # A map (app 0.4.33) is drawn from everyone on it and the zones around them: a move or a zone's edit reaches
         # its movement mark only through this.
         if (tile.get('options') or {}).get('display') == 'map':
-            return tuple(map_card.shown(tile)[1:]) + tuple(e for e in self.ha.states if isinstance(e, str) and e.startswith('zone.'))
+            # The map tile following everyone reads every person and tracker: one that gets a place joins the map.
+            everyone = tile['entity'] == map_card.MAP_TILE and map_card.options_of(tile)['follow'] == 'everyone'
+            followed = (tuple(e for e in self.ha.states if isinstance(e, str) and e.split('.')[0] in ('person', 'device_tracker'))
+                        if everyone else tuple(map_card.shown(tile, self.ha.states)))
+            return tuple(e for e in followed if e != tile['entity']) + tuple(e for e in self.ha.states if isinstance(e, str) and e.startswith('zone.'))
         if tile['entity'].startswith('light.'):
             # The selects and numbers of its device (effects page), and a group's lamps (lamp page, app 0.3.16).
             return (tuple(light_effects.related(tile['entity'], self.device_entries(tile['entity']), self.ha.states)) +
@@ -1793,7 +1826,7 @@ class Manager:
         # A light's effects page (app 0.2.83) names the device's selects and numbers as Home Assistant does, with its icons.
         light=tile['entity'].startswith('light.')
         extra=extras(tile,self.ha.states,forecast,getattr(self.ha,'time_zone',None),hourly,device=device,
-                     entries=self.registry_index() if light else None,words=getattr(self.ha,'state_words',None) if light else None,
+                     entries=self.registry_index() if light or (tile.get('options') or {}).get('display') == 'map' else None,words=getattr(self.ha,'state_words',None) if light else None,
                      icon_of=row_icon if light else None,device_name=self.device_name_of(tile['entity']) if light else None)
         if tile['entity'].startswith('vacuum.'):
             ha_catalogue.chip_words(extra,tile['entity'],self.ha.states,device,getattr(self.ha,'state_words',None))
@@ -2212,6 +2245,10 @@ class Manager:
         if 'tiles' in request:
             await self.answer_live(inbox, screen, request)
             return
+        # A map tapped open over the whole glass (app 0.4.36, firmware 0.21.0+), as a camera opens.
+        if camera_feed.map_supported(entity) and not request.get('size'):
+            await self.answer_map_full(inbox, screen, request)
+            return
         # A media player's cover (app 0.2.77, firmware 0.2.64+) comes the same way, at the size the card asks for.
         cover = camera_feed.cover_request(request) if camera_feed.cover_supported(entity) else None
         if cover:
@@ -2298,30 +2335,120 @@ class Manager:
         await self.send_auxiliary(inbox, {'v': 1, 'op': 'camera', 't': 'live', 'e': listing, 'u': url}, action, request)
         LOG.info('Live pictures of %s on %s%s', ', '.join(entities), screen['name'], '' if url else ': no image')
 
+    async def answer_map_full(self, inbox, screen, request):
+        """A map tile tapped open (app 0.4.36, firmware 0.21.0+): the same map drawn as large as the board takes a
+        camera (camera_feed.box 'full'), from that tile's saved choices (`idx`), in the screen's look. Its link draws
+        again on every load the screen makes, from what is kept unless someone moved."""
+        entity = request.get('entity')
+        if not camera_feed.can_show_map(screen) or not screen.get('online'):
+            return
+        if entity == map_card.MAP_TILE and (screen_firmware(screen) or (0, 0, 0)) < MAP_TILE_MIN_FIRMWARE:
+            return
+        action = self.transport(inbox, screen)
+        if not action:
+            return
+        tiles = self.layouts.get(inbox, {}).get('tiles', [])
+        mapped = lambda tile: tile['entity'] == entity and (tile.get('options') or {}).get('display') == 'map'
+        try:
+            index = int(request.get('idx'))
+        except (TypeError, ValueError):
+            index = -1
+        tile = tiles[index] if 0 <= index < len(tiles) and mapped(tiles[index]) else next((t for t in tiles if mapped(t)), None)
+        box = camera_feed.box(screen, 'full')
+        if tile is None or not box:
+            LOG.info('A map for %s: not a map tile of %s', entity, screen['name'])
+            return
+        width, height = box
+        # A finger on a marker (firmware 0.21.0+): that one in the middle, closer in, with its card over the bottom.
+        focus = request.get('focus') if request.get('focus') in map_card.shown(tile, self.ha.states, self.registry_index()) else ''
+        render = self.map_render(tile, camera_feed.shape_of(screen), camera_feed.live_dark(request), full=True, focus=focus)
+        extra = {'compact': camera_feed.compact_pictures(screen), 'atlas': (width, height, ((0, 0, width, height, 0, 0),)),
+                 'modes': [('fill', False)], 'renders': [render]}
+        url = ''
+        base = await camera_feed.base_url(self.ha.request)
+        if base and await self.camera.live([entity], camera_feed.LIVE_SIZES[1], [0], [0], **extra):
+            token = self.camera.link(entity, box, live=([entity], camera_feed.LIVE_SIZES[1], [0], [0], extra))
+            url = f'{base}/camera/{token}.bmp'
+        # Where each marker is on that picture, and the card of the one picked: pixels and words, never a place.
+        sheet = {'h': self.map_hits.get((render[0](), width, height), [])[:16], 'f': focus}
+        if focus:
+            sheet['c'] = await self.map_sheet(focus)
+        await self.send_auxiliary(inbox, {'v': 1, 'op': 'camera', 't': 'full', 'e': entity, 'u': url, 'm': sheet}, action, request)
+        LOG.info('Map of %s full screen on %s%s%s', entity, screen['name'], f' around {focus}' if focus else '', '' if url else ': no image')
+
+    async def map_sheet(self, entity):
+        """The card of a person or tracker picked on a full map, as Home Assistant's own map shows a selected one
+        (hui-map-overview.ts): the name, the state since when, the battery where it reports one, and the changes of the
+        last day newest first, each with its time, in the screens' language and clock."""
+        state = self.ha.states.get(entity) or {}
+        a = state.get('attributes') or {}
+        entry = self.registry_index().get(entity)
+        words = getattr(self.ha, 'state_words', None)
+        tz = getattr(self.ha, 'time_zone', None) or timezone.utc
+        word = lambda value: state_word(entity, value, a, entry, words) or str(value or '')
+        clock = lambda moment: i18n.screen_clock(moment.hour, moment.minute)
+        now = datetime.now(timezone.utc)
+        line = word(state.get('state'))
+        try:
+            since = datetime.fromisoformat(str(state.get('last_changed', '')).replace('Z', '+00:00'))
+            if now - since < timedelta(hours=24):
+                line = screen_t('addon.screen.map.since', state=line, time=clock(since.astimezone(tz)))
+        except (ValueError, TypeError):
+            pass
+        battery = a.get('battery_level', a.get('battery'))
+        if isinstance(battery, (int, float)) and not isinstance(battery, bool):
+            line = f'{line} · ' + screen_t('addon.screen.map.battery', n=round(battery))
+        rows = []
+        try:
+            changes = await self.ha.state_changes(entity, 24)
+        except Exception as error:
+            LOG.info('No history for %s on the map (%s)', entity, type(error).__name__)
+            changes = []
+        previous = None
+        # The state the day began with is no change; a moment without a place (unavailable) is none either.
+        for moment, value in changes:
+            if value in ('unavailable', 'unknown', None):
+                continue
+            if previous is not None and value != previous:
+                rows.append([clock(datetime.fromtimestamp(moment, tz)), word(value)[:40]])
+            previous = value
+        name = a.get('friendly_name') or entity.split('.', 1)[1]
+        return {'t': str(name)[:60], 's': line[:80], 'a': screen_t('addon.screen.map.activity') if rows else '', 'r': rows[::-1][:5]}
+
     # The maps kept drawn: a page's maps in both looks and the page before it.
     MAP_RENDERS_KEPT = 12
 
-    def map_render(self, tile, shape, dark):
+    def map_render(self, tile, shape, dark, full=False, focus=None):
         """(mark, draw) of one saved map tile for CameraFeed.live: the mark is its movement mark and the look, `draw`
         reads Home Assistant's states and asks for the streets when it runs. A drawn card is kept by mark, frame and
         look, so two screens in different looks each keep their own, and one whose streets did not all come is not."""
         board = map_card.Board(shape)
+        # The screen's look, unless the card keeps one of its own (`look`, app 0.4.36).
+        dark = map_card.dark_for(tile, dark)
         look = 'd' if dark else 'l'
 
         def mark():
             # Without streets to be had it is another picture, so the one with streets replaces it when they come back.
-            return f'{map_card.fingerprint(tile, self.ha.states)}{look}{"" if self.map_source.available() else "-"}'
+            streets = '' if self.map_source.available() or not map_card.wants_streets(tile) else '-'
+            return f'{map_card.fingerprint(tile, self.ha.states, self.registry_index())}{look}{streets}{"f" if full else ""}{focus or ""}'
 
         async def draw(width, height):
             key = (mark(), width, height, board.scale, board.label)
             if key in self.map_renders:
                 self.map_renders.move_to_end(key)
+                self.map_hits[key[:3]] = self.map_renders[key].info.get('hits', [])
                 return self.map_renders[key]
-            view = map_card.view_for(tile, self.ha.states, (width, height), board)
-            wanted = view.tiles()
+            registry = self.registry_index()
+            view = map_card.view_for(tile, self.ha.states, (width, height), board, registry, full, focus)
+            wanted = view.tiles() if map_card.wants_streets(tile) else []
             streets = await self.map_source.tiles(wanted)
+            photos = await self.map_photos(map_card.pictures_wanted(tile, self.ha.states, registry))
             image = await asyncio.get_running_loop().run_in_executor(
-                None, lambda: map_card.render_tile(tile, self.ha.states, (width, height), board, dark, streets))
+                None, lambda: map_card.render_tile(tile, self.ha.states, (width, height), board, dark, streets, registry, photos, full, focus))
+            # Where its markers are, for a full view's finger (answer_map_full): kept as long as the picture is.
+            self.map_hits[key[:3]] = image.info.get('hits', [])
+            while len(self.map_hits) > self.MAP_RENDERS_KEPT:
+                self.map_hits.pop(next(iter(self.map_hits)))
             if self.map_source.available() and len(streets) < len(wanted):
                 image.info['provisional'] = True
             else:
@@ -2330,6 +2457,32 @@ class Manager:
                     self.map_renders.popitem(last=False)
             return image
         return mark, draw
+
+    # The pictures of people kept for their markers, by address: a new picture is a new address.
+    MAP_PHOTOS_KEPT = 32
+
+    async def map_photos(self, wanted):
+        """{entity: picture} for the markers that show one (app 0.4.36), fetched through Home Assistant as its own map
+        does and kept by address. One that cannot be had leaves that marker with its initials."""
+        from PIL import Image
+        out = {}
+        for entity, address in wanted.items():
+            if address not in self.map_pictures:
+                try:
+                    raw = await self.ha.entity_picture(address)
+                    picture = Image.open(io.BytesIO(raw))
+                    picture.draft('RGB', (256, 256))
+                    picture = picture.convert('RGB')
+                    picture.thumbnail((256, 256))
+                except Exception as error:
+                    LOG.info('No picture for %s on the map (%s)', entity, type(error).__name__)
+                    picture = None
+                self.map_pictures[address] = picture
+                while len(self.map_pictures) > self.MAP_PHOTOS_KEPT:
+                    self.map_pictures.popitem(last=False)
+            if self.map_pictures.get(address) is not None:
+                out[entity] = self.map_pictures[address]
+        return out
 
     async def cover_message(self, entity, size, background):
         """The screen message with a link to a media player's cover at `size` with `background` behind the corners,

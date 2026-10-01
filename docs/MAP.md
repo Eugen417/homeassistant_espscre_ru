@@ -1,28 +1,60 @@
 # A map card
 
-App 0.4.33 with firmware 0.20.0 can turn a person tile into a map: the streets around them, the zones you have in Home
-Assistant, and a marker for everyone on the card. ESP Screens draws the whole card in the screen's own colours and sends
-the screen a picture, the way a live camera arrives. The screen never gets a location.
+ESP Screens can show a map of where people are: the streets around them, your zones, and a marker for everyone on the
+card. ESP Screens draws the whole card in the screen's own colours and sends the screen a picture, the way a live camera
+arrives. The screen never gets a location.
 
-## Setting it up
+There are two kinds of map:
 
-1. Put a `person.*` entity on a page and set **Display** to **Map**.
-2. **Show** picks what the card frames:
-   - **Everyone**: the smallest view that holds everyone on the card, with the zone each of them is in.
-   - **Around home**: your home zone in the middle.
-   - **Around this person**: the tile's own person in the middle.
-3. With Around home or Around this person, **Distance** says how far the view reaches: Street, Neighborhood, Town or
-   Region. Someone outside the view is a small marker on the edge of the card, pointing the way to them.
-4. **Also on the map** adds other people and device trackers, up to eight on one card (app 0.4.35 for trackers). A
-   device tracker is anything Home Assistant reports a place for: a phone through the Companion app, a car through its
-   integration, a tag. One that only knows home or away has no place and is not offered. Each keeps a colour, in the
-   order they are listed, and their initials are in their marker. From a card about 200 pixels high the first names are beside the
-   markers.
-5. **On the picture** says whether the tile's name is on the map, on a small label at the bottom left.
+- **A person's map** (app 0.4.33, firmware 0.20.0): set a `person.*` tile's **Display** to **Map**. It follows that
+  person, and whoever you add under **Also on the map**.
+- **The map tile** (app 0.4.36, firmware 0.21.0): **Map** under the screen's own cards in the library. It belongs to
+  no one: it follows **everyone** Home Assistant knows the place of, or only the people and trackers you choose. Just
+  the two of you, or only your devices.
 
-A map works on every size, from one cell to the whole page, on every board that draws pictures (the boards with
-`camera` in `screen_manager/app/boards.json`). The CYD and the other boards without memory for pictures do not offer it,
+Both work on every tile size, from one cell to the whole page, on every board that draws pictures (the boards with
+`camera` in `screen_manager/app/boards.json`). The CYD and the other boards without memory for pictures do not offer them,
 and a layout with one is refused on them.
+
+**A tap opens the map over the whole screen**, as a camera tile does: drawn as large as the board takes a camera picture,
+with the round back key and the tile's name at the top. A small 1 x 1 map you glance at becomes a full map with a tap.
+
+**On the full map, tap a person or a tracker** to focus on them, as Home Assistant's own map does: they come to the
+middle, closer in, and a card over the bottom shows their name, their state and since when (with the battery where they
+report one), and the changes of the last day, newest first, each with its time. A tap beside the markers, or the back
+key, goes back to everyone. The screen gets where each marker is on the picture (pixels) and the card's words, never a
+place.
+
+## The choices
+
+| Choice | What it does |
+| --- | --- |
+| **Follow** (map tile) | **Everyone**: every person, and every device tracker that is not already someone's, as Home Assistant's own map card does with `show_all`. **Chosen**: the list under it. |
+| **On the map** / **Also on the map** | People and device trackers, up to eight. A device tracker is anything Home Assistant reports a place for: a phone through the Companion app, a car through its integration, a tag. One that only knows home or away has no place and is not offered. |
+| **Show** | **Everyone**: the smallest view that holds everyone, with the zone each is in. **Around home**: your home zone in the middle. **Around this person** (a person's map): that person in the middle. |
+| **Distance** | How far Around home and Around this person reach: street, neighborhood, town or region. Someone outside the view is a small marker at the edge, pointing the way. |
+| **Markers** | **Photo**: a person's picture in their marker, as Home Assistant shows it, and their initials when they have none. **Initials**: always the letters. |
+| **Names** | First names beside the markers: where the card has room (from about 200 pixels high, and always over the whole screen), always, or never. |
+| **Zones** | Your zones as soft circles, or none. |
+| **Streets** | The streets from Home Assistant's map, or a plain ground with only the zones and people: nothing is fetched. |
+| **Look** | As the screen (light or dark with it), or always light, or always dark. |
+| **On the picture** | The tile's name on a small label at the bottom left, or nothing. |
+
+## As Home Assistant does it
+
+The map follows Home Assistant's own map card (`hui-map-card.ts`, `ha-map.ts` and `get_entity_location.ts` in its
+frontend), so a household looks the same on a screen as in Home Assistant:
+
+- **Where someone is**: their own latitude and longitude. A person without one who is in a zone (`in_zones`) stands in
+  the middle of that zone.
+- **Everyone** leaves out a tracker a person already follows (the person's `source`) and anything hidden in the entity
+  registry.
+- **Colours**: every person, tracker and zone gets a colour in the order Home Assistant made them (the home zone
+  apart), so someone has the same colour on every map. The colours are the screen's own tile palette.
+- **Markers**: a ring in that colour, around the person's picture (`entity_picture`) or the first letter of each word of
+  their name, at most three. Where Home Assistant reports a GPS accuracy wider than the marker, a faint circle in the
+  same colour shows it.
+- **Zones**: passive zones are left out.
 
 ## Where the streets come from
 
@@ -33,24 +65,25 @@ no entity, no name.
 
 A vector tile says what is there (a street of some kind, water, a park) and nothing about how it looks, so ESP Screens
 draws it in the screen's colours: a quiet ground of greys with white streets, water and green in soft tints, in light and
-dark. The only strong colours on the card are the people and their zones. The card carries "© OpenStreetMap" at the
-top right.
+dark. The only strong colours on the card are the people and their zones. The card carries "© OpenStreetMap".
 
 When Home Assistant has no tiles to give (an older Home Assistant, or no internet), the card is drawn from the zones and
-the people alone, and ESP Screens asks again after ten minutes.
+the people alone, and ESP Screens asks again after ten minutes. A person's picture comes through Home Assistant too, or
+from a public address on the internet; never from another address in the house.
 
 ## When it is drawn again
 
-Never on a clock. With the layout, each map tile gets a short movement mark: a hash of where its people are (rounded to
-about 25 meters, so a phone's drift is no change), their states, the zones, and the tile's own choices and name. The
-screen asks for a new picture when the mark changes. A household that stays put costs nothing.
+Never on a clock. With the layout, each map tile gets a short movement mark: a hash of who is on it and where (rounded to
+about 25 meters, so a phone's drift is no change), their states, names, pictures and colours, the zones, and the tile's
+own choices and name. The screen asks for a new picture when the mark changes. A household that stays put costs nothing.
 
 ## Light and dark
 
-The screen says which look it is in when it asks for its pictures, and gets the map drawn for that look. A screen in
-dark mode and one in light mode showing the same card each get their own picture. ESP Screens keeps the last maps it drew
-by their mark, their size and their look, so a page that loads again for a camera next to it does not draw its map again.
-The screen keeps its pictures under a name that includes the look as well, so switching the look asks for the other map.
+The screen says which look it is in when it asks for its pictures, and gets the map drawn for that look, unless the tile
+keeps a look of its own. A screen in dark mode and one in light mode showing the same card each get their own picture.
+ESP Screens keeps the last maps it drew by their mark, their size and their look, so a page that loads again for a camera
+next to it does not draw its map again. The screen keeps its pictures under a name that includes the look as well, so
+switching the look asks for the other map.
 
 ## Privacy
 
@@ -66,10 +99,10 @@ The screen keeps its pictures under a name that includes the look as well, so sw
 | --- | --- |
 | Reading Home Assistant's vector tiles | `screen_manager/app/vector_tiles.py` |
 | The tiles through Home Assistant, cached | `screen_manager/app/map_tiles.py`, `HomeAssistant.map_tile` in `server.py` |
-| Framing, the movement mark and the drawing | `screen_manager/app/map_card.py` |
-| A screen's request, the kept maps | `Manager.answer_live` and `Manager.map_render` in `server.py`, `CameraFeed.live` |
-| The choices | `catalogue/person.yaml` (`map`), `core.validate_layout` |
-| The firmware | `Tile::is_map()`, `card_art`, `live_wanted` (the mark and `dark`) in `components/smart_display` |
+| Who is on it, framing, the movement mark, the drawing | `screen_manager/app/map_card.py` |
+| A screen's request, the full view, focus and its card, pictures, kept maps | `Manager.answer_live`, `answer_map_full`, `map_sheet`, `map_render`, `map_photos` in `server.py` |
+| The choices | `catalogue/person.yaml` (`map`), `core.validate_layout`, the map tile `screen.map` in `core.BUILTIN` |
+| The firmware | `Tile::is_map()`, `card_art`, `live_wanted` (the mark and `dark`), the tap into `camera_open`, `MapSheet` and `map_sheet_draw` in `components/smart_display` |
 | The editor | `TileInspector.vue`, `model/tile-options.ts`, `model/page-validation.ts` |
 | Tests and renders | `tests/test_map_card.py`, `tools/render/map_tiles.py` |
 

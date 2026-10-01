@@ -184,7 +184,8 @@ export function childOf(tile: Tile, id: string): ChildTile {
   return { id, content: { kind: "entity", entityId: tile.entity }, appearance, interaction };
 }
 const appearanceKeys = { display: "display", icon: "icon", background: "background", historyHours: "history_hours", refresh: "refresh", subtitle: "sub", fit: "fit", overlay: "overlay",
-  mapEntities: "map", mapFraming: "framing", mapDistance: "distance" } as const;
+  mapEntities: "map", mapFraming: "framing", mapDistance: "distance",
+  mapFollow: "follow", mapMarkers: "markers", mapNames: "names", mapZones: "zones", mapStreets: "streets", mapLook: "look" } as const;
 
 /** A render view, never a second saved or editable layout. */
 export function projectLayout(layout: PageLayout, grid: PageGrid): Layout {
@@ -340,8 +341,8 @@ export function arrangeTiles(layout: PageLayout, grid: PageGrid, entries: { tile
         if (!page) throw new Error(t("addon.errors.pages.page_missing"));
         content = old?.content.kind === "navigation" && old.content.target.kind === "home" && entityOf(layout, old) === tile.entity
           ? clone(old.content) : { kind: "navigation", target: { kind: "page", pageId: page.id } };
-      } else if (tile.entity === "screen.clock" || tile.entity === "screen.nightstand" || tile.entity === "screen.settings") {
-        content = { kind: "builtin", name: tile.entity.slice(7) as "clock" | "nightstand" | "settings" };
+      } else if (tile.entity === "screen.clock" || tile.entity === "screen.nightstand" || tile.entity === "screen.settings" || tile.entity === "screen.map") {
+        content = { kind: "builtin", name: tile.entity.slice(7) as "clock" | "nightstand" | "settings" | "map" };
       } else content = { kind: "entity", entityId: tile.entity };
       const size = options.size ?? "single";
       if (!isSize(size)) throw new Error(t("addon.errors.pages.size"));

@@ -372,6 +372,7 @@
   ],
   "builtins": [
     "clock",
+    "map",
     "nightstand",
     "settings"
   ],

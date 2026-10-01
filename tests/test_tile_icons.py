@@ -61,11 +61,11 @@ class IconSetTests(unittest.TestCase):
         for domains, code in re.findall(r'if \((d == "\w+"(?: \|\| d == "\w+")*)\) return "\\U000(F[0-9A-F]{4})";', body):
             for domain in re.findall(r'"(\w+)"', domains):
                 native[domain] = code
-        # The built-in cards pick per entity, not per domain: a clock, the settings page or a page to go to.
-        settings, page, clock = re.search(
-            r'if \(d == "screen"\) return tile\.is_settings\(\) \? "\\U000(F[0-9A-F]{4})" : tile\.is_page\(\) \? "\\U000(F[0-9A-F]{4})" : "\\U000(F[0-9A-F]{4})";', body).groups()
+        # The built-in cards pick per entity, not per domain: a clock, the settings page, a page to go to or the map.
+        settings, page, map_tile, clock = re.search(
+            r'if \(d == "screen"\) return tile\.is_settings\(\) \? "\\U000(F[0-9A-F]{4})" : tile\.is_page\(\) \? "\\U000(F[0-9A-F]{4})" : tile\.entity == "screen\.map" \? "\\U000(F[0-9A-F]{4})" : "\\U000(F[0-9A-F]{4})";', body).groups()
         builtin = {entity: tile_icons.GLYPHS[name] for entity, name in tile_icons.BUILTIN_TILES.items()}
-        self.assertEqual({'screen.settings': settings, 'screen.clock': clock, **{f'screen.page_{n}': page for n in range(1, 9)}}, builtin)
+        self.assertEqual({'screen.settings': settings, 'screen.clock': clock, 'screen.map': map_tile, **{f'screen.page_{n}': page for n in range(1, 9)}}, builtin)
         self.assertEqual(tile_icons.editor()['builtin'], builtin)
         self.assertEqual(tile_icons.GLYPHS[tile_icons.DEFAULTS['screen']], clock)
         expected = {domain: tile_icons.GLYPHS[name] for domain, name in tile_icons.DEFAULTS.items() if domain != 'screen'}
