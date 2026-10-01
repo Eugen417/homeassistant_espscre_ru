@@ -5,7 +5,8 @@
 #   tools/check.sh                   the Python tests, every tests/*.cpp, the package check, the icon generator's --check, the editor's
 #                                    tests, its sizes against the firmware's, types and build, and whether the editor bundle in Git
 #                                    equals that build
-#   tools/check.sh --firmware        compiles every board profile (tools/profiles.py) and applies the CYD's flash budget
+#   tools/check.sh --firmware        compiles every board profile (tools/profiles.py) and applies the flash budget to every
+#                                    board with 4 MB of flash (the CYD's rule, docs/RELEASING.md step 2)
 #   --board KEY                      with --firmware: only this board (repeat for more); a fix for one board builds one
 #   --affected                       with --firmware: only the boards a build of the change needs (affected_boards.py --build-keys);
 #                                    nothing to build when it reaches none (docs/BOARD_RELEASES.md); a change that reaches
@@ -305,9 +306,9 @@ compile_board() {  # compile_board <board>
   flash_report "$board"
 }
 
-# flash_report BOARD [budget]: the image against its update slot, both read from the build, and on the CYD the growth
-# against --baseline and the budget of docs/RELEASING.md step 2. Exit 3 means over 90 %: it passes, but the release has
-# to say why.
+# flash_report BOARD [budget]: the image against its update slot, both read from the build, on the CYD the growth
+# against --baseline, and with `budget` the thresholds of docs/RELEASING.md step 2 (every board with 4 MB of flash has
+# them). Exit 3 means over 90 %: it passes, but the release has to say why.
 flash_report() {
   local board=$1 mode=${2:-} status=0 out="$WORK/flash-$1.txt" against=""
   [[ $board == cyd ]] && against=$baseline
@@ -349,7 +350,7 @@ if share > 93:
     print('93-97 %: only fixes ship.')
     sys.exit(3)
 if share > 90:
-    print('90-93 %: tight. The release states its flash delta; more than 8 KB needs a matching saving or Max\'s OK.'
+    print('90-93 %: tight. The release states its flash delta; more than 8 KB needs a matching saving or the maintainer\'s explicit OK.'
           + (f' This one grows {delta:,} B.' if delta is not None and delta > 8192 else ''))
     sys.exit(3)
 EOF
@@ -362,7 +363,23 @@ EOF
   return "$status"
 }
 
-cyd_budget() { flash_report cyd budget; }
+flash_budget() { flash_report "$1" budget; }
+# The boards with 4 MB of flash (tools/profiles.py flash_mb): two update slots of 1.75 MB, where the budget applies. The
+# CYD was the only one until cyd9342 and hosyond40 joined it; a change that reaches every board builds the sample, which
+# has the CYD only, so the nightly build of every board gates the other two (and a release near the line builds them,
+# below).
+small_flash_keys() { (cd "$ROOT/tools" && "$PYTHON" -c "import profiles; print(' '.join(b for b in profiles.BOARDS if profiles.flash_mb(b) <= 4))"); }
+# small_flash_unbuilt BOARD...: the 4 MB boards this run did not build, after a CYD image over 90 %: they share its code
+# and its look, so they sit within a few KB of it, on either side.
+small_flash_unbuilt() {
+  local share
+  share=$(sed -n '1s/.* = \([0-9.]*\) %.*/\1/p' "$WORK/flash-cyd.txt" 2>/dev/null)
+  echo "Not built: $*; the CYD image is at ${share:-?} % of its slot"
+  note "$*"
+  if [[ -n $share ]] && awk -v s="$share" 'BEGIN { exit !(s > 90) }'; then
+    warn "The CYD is over 90 % and $* share its 4 MB budget: build them before the release (tools/check.sh --firmware$(printf ' --board %s' "$@"))."
+  fi
+}
 
 # The overrides owners shared in GitHub issues (tests/fixtures/overrides/<board>-<case>.yaml), each read by ESPHome on
 # its board the way a screen's own YAML loads it: a package after the board's (core.installation_yaml, local_overrides).
@@ -465,6 +482,8 @@ if ((want_firmware)); then
   if ((profiles_ok)); then
     # One after the other: parallel builds race on ESPHome's shared ESP-IDF install (and on PlatformIO's, before 2026.7).
     running=$("${ESPHOME_CMD[@]}" version | sed -n 's/^Version: //p')
+    read -r -a small_flash <<< "$(small_flash_keys)"
+    built_small=()
     while read -r board _; do
       needs=$(board_needs "$board")
       if older_version "$running" "$needs"; then
@@ -472,10 +491,13 @@ if ((want_firmware)); then
         continue
       fi
       run "Firmware: $board" compile_board "$board"
-      if [[ $board == cyd ]]; then
-        if ((last_ok)); then run "CYD flash budget" cyd_budget; else skip "CYD flash budget" "no CYD build"; fi
+      if [[ " ${small_flash[*]} " == *" $board "* ]]; then
+        if ((last_ok)); then run "Flash budget: $board" flash_budget "$board"; built_small+=("$board"); else skip "Flash budget: $board" "no build"; fi
       fi
     done < <(board_entries)
+    unbuilt=()
+    for board in ${small_flash[@]+"${small_flash[@]}"}; do [[ " ${built_small[*]-} " == *" $board "* ]] || unbuilt+=("$board"); done
+    if ((${#unbuilt[@]})) && [[ " ${built_small[*]-} " == *" cyd "* ]]; then run "Flash budget: 4 MB boards not built" small_flash_unbuilt "${unbuilt[@]}"; fi
   else
     skip "Firmware builds" "ESPHome or the check profiles are missing"
   fi

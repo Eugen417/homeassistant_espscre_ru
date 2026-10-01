@@ -118,8 +118,9 @@ must exist. `tools/generate_catalogue.py` stops on anything else.
 3. **Home Assistant's facts**: make sure `catalogue/_ha.json` has the type (see below).
 4. **The file**: `catalogue/<type>.yaml` with `firmware:` set to the version from step 1, its displays and controls,
    and the words of its controls in `screen_manager/translations/en.json` (then the other languages).
-5. Run `tools/generate_catalogue.py`, `python tests/catalogue_conformance.py`, add a case to
-   `tests/test_layout_audit.py`, and run `tools/check.sh`.
+5. Run `tools/generate_catalogue.py`, `python tests/catalogue_conformance.py`, add a case to `KINDS` in
+   `tests/test_layout_audit.py` (it fails until the type has one, or an `EXCLUDED` entry with the reason the preview
+   cannot draw it), and run `tools/check.sh`.
 
 ### What a new type touches
 
@@ -178,7 +179,13 @@ nothing stops the script: read that integration's remote.py again.
 
 The diff is exactly what Home Assistant changed for our types: a new flag, an action that asks another flag, one that
 is gone. `tools/generate_catalogue.py` then says which of our options name something that no longer exists.
-`tools/check.sh` runs the same comparison when `HA_CORE` names a checkout.
+`tools/check.sh` runs the same comparison when `HA_CORE` names a checkout. CI has none, so
+`.github/workflows/ha-source.yml` does it once a week (and by hand, with any tag or branch) against the newest Home
+Assistant release: a sparse clone of only the files the two readers open, both `--check`s, and the diff in the run's
+summary when one fails. It passes `--release`: a snapshot taken from a dev build ahead of that release may know more,
+which the summary lists, and only what the release has that the snapshot lacks or contradicts fails
+(`tools/ha_release.py`). A remote's commands are compared with `--ignore-pins`, without the library versions they were
+read from. Without the flags the comparison stays exact, as `tools/check.sh` runs it.
 
 ## Updating keeps what people have
 

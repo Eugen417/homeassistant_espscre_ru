@@ -15,8 +15,21 @@ fontTools and jinja2, and stops when one is missing, because a skipped test prov
 
 - **Python tests** (`python -m unittest discover -s tests`): the add-on, the tools, the catalogue, the release rules
   (`tests/test_release_lint.py`), the font set (`tests/test_font_set.py`), the saved layouts of 0.4.31
-  (`tests/test_compat_0431.py`), and `tests/test_layout_audit.py`, which lays out every card kind, size and board
-  through the firmware preview and checks where every object and text ended up, without drawing a picture.
+  (`tests/test_compat_0431.py`), and the guards below.
+- **Layout audit** (`tests/test_layout_audit.py`): every type of the tile catalogue, with each of its faces and control
+  sets, in every size, on every board shape lying down and standing up, laid out through the firmware preview without
+  drawing a picture. It checks where every object and text ended up and that no control shrinks below its type's touch
+  floor. A new catalogue type fails it until it has a case; what the firmware does today that it would flag is listed
+  in its `KNOWN` and `TOUCH_FLOORS` with the code behind it. Without Node or the preview it is skipped on a laptop and
+  fails in CI, and a preview older than the firmware sources fails everywhere.
+- **The editor draws the firmware's numbers** (`tests/test_editor_parity.py`): the editor's mockup ports the firmware's
+  sizes to TypeScript (`web/src/model/`), and this test compiles the real C++ headers, runs the real TypeScript and,
+  where LVGL's grid decides, asks the firmware preview, on every board shape: the scale, the pill and mode bar, card
+  widths, the top bar, tile sizes and spans, and the colours of a tile. Change one side and it fails until the other
+  follows. `tests/test_setting_ranges.py` does the same for the range of every screen setting, in all five places it
+  is written.
+- **No feature bit counted by hand** (`tests/test_feature_bits.py`): the firmware, the add-on and the editor test Home
+  Assistant's `supported_features` only through the constants generated from the catalogue (docs/CATALOGUE.md).
 - **C++ tests**: every `tests/*.cpp`, compiled with `clang++ -std=c++17 -Wall -Wextra -Werror -I.` and run. They test
   the firmware's logic and layout arithmetic (cards, settings, theme, touch filter, protocol) on this computer.
 - **Generated files are current**: `tools/check_packages.py` (the boards define every name the core uses, and no board
@@ -28,6 +41,8 @@ fontTools and jinja2, and stops when one is missing, because a skipped test prov
   Assistant's source. With `HA_CORE` naming a checkout of home-assistant/core, the check reads them again and fails
   when Home Assistant changed (docs/CATALOGUE.md, "When Home Assistant changes"). Without it the snapshots are taken
   as they are.
+  `.github/workflows/ha-source.yml` does this every week against Home Assistant's latest release and fails when the
+  release has something the snapshots lack or contradict.
 - **Translations** (`tools/i18n.py check`, `header --check` and `lint`): every language against English, the key
   header the firmware builds against, and no English left in the firmware's code.
 - **The editor**: `npm ci`, the Vitest suite, the type check and the build, and whether the bundle in Git equals that
@@ -41,7 +56,7 @@ fontTools and jinja2, and stops when one is missing, because a skipped test prov
 
 `tools/check.sh --firmware` compiles boards the way their owners build them: from the checkout entries, with
 placeholder secrets, and with the Wi-Fi fallback hotspot only where users get it. It has ESPHome read every override
-from `tests/fixtures/overrides/` on its board, and applies the CYD's flash budget (docs/RELEASING.md step 2).
+from `tests/fixtures/overrides/` on its board, and applies the flash budget to every board with 4 MB of flash it builds (docs/RELEASING.md step 2).
 
 - `--affected` builds the boards the change reaches (`tools/affected_boards.py --build-keys`); when that is every
   board, it builds the sample of four in `tools/profiles.py` `SAMPLE` instead (the CYD and the Guition always, and two

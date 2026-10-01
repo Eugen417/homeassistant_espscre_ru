@@ -2,6 +2,8 @@
 
     python tools/read_remote_commands.py <home-assistant/core checkout>          writes catalogue/_remote_commands.json
     python tools/read_remote_commands.py <checkout> --check                      fails when that file differs
+    python tools/read_remote_commands.py <checkout> --check --ignore-pins --release
+                                                       the commands only, against a release (tools/ha_release.py)
 
 Home Assistant lists no commands for a remote entity: `remote.send_command` takes whatever the integration accepts. For
 the integrations below that set is fixed in code, either in Home Assistant itself or in the library its manifest.json
@@ -255,12 +257,27 @@ def output(core):
     return json.dumps({'source': f'home-assistant/core {version} ({commit})', 'platforms': platforms}, indent=1) + '\n'
 
 
+def compared(platforms):
+    """What a --check holds: everything, or with --ignore-pins each integration's commands alone."""
+    if platforms is None or '--ignore-pins' not in sys.argv:
+        return platforms
+    return {name: {'commands': item['commands']} for name, item in platforms.items()}
+
+
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         sys.exit(__doc__)
     text = output(Path(sys.argv[1]).resolve())
     if '--check' in sys.argv:
-        if not OUTPUT.exists() or json.loads(OUTPUT.read_text())['platforms'] != json.loads(text)['platforms']:
+        # --ignore-pins: the commands per integration only, not the library versions they were read from (a screen sends
+        # the command, never the version). --release: see tools/ha_release.py.
+        import ha_release
+        kept = json.loads(OUTPUT.read_text()) if OUTPUT.exists() else {'source': '', 'platforms': None}
+        found = json.loads(text)
+        ok, lines = ha_release.check(*(compared(data['platforms']) for data in (kept, found)), kept['source'], found['source'],
+                                     '--release' in sys.argv)
+        print('\n'.join(lines))
+        if not ok:
             sys.exit('catalogue/_remote_commands.json differs from this Home Assistant: run tools/read_remote_commands.py without --check.')
     else:
         OUTPUT.write_text(text)
