@@ -31,6 +31,7 @@ touch never switches a lamp or opens a card under it.
   that is much wider or taller than square (the 7 and 10-inch boards) a cover cut to the glass would lose too much, so
   there it takes the full height at the left, or the full width at the top, and the rest is the cover's own colour with
   the words in it.
+  A title too long for one line takes two, above the artist (firmware 0.30.0); one longer still ends in dots.
 - **Camera**: the camera over the whole glass, cut to it the way a photo fills a frame, with its name small at the
   bottom left, refreshed every 15 seconds.
 - **Clock**: the time in the bedside clock's digits and the date under it, in the screen's own colours. With Dark mode

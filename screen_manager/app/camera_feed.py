@@ -842,6 +842,8 @@ async def base_url(request, cache={}):
         except Exception as error:
             LOG.info('Reading the internal URL failed (%s)', type(error).__name__)
     if not host:
-        return None
+        # Home Assistant did not say this time (busy, restarting): the address it gave before still stands (app 0.4.51).
+        # Without it a page's pictures got an answer without a link, and a page of maps then stayed without its maps.
+        return cache.get('url')
     cache.update(url=f'http://{host}:{await published_port()}', at=now)
     return cache['url']

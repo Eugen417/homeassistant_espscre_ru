@@ -28,6 +28,19 @@ static void words_on_every_glass() {
     assert(inside(one.first, width, height) && height - one.first.bottom() == 24 && one.second.w == 0);
     std::printf("%4dx%-4d %s\n", width, height, s == Shape::fill ? "fill" : s == Shape::side ? "cover at the left" : "cover at the top");
   }
+  // A title on two lines (firmware 0.30.0+): the block grows upward, the line under it stays where it was and the two
+  // never overlap, on every glass.
+  for (const auto &g : GLASS) {
+    const int width = g[0], height = g[1];
+    const Shape s = shape(width, height);
+    const Words one = words(s, width, height, 24, 32, 25, 6), two = words(s, width, height, 24, 2 * 32, 25, 6);
+    assert(fits(s, one, width, height) && two.second.y >= two.first.bottom());
+    // Only the CYD standing up lacks the room under its cover: its title keeps one line.
+    assert(fits(s, two, width, height) == !(width == 240 && height == 320));
+    if (fits(s, two, width, height)) assert(inside(two.first, width, height) && inside(two.second, width, height));
+    if (s == Shape::fill) assert(two.second.y == one.second.y && two.first.y == one.first.y - 32);
+  }
+  assert(title_lines(32, 32) == 1 && title_lines(64, 32) == 2 && title_lines(96, 32) == 2 && title_lines(0, 32) == 1 && title_lines(40, 0) == 1);
   // About square fills, longer glass does not: four to five either way.
   assert(shape(480, 480) == Shape::fill && shape(500, 400) == Shape::fill && shape(400, 500) == Shape::fill);
   assert(shape(501, 400) == Shape::side && shape(400, 501) == Shape::top && shape(480, 320) == Shape::side);

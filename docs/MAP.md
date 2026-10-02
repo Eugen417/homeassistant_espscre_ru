@@ -84,6 +84,11 @@ Never on a clock. With the layout, each map tile gets a short movement mark: a h
 about 25 meters, so a phone's drift is no change), their states, names, pictures and colours, the zones, and the tile's
 own choices and name. The screen asks for a new picture when the mark changes. A household that stays put costs nothing.
 
+When a picture does not come (firmware 0.30.0): a card keeps the map it shows until the next one has loaded, so
+someone moving never empties it. If ESP Screens cannot draw one at that moment, the screen asks again after ten seconds
+and then a little later each time, up to five minutes, and keeps the last map meanwhile. Older firmware asked once: a
+page with only maps then showed its plain tiles until the page was turned.
+
 ## Light and dark
 
 The screen says which look it is in when it asks for its pictures, and gets the map drawn for that look, unless the tile

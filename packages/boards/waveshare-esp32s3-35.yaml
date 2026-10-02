@@ -11,9 +11,6 @@ packages:
   self_test: !include ../features/self-test.yaml
 
 substitutions:
-  # A fix for this board alone (its colours and its PSRAM, GitHub #127): a revision on the shared core, so only
-  # waveshare35 screens are offered it (docs/BOARD_RELEASES.md, "Core and board in one number").
-  SCREEN_FIRMWARE_VERSION: "0.29.1"
   # The key of this board file; the firmware reports it so ESP Screens knows what board a screen is.
   BOARD_ID: "waveshare35"
   DEVICE_NAME: "waveshare35-new"

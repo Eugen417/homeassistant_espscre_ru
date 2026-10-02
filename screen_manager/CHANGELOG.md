@@ -1,3 +1,26 @@
+## 0.4.51 (firmware 0.30.0)
+
+- **A map stays on its tile** (discussion #105). A page with only maps on it could lose them: when ESP Screens could
+  not hand over a picture once, the screen never asked again and showed the plain Home or Away tiles until you turned
+  the page. From firmware 0.30.0 the screen asks again, after ten seconds and then a little later each time, and keeps
+  the last map on the card meanwhile.
+- **No empty moment when someone moves.** A map keeps the picture it shows until the next one has loaded, where the
+  card could fall back to the plain tile in between.
+- **The app keeps its address for pictures.** ESP Screens asks Home Assistant every ten minutes where screens reach
+  it. When Home Assistant did not answer that once, pictures went out without a link; now the address from before
+  stands. This part works on every firmware.
+- A map that follows someone no longer fills the screen's picture memory: the pictures from before each move are let
+  go once the new one is on the card.
+- **Screensaver: a long title takes two lines.** A title too long for one line wrapped over the line under it. It now
+  stands on two lines above that line, and one that needs still more ends in dots.
+- Tested: on a Guition 4848S040 with Home Assistant on the bench. With ESP Screens made to answer without a picture,
+  the maps stayed on their tiles, the screen asked again after 10, 20, 40 and 80 seconds, and the new map came by
+  itself once pictures were back, without a page turn; firmware 0.29.0 showed the plain tiles for six minutes until
+  the page was turned. Six moves in a row each loaded in two seconds and left one picture in memory. The screensaver
+  was looked at with a short title, one of two lines and one longer still. The CYD, both Guitions and the Waveshare 7
+  build with ESPHome 2026.9.0 (the CYD image is 94.2 % of its slot), the CYD and the Waveshare 3.5 with 2026.6.2. Not
+  tested on a 10-inch screen or with cameras on the page.
+
 ## 0.4.50 (firmware 0.29.1 for waveshare35)
 
 - **Waveshare 3.5 inch: the right colours** (GitHub #127, by @noisemaker00). Every colour showed as its complement,

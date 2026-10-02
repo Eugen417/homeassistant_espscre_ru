@@ -11,6 +11,7 @@ import re
 import socket
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -1148,6 +1149,23 @@ class PublishedPort(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.base(info, {}), 'http://192.168.1.5:8098')
         camera_feed.base_url.__defaults__[0].clear()
         self.assertEqual(await self.base(info, {'SUPERVISOR_TOKEN': 't', 'SCREEN_CAMERA_PORT': '9000'}), 'http://192.168.1.5:9000')
+
+    async def test_the_last_address_stands_while_home_assistant_does_not_say(self):
+        """Discussion 105: the address is asked for again every ten minutes. A Home Assistant that did not answer that
+        once gave a page's pictures an answer without a link, and a page of maps then stayed without its maps."""
+        from unittest import mock
+        self.assertEqual(await self.base({'data': {}}, {}), 'http://192.168.1.5:8098')
+
+        async def silent(kind, **data):
+            raise TimeoutError()
+
+        with mock.patch.dict('os.environ', {}, clear=True), mock.patch('time.monotonic', return_value=time.monotonic() + 601):
+            self.assertEqual(await camera_feed.base_url(silent), 'http://192.168.1.5:8098')
+        # Without an address from before there is none to give.
+        camera_feed.base_url.__defaults__[0].clear()
+        with mock.patch.dict('os.environ', {}, clear=True):
+            self.assertIsNone(await camera_feed.base_url(silent))
+
 
 if __name__ == '__main__':
     unittest.main()

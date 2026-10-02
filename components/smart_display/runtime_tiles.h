@@ -8440,7 +8440,9 @@ inline void cover_tick(uint32_t now) {
 // each with its own square and settings, and the app takes each tile's own settings by its index.
 // `dark` (firmware 0.20.0+): the look the screen is in. A map is drawn in the screen's own colours, light or dark, so the
 // look is part of what is asked for and of the name a kept picture goes under: turning the look asks for the other map.
-struct LiveWish { std::string entities, tiles, grounds, marks, atlas; int size = 0, atlas_x = 0, atlas_y = 0, atlas_scale = picture_store::SCALE_ONE; uint32_t every = 15000; bool cameras = false, dark = false; };
+// `drawn` (firmware 0.30.0+): a picture on the page that the app draws itself (a map), so there is always one to be had
+// and an answer without a picture is asked for again.
+struct LiveWish { std::string entities, tiles, grounds, marks, atlas; int size = 0, atlas_x = 0, atlas_y = 0, atlas_scale = picture_store::SCALE_ONE; uint32_t every = 15000; bool cameras = false, dark = false, drawn = false; };
 inline LiveWish live_wish;
 inline camera_view::Feed live;  // entity: the list asked for
 inline std::string live_have;   // the list the strip on screen holds, "" for a tile without a picture
@@ -8522,7 +8524,7 @@ inline LiveWish live_wanted() {
     if (t.favorite()) want.marks += t.extra().fav_mark;
     // A map's mark is what makes it another picture (app 0.4.33). It sets no pace: a page of maps and covers loads
     // once and then waits for someone to move.
-    if (t.is_map()) want.marks += t.extra().map_mark;
+    if (t.is_map()) { want.marks += t.extra().map_mark; want.drawn = true; }
     if (!want.size) want.size = lv_obj_get_style_width(w.circle, LV_PART_MAIN);
     // The page's pace is its quickest camera's: a page of 30 s cameras loaded every 15 s before firmware 0.3.7.
     if (t.live()) { want.every = want.cameras ? std::min<uint32_t>(want.every, t.refresh * 1000u) : t.refresh * 1000u; want.cameras = true; }
@@ -8532,10 +8534,19 @@ inline LiveWish live_wanted() {
 }
 // A strip is the same picture as long as the tiles, their colours, their covers' marks and the frames are: a camera's
 // next picture keeps the key and is written over the last one.
-inline std::string live_key(const LiveWish &w) {
+inline std::string live_key_head(const LiveWish &w) { return "live|" + w.entities + "|" + w.tiles + "|" + w.grounds + "|"; }
+inline std::string live_key_tail(const LiveWish &w) {
   char size[12];
   snprintf(size, sizeof(size), "%d", w.size);
-  return "live|" + w.entities + "|" + w.tiles + "|" + w.grounds + "|" + w.marks + "|" + w.atlas + "|" + size + (w.dark ? "|d" : "|l");
+  return "|" + w.atlas + "|" + size + (w.dark ? "|d" : "|l");
+}
+inline std::string live_key(const LiveWish &w) { return live_key_head(w) + w.marks + live_key_tail(w); }
+// Whether a kept strip is this page's with other marks (someone on its map moved, another track plays): the same tiles
+// in the same frames and colours, so a card can keep drawing its square of it (firmware 0.30.0+).
+inline bool live_same_page(const std::string &key, const LiveWish &w) {
+  const std::string head = live_key_head(w), tail = live_key_tail(w);
+  return key.size() >= head.size() + tail.size() && key.compare(0, head.size(), head) == 0 &&
+         key.compare(key.size() - tail.size(), tail.size(), tail) == 0;
 }
 // Whether the n-th item of a comma list is this one.
 inline bool list_has_at(const std::string &list, int n, const std::string &item) {
@@ -8615,6 +8626,13 @@ inline void live_place(Widgets &w, const Tile &t, int size, int x, int y) {
 #if LV_USE_IMAGE
   int square = -1;
   lv_image_dsc_t *src = t.pictured() ? live_ready(w.index, t.entity, size, square) : nullptr;
+  // A map whose next picture is not here keeps the one it shows (firmware 0.30.0+): this page's strip from before
+  // someone moved, until the new one has loaded, and for as long as the app cannot draw one. Before, the card fell
+  // back to the plain tile in between.
+  if (!src && square >= 0 && t.is_map() && w.picture && pictures_kept()) {
+    auto *held = pictures.holder(static_cast<const lv_image_dsc_t *>(lv_image_get_src(w.picture)));
+    if (held && live_same_page(held->key, live_wish) && list_has_at(held->note, square, t.entity)) src = &held->image;
+  }
   if (src) {
     if (!w.picture) {
       w.picture = lv_image_create(w.tile);
@@ -8713,7 +8731,7 @@ inline void live_tick(uint32_t now) {
             !draws(w.picture, &kept->image)) refresh_tile(w.index);
     }
     if (!want.entities.empty() && (!kept || want.cameras)) {
-      live.open(want.entities, !want.cameras, want.every);
+      live.open(want.entities, !want.cameras, want.every, want.drawn);
       if (kept) live.resume(kept->stored_at);
     }
   }
@@ -8740,8 +8758,12 @@ inline void live_loaded(bool cached) {
   ESP_LOGI("camera", "live tiles %s", cached ? "unchanged" : "loaded");
   if (auto *strip = camera_live.source()) {
     picture_memory("after", "strip", strip->header.w * strip->header.h);
-    if (pictures_kept() && strip->data && !pictures.put(live_key(live_wish), *strip, esphome::millis(), live_have))
+    const std::string key = live_key(live_wish);
+    if (pictures_kept() && strip->data && !pictures.put(key, *strip, esphome::millis(), live_have))
       ESP_LOGW("camera", "no room to keep the live tiles");
+    // This page's strips with other marks are done with (firmware 0.30.0+): a map that follows someone made a new
+    // one at every move, and small ones never passed the budget, so they stayed until the store had no place left.
+    if (pictures_kept()) pictures.retire_if([&](const auto &e) { return e.key != key && live_same_page(e.key, live_wish); });
   }
   for (auto &w : widgets)
     if (w.tile && !lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) && w.index < model.count && model.tiles[w.index].pictured()) refresh_tile(w.index);
@@ -9252,7 +9274,8 @@ inline lv_obj_t *saver_text(lv_obj_t *parent, const lv_font_t *font, uint32_t co
   lv_obj_set_style_text_align(label, align, 0);
   lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
   lv_obj_set_pos(label, r.x, r.y);
-  lv_obj_set_width(label, r.w);
+  // Its own room and no more (firmware 0.30.0+): what does not fit ends in dots instead of running over the next line.
+  lv_obj_set_size(label, r.w, r.h);
   lv_label_set_text(label, text.c_str());
   return label;
 }
@@ -9295,7 +9318,17 @@ inline void saver_words() {
   const int first_h = font ? lv_font_get_line_height(font) : 24;
   const int second_h = second.empty() || !second_font ? 0 : lv_font_get_line_height(second_font);
   const auto shape = media ? saver_view::shape(width, height) : saver_view::Shape::fill;
-  const auto w = saver_view::words(shape, width, height, margin, first_h, second_h, gap);
+  auto w = saver_view::words(shape, width, height, margin, first_h, second_h, gap);
+  // A long title takes a second line, and the words are laid out again around the taller title (saver_view.h).
+  if (font) {
+    lv_point_t need;
+    lv_text_get_size(&need, first.c_str(), font, 0, 0, w.first.w, LV_TEXT_FLAG_NONE);
+    const int lines = saver_view::title_lines(need.y, first_h);
+    if (lines > 1) {
+      const auto taller = saver_view::words(shape, width, height, margin, lines * first_h, second_h, gap);
+      if (saver_view::fits(shape, taller, width, height)) w = taller;
+    }
+  }
   saver_text(camera_root, font, media_ink(), w.first, first, LV_TEXT_ALIGN_LEFT);
   if (second_h) saver_text(camera_root, second_font, theme::mix(media_ink(), 0, 200), w.second, second, LV_TEXT_ALIGN_LEFT);
 }

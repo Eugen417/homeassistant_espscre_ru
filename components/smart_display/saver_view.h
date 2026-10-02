@@ -43,6 +43,22 @@ inline Words words(Shape s, int width, int height, int margin, int first_h, int 
   return out;
 }
 
+// A title too long for one line takes two (firmware 0.30.0+), and the block grows upward with it: the line under it
+// stays where it was. `text_h` is the height the title needs at the words' width, `line_h` one line of its font.
+// Before, the label wrapped by itself and its second line lay over the line under it.
+constexpr int TITLE_LINES = 2;
+inline int title_lines(int text_h, int line_h) {
+  if (line_h <= 0) return 1;
+  return std::max(1, std::min(TITLE_LINES, (text_h + line_h / 2) / line_h));
+}
+
+// Whether words laid out that way stand whole in their room: on the glass, and under a cover at the top not over it.
+// The smallest glass standing up has no room for a second line under its cover; the title then keeps one, with dots.
+inline bool fits(Shape s, const Words &w, int width, int height) {
+  const int bottom = w.second.h ? w.second.bottom() : w.first.bottom();
+  return w.first.y >= (s == Shape::top ? width : 0) && bottom <= height;
+}
+
 // The clock: the time as large as the glass allows and the date under it, together in the middle. `digits_h` is the
 // height of the digits the screen picked, `date_h` the date's line.
 struct ClockLayout { Rect time, date; };
