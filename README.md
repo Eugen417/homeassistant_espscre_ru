@@ -252,6 +252,13 @@ home fits on one page.
 </p>
 <p align="center"><sub>A top bar built from your own home, firmware updates over Wi-Fi (every night if you like), and a skill so Claude can rearrange your screens.</sub></p>
 <p align="center">
+  <img src="docs/images/editor-phone-screens.png" width="23%" alt="Tessera on a phone: Your screens, each with a preview of its first page drawn by its own firmware, one with an update waiting">
+  <img src="docs/images/editor-phone-screen.png" width="23%" alt="One screen on a phone: its page as the screen shows it, the page picker under it and one big Add tile button">
+  <img src="docs/images/editor-phone-tile.png" width="23%" alt="A tile tapped on a phone: a sheet with its icon and pastel background, More settings, Move and Remove">
+  <img src="docs/images/editor-phone-add.png" width="23%" alt="Add tile on a phone: a sheet with search, the kinds as chips and the home's devices by room, each with a plus">
+</p>
+<p align="center"><sub>On a phone, Tessera is the editor of everyday changes: your screens, a page as the screen shows it, a tap on a tile for its icon and colour, and Add tile. Everything else is in the screen's ··· menu, and <b>Full editor</b> there opens the whole editor.</sub></p>
+<p align="center">
   <img src="docs/images/editor-screen-settings.png" width="98%" alt="The Screen settings tab in Tessera: Brightness with Dark mode and standby, Night with its hours and brightness, and Screen with back to Home, swiping, the page buttons and the rotation">
 </p>
 <p align="center"><sub>Screen settings apply at once, and a change made on the screen or by an automation shows up here too.</sub></p>
