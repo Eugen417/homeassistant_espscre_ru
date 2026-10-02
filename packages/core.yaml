@@ -16,7 +16,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.27.0"
+  SCREEN_FIRMWARE_VERSION: "0.28.0"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -202,14 +202,17 @@ esphome:
             id(screen_lvgl).rotate_coordinates(px, py);
             x = px; y = py;
           };
+          // A dimmed screen only wakes, a calibration and an alert own the glass: no edge swipe does anything then.
           runtime_tiles::touch_input::swipe_blocked = []() -> const char * {
             if (id(display_dimmed)) return "screen dimmed";
             if (id(calibration_active)) return "calibration";
-            if (!id(active_entity).empty()) return "card open";
+            if (id(alert_active)) return "alert showing";
             return nullptr;
           };
-          // The way home for the house in the top bar and for a swipe up from the bottom edge (firmware 0.2.100+):
-          // the same script the Back to page 1 timeout and Home Assistant use, so there is one way home.
+          runtime_tiles::touch_input::card_open = []() { return !id(active_entity).empty(); };
+          // The way home for the house in the top bar and for a swipe up from the bottom edge (firmware 0.2.100+, from
+          // over any card or the settings page 0.28.0+): the same script the Back to page 1 timeout and Home Assistant
+          // use, so there is one way home, and it closes everything on the way.
           runtime_tiles::back_home = []() { id(go_home).execute(); };
           // An alarm panel that someone comes in on, or that goes off, wakes the screen as a touch does and opens its
           // card (firmware 0.3.3+): Back to page 1 counts from now.

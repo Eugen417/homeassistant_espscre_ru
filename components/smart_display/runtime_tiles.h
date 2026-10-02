@@ -9267,9 +9267,11 @@ inline std::function<void(bool down)> contact;
 // A touchscreen's report in the screen's own coordinates: ESPHome's LvglComponent::rotate_coordinates,
 // which already carries the board's quarter turn and the turn the user chose.
 inline std::function<void(int &x, int &y)> to_screen;
-// Why an edge swipe may not turn the page now, or nullptr when it may. Reads what only the YAML knows
-// (a dimmed screen, a calibration, an open card).
+// Why no edge swipe may do anything now, or nullptr when one may. Reads what only the YAML knows (a dimmed screen, a
+// calibration, an alert).
 inline std::function<const char *()> swipe_blocked;
+// Whether a card is open (what only the YAML knows): a page stays where it is under it.
+inline std::function<bool()> card_open;
 // One page further or back, and draw it.
 inline std::function<void(int target)> turn_page;
 // Both capacitive edge swipes and resistive LVGL gestures resolve one target
@@ -9287,12 +9289,90 @@ inline bool step_page(int step) {
 // The same point as the screen draws with, so a band along the glass means the glass and not the panel.
 inline void screen_point(int &x, int &y) { if (to_screen) to_screen(x, y); }
 
+// Whether the finger came down on a slider or a dial: a drag that starts there is that control's, also in the band
+// along an edge (on small glass a lamp's brightness bar reaches down into the bottom one). The camera and other
+// views over everything live on the top layer, the rest on the page.
+inline bool starts_on_control(int x, int y) {
+  lv_point_t point{x, y};
+  lv_obj_t *hit = lv_indev_search_obj(lv_layer_top(), &point);
+  if (!hit || hit == lv_layer_top()) hit = lv_indev_search_obj(lv_screen_active(), &point);
+  for (auto *o = hit; o; o = lv_obj_get_parent(o))
+    if (lv_obj_check_type(o, &lv_slider_class) || lv_obj_check_type(o, &lv_arc_class)) return true;
+  return false;
+}
+
+// The edge swipe of every board, in the touchscreen's own coordinates: where a touch starts, where it goes, and when
+// it ends. The capacitive boards feed it from pressed, moved and released below; the resistive ones call these three
+// from their own triggers (features/resistive-touch.yaml), where only the top and the bottom band are armed.
+inline void edge_press(int x, int y) {
+  int sx = x, sy = y;
+  screen_point(sx, sy);
+  screen_input::edge_swipe.begin(sx, sy, overlay_card::screen_width(), overlay_card::screen_height());
+  if (screen_input::edge_swipe.armed() && starts_on_control(sx, sy)) {
+    ESP_LOGI("touch", "edge swipe off: the touch starts on a slider");
+    screen_input::edge_swipe.end();
+  }
+}
+
+inline void edge_move(int x, int y) {
+  int sx = x, sy = y;
+  screen_point(sx, sy);
+  using Gesture = screen_input::EdgeSwipe::Gesture;
+  const auto gesture = screen_input::edge_swipe.update(sx, sy);
+  if (gesture == Gesture::none) return;
+  // Up from the bottom and down from the top work wherever the person is, over a card, a camera or the settings page,
+  // as on a phone (firmware 0.28.0+). A page turns only over the tiles.
+  const bool page = gesture == Gesture::previous || gesture == Gesture::next;
+  const bool detail_open = detail_root && !lv_obj_has_flag(detail_root, LV_OBJ_FLAG_HIDDEN);
+  const char *held = swipe_blocked ? swipe_blocked() : nullptr;
+  const char *blocked = !enabled                ? "no runtime tiles"
+                      : !swipe_pages            ? "setting off"
+                      : captured_slider         ? "a slider is being dragged"
+                      : held                    ? held
+                      : !page                   ? nullptr
+                      : !navigation_ready()     ? "configuration not ready"
+                      : camera_visible()        ? "camera open"
+                      : detail_open             ? "detail card open"
+                      : card_open && card_open() ? "card open"
+                      : settings_screen::visible() ? "settings page open"
+                      : nullptr;
+  if (blocked) { ESP_LOGI("touch", "edge swipe ignored: %s", blocked); return; }
+  screen_input::touch_guard.consume();
+  for (auto *indev = lv_indev_get_next(nullptr); indev; indev = lv_indev_get_next(indev)) lv_indev_wait_release(indev);
+  // Up from the bottom edge closes whatever is open and goes home (firmware 0.2.100+, over everything 0.28.0+), in
+  // from a side edge is one page. Either way the edge it came from lights up for a moment, so the gesture is answered
+  // before the new page is drawn.
+  if (gesture == Gesture::home) {
+    ESP_LOGI("touch", "edge swipe up: close everything, back home");
+    swipe_glow(Edge::bottom);
+    if (back_home) back_home();
+    return;
+  }
+  // Down from the top edge opens the settings page (GitHub #133); holding the top bar still does too. Whatever card
+  // was open closes first, as it does when the page opens from that hold.
+  if (gesture == Gesture::settings) {
+    if (settings_screen::visible()) return;
+    if (dismiss) dismiss();
+    if (settings_screen::may_open && !settings_screen::may_open()) { ESP_LOGI("touch", "edge swipe down: settings page may not open"); return; }
+    ESP_LOGI("touch", "edge swipe down: settings page");
+    settings_screen::open();
+    return;
+  }
+  step_page(gesture == Gesture::next ? 1 : -1);
+}
+
+inline void edge_release() {
+  if (screen_input::edge_swipe.armed() && screen_input::edge_swipe.inward() > 0)
+    ESP_LOGI("touch", "edge swipe not fired: %d px travelled, %d px across", screen_input::edge_swipe.inward(), screen_input::edge_swipe.sideways());
+  screen_input::edge_swipe.end();
+}
+
 inline void pressed(int x, int y, int id, bool calibrating) {
   if (contact) contact(true);
   screen_input::touch_guard.begin(esphome::millis(), x, y, id);
   int sx = x, sy = y;
   screen_point(sx, sy);
-  screen_input::edge_swipe.begin(sx, sy, overlay_card::screen_width(), overlay_card::screen_height());
+  edge_press(x, y);
   ESP_LOGI("touch", "press x=%d y=%d id=%d test=%d screen=%d,%d", x, y, id, calibrating ? 1 : 0, sx, sy);
 }
 
@@ -9306,42 +9386,15 @@ inline void moved(int x, int y, int id, int state) {
   if (x == 0 && y == 0) return;
   screen_input::touch_guard.update(x, y, id);
   if (id != screen_input::touch_guard.contact()) return;
-  // Swiping in from a side edge flips the page ("Swiping between pages"); the tap under the finger is
-  // consumed and LVGL waits for the release. LVGL 9.5 sends no PRESSING to the input device, hence the
-  // touchscreen trigger.
-  int sx = x, sy = y;
-  screen_point(sx, sy);
-  const auto gesture = screen_input::edge_swipe.update(sx, sy);
-  if (gesture == screen_input::EdgeSwipe::Gesture::none) return;
-  const char *blocked = !enabled                ? "no runtime tiles"
-                      : !navigation_ready()     ? "configuration not ready"
-                      : !swipe_pages            ? "setting off"
-                      : camera_visible()        ? "camera open"
-                      : (detail_root && !lv_obj_has_flag(detail_root, LV_OBJ_FLAG_HIDDEN)) ? "detail card open"
-                      : captured_slider         ? "a slider is being dragged"
-                      : swipe_blocked           ? swipe_blocked()
-                      : nullptr;
-  if (blocked) { ESP_LOGI("touch", "edge swipe ignored: %s", blocked); return; }
-  screen_input::touch_guard.consume();
-  for (auto *indev = lv_indev_get_next(nullptr); indev; indev = lv_indev_get_next(indev)) lv_indev_wait_release(indev);
-  // Up from the bottom edge is the way home (firmware 0.2.100+), in from a side edge is one page. Either way the
-  // edge it came from lights up for a moment, so the gesture is answered before the new page is drawn.
-  if (gesture == screen_input::EdgeSwipe::Gesture::home) {
-    ESP_LOGI("touch", "edge swipe up: back to page 1");
-    swipe_glow(Edge::bottom);
-    if (back_home) back_home();
-    return;
-  }
-  const int step = gesture == screen_input::EdgeSwipe::Gesture::next ? 1 : -1;
-  step_page(step);
+  // Swiping in from an edge ("Swiping between pages"); the tap under the finger is consumed and LVGL waits for the
+  // release. LVGL 9.5 sends no PRESSING to the input device, hence the touchscreen trigger.
+  edge_move(x, y);
 }
 
 inline void released() {
   if (contact) contact(false);
   touched_at = esphome::millis();
-  if (screen_input::edge_swipe.armed() && screen_input::edge_swipe.inward() > 0)
-    ESP_LOGI("touch", "edge swipe not fired: %d px travelled, %d px across", screen_input::edge_swipe.inward(), screen_input::edge_swipe.sideways());
-  screen_input::edge_swipe.end();
+  edge_release();
 }
 }  // namespace touch_input
 // Invalidate contacts and asynchronous views before their old tile records are freed.

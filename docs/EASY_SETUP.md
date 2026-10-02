@@ -272,8 +272,11 @@ edge, like the back-swipe gesture on a phone; slow or fast, and a swipe starting
 middle of the screen does nothing, so tapping and dragging tiles never
 accidentally changes pages. On the CYD and the Hosyond, it stays a quick swipe across the screen. Sliders
 only control their value; detail menus and standby don't change pages. Swiping up from the
-bottom edge goes back to the Home page (firmware 0.2.100+; page 1 unless you chose another page as Home, [PAGES.md](PAGES.md)), in the same way: from the bottom edge on
-the boards that swipe from an edge, a quick swipe up anywhere on the CYD and the Hosyond. Every swipe that is
+bottom edge goes back to the Home page (firmware 0.2.100+; page 1 unless you chose another page as Home, [PAGES.md](PAGES.md)).
+With firmware 0.28.0+ it works wherever you are, like the home gesture on a phone: an open card, a camera or the
+settings page closes on the way. Swiping down from the top edge opens the screen's settings page. A swipe that starts on
+a slider stays that slider's. The CYD and the Hosyond take both from a band along the top and bottom edge as well, and
+a quick swipe up anywhere over the tiles still goes home there. Every swipe that is
 taken lights the edge it came from for a quarter of a second, so the screen answers the gesture
 before the new page is drawn.
 
@@ -437,7 +440,7 @@ HA mechanisms used: [Ingress](https://developers.home-assistant.io/docs/apps/pre
 
 Open the screen in ESP Screens and its **Screen settings** tab. A change there applies at
 once; there is nothing to save, and no firmware flash is needed. The same settings are on the
-screen itself (hold the top bar, firmware 0.2.44+) and, with firmware 0.2.49+, on the screen's
+screen itself (swipe down from the top edge or hold the top bar, firmware 0.2.44+) and, with firmware 0.2.49+, on the screen's
 device in Home Assistant ([SETTINGS.md](SETTINGS.md)).
 
 | Setting | Options | Default |

@@ -58,8 +58,10 @@ layout without sending it back.
 
 ## What the user sees
 
-Holding the top bar of the overview for about one and a half seconds opens the page; a line in the accent colour grows
-along the top edge while you hold, and letting go before it finishes cancels. A screen can also carry a
+A swipe down from the top edge of the glass opens the page from anywhere, over a card too (firmware 0.28.0+, the edge
+swipe in `runtime_tiles::touch_input`). Holding the top bar of the overview for about one and a half seconds opens it
+as well; a line in the accent colour grows along the top edge while you hold, and letting go before it finishes
+cancels. Both follow **Swipe between pages** for the swipe and `settings_screen::may_open` for the rest. A screen can also carry a
 `screen.settings` tile, which opens the page with or without Home Assistant, and Home Assistant can open it
 with `esphome.<screen>_open_settings`.
 

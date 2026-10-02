@@ -1,3 +1,12 @@
+## 0.4.47 (firmware 0.28.0)
+
+- **Swipe up from the bottom edge goes home from anywhere.** Over an open card, a camera, a player's library or the
+  settings page, a swipe up from the bottom edge of the glass closes it all and shows the home page, as on a phone.
+  Until now it only worked over the tiles. A swipe that starts on a slider stays that slider's.
+- **Swipe down from the top edge opens the settings page** (GitHub #133). Holding the top bar still works too.
+- On the CYD and the Hosyond both swipes start in a band along the top and the bottom edge; turning pages stays a flick
+  anywhere over the tiles.
+
 ## 0.4.46 (firmware 0.27.0)
 
 - **Every Sonos has its plus on the Spotify tile.** The speakers of Spotify's library showed a plus only once music

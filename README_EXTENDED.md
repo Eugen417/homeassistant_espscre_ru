@@ -270,8 +270,8 @@ on the screen itself, and how updates work.
   on at bedtime (firmware 0.2.54+), and
   wake a screen or put it to sleep with its **Wake** and **Sleep** buttons (firmware 0.2.45+).
   See [Wake and sleep](#wake-and-sleep-from-an-automation).
-- **Settings on the screen itself** (firmware 0.2.44+): hold the top bar for about a
-  second and a half and the screen opens its own settings page: brightness, night,
+- **Settings on the screen itself** (firmware 0.2.44+): swipe down from the top edge (firmware 0.28.0+) or hold the
+  top bar for about a second and a half and the screen opens its own settings page: brightness, night,
   the clock, back to page 1, swiping, the page buttons, the home button, rotation, and what this screen is
   (name, IP address, firmware, whether Home Assistant is connected, and Restart). Changes show up in ESP Screens
   within a second. See [Settings on the screen](#settings-on-the-screen).
@@ -669,8 +669,9 @@ Everything you would want to change while standing in front of the panel is on t
 itself (firmware 0.2.44+). Tiles, the top bar and the pages stay in ESP Screens, where you
 have a mouse.
 
-**Opening it:** hold the top bar (the strip with the screen's name and the clock) until the
-blue line along the top edge is full, about a second and a half. Letting go early cancels.
+**Opening it:** swipe down from the top edge of the glass (firmware 0.28.0+), or hold the top bar (the strip with
+the screen's name and the clock) until the blue line along the top edge is full, about a second and a half. Letting
+go early cancels.
 Rather have a button? Put the built-in **Settings** card on a page like any other tile. From
 Home Assistant, `esphome.<screen>_open_settings` opens it too (`page` 0 menu, 1 Brightness,
 2 Night, 3 Screen, 4 This screen, -1 closes it).
