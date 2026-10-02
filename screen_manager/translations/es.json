@@ -2625,6 +2625,14 @@
       "move": "Mover",
       "full_editor": "Editor completo",
       "simple_editor": "Vista sencilla"
+    },
+    "donate": {
+      "title": "Hecho por una sola persona",
+      "body": "Tessera es gratis y no tiene suscripción. Lo desarrollo en mi tiempo libre. Si tus pantallas hacen tu casa un poco más agradable, un café me ayuda a seguir.",
+      "buy": "Invita a Max a un café",
+      "later": "Quizás más tarde",
+      "donated": "Ya he donado",
+      "thanks": "¡Gracias! Este mensaje no volverá a aparecer."
     }
   }
 }

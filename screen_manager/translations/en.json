@@ -2625,6 +2625,14 @@
       "move": "Move",
       "full_editor": "Full editor",
       "simple_editor": "Simple view"
+    },
+    "donate": {
+      "title": "Made by one person",
+      "body": "Tessera is free and has no subscription. I build it in my spare time. If your screens make your home a little nicer, a coffee helps me keep going.",
+      "buy": "Buy Max a coffee",
+      "later": "Maybe later",
+      "donated": "I already donated",
+      "thanks": "Thank you! This won't ask again."
     }
   }
 }

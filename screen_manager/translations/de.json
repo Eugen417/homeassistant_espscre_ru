@@ -2625,6 +2625,14 @@
       "move": "Verschieben",
       "full_editor": "Vollständiger Editor",
       "simple_editor": "Einfache Ansicht"
+    },
+    "donate": {
+      "title": "Von einer Person gemacht",
+      "body": "Tessera ist kostenlos und ohne Abo. Ich entwickle es in meiner Freizeit. Wenn deine Bildschirme dein Zuhause ein bisschen schöner machen, hilft mir ein Kaffee weiterzumachen.",
+      "buy": "Spendiere Max einen Kaffee",
+      "later": "Vielleicht später",
+      "donated": "Ich habe schon gespendet",
+      "thanks": "Danke! Diese Frage kommt nicht wieder."
     }
   }
 }

@@ -12,6 +12,7 @@ import UiMenuSeparator from "./ui/UiMenuSeparator.vue";
 import { previewShapeOf } from "../model/preview";
 import type { Screen } from "../types";
 import FirmwarePreview from "./FirmwarePreview.vue";
+import DonateCard from "./DonateCard.vue";
 import TileCard from "./TileCard.vue";
 import TopbarSvg from "./TopbarSvg.vue";
 import Icon from "./ui/Icon.vue";
@@ -87,6 +88,7 @@ onMounted(loadOverview);
       </div>
       <button type="button" class="home-new" @click="go('#new-screen')"><Icon name="plus" class="home-plus" />{{ t("editor.nav.new_screen") }}</button>
     </div>
+    <DonateCard />
   </section>
 </template>
 

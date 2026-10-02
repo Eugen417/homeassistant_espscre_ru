@@ -2625,6 +2625,14 @@
       "move": "Verplaatsen",
       "full_editor": "Volledige editor",
       "simple_editor": "Eenvoudige weergave"
+    },
+    "donate": {
+      "title": "Gemaakt door één persoon",
+      "body": "Tessera is gratis en heeft geen abonnement. Ik bouw het in mijn vrije tijd. Maken je schermen je huis een beetje fijner? Een koffie helpt me om door te gaan.",
+      "buy": "Trakteer Max op koffie",
+      "later": "Misschien later",
+      "donated": "Ik heb al gedoneerd",
+      "thanks": "Dank je wel! Dit komt niet meer terug."
     }
   }
 }

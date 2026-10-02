@@ -2625,6 +2625,14 @@
       "move": "Déplacer",
       "full_editor": "Éditeur complet",
       "simple_editor": "Vue simple"
+    },
+    "donate": {
+      "title": "Fait par une seule personne",
+      "body": "Tessera est gratuit et sans abonnement. Je le développe sur mon temps libre. Si vos écrans rendent votre maison un peu plus agréable, un café m'aide à continuer.",
+      "buy": "Offrir un café à Max",
+      "later": "Plus tard",
+      "donated": "J'ai déjà fait un don",
+      "thanks": "Merci ! Ce message ne reviendra plus."
     }
   }
 }

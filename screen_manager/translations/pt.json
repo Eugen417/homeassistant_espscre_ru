@@ -2625,6 +2625,14 @@
       "move": "Mover",
       "full_editor": "Editor completo",
       "simple_editor": "Vista simples"
+    },
+    "donate": {
+      "title": "Feito por uma pessoa",
+      "body": "O Tessera é gratuito e não tem assinatura. Desenvolvo-o no meu tempo livre. Se os teus ecrãs tornam a tua casa um pouco mais agradável, um café ajuda-me a continuar.",
+      "buy": "Paga um café ao Max",
+      "later": "Talvez mais tarde",
+      "donated": "Já fiz um donativo",
+      "thanks": "Obrigado! Esta mensagem não volta a aparecer."
     }
   }
 }
