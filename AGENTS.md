@@ -22,6 +22,7 @@ Assistant entity belongs in a board file. docs/README.md lists every doc and say
 | change sizes, fonts or the grid | docs/RESPONSIVE.md | `ui_scale.h`, `packages/looks/`, `packages/cells/` |
 | change a colour | docs/THEME.md | `components/smart_display/theme.h` |
 | change how pages are kept or prepared | docs/KEPT_PAGES.md, docs/PAGES.md | `kept_pages.h`, `page_protocol.h` |
+| touch the flash of a board with 4 MB | docs/FLASH_LAYOUT.md | `components/flash_layout/`, `packages/hardware/flash-4mb.yaml` |
 | add or change a text | docs/TRANSLATING.md | `screen_manager/translations/en.json` |
 | touch the YAML package layers | docs/PROFILES.md | `packages/`, `checkout/` |
 | know which test proves what | docs/TESTING.md | `tools/check.sh` |

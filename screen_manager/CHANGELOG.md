@@ -1,3 +1,41 @@
+## 0.4.56 (firmware 0.33.1 for cyd, cyd9342, hosyond40)
+
+- **More room for firmware on a screen with 4 MB of flash** (the CYD, the CYD with an ILI9342 and the Hosyond
+  4-inch). Their firmware had filled its update slot. These boards now have a partition table of their own with
+  update slots of 2,031,616 bytes where ESPHome's own table has 1,835,008, about a tenth more. The room comes from
+  the area for settings, which was 448 KB and almost empty: the settings now have 16 KB in a place that was unused,
+  and they fill about a quarter of it.
+- **A screen you already have moves by itself.** Update the screen as you always do. After the update Tessera sends
+  it the new table and the screen restarts once more. Everything it kept comes along: the touch calibration, the
+  settings of the settings page, which way it hangs. The screen copies all of it to the new place first and compares
+  the copy both ways, and it asks for the table only when the copy is exact and ESPHome has confirmed the new
+  firmware, a minute after the update. That makes this one update a few minutes longer.
+- **An install over USB keeps the settings too.** It writes the new table at once, and the screen fetches its
+  settings from the old place the first time it starts.
+- **A firmware that outgrows the old slot still reaches a screen with the old table.** Tessera then installs a small
+  firmware in between that can take the table, sends the table, and installs the screen's own firmware. The glass is
+  dark for a minute or two while it does. Nothing needs this yet: today's firmware fits both tables.
+- A new diagnostic sensor on these boards, **Screen flash**, says which table a screen has: `wide` when it has the
+  new one.
+- No other board changes: their firmware stays 0.33.0 and they are offered no update.
+- One thing to know: the table itself is written in a fraction of a second, and a screen that loses its power in
+  exactly that moment needs an install over USB afterwards. docs/FLASH_LAYOUT.md has the whole story.
+- Tested: on a CYD (ESP32-2432S028R) on USB. Sixteen starting states, among them today's firmware with ESPHome's
+  table, this firmware in either slot, a setting changed just before the table, random bytes and another firmware's
+  settings in the unused 16 KB, a table that is not ESPHome's, an erased board, installs over USB onto both of the
+  first two, the small firmware in between, and a restart in the first minute after it; 186 checks in all. After
+  each step the flash was read back over USB and every kept value compared with a copy from before (the screen's
+  settings, the radio's calibration and ESP-IDF's own), and a setting was changed and read again after a restart.
+  Twenty-four resets at chosen moments around the write of the table: outside a window of about 40 milliseconds the
+  board came back every time with everything in place; inside it seven of ten did not start, and an install over USB
+  brought each back with its settings. Then the app's own updater against the board with the real ESPHome commands,
+  with a firmware that fits and with one that does not. Then the app itself in a Home Assistant on the bench, from
+  the Update button: ten and a half minutes of which six were the build, and six and a half over the small firmware
+  in between with the screen away for two; Home Assistant's entity registry kept every entity and only gained the
+  new sensor. The three boards and the small firmware build with ESPHome 2026.9.0 and 2026.6.2 (the CYD with an
+  ILI9342 asks for 2026.7), and the firmware built with 2026.6.2 walked the same way on the board. Not tested on a
+  Hosyond or a CYD with an ILI9342 themselves: the same chip and the same table, but no such board on the bench.
+
 ## 0.4.55 (firmware 0.33.0)
 
 - **Keys on the screensaver.** Over a cover three round keys stand in the bottom right corner: play or pause at the

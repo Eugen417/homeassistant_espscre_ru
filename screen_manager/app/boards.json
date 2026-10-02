@@ -25,7 +25,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.33.0",
+  "firmware": "0.33.1",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -60,6 +60,7 @@
    "margin": 9,
    "tile_pad": 8
   },
+  "wide_slots": true,
   "width": 320
  },
  "checkout/cyd9342.yaml": {
@@ -83,7 +84,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.33.0",
+  "firmware": "0.33.1",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -118,6 +119,7 @@
    "margin": 9,
    "tile_pad": 8
   },
+  "wide_slots": true,
   "width": 320
  },
  "checkout/guition.yaml": {
@@ -211,6 +213,7 @@
    "margin": 16,
    "tile_pad": 12
   },
+  "wide_slots": false,
   "width": 480
  },
  "checkout/hosyond40.yaml": {
@@ -234,7 +237,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 146,
-  "firmware": "0.33.0",
+  "firmware": "0.33.1",
   "fonts": {
    "headline": 18,
    "icon_home": 26,
@@ -269,6 +272,7 @@
    "margin": 9,
    "tile_pad": 8
   },
+  "wide_slots": true,
   "width": 480
  },
  "checkout/jc1060p470.yaml": {
@@ -357,6 +361,7 @@
    "margin": 16,
    "tile_pad": 12
   },
+  "wide_slots": false,
   "width": 1024
  },
  "checkout/jc1060p470v2.yaml": {
@@ -445,6 +450,7 @@
    "margin": 16,
    "tile_pad": 12
   },
+  "wide_slots": false,
   "width": 1024
  },
  "checkout/jc3248w535.yaml": {
@@ -533,6 +539,7 @@
    "margin": 16,
    "tile_pad": 12
   },
+  "wide_slots": false,
   "width": 480
  },
  "checkout/jc8012p4a1.yaml": {
@@ -621,6 +628,7 @@
    "margin": 14,
    "tile_pad": 11
   },
+  "wide_slots": false,
   "width": 1280
  },
  "checkout/jc8012p4a1v2.yaml": {
@@ -709,6 +717,7 @@
    "margin": 14,
    "tile_pad": 11
   },
+  "wide_slots": false,
   "width": 1280
  },
  "checkout/jc8012p4a1v3.yaml": {
@@ -797,6 +806,7 @@
    "margin": 14,
    "tile_pad": 11
   },
+  "wide_slots": false,
   "width": 1280
  },
  "checkout/sunton8048s070.yaml": {
@@ -885,6 +895,7 @@
    "margin": 13,
    "tile_pad": 9
   },
+  "wide_slots": false,
   "width": 800
  },
  "checkout/waveshare35.yaml": {
@@ -943,6 +954,7 @@
    "margin": 16,
    "tile_pad": 12
   },
+  "wide_slots": false,
   "width": 480
  },
  "checkout/waveshare43.yaml": {
@@ -1031,6 +1043,7 @@
    "margin": 16,
    "tile_pad": 15
   },
+  "wide_slots": false,
   "width": 800
  },
  "checkout/waveshare4b.yaml": {
@@ -1119,6 +1132,7 @@
    "margin": 16,
    "tile_pad": 12
   },
+  "wide_slots": false,
   "width": 480
  },
  "checkout/waveshare7.yaml": {
@@ -1207,6 +1221,7 @@
    "margin": 13,
    "tile_pad": 9
   },
+  "wide_slots": false,
   "width": 800
  },
  "checkout/waveshare7b.yaml": {
@@ -1295,6 +1310,7 @@
    "margin": 16,
    "tile_pad": 12
   },
+  "wide_slots": false,
   "width": 1024
  },
  "cyd": {
@@ -1323,7 +1339,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.33.0",
+  "firmware": "0.33.1",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -1358,6 +1374,7 @@
    "margin": 9,
    "tile_pad": 8
   },
+  "wide_slots": true,
   "width": 320
  },
  "cyd9342": {
@@ -1381,7 +1398,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.33.0",
+  "firmware": "0.33.1",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -1416,6 +1433,7 @@
    "margin": 9,
    "tile_pad": 8
   },
+  "wide_slots": true,
   "width": 320
  },
  "guition": {
@@ -1509,6 +1527,7 @@
    "margin": 16,
    "tile_pad": 12
   },
+  "wide_slots": false,
   "width": 480
  },
  "hosyond40": {
@@ -1532,7 +1551,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 146,
-  "firmware": "0.33.0",
+  "firmware": "0.33.1",
   "fonts": {
    "headline": 18,
    "icon_home": 26,
@@ -1567,6 +1586,7 @@
    "margin": 9,
    "tile_pad": 8
   },
+  "wide_slots": true,
   "width": 480
  },
  "jc1060p470": {
@@ -1655,6 +1675,7 @@
    "margin": 16,
    "tile_pad": 12
   },
+  "wide_slots": false,
   "width": 1024
  },
  "jc1060p470v2": {
@@ -1743,6 +1764,7 @@
    "margin": 16,
    "tile_pad": 12
   },
+  "wide_slots": false,
   "width": 1024
  },
  "jc3248w535": {
@@ -1831,6 +1853,7 @@
    "margin": 16,
    "tile_pad": 12
   },
+  "wide_slots": false,
   "width": 480
  },
  "jc8012p4a1": {
@@ -1919,6 +1942,7 @@
    "margin": 14,
    "tile_pad": 11
   },
+  "wide_slots": false,
   "width": 1280
  },
  "jc8012p4a1v2": {
@@ -2007,6 +2031,7 @@
    "margin": 14,
    "tile_pad": 11
   },
+  "wide_slots": false,
   "width": 1280
  },
  "jc8012p4a1v3": {
@@ -2095,6 +2120,7 @@
    "margin": 14,
    "tile_pad": 11
   },
+  "wide_slots": false,
   "width": 1280
  },
  "packages/cyd.yaml": {
@@ -2123,7 +2149,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.33.0",
+  "firmware": "0.33.1",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -2158,6 +2184,7 @@
    "margin": 9,
    "tile_pad": 8
   },
+  "wide_slots": true,
   "width": 320
  },
  "packages/cyd9342.yaml": {
@@ -2181,7 +2208,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.33.0",
+  "firmware": "0.33.1",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -2216,6 +2243,7 @@
    "margin": 9,
    "tile_pad": 8
   },
+  "wide_slots": true,
   "width": 320
  },
  "packages/guition.yaml": {
@@ -2309,6 +2337,7 @@
    "margin": 16,
    "tile_pad": 12
   },
+  "wide_slots": false,
   "width": 480
  },
  "packages/hosyond40.yaml": {
@@ -2332,7 +2361,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 146,
-  "firmware": "0.33.0",
+  "firmware": "0.33.1",
   "fonts": {
    "headline": 18,
    "icon_home": 26,
@@ -2367,6 +2396,7 @@
    "margin": 9,
    "tile_pad": 8
   },
+  "wide_slots": true,
   "width": 480
  },
  "packages/jc1060p470.yaml": {
@@ -2455,6 +2485,7 @@
    "margin": 16,
    "tile_pad": 12
   },
+  "wide_slots": false,
   "width": 1024
  },
  "packages/jc1060p470v2.yaml": {
@@ -2543,6 +2574,7 @@
    "margin": 16,
    "tile_pad": 12
   },
+  "wide_slots": false,
   "width": 1024
  },
  "packages/jc3248w535.yaml": {
@@ -2631,6 +2663,7 @@
    "margin": 16,
    "tile_pad": 12
   },
+  "wide_slots": false,
   "width": 480
  },
  "packages/jc8012p4a1.yaml": {
@@ -2719,6 +2752,7 @@
    "margin": 14,
    "tile_pad": 11
   },
+  "wide_slots": false,
   "width": 1280
  },
  "packages/jc8012p4a1v2.yaml": {
@@ -2807,6 +2841,7 @@
    "margin": 14,
    "tile_pad": 11
   },
+  "wide_slots": false,
   "width": 1280
  },
  "packages/jc8012p4a1v3.yaml": {
@@ -2895,6 +2930,7 @@
    "margin": 14,
    "tile_pad": 11
   },
+  "wide_slots": false,
   "width": 1280
  },
  "packages/sunton8048s070.yaml": {
@@ -2983,6 +3019,7 @@
    "margin": 13,
    "tile_pad": 9
   },
+  "wide_slots": false,
   "width": 800
  },
  "packages/waveshare35.yaml": {
@@ -3041,6 +3078,7 @@
    "margin": 16,
    "tile_pad": 12
   },
+  "wide_slots": false,
   "width": 480
  },
  "packages/waveshare43.yaml": {
@@ -3129,6 +3167,7 @@
    "margin": 16,
    "tile_pad": 15
   },
+  "wide_slots": false,
   "width": 800
  },
  "packages/waveshare4b.yaml": {
@@ -3217,6 +3256,7 @@
    "margin": 16,
    "tile_pad": 12
   },
+  "wide_slots": false,
   "width": 480
  },
  "packages/waveshare7.yaml": {
@@ -3305,6 +3345,7 @@
    "margin": 13,
    "tile_pad": 9
   },
+  "wide_slots": false,
   "width": 800
  },
  "packages/waveshare7b.yaml": {
@@ -3393,6 +3434,7 @@
    "margin": 16,
    "tile_pad": 12
   },
+  "wide_slots": false,
   "width": 1024
  },
  "sunton8048s070": {
@@ -3481,6 +3523,7 @@
    "margin": 13,
    "tile_pad": 9
   },
+  "wide_slots": false,
   "width": 800
  },
  "waveshare35": {
@@ -3539,6 +3582,7 @@
    "margin": 16,
    "tile_pad": 12
   },
+  "wide_slots": false,
   "width": 480
  },
  "waveshare43": {
@@ -3627,6 +3671,7 @@
    "margin": 16,
    "tile_pad": 15
   },
+  "wide_slots": false,
   "width": 800
  },
  "waveshare4b": {
@@ -3715,6 +3760,7 @@
    "margin": 16,
    "tile_pad": 12
   },
+  "wide_slots": false,
   "width": 480
  },
  "waveshare7": {
@@ -3803,6 +3849,7 @@
    "margin": 13,
    "tile_pad": 9
   },
+  "wide_slots": false,
   "width": 800
  },
  "waveshare7b": {
@@ -3891,6 +3938,7 @@
    "margin": 16,
    "tile_pad": 12
   },
+  "wide_slots": false,
   "width": 1024
  }
 }

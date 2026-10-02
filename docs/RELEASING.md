@@ -55,7 +55,10 @@
    build under `.esphome/check`, apart from the profiles of real screens). Check that no secrets are in Git.
 
    **Flash budget of the CYD and every 4 MB board** (app 0.2.78). The CYD has 4 MB of flash and two update slots of
-   1,835,008 bytes; the Guition's 16 MB leave it far from any limit. The same budget holds for every board with 4 MB
+   2,031,616 bytes since it builds with the wide partition table (app 0.4.56, docs/FLASH_LAYOUT.md); with ESPHome's
+   own table they were 1,835,008 bytes. A screen that still has that table gets the wide one after an update, and a
+   firmware that no longer fits its old slot reaches it over a bridge, so the budget goes by the wide slot. The
+   Guition's 16 MB leave it far from any limit. The same budget holds for every board with 4 MB
    of flash (`flash_mb` in tools/profiles.py: the CYD, its ILI9342 variant `cyd9342` and the Hosyond 4.0-inch
    `hosyond40`), and `tools/check.sh --firmware` applies it to each one it builds. A change that reaches every board
    builds the sample, which has the CYD only: the other two share its chip, code and look and sit within a few KB of
@@ -73,12 +76,12 @@
    and, when the ESPHome Device Builder ships a newer ESPHome, with that one too (`ESPHOME=<its esphome command>`),
    because users build their updates there.
 
-   | Image of a 4 MB board, share of its 1,835,008-byte slot | Rule |
+   | Image of a 4 MB board, share of its 2,031,616-byte slot | Rule |
    |---|---|
    | up to 90 % | normal |
    | 90-93 % | tight: every release states its flash delta; a delta over 8 KB needs a matching saving or the maintainer's explicit OK |
    | 93-97 % | only fixes ship |
-   | over 97 % | never: that keeps about 55 KB for ESPHome upgrades and users' own overrides |
+   | over 97 % | never: that keeps about 60 KB for ESPHome upgrades and users' own overrides |
 
    **The Xtensa literal range** (app 0.3.8). On the ESP32 and the ESP32-S3 an `l32r` instruction loads a constant
    from at most 256 KB back, and ESP-IDF puts a function's literals in front of the code that follows them. Every

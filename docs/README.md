@@ -34,6 +34,8 @@
 - [SETTINGS.md](SETTINGS.md): the screen settings, and adding one.
 - [PAGES.md](PAGES.md): the page model, tile sizes, navigation, storage and the message rules.
 - [KEPT_PAGES.md](KEPT_PAGES.md): pages kept whole, prepared ahead, and pictures kept until they change.
+- [FLASH_LAYOUT.md](FLASH_LAYOUT.md): the partition table of a board with 4 MB of flash, and how a screen gets it
+  without losing its settings.
 - [CAMERA.md](CAMERA.md): camera pictures and album covers, from Home Assistant to the screen.
 - [MAP.md](MAP.md): the map card, drawn by the add-on and sent as a picture.
 - [EMULATOR_ARCHITECTURE.md](EMULATOR_ARCHITECTURE.md): the editor's firmware preview, the firmware built to
