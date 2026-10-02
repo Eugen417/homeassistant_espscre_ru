@@ -398,9 +398,13 @@ For Home Assistant Container (Docker) without the App store, follow [Install wit
 
 For Home Assistant OS with Apps/Add-ons on **aarch64 or amd64**:
 
-1. Open the App store and add this repository:
+1. Tessera is not in the standard App store, so add its repository first. One click does it:
+
+   [![Add the Tessera repository to your Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FMaxGramser%2Fhomeassistant_espscreen)
+
+   Or add it by hand: open the App store, choose **Repositories** in the menu in the top right, and add
    `https://github.com/MaxGramser/homeassistant_espscreen`.
-2. Install **ESP Screen Manager**, start the app, and open **ESP Screens**.
+2. Install **Tessera Screen Manager** from the store, start the app, and open **Tessera** in the sidebar.
    ESPHome Device Builder is optional: the ESPHome CLI is already in this app.
 3. Connect the screen with a USB data cable to the **Home Assistant machine**
    and click **+** beside Screens in the sidebar. New screen takes three steps: **Screen** (pick your board),

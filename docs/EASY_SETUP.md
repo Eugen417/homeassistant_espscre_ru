@@ -36,12 +36,18 @@ through its Override YAML (docs/GUITION.md, Relays).
 
 ## 1. Install ESP Screen Manager
 
+The app is not in the standard App store, so Home Assistant needs its repository first. One click adds it:
+
+[![Add the Tessera repository to your Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FMaxGramser%2Fhomeassistant_espscreen)
+
+Then continue with step 3. Or add it by hand:
+
 1. Open **Settings → Apps → Install app** (on older HA versions:
    **Settings → Add-ons → Add-on Store**).
 2. Open the menu in the top right → **Repositories** and add:
    `https://github.com/MaxGramser/homeassistant_espscreen`.
-3. Install and start **ESP Screen Manager**. Turn on **Start on boot**
-   and **Show in sidebar**. Open the **ESP Screens** web interface.
+3. Install and start the app; the store lists it as **Tessera Screen Manager**. Turn on **Start on boot**
+   and **Show in sidebar**. Open **Tessera** in the sidebar.
 
 ESP Screens opens on **Your screens**: every screen in the house with its home page as it looks
 right now. Click a screen to change it; the logo at the top of the sidebar brings you back.
