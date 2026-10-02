@@ -6,7 +6,7 @@ tries them. It shows the first one that is there right now. It needs app 0.4.48 
 
 ## Using it
 
-1. In ESP Screens, open the screen and go to **Settings**. The **Screensaver** card stands under Brightness.
+1. In Tessera, open the screen and go to **Settings**. The **Screensaver** card stands under Brightness.
 2. Turn on **Show in standby**. The screen also needs **Auto standby** on, since the screensaver takes the place of
    the dimmed tiles.
 3. Choose a media player under **Music playing** and a camera under **Camera**. An `image` entity counts as a camera
@@ -75,7 +75,7 @@ screensaver either.
 
 ## How it works
 
-ESP Screen Manager decides what the screensaver shows and makes its picture; the screen shows it with what it already
+Tessera Screen Manager decides what the screensaver shows and makes its picture; the screen shows it with what it already
 has.
 
 - **The choice** is kept per Home Assistant device in `screensavers.json`, next to the layouts

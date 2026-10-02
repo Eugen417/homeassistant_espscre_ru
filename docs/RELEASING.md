@@ -103,8 +103,8 @@
    `screens-vX.Y.Z` from the same commit, and a GitHub release on that tag with the release notes in English
    (`gh release create screens-vX.Y.Z --notes-file ...`). Test the remote YAML in an empty folder:
    all components/fonts must be fetchable via GitHub.
-6. The user checks the App store for updates and updates ESP Screen Manager.
-   For new screen features: **Update** on the screen in ESP Screens (or the nightly round); ESPHome Device
+6. The user checks the App store for updates and updates Tessera Screen Manager.
+   For new screen features: **Update** on the screen in Tessera (or the nightly round); ESPHome Device
    Builder's Install → Wirelessly on the existing device works too.
    The existing YAML stays in place; `refresh: 0s` fetches current code on every build.
 
