@@ -15,6 +15,8 @@
   or a TV's ports, showed up as speakers in the pill. They now sit behind an input key at the top of the card, with
   Home Assistant's own icon for it, and the pill keeps the speakers. Spotify's sources stay speakers, since they are
   the Spotify Connect devices. A screen on older firmware keeps the menu it had.
+- **Credit.** Playing speakers together, a volume per speaker and Spotify on a Sonos follow the media player work of
+  @woozer in [#87](https://github.com/MaxGramser/homeassistant_espscreen/pull/87). Thank you!
 
 ## 0.4.44 (firmware 0.25.0)
 
@@ -59,6 +61,8 @@
 - Tested: on a Guition and a CYD on the bench with Spotify through Home Assistant: the card, the speakers, the
   library, favourites, an alert camera and a camera full screen while covers load, and on the CYD 47 tiles through
   restarts and resets. The CYD image is 92.9 % of its slot, 25 KB more than firmware 0.23.0.
+- **Credit.** Seeking through a track, the speaker at the top of the card and the cover-led player follow the media
+  player work of @woozer in [#87](https://github.com/MaxGramser/homeassistant_espscreen/pull/87). Thank you!
 
 ## 0.4.41 (firmware 0.23.0)
 
