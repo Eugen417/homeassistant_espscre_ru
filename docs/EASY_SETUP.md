@@ -93,7 +93,7 @@ within reach at all. Then put the firmware on the screen from the computer you'r
 opened over https (see below):
 
 1. Plug the screen into this computer with a USB data cable.
-2. Under **Install via**, choose **This computer · install from this browser** and click
+2. In the Install step of **New screen**, choose **From this computer** and click
    **Connect & install**.
 3. The browser asks which port to use: choose the screen's. ESP Screens first checks that the
    board carries the chip the chosen board needs (an ESP32, ESP32-S3 or ESP32-P4), then builds the
@@ -111,7 +111,7 @@ port, until the installation starts.
 
 **Download.** For any other browser:
 
-1. Under **Install via**, choose **Download · flash from your own computer** and click
+1. In the Install step of **New screen**, choose **Download the file** and click
    **Build & download**. ESP Screens builds the firmware the same way; when it's ready,
    the window offers the file, for example `kitchen.factory.bin`.
 2. Plug the screen into your own computer with a USB data cable.

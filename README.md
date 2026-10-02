@@ -390,16 +390,17 @@ For Home Assistant OS with Apps/Add-ons on **aarch64 or amd64**:
 2. Install **ESP Screen Manager**, start the app, and open **ESP Screens**.
    ESPHome Device Builder is optional: the ESPHome CLI is already in this app.
 3. Connect the screen with a USB data cable to the **Home Assistant machine**
-   and click **+** beside Screens in the sidebar: pick your board, name it and choose which way it hangs, then
-   **Install** over USB. If Wi-Fi is missing from the ESPHome `secrets.yaml`, the window
+   and click **+** beside Screens in the sidebar. New screen takes three steps: **Screen** (pick your board),
+   **Set up** (name it and choose which way it hangs) and **Install** (choose **USB on Home Assistant** and click
+   **Install**). If Wi-Fi is missing from the ESPHome `secrets.yaml`, Set up
    asks for it once and ESP Screens only adds the missing lines. The profile
    with unique API and OTA keys goes into the ESPHome folder; the build
    and flash run in the same window (a first build takes a few minutes on a
    Raspberry Pi). Each screen gets its own profile.
    Is Home Assistant on a server or in a virtual machine, out of reach of the screen?
-   Plug the screen into your own computer and choose **This computer** under **Install via**:
+   Plug the screen into your own computer and choose **From this computer** in the Install step:
    ESP Screens builds the firmware and the page puts it on the screen, in Chrome or Edge with
-   Home Assistant opened over https. Or choose **Download** and put it on the screen with
+   Home Assistant opened over https. Or choose **Download the file** and put it on the screen with
    [ESPHome Web](https://web.esphome.io). After that, updates go over Wi-Fi as usual.
 4. **CYD:** go through the calibration on the screen. **Guition:** uses GT911
    without resistive calibration. Then pair the discovered ESPHome device in
@@ -413,7 +414,7 @@ For Home Assistant OS with Apps/Add-ons on **aarch64 or amd64**:
   <img src="docs/images/editor-new-screen.png" width="37%" alt="New screen in Tessera: the first of three steps, every supported board with its size, resolution and touch chip, the 4-inch Guition chosen">
   <img src="docs/images/editor-tiles.png" width="59%" alt="Choosing tiles: the pages of the screen side by side, and the library searched for lamp">
 </p>
-<p align="center"><sub>New screen (step 3) and choosing your tiles (step 5).</sub></p>
+<p align="center"><sub>New screen, its first step (step 3 above), and choosing your tiles (step 5).</sub></p>
 
 New firmware goes on over Wi-Fi with the **Update** button of a screen in ESP Screens, or by itself
 every night if you turn that on under **Settings**; **Firmware & USB → Wi-Fi / OTA** in the sidebar
