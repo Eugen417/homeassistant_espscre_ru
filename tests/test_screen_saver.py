@@ -30,7 +30,7 @@ PLAYER, CAMERA = 'media_player.living_room', 'camera.front_door'
 PLAYING = {'state': 'playing', 'attributes': {'friendly_name': 'Living room', 'media_title': 'Song', 'media_artist': 'Band',
                                               'media_duration': 200, 'entity_picture': '/api/media_player_proxy/x?cache=1'}}
 DOOR = {'state': 'idle', 'attributes': {'friendly_name': 'Front door'}}
-CHOICE = {'show': True, 'media': PLAYER, 'camera': CAMERA, 'order': ['media', 'camera', 'clock'], 'off': [], 'weather': 'auto'}
+CHOICE = {'show': True, 'media': PLAYER, 'camera': CAMERA, 'order': ['media', 'camera', 'clock'], 'off': [], 'weather': 'auto', 'more': []}
 
 
 class Choice(unittest.TestCase):
@@ -60,6 +60,37 @@ class Choice(unittest.TestCase):
         self.assertEqual(screen_saver.pick({**CHOICE, 'show': False}, states, True), '')
         # A board without pictures: the clock alone.
         self.assertEqual(screen_saver.pick(CHOICE, states, False), 'clock')
+
+    def test_the_music_step_tries_its_players_in_their_order(self):
+        """App 0.4.54: a speaker first and the television under it next; the step shows the first that plays with a cover."""
+        tv = 'media_player.apple_tv'
+        poster = {'state': 'playing', 'attributes': {'friendly_name': 'Apple TV', 'media_title': 'Series',
+                                                     'entity_picture': '/api/media_player_proxy/tv?cache=2'}}
+        choice = {**CHOICE, 'more': [tv]}
+        self.assertEqual(screen_saver.validate(choice)['more'], [tv])
+        self.assertEqual(screen_saver.players(choice), [PLAYER, tv])
+        self.assertEqual(screen_saver.entities(choice), {PLAYER, tv, CAMERA})
+        both = {PLAYER: PLAYING, tv: poster, CAMERA: DOOR}
+        self.assertEqual(screen_saver.player(choice, both), PLAYER)
+        # The speaker plays the television's sound: it plays, without a cover, so the television's poster shows.
+        sound = {**both, PLAYER: {'state': 'playing', 'attributes': {'friendly_name': 'Living room', 'source': 'TV'}}}
+        self.assertEqual(screen_saver.player(choice, sound), tv)
+        said = screen_saver.message(choice, sound, True, short, media_extras)
+        self.assertEqual((said['k'], said['e'], said['n'], said['t']), ('media', tv, 'Apple TV', 'Series'))
+        # Neither plays: the next step. A paused television keeps its poster in Home Assistant and still counts as off.
+        idle = {**sound, tv: {**poster, 'state': 'paused'}}
+        self.assertEqual((screen_saver.player(choice, idle), screen_saver.pick(choice, idle, True)), ('', 'camera'))
+        # Without a first player the others still count, and a board without pictures has the clock alone.
+        self.assertEqual(screen_saver.message({**choice, 'media': ''}, both, True, short, media_extras)['e'], tv)
+        self.assertEqual(screen_saver.pick(choice, both, False), 'clock')
+        for wrong in ([PLAYER], [tv, tv], ['camera.front_door'], ['Media Player'], [''], [f'media_player.p{i}' for i in range(4)], tv, [1]):
+            with self.assertRaises(ValueError, msg=wrong):
+                screen_saver.validate({**CHOICE, 'more': wrong})
+        # A choice kept before 0.4.54 has one player.
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'screensavers.json'
+            path.write_text(json.dumps({'version': 1, 'screens': {'d1': {key: CHOICE[key] for key in CHOICE if key != 'more'}}}))
+            self.assertEqual(screen_saver.ScreenSavers(path).get('d1'), CHOICE)
 
     def test_the_message_carries_what_the_screen_draws(self):
         states = {PLAYER: PLAYING, CAMERA: DOOR}
@@ -209,6 +240,10 @@ class TheApp(unittest.IsolatedAsyncioTestCase):
             self.assertTrue({PLAYER, CAMERA} <= m.watched_entities())
             self.assertTrue(m.camera_allowed('text.d1_tiles', CAMERA) and m.camera_allowed('text.d1_tiles', PLAYER))
             self.assertFalse(m.camera_allowed('text.d1_tiles', 'camera.garden'))
+            # So are the players the music step tries next (app 0.4.54).
+            m.savers.set('d1', {**CHOICE, 'more': ['media_player.apple_tv']})
+            self.assertIn('media_player.apple_tv', m.watched_entities())
+            self.assertTrue(m.camera_allowed('text.d1_tiles', 'media_player.apple_tv'))
             await m.sync_saver('text.d1_tiles', screen)
             await m.sync_saver('text.d1_tiles', screen)
             self.assertEqual([(s[0]['k'], s[1], s[2]) for s in sent], [('media', 'S1', 'R1')])

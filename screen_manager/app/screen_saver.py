@@ -1,9 +1,9 @@
 """The screensaver (app 0.4.48, firmware 0.29.0): what a screen shows when Auto standby dims it, instead of its tiles.
 
 Each screen has its own choice, kept per Home Assistant device as the screen's label is (screen_labels.py), so it
-outlives a renamed inbox and leaves the layouts' storage alone: a media player, a camera and the order the screen tries
-them in, with the clock as a step of its own. This app decides which step is available right now (a player that plays
-and has a cover, a camera Home Assistant has, the clock always) and tells the screen in one small message whenever that
+outlives a renamed inbox and leaves the layouts' storage alone: a media player (or a few, tried in their order, app
+0.4.54), a camera and the order the screen tries them in, with the clock as a step of its own. This app decides which
+step is available right now (a player that plays and has a cover, a camera Home Assistant has, the clock always) and tells the screen in one small message whenever that
 changes. The screen asks for its picture the way a camera's full view does, and the app makes one picture of the whole
 glass (camera_feed.encode_saver): a camera filling it, a cover filling it or beside its own colour, all a little darker
 for the words over it. Nothing on it takes a tap, so the first touch only wakes the screen.
@@ -22,7 +22,10 @@ KINDS = ('media', 'camera', 'clock')
 PICTURE_KINDS = frozenset(('media', 'camera'))
 # `weather` (app 0.4.52): whose temperature the clock shows under the time. 'auto' takes Home Assistant's first weather
 # entity that reports one, '' shows none, and a weather entity of your choice is that one.
-DEFAULT = {'show': False, 'media': '', 'camera': '', 'order': list(KINDS), 'off': [], 'weather': 'auto'}
+# `more` (app 0.4.54): the players the music step tries after `media`, in their order. The step shows the first of them
+# that plays with a cover: a speaker's own music first, say, and the poster of what the television under it plays next.
+DEFAULT = {'show': False, 'media': '', 'camera': '', 'order': list(KINDS), 'off': [], 'weather': 'auto', 'more': []}
+MORE_PLAYERS = 3
 ENTITY = re.compile(r'[a-z0-9_]+\.[a-z0-9_]+')
 DOMAINS = {'media': ('media_player',), 'camera': ('camera', 'image')}
 # What a player does while its cover counts: playing, as Home Assistant's own media card shows its art.
@@ -34,7 +37,7 @@ def validate(value):
     """A clean copy of a screensaver choice, or ValueError. Every field is optional; the default fills the rest."""
     if not isinstance(value, dict) or set(value) - set(DEFAULT):
         raise ValueError('screensaver fields')
-    result = {**DEFAULT, 'order': list(DEFAULT['order']), 'off': []}
+    result = {**DEFAULT, 'order': list(DEFAULT['order']), 'off': [], 'more': []}
     if 'show' in value:
         if not isinstance(value['show'], bool):
             raise ValueError('screensaver show')
@@ -45,6 +48,13 @@ def validate(value):
                                                         or entity.split('.')[0] not in DOMAINS[kind])):
             raise ValueError(f'screensaver {kind}')
         result[kind] = entity
+    if 'more' in value:
+        more = value['more']
+        if not isinstance(more, list) or len(more) > MORE_PLAYERS or len(set(more)) != len(more) or any(
+                not isinstance(entity, str) or len(entity) > 120 or not ENTITY.fullmatch(entity)
+                or entity.split('.')[0] not in DOMAINS['media'] or entity == result['media'] for entity in more):
+            raise ValueError('screensaver more')
+        result['more'] = list(more)
     if 'weather' in value:
         weather = value['weather']
         if not isinstance(weather, str) or (weather not in ('auto', '') and (
@@ -93,26 +103,39 @@ def temperature(choice, states):
     return f'{round(value) or 0}°'
 
 
+def players(choice):
+    """The players of the music step in the order it tries them: the first one, then `more`."""
+    return [entity for entity in (choice.get('media'), *(choice.get('more') or ())) if entity]
+
+
+def _has_cover(state):
+    attrs = (state or {}).get('attributes') or {}
+    return (state or {}).get('state') in PLAYING and any(isinstance(attrs.get(name), str) and attrs.get(name)
+                                                         for name in ('entity_picture_local', 'entity_picture'))
+
+
+def player(choice, states):
+    """The player the music step shows now: the first of its players that plays with a cover, or '' for none."""
+    return next((entity for entity in players(choice) if _has_cover(states.get(entity))), '')
+
+
 def entities(choice, states=None):
     """The entities a choice follows; with the states, also the weather entity its clock reads."""
-    found = {choice[kind] for kind in ('media', 'camera') if choice.get(kind)}
+    found = set(players(choice)) | ({choice['camera']} if choice.get('camera') else set())
     weather = weather_entity(choice, states) if states is not None and choice.get('show') else ''
     return found | ({weather} if weather else set())
 
 
 def available(kind, choice, states, pictures):
-    """Whether a step can show now: a player that plays with a cover, a camera Home Assistant has, the clock always.
-    The two pictures need a board that draws them."""
+    """Whether a step can show now: one of its players plays with a cover, a camera Home Assistant has, the clock
+    always. The two pictures need a board that draws them."""
     if kind == 'clock':
         return True
-    if not pictures or not choice.get(kind):
+    if not pictures:
         return False
-    state = states.get(choice[kind]) or {}
-    if kind == 'camera':
-        return state.get('state', '') not in GONE
-    attrs = state.get('attributes') or {}
-    return state.get('state') in PLAYING and any(isinstance(attrs.get(name), str) and attrs.get(name)
-                                                  for name in ('entity_picture_local', 'entity_picture'))
+    if kind == 'media':
+        return bool(player(choice, states))
+    return bool(choice.get(kind)) and (states.get(choice[kind]) or {}).get('state', '') not in GONE
 
 
 def pick(choice, states, pictures):
@@ -137,7 +160,7 @@ def message(choice, states, pictures, short, media_extras, ground=None):
             result['w'] = degrees
     if kind not in PICTURE_KINDS:
         return result
-    entity = choice[kind]
+    entity = player(choice, states) if kind == 'media' else choice[kind]
     state = states.get(entity) or {}
     attrs = state.get('attributes') or {}
     result['e'] = entity
@@ -175,7 +198,8 @@ class ScreenSavers:
 
     def get(self, device):
         choice = self.choices.get(device) or DEFAULT
-        return {**DEFAULT, **choice, 'order': list(choice['order']), 'off': list(choice['off'])}
+        return {**DEFAULT, **choice, 'order': list(choice['order']), 'off': list(choice['off']),
+                'more': list(choice.get('more') or ())}
 
     def set(self, device, value):
         choice = validate(value)

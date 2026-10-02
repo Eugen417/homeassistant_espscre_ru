@@ -24,13 +24,27 @@ const order = computed<SaverKind[]>(() => {
   return saver.value?.pictures ? list : list.filter((kind) => kind === "clock");
 });
 const isOn = (kind: SaverKind) => !saver.value?.off.includes(kind);
-const choices = (kind: "media" | "camera") => [
-  ["", t(`editor.screen_settings.screensaver.choose_${kind}`)] as const,
+const choices = (kind: "media" | "camera", empty = `choose_${kind}`, taken: string[] = []) => [
+  ["", t(`editor.screen_settings.screensaver.${empty}`)] as const,
   ...state.inventory.entities
-    .filter((e) => DOMAINS[kind].includes(e.id.split(".")[0]))
+    .filter((e) => DOMAINS[kind].includes(e.id.split(".")[0]) && !taken.includes(e.id))
     .map((e) => [e.id, e.area ? `${e.name} · ${e.area}` : e.name] as const)
     .sort((a, b) => a[1].localeCompare(b[1])),
 ];
+// The players of the music step (app 0.4.54), in the order it tries them: the first that plays with a cover shows. A
+// speaker first and the television under it next, say. An empty row after the last one adds a player, and a row set
+// back to its first line leaves the list.
+const MAX_PLAYERS = 4;
+const players = computed(() => [saver.value?.media, ...(saver.value?.more || [])].filter((id): id is string => Boolean(id)));
+const playerRows = computed(() => (players.value.length < MAX_PLAYERS ? [...players.value, ""] : players.value));
+const playerChoices = (row: number) =>
+  choices("media", row ? "add_media" : "choose_media", players.value.filter((_, i) => i !== row));
+function setPlayer(row: number, value: string) {
+  const list = [...players.value];
+  if (value) list[row] = value;
+  else list.splice(row, 1);
+  change({ media: list[0] || "", more: list.slice(1) });
+}
 // The temperature under the clock (app 0.4.52): Home Assistant's first weather entity by default, one of your choice, or
 // none. The screen shows the number in the unit Home Assistant is set to.
 const weatherChoices = computed(() => [
@@ -42,7 +56,8 @@ const weatherChoices = computed(() => [
     .sort((a, b) => a[1].localeCompare(b[1])),
 ]);
 const detail = (kind: SaverKind) => {
-  if (kind !== "clock" && !saver.value?.[kind]) return t(`editor.screen_settings.screensaver.details.${kind}_unset`);
+  if (kind === "media" && players.value.length > 1) return t("editor.screen_settings.screensaver.details.media_more");
+  if (kind === "media" ? !players.value.length : kind !== "clock" && !saver.value?.[kind]) return t(`editor.screen_settings.screensaver.details.${kind}_unset`);
   return t(`editor.screen_settings.screensaver.details.${kind}`);
 };
 const label = (kind: SaverKind) => t(`editor.screen_settings.screensaver.kinds.${kind}`);
@@ -149,8 +164,12 @@ function onKey(e: KeyboardEvent, i: number) {
           <span class="av mdi">{{ glyph(ICONS[kind]) }}</span>
           <span class="tx">
             <b>{{ label(kind) }}</b>
-            <UiSelect v-if="kind !== 'clock'" class="saver-pick" :id="`screensaver-${kind}`" :model-value="saver[kind]" :options="choices(kind)"
-              @update:model-value="(value: string) => change({ [kind]: value })" />
+            <template v-if="kind === 'media'">
+              <UiSelect v-for="(entity, row) in playerRows" :key="row" class="saver-pick" :id="row ? `screensaver-media-${row + 1}` : 'screensaver-media'"
+                :model-value="entity" :options="playerChoices(row)" @update:model-value="(value: string) => setPlayer(row, value)" />
+            </template>
+            <UiSelect v-else-if="kind === 'camera'" class="saver-pick" id="screensaver-camera" :model-value="saver.camera" :options="choices('camera')"
+              @update:model-value="(value: string) => change({ camera: value })" />
             <UiSelect v-else class="saver-pick" id="screensaver-weather" :model-value="saver.weather ?? 'auto'" :options="weatherChoices"
               @update:model-value="(value: string) => change({ weather: value })" />
             <small>{{ detail(kind) }}</small>

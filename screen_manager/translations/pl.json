@@ -1917,6 +1917,7 @@
         "tap": "Dotknięcie budzi ekran. Na wygaszaczu nie da się niczego nacisnąć.",
         "use": "Użyj: {name}",
         "choose_media": "Wybierz odtwarzacz",
+        "add_media": "Kolejny odtwarzacz",
         "choose_camera": "Wybierz kamerę",
         "weather_auto": "Temperatura zewnętrzna z Home Assistant",
         "weather_none": "Bez temperatury",
@@ -1928,6 +1929,7 @@
         "details": {
           "media": "Podczas odtwarzania, z okładką",
           "media_unset": "Wybierz odtwarzacz, aby go używać",
+          "media_more": "Pierwszy, który odtwarza, z okładką",
           "camera": "Jej obraz co 15 sekund",
           "camera_unset": "Wybierz kamerę, aby jej używać",
           "clock": "Godzina, data i temperatura na zewnątrz, biało na czarnym"

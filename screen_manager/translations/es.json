@@ -1917,6 +1917,7 @@
         "tap": "Un toque despierta la pantalla. En el salvapantallas no se puede pulsar nada.",
         "use": "Usar {name}",
         "choose_media": "Elige un reproductor",
+        "add_media": "Otro reproductor",
         "choose_camera": "Elige una cámara",
         "weather_auto": "Temperatura exterior de Home Assistant",
         "weather_none": "Sin temperatura",
@@ -1928,6 +1929,7 @@
         "details": {
           "media": "Mientras suena, con su portada",
           "media_unset": "Elige un reproductor para usarlo",
+          "media_more": "El primero que reproduce, con su carátula",
           "camera": "Su imagen, cada 15 segundos",
           "camera_unset": "Elige una cámara para usarla",
           "clock": "La hora, la fecha y la temperatura exterior, en blanco sobre negro"

@@ -1917,6 +1917,7 @@
         "tap": "Ein Tippen weckt den Bildschirm. Auf dem Bildschirmschoner lässt sich nichts drücken.",
         "use": "{name} verwenden",
         "choose_media": "Player wählen",
+        "add_media": "Weiterer Player",
         "choose_camera": "Kamera wählen",
         "weather_auto": "Außentemperatur aus Home Assistant",
         "weather_none": "Keine Temperatur",
@@ -1928,6 +1929,7 @@
         "details": {
           "media": "Während sie läuft, mit dem Cover",
           "media_unset": "Wähle einen Player, um ihn zu nutzen",
+          "media_more": "Der erste, der läuft, mit dem Cover",
           "camera": "Ihr Bild, alle 15 Sekunden",
           "camera_unset": "Wähle eine Kamera, um sie zu nutzen",
           "clock": "Uhrzeit, Datum und Außentemperatur, weiß auf Schwarz"

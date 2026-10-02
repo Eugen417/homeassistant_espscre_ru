@@ -1917,6 +1917,7 @@
         "tap": "Un tocco riattiva lo schermo. Sul salvaschermo non si può premere nulla.",
         "use": "Usa {name}",
         "choose_media": "Scegli un lettore",
+        "add_media": "Un altro lettore",
         "choose_camera": "Scegli una telecamera",
         "weather_auto": "Temperatura esterna da Home Assistant",
         "weather_none": "Nessuna temperatura",
@@ -1928,6 +1929,7 @@
         "details": {
           "media": "Mentre suona, con la copertina",
           "media_unset": "Scegli un lettore per usarlo",
+          "media_more": "Il primo in riproduzione, con la copertina",
           "camera": "La sua immagine, ogni 15 secondi",
           "camera_unset": "Scegli una telecamera per usarla",
           "clock": "L'ora, la data e la temperatura esterna, in bianco su nero"

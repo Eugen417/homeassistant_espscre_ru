@@ -13,6 +13,12 @@ tries them. It shows the first one that is there right now. It needs app 0.4.48 
    too, such as the last snapshot a doorbell keeps.
 4. Drag the rows into the order you want, and turn off a row you never want to see.
 
+**More than one player** (app 0.4.54). Once a player is chosen, an empty row under it adds the next, up to four. The
+screen shows the first of them that plays with a cover, in the order of the rows. A speaker that also plays the
+television's sound is the usual case: put the speaker first and the television's player second. While the speaker
+plays music you see its cover. While it plays the television's sound it has no cover, so you see the poster of what
+the television plays. Set a row back to its first line to take that player out.
+
 For example, with the order Music playing, Camera, Clock:
 
 - music plays on that player and Home Assistant has a cover for it: the screen shows the cover with the title and the
@@ -63,15 +69,16 @@ has.
   every layout. `PUT api/screens/<inbox>/screensaver` stores the whole choice, and the screen's entry in the editor's
   inventory carries it as `screensaver`, with `ready` (the firmware takes one), `pictures` (the board draws pictures)
   and `standby` (the board goes into standby at all).
-- **The pick.** The app follows the chosen player and camera like a tile's entities (`watched_entities`). After every
-  pass of a screen it works out the first step that is on and available (`screen_saver.pick`): a player whose state
-  is `playing` with an `entity_picture`, a camera whose state is not `unavailable` or `unknown`, the clock always. A
+- **The pick.** The app follows the chosen players and camera like a tile's entities (`watched_entities`). After every
+  pass of a screen it works out the first step that is on and available (`screen_saver.pick`): the first player of the
+  list (`media`, then `more`, `screen_saver.player`) whose state is `playing` with an `entity_picture`, a camera whose state is not `unavailable` or `unknown`, the clock always. A
   board without pictures has only the clock.
 - **On the wire** the answer is one message in the screen's session, sent when it changes and once in every new
   session: `{"op": "saver", "k": "media" | "camera" | "clock" | ""}`. A player adds its entity (`e`), its name
   (`n`), the title (`t`) and `x`: the artist, the album, the picture's mark and the cover's colour, the things its
   picture and words are made from. Where the track is goes along with none of it, so a player that reports its
-  position sends nothing new. A camera adds `e` and `n`. The screen says it takes the message
+  position sends nothing new. With several players the message names the one that shows, so the screen needs nothing
+  new for the list. A camera adds `e` and `n`. The screen says it takes the message
   with `screensaver` in the feature list of its hello; a screen without it never gets one.
 - **On the screen** (`runtime_tiles.h`, "The screensaver") the last word is kept until the screen goes into standby.
   Then `apply_screen_settings` sets the standby level as before and `saver_sync` draws it, when that level is above 0,

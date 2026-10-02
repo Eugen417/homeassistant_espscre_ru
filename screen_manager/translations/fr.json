@@ -1917,6 +1917,7 @@
         "tap": "Un appui réveille l'écran. Rien ne peut être pressé sur l'économiseur d'écran.",
         "use": "Utiliser {name}",
         "choose_media": "Choisir un lecteur",
+        "add_media": "Un autre lecteur",
         "choose_camera": "Choisir une caméra",
         "weather_auto": "Température extérieure de Home Assistant",
         "weather_none": "Pas de température",
@@ -1928,6 +1929,7 @@
         "details": {
           "media": "Pendant la lecture, avec sa pochette",
           "media_unset": "Choisis un lecteur pour l'utiliser",
+          "media_more": "Le premier en lecture, avec sa pochette",
           "camera": "Son image, toutes les 15 secondes",
           "camera_unset": "Choisis une caméra pour l'utiliser",
           "clock": "L'heure, la date et la température extérieure, en blanc sur noir"

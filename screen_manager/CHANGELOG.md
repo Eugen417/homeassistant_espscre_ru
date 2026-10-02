@@ -1,3 +1,16 @@
+## 0.4.54 (firmware 0.32.0)
+
+- **The screensaver takes more than one player.** Under Music playing in a screen's screensaver settings an empty row
+  now stands under the player you chose: pick a second one there, and a third and a fourth if you like. The screen
+  shows the first of them that plays with a cover, in the order of the rows. Made for a speaker that also plays the
+  television's sound: with the speaker first and the television's player second you see the cover while the speaker
+  plays music, and the poster of the series while it plays the television, since it has no cover of its own then. Set
+  a row back to its first line to take that player out. The screens need no update for it.
+- Tested: on a Guition 4848S040 (firmware 0.32.0) with Home Assistant on the bench, two players and a camera: with
+  both playing the screensaver showed the first player's cover, with the first paused the second one's poster, with
+  both paused the camera, and it came back the same way. Added and removed players in the editor by hand. No firmware
+  changed, so nothing was built for a screen.
+
 ## 0.4.53 (firmware 0.32.0)
 
 - **The screensaver keeps its cover until the next one is there.** When the music went to the next track, the

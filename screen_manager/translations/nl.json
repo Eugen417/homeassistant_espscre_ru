@@ -1917,6 +1917,7 @@
         "tap": "Een tik maakt het scherm wakker. Op de screensaver kun je niets indrukken.",
         "use": "{name} gebruiken",
         "choose_media": "Kies een speler",
+        "add_media": "Nog een speler",
         "choose_camera": "Kies een camera",
         "weather_auto": "Buitentemperatuur uit Home Assistant",
         "weather_none": "Geen temperatuur",
@@ -1928,6 +1929,7 @@
         "details": {
           "media": "Terwijl hij speelt, met de hoes",
           "media_unset": "Kies een speler om hem te gebruiken",
+          "media_more": "De eerste die speelt, met de hoes",
           "camera": "Het beeld, elke 15 seconden",
           "camera_unset": "Kies een camera om hem te gebruiken",
           "clock": "De tijd, de datum en de buitentemperatuur, wit op zwart"

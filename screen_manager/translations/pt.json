@@ -1917,6 +1917,7 @@
         "tap": "Um toque acorda o ecrã. Nada na proteção de ecrã pode ser premido.",
         "use": "Usar {name}",
         "choose_media": "Escolhe um leitor",
+        "add_media": "Outro leitor",
         "choose_camera": "Escolhe uma câmara",
         "weather_auto": "Temperatura exterior do Home Assistant",
         "weather_none": "Sem temperatura",
@@ -1928,6 +1929,7 @@
         "details": {
           "media": "Enquanto toca, com a capa",
           "media_unset": "Escolhe um leitor para o usar",
+          "media_more": "O primeiro a reproduzir, com a capa",
           "camera": "A sua imagem, a cada 15 segundos",
           "camera_unset": "Escolhe uma câmara para a usar",
           "clock": "A hora, a data e a temperatura exterior, a branco sobre preto"

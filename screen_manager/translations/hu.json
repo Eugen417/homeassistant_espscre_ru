@@ -1917,6 +1917,7 @@
         "tap": "Egy érintés felébreszti a képernyőt. A képernyővédőn semmit sem lehet megnyomni.",
         "use": "{name} használata",
         "choose_media": "Válassz lejátszót",
+        "add_media": "Még egy lejátszó",
         "choose_camera": "Válassz kamerát",
         "weather_auto": "Kinti hőmérséklet a Home Assistantból",
         "weather_none": "Nincs hőmérséklet",
@@ -1928,6 +1929,7 @@
         "details": {
           "media": "Lejátszás közben, a borítójával",
           "media_unset": "Válassz lejátszót a használatához",
+          "media_more": "Az első, amelyik játszik, a borítóval",
           "camera": "A képe, 15 másodpercenként",
           "camera_unset": "Válassz kamerát a használatához",
           "clock": "Az idő, a dátum és a kinti hőmérséklet, fehéren feketén"

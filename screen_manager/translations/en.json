@@ -1917,6 +1917,7 @@
         "tap": "A tap wakes the screen. Nothing on the screensaver can be pressed.",
         "use": "Use {name}",
         "choose_media": "Choose a player",
+        "add_media": "Another player",
         "choose_camera": "Choose a camera",
         "weather_auto": "Outside temperature from Home Assistant",
         "weather_none": "No temperature",
@@ -1928,6 +1929,7 @@
         "details": {
           "media": "While it plays, with its cover",
           "media_unset": "Choose a player to use it",
+          "media_more": "The first one that plays, with its cover",
           "camera": "Its picture, every 15 seconds",
           "camera_unset": "Choose a camera to use it",
           "clock": "The time, the date and the outside temperature, white on black"
