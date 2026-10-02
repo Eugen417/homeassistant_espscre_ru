@@ -1,3 +1,11 @@
+## 0.4.50 (firmware 0.29.1 for waveshare35)
+
+- **Waveshare 3.5 inch: the right colours** (GitHub #127, by @noisemaker00). Every colour showed as its complement,
+  orange as blue and purple as green. The panel is now driven inverted, as it needs, confirmed on a real unit.
+- **Its 8 MB of PSRAM is switched on**, in octal mode at 80MHz, also confirmed on a real unit. Nothing looks different
+  yet: it is the memory that pictures (covers, cameras) need, which this board does not draw so far.
+- Only Waveshare 3.5 inch screens are offered this update. Every other screen stays as it is.
+
 ## 0.4.49 (firmware 0.29.0)
 
 - **A screen's first build is quicker.** Every night and with every release, GitHub builds each board ahead and
