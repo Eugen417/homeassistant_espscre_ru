@@ -1,3 +1,14 @@
+## 0.4.49 (firmware 0.29.0)
+
+- **A screen's first build is quicker.** Every night and with every release, GitHub builds each board ahead and
+  publishes what it compiled. Before a build the app fetches that for your board (about 40 MB) and only compiles what
+  is your own screen's: its name, keys, Wi-Fi and language. A CYD's build went from 93 to 58 seconds on a Mac, and a
+  slower machine such as a Raspberry Pi saves more.
+- Nothing to set and nothing to choose. Without a published cache for your board, without internet or when the
+  download takes longer than five minutes, the app builds exactly as before. The firmware is the same either way.
+- Building in the ESPHome Device Builder works as before, without this speed-up.
+- Nothing changes on the screens.
+
 ## 0.4.48 (firmware 0.29.0)
 
 - **A screensaver in standby.** When Auto standby dims a screen, it can show something calm instead of the dimmed

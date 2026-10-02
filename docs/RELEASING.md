@@ -121,6 +121,33 @@ top-level `online_image:`, `packages/features/camera.yaml`), and `ota:` with `en
 `core.installation_yaml()` in place of the OTA password. A board that needs a newer ESPHome states its own
 `min_version` in its board file; `tools/check.sh` then skips it on an older ESPHome instead of failing.
 
+## Compile caches made ahead
+
+A build in the app compiles some 1,500 files for a board, and all but a few are the same for every screen of that
+board: `main.cpp` holds the screen's own name, keys, Wi-Fi and language. `.github/workflows/build-cache.yml` builds
+every board each night and on every push that changes `screen_manager/config.yaml` (every release), in the app's own
+image (the `FROM` of `screen_manager/Dockerfile`) with the app's own paths, through the app's own `Firmware` class
+(`tools/build_cache.py`). Each board's ccache becomes `ccache-<board>-esphome-<version>.tar.gz` on the pre-release
+`build-cache`; a board that fails keeps its previous one.
+
+Before a build the app (`screen_manager/app/build_cache.py`) fetches its board's cache when the release has a newer
+one than it unpacked last, unpacks it into `/data/idf/ccache` and builds as before. Two ccache options in
+`Firmware.build_env` let that cache answer here: `-fmacro-prefix-map`, `-fdebug-prefix-map` and `-DLV_CONF_PATH` stay
+out of the hash (they carry the screen's build folder and only map paths), and the compiler is known by its
+`--version` instead of its file date. Without them a cache made elsewhere answers none of the compiles.
+
+- It only ever adds speed. No cache for the board or this ESPHome, no network, a download past five minutes
+  (`build_cache.TIME_LIMIT`) or a broken file: the build runs as before. ccache answers a compile only for its exact
+  inputs, so a stale cache costs time and never changes the firmware.
+- `ESP_SCREENS_BUILD_CACHE` points the app at another release list (a local test) or turns the fetch off (`off`,
+  which the tests and `tools/build_cache.py` set).
+- The ESPHome Device Builder builds in its own container with its own cache, so its builds don't get this.
+- To test locally with Docker: `docker build -t esp-screens:test screen_manager`, then
+  `docker run --rm -v "$PWD":/repo:ro -v /tmp/out:/out esp-screens:test python3 /repo/tools/build_cache.py cyd /out`
+  makes the cache GitHub would. Serve it next to a JSON file shaped like GitHub's release (`assets` with `name`,
+  `updated_at`, `size` and `browser_download_url`) and build in a second container with an empty `/data` and
+  `ESP_SCREENS_BUILD_CACHE` set to that file's URL.
+
 ## Small rules
 
 - Images in `screen_manager/README.md` (the App store description) use absolute

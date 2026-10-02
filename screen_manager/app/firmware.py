@@ -13,6 +13,7 @@ import signal
 import time
 import yaml
 import zipfile
+import build_cache
 from core import BOARD_KEYS, ORIENTATIONS, REPO, SHAPES, installation_yaml
 from i18n import t
 
@@ -676,10 +677,12 @@ class Firmware:
 
         As many compilers at once as the machine has cores, as PlatformIO ran them: ESP-IDF's ninja would start two
         more, and each takes a few hundred MB next to Home Assistant on a small Raspberry Pi (ESPHome's own limit, which
-        the official ESPHome app sets too)."""
+        the official ESPHome app sets too). The ccache options let a compile cache GitHub made answer here
+        (build_cache, app 0.4.49)."""
         return {**os.environ, 'ESPHOME_BUILD_PATH': str(self.data / 'build' / profile.stem),
                 'ESPHOME_DATA_DIR': str(self.data / 'esphome'), 'ESPHOME_ESP_IDF_PREFIX': str(self.data / 'idf'),
                 'CCACHE_MAXSIZE': os.environ.get('CCACHE_MAXSIZE', self.CCACHE_SIZE),
+                **{key: os.environ.get(key, value) for key, value in build_cache.CCACHE_ENV.items()},
                 'ESPHOME_DEFAULT_COMPILE_PROCESS_LIMIT': os.environ.get('ESPHOME_DEFAULT_COMPILE_PROCESS_LIMIT',
                                                                         str(os.cpu_count() or 1)),
                 'PLATFORMIO_CORE_DIR': str(self.data / 'platformio'), 'NO_COLOR': '1'}
@@ -693,11 +696,28 @@ class Firmware:
             self.logs.append('Removing PlatformIO from before ESPHome 2026.7: the screens build with ESP-IDF now.')
             await asyncio.to_thread(shutil.rmtree, old, True)
 
+    async def seed_cache(self, profile, env):
+        """The board's compile cache from GitHub before a build (build_cache, app 0.4.49); without one, or past five
+        minutes of downloading, the build runs as it always did."""
+        try:
+            meta = profile_meta(profile.read_text())
+        except (OSError, yaml.YAMLError):
+            return
+        board = (SHAPES.get((meta or {}).get('package')) or {}).get('board')
+        if not board:
+            return
+        folder = Path(env.get('CCACHE_DIR') or Path(env['ESPHOME_ESP_IDF_PREFIX']) / 'ccache')
+        outcome = await build_cache.seed(board, folder, self.logs.append, env)
+        if outcome not in ('off', 'already here'):
+            self.logs.append(f'Prebuilt compile cache: {outcome}')
+            LOG.info('Prebuilt compile cache for %s (%s): %s', profile.name, board, outcome)
+
     async def run(self, profile, action, target):
         env = self.build_env(profile)
         try:
             if action != 'validate':
                 await self.retire_platformio()
+                await self.seed_cache(profile, env)
             stages = ['config'] if action=='validate' else ['compile'] + (['upload'] if action=='install' else [])
             for stage in stages:
                 cmd=['esphome']+(['--quiet'] if stage=='config' else [])+[stage,str(profile)]
