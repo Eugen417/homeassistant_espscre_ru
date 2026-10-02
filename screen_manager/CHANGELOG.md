@@ -1,3 +1,18 @@
+## 0.4.52 (firmware 0.31.0)
+
+- **The screensaver's clock is white on black.** It stood in the screen's own colours, a lit white glass in the light
+  look. Now it is black with white digits whatever the look, so a screen in standby gives as little light as it can.
+- **AM or PM on the screensaver's clock** when the screen shows 12 hours, after the time as on the clock card.
+- **The outside temperature under the clock**, small in the middle at the bottom: whole degrees from Home Assistant's
+  own forecast for your home (the one it sets up with Met.no), in the unit Home Assistant is set to (Celsius or
+  Fahrenheit). Under the clock in the editor's screensaver settings you can choose another weather entity, or none.
+  Without a weather entity there is none.
+- Tested: on a Guition 4848S040 with Home Assistant on the bench, set to 12 hours and Fahrenheit: in Auto standby the
+  clock stood white on black with PM after the time and the home forecast's 66° under the date. Sleep from Home
+  Assistant still turns the glass dark without a screensaver. The CYD, both Guitions and the Waveshare 7 build with
+  ESPHome 2026.9.0 (the CYD image is 94.2 % of its slot). The Hosyond 4-inch builds but stays over its flash budget, as
+  it was before this release (99.2 % with ESPHome 2026.6.2). Not looked at on a CYD's glass.
+
 ## 0.4.51 (firmware 0.30.0)
 
 - **A map stays on its tile** (discussion #105). A page with only maps on it could lose them: when ESP Screens could

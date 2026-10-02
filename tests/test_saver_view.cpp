@@ -41,6 +41,14 @@ static void words_on_every_glass() {
     if (s == Shape::fill) assert(two.second.y == one.second.y && two.first.y == one.first.y - 32);
   }
   assert(title_lines(32, 32) == 1 && title_lines(64, 32) == 2 && title_lines(96, 32) == 2 && title_lines(0, 32) == 1 && title_lines(40, 0) == 1);
+  // The clock's AM or PM after the time, the two together in the middle; the temperature small at the bottom (0.31.0+).
+  const ClockRow row = clock_row(480, 300, 40, 8);
+  assert(row.time_x == (480 - 348) / 2 && row.ampm_x == row.time_x + 308);
+  assert(clock_row(480, 300, 0, 8).time_x == 90);
+  for (const auto &g : GLASS) {
+    const Rect t = temperature(g[0], g[1], 10, 21);
+    assert(inside(t, g[0], g[1]) && g[1] - t.bottom() == 10 && t.x == 10 && t.w == g[0] - 20);
+  }
   // About square fills, longer glass does not: four to five either way.
   assert(shape(480, 480) == Shape::fill && shape(500, 400) == Shape::fill && shape(400, 500) == Shape::fill);
   assert(shape(501, 400) == Shape::side && shape(400, 501) == Shape::top && shape(480, 320) == Shape::side);

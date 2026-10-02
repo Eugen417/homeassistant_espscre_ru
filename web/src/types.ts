@@ -82,7 +82,8 @@ export type UpdateInfo = {
 // `ready`: the screen's firmware takes one; `pictures`: its board draws pictures, else the clock alone; `standby`: it
 // goes into standby at all.
 export type SaverKind = "media" | "camera" | "clock";
-export type ScreensaverChoice = { show: boolean; media: string; camera: string; order: SaverKind[]; off: SaverKind[] };
+// `weather` (app 0.4.52): the temperature under the clock, "auto" for Home Assistant's first weather entity, "" for none.
+export type ScreensaverChoice = { show: boolean; media: string; camera: string; order: SaverKind[]; off: SaverKind[]; weather?: string };
 export type ScreensaverView = ScreensaverChoice & { ready: boolean; pictures: boolean; standby: boolean };
 export type SettingsView = { owner: string; keys: string[]; values: Record<string, any>; unavailable: string[]; rotations?: number[]; switches?: string[]; calibrate?: boolean };
 // The two ways a screen can hang (app 0.2.107), chosen when it is built: lying down or standing up. A board's own

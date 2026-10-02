@@ -1918,6 +1918,8 @@
         "use": "Użyj: {name}",
         "choose_media": "Wybierz odtwarzacz",
         "choose_camera": "Wybierz kamerę",
+        "weather_auto": "Temperatura zewnętrzna z Home Assistant",
+        "weather_none": "Bez temperatury",
         "kinds": {
           "media": "Odtwarzana muzyka",
           "camera": "Kamera",
@@ -1928,7 +1930,7 @@
           "media_unset": "Wybierz odtwarzacz, aby go używać",
           "camera": "Jej obraz co 15 sekund",
           "camera_unset": "Wybierz kamerę, aby jej używać",
-          "clock": "Godzina i data"
+          "clock": "Godzina, data i temperatura na zewnątrz, biało na czarnym"
         }
       }
     },

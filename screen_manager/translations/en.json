@@ -1918,6 +1918,8 @@
         "use": "Use {name}",
         "choose_media": "Choose a player",
         "choose_camera": "Choose a camera",
+        "weather_auto": "Outside temperature from Home Assistant",
+        "weather_none": "No temperature",
         "kinds": {
           "media": "Music playing",
           "camera": "Camera",
@@ -1928,7 +1930,7 @@
           "media_unset": "Choose a player to use it",
           "camera": "Its picture, every 15 seconds",
           "camera_unset": "Choose a camera to use it",
-          "clock": "The time and the date"
+          "clock": "The time, the date and the outside temperature, white on black"
         }
       }
     },

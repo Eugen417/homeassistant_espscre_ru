@@ -2188,7 +2188,7 @@ class Manager:
                        for layout in self.layouts.values() for tile in layout['tiles'] if tile['entity'].startswith('light.'))
         # The speakers a player's menu lists change with what this app started and the libraries it read.
         media = (tuple(sorted(self.outputs.items())), tuple(sorted(e for e, known in self.accounts.items() if known[1])))
-        savers = tuple(sorted(e for choice in self.savers.choices.values() for e in screen_saver.entities(choice)))
+        savers = tuple(sorted(e for choice in self.savers.choices.values() for e in screen_saver.entities(choice, self.ha.states)))
         key = (id(getattr(self.ha, 'registry', [])), id(self.layouts), groups, media, savers)
         if key != self._watched_key:
             watched = {tile['entity'] for layout in self.layouts.values() for tile in layout['tiles']}
@@ -2684,7 +2684,7 @@ class Manager:
     def saver_entities(self, inbox):
         """The player and camera a screen's screensaver follows (app 0.4.48)."""
         device = (self.screen(inbox) or {}).get('device_id')
-        return screen_saver.entities(self.savers.get(device)) if device else set()
+        return screen_saver.entities(self.savers.get(device), self.ha.states) if device else set()
 
     def saver_message(self, screen):
         """What this screen's screensaver shows now (screen_saver.message), for a board that draws pictures or not."""

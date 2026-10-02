@@ -1918,6 +1918,8 @@
         "use": "{name} használata",
         "choose_media": "Válassz lejátszót",
         "choose_camera": "Válassz kamerát",
+        "weather_auto": "Kinti hőmérséklet a Home Assistantból",
+        "weather_none": "Nincs hőmérséklet",
         "kinds": {
           "media": "Szóló zene",
           "camera": "Kamera",
@@ -1928,7 +1930,7 @@
           "media_unset": "Válassz lejátszót a használatához",
           "camera": "A képe, 15 másodpercenként",
           "camera_unset": "Válassz kamerát a használatához",
-          "clock": "Az idő és a dátum"
+          "clock": "Az idő, a dátum és a kinti hőmérséklet, fehéren feketén"
         }
       }
     },

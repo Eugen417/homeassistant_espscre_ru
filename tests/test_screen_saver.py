@@ -30,7 +30,7 @@ PLAYER, CAMERA = 'media_player.living_room', 'camera.front_door'
 PLAYING = {'state': 'playing', 'attributes': {'friendly_name': 'Living room', 'media_title': 'Song', 'media_artist': 'Band',
                                               'media_duration': 200, 'entity_picture': '/api/media_player_proxy/x?cache=1'}}
 DOOR = {'state': 'idle', 'attributes': {'friendly_name': 'Front door'}}
-CHOICE = {'show': True, 'media': PLAYER, 'camera': CAMERA, 'order': ['media', 'camera', 'clock'], 'off': []}
+CHOICE = {'show': True, 'media': PLAYER, 'camera': CAMERA, 'order': ['media', 'camera', 'clock'], 'off': [], 'weather': 'auto'}
 
 
 class Choice(unittest.TestCase):
@@ -73,6 +73,37 @@ class Choice(unittest.TestCase):
         self.assertEqual(camera, {'op': 'saver', 'k': 'camera', 'e': CAMERA, 'n': 'Front door'})
         self.assertEqual(screen_saver.message(CHOICE, states, False, short, media_extras), {'op': 'saver', 'k': 'clock'})
         self.assertEqual(screen_saver.message({**CHOICE, 'show': False}, states, True, short, media_extras), {'op': 'saver', 'k': ''})
+
+    def test_the_clock_shows_the_outside_temperature(self):
+        """App 0.4.52: under the clock the outside temperature, whole degrees in Home Assistant's own unit, from its
+        first weather entity unless the owner chose one, or none."""
+        home = {'state': 'cloudy', 'attributes': {'temperature': 21.6, 'temperature_unit': '°C', 'friendly_name': 'Home'}}
+        north = {'state': 'sunny', 'attributes': {'temperature': 70.4, 'temperature_unit': '°F'}}
+        states = {'weather.home': home, 'weather.north': north, 'weather.broken': {'state': 'unavailable', 'attributes': {}}}
+        clock = {**CHOICE, 'off': ['media', 'camera']}
+        self.assertEqual(screen_saver.message(clock, states, True, short, media_extras), {'op': 'saver', 'k': 'clock', 'w': '22°'})
+        self.assertEqual(screen_saver.message({**clock, 'weather': 'weather.north'}, states, True, short, media_extras)['w'], '70°')
+        self.assertNotIn('w', screen_saver.message({**clock, 'weather': ''}, states, True, short, media_extras))
+        self.assertNotIn('w', screen_saver.message({**clock, 'weather': 'weather.broken'}, states, True, short, media_extras))
+        # The forecast Home Assistant made for its home comes first, whatever its id sorts as.
+        self.assertEqual(screen_saver.weather_entity(clock, {**states, 'weather.forecast_home': home}), 'weather.forecast_home')
+        # Without a weather entity in Home Assistant there is no temperature, and minus zero is zero.
+        self.assertEqual(screen_saver.message(clock, {}, True, short, media_extras), {'op': 'saver', 'k': 'clock'})
+        self.assertEqual(screen_saver.temperature(clock, {'weather.cold': {'state': 'snowy', 'attributes': {'temperature': -0.4}}}), '0°')
+        self.assertEqual(screen_saver.temperature(clock, {'weather.cold': {'state': 'snowy', 'attributes': {'temperature': -3.6}}}), '-4°')
+        # A picture step carries no temperature, and the app follows the weather entity so a new value goes out.
+        self.assertNotIn('w', screen_saver.message(CHOICE, {**states, PLAYER: PLAYING}, True, short, media_extras))
+        self.assertIn('weather.home', screen_saver.entities(clock, states))
+        self.assertNotIn('weather.home', screen_saver.entities({**clock, 'show': False}, states))
+        self.assertEqual(screen_saver.validate({'weather': 'weather.home'})['weather'], 'weather.home')
+        for wrong in ('sensor.outside', 'Weather', 7):
+            with self.assertRaises(ValueError):
+                screen_saver.validate({'weather': wrong})
+        # A choice kept before 0.4.52 reads as the automatic temperature.
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'screensavers.json'
+            path.write_text('{"version": 1, "screens": {"d1": {"show": true, "media": "", "camera": "", "order": ["media", "camera", "clock"], "off": []}}}')
+            self.assertEqual(screen_saver.ScreenSavers(path).get('d1')['weather'], 'auto')
 
     def test_kept_per_device_beside_the_layouts(self):
         with tempfile.TemporaryDirectory() as tmp:

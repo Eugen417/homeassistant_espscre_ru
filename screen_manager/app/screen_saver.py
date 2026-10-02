@@ -20,7 +20,9 @@ LOG = logging.getLogger(__name__)
 FEATURE = 'screensaver'
 KINDS = ('media', 'camera', 'clock')
 PICTURE_KINDS = frozenset(('media', 'camera'))
-DEFAULT = {'show': False, 'media': '', 'camera': '', 'order': list(KINDS), 'off': []}
+# `weather` (app 0.4.52): whose temperature the clock shows under the time. 'auto' takes Home Assistant's first weather
+# entity that reports one, '' shows none, and a weather entity of your choice is that one.
+DEFAULT = {'show': False, 'media': '', 'camera': '', 'order': list(KINDS), 'off': [], 'weather': 'auto'}
 ENTITY = re.compile(r'[a-z0-9_]+\.[a-z0-9_]+')
 DOMAINS = {'media': ('media_player',), 'camera': ('camera', 'image')}
 # What a player does while its cover counts: playing, as Home Assistant's own media card shows its art.
@@ -43,6 +45,12 @@ def validate(value):
                                                         or entity.split('.')[0] not in DOMAINS[kind])):
             raise ValueError(f'screensaver {kind}')
         result[kind] = entity
+    if 'weather' in value:
+        weather = value['weather']
+        if not isinstance(weather, str) or (weather not in ('auto', '') and (
+                len(weather) > 120 or not ENTITY.fullmatch(weather) or weather.split('.')[0] != 'weather')):
+            raise ValueError('screensaver weather')
+        result['weather'] = weather
     if 'order' in value:
         order = value['order']
         if not isinstance(order, list) or sorted(order) != sorted(KINDS):
@@ -56,9 +64,40 @@ def validate(value):
     return result
 
 
-def entities(choice):
-    """The entities a choice follows."""
-    return {choice[kind] for kind in ('media', 'camera') if choice.get(kind)}
+def _degrees(state):
+    """A weather entity's temperature as a number, or None. Home Assistant gives it in the unit system it is set to."""
+    value = ((state or {}).get('attributes') or {}).get('temperature')
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value != value or abs(value) > 999:
+        return None
+    return value
+
+
+def weather_entity(choice, states):
+    """The weather entity whose temperature the clock shows, or '' for none: the one chosen, or with 'auto' the forecast
+    Home Assistant sets up for its home (Met.no's `weather.forecast_<home>`) and else the first weather entity by its id,
+    of those that report a temperature right now."""
+    wanted = (choice or {}).get('weather', 'auto')
+    if wanted != 'auto':
+        return wanted
+    found = [entity for entity in states if entity.startswith('weather.') and _degrees(states[entity]) is not None]
+    return min(found, key=lambda entity: (not entity.startswith('weather.forecast_'), entity), default='')
+
+
+def temperature(choice, states):
+    """The outside temperature as the clock shows it, whole degrees and the sign alone ("21°"), or '' without one. The
+    number is Home Assistant's own, so Celsius or Fahrenheit as it is set there."""
+    entity = weather_entity(choice, states)
+    value = _degrees(states.get(entity)) if entity else None
+    if value is None or (states.get(entity) or {}).get('state', '') in GONE:
+        return ''
+    return f'{round(value) or 0}°'
+
+
+def entities(choice, states=None):
+    """The entities a choice follows; with the states, also the weather entity its clock reads."""
+    found = {choice[kind] for kind in ('media', 'camera') if choice.get(kind)}
+    weather = weather_entity(choice, states) if states is not None and choice.get('show') else ''
+    return found | ({weather} if weather else set())
 
 
 def available(kind, choice, states, pictures):
@@ -91,6 +130,11 @@ def message(choice, states, pictures, short, media_extras, ground=None):
     `media_extras(attrs)` is the media card's (core.media_extras), `ground(entity, attrs)` the cover's colours."""
     kind = pick(choice, states, pictures)
     result = {'op': 'saver', 'k': kind}
+    if kind == 'clock':
+        # The outside temperature under the time (app 0.4.52, firmware 0.31.0+); older firmware reads past it.
+        degrees = temperature(choice, states)
+        if degrees:
+            result['w'] = degrees
     if kind not in PICTURE_KINDS:
         return result
     entity = choice[kind]
@@ -131,7 +175,7 @@ class ScreenSavers:
 
     def get(self, device):
         choice = self.choices.get(device) or DEFAULT
-        return {**choice, 'order': list(choice['order']), 'off': list(choice['off'])}
+        return {**DEFAULT, **choice, 'order': list(choice['order']), 'off': list(choice['off'])}
 
     def set(self, device, value):
         choice = validate(value)

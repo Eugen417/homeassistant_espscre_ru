@@ -164,9 +164,10 @@ inline bool pictures_awake() { return awake() || saver_pictures; }
 // the cover's colour (the picture is made again when either changes). Where the track is, is no part of it.
 struct SaverChoice {
   std::string kind, entity, name, title, artist, album, picture, ground;
+  std::string weather;  // the clock's outside temperature, ready to draw (firmware 0.31.0+, app 0.4.52)
   bool operator==(const SaverChoice &o) const {
     return kind == o.kind && entity == o.entity && name == o.name && title == o.title && artist == o.artist &&
-           album == o.album && picture == o.picture && ground == o.ground;
+           album == o.album && picture == o.picture && ground == o.ground && weather == o.weather;
   }
 };
 inline SaverChoice saver_next, saver_now;  // the app's latest word, and what the glass shows
@@ -9281,24 +9282,46 @@ inline lv_obj_t *saver_text(lv_obj_t *parent, const lv_font_t *font, uint32_t co
 }
 
 // The clock: the time in the bedside clock's digits where they fit, else the largest digit step that does, and the date
-// under it in the card heading's font, in the screen's own look (dark mode at night, as the bedside clock asks for).
+// under it in the card heading's font, white on black whatever the look. In 12 hours AM or PM stands after the time, and
+// the outside temperature the app sends stands small in the middle at the bottom (firmware 0.31.0+).
 inline void saver_clock_draw() {
   const int width = overlay_card::screen_width(), height = overlay_card::screen_height();
   const auto now = now_time ? now_time() : esphome::ESPTime{};
-  const std::string time = time_text(now), date = date_text(now);
+  const std::string time = time_text(now), date = date_text(now), ampm = am_pm(now);
+  const std::string &degrees = saver_next.weather;
   const bool large = ui::large();
-  const int margin = ui::px(large ? 24 : 10), gap = ui::px(large ? 12 : 6);
+  const int margin = ui::px(large ? 24 : 10), gap = ui::px(large ? 12 : 6), space = ui::px(large ? 8 : 4);
   const lv_font_t *date_font = watch_font ? watch_font : detail_font;
+  const lv_font_t *small = control_font ? control_font : detail_font;
   const int date_h = date_font ? lv_font_get_line_height(date_font) : 24;
+  const int small_h = small ? lv_font_get_line_height(small) : 20;
+  // AM or PM stands after the time in the small font, and the outside temperature keeps a line at the bottom
+  // (firmware 0.31.0+): the digits get the room that is left.
+  const int ampm_w = ampm.empty() || !small ? 0 : text_width(ampm, small);
+  const int room_w = width - 2 * margin - (ampm_w ? space + ampm_w : 0);
+  // The temperature in the date's font: small beside the digits, and as easy to read across a room as the date.
+  const int below = degrees.empty() ? 0 : date_h + gap;
   const lv_font_t *digits = bedside_digits();
-  if (!digits || text_width(time, digits) > width - 2 * margin) digits = largest_digits(time.c_str(), width - 2 * margin, height - 2 * margin - gap - date_h);
+  if (!digits || text_width(time, digits) > room_w) digits = largest_digits(time.c_str(), room_w, height - 2 * margin - gap - date_h - 2 * below);
   if (!digits) digits = clock_font;
   int top = 0, digits_h = 40;
   if (digits) digit_box(digits, top, digits_h);
-  lv_obj_set_style_bg_color(saver_root, theme::color(theme::PAGE), 0);
+  // Black with white digits in both looks (firmware 0.31.0+): a screensaver gives as little light as it can. Before,
+  // the clock stood on the page's own colour, a lit white glass in the light look.
+  lv_obj_set_style_bg_color(saver_root, theme::color(theme::CAMERA_PAGE), 0);
+  const uint32_t ink = media_ink(), soft = theme::mix(ink, theme::hex(theme::CAMERA_PAGE), 150);
   const auto l = saver_view::clock(width, height, digits_h, date.empty() ? 0 : date_h, date.empty() ? 0 : gap);
-  saver_text(saver_root, digits, theme::hex(theme::INK), {0, l.time.y - top, width, digits ? lv_font_get_line_height(digits) : digits_h}, time);
-  if (!date.empty()) saver_text(saver_root, date_font, theme::hex(theme::MUTED), {margin, l.date.y, width - 2 * margin, date_h}, date);
+  const int time_w = digits ? text_width(time, digits) : width;
+  const auto row = saver_view::clock_row(width, time_w, ampm_w, space);
+  saver_text(saver_root, digits, ink, {row.time_x, l.time.y - top, time_w + 2, digits ? (int) lv_font_get_line_height(digits) : digits_h}, time, LV_TEXT_ALIGN_LEFT);
+  if (ampm_w) {
+    // On the digits' baseline, as the clock card's own AM and PM.
+    int small_top = 0, small_digits = small_h;
+    digit_box(small, small_top, small_digits);
+    saver_text(saver_root, small, soft, {row.ampm_x, l.time.y + digits_h - small_digits - small_top, ampm_w + 2, small_h}, ampm, LV_TEXT_ALIGN_LEFT);
+  }
+  if (!date.empty()) saver_text(saver_root, date_font, soft, {margin, l.date.y, width - 2 * margin, date_h}, date);
+  if (!degrees.empty() && date_font) saver_text(saver_root, date_font, soft, saver_view::temperature(width, height, margin, date_h), degrees);
 }
 
 // The words over the picture, once it is there: a cover's title with its artist and album, a camera's name alone, in

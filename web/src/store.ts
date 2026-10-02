@@ -1254,8 +1254,8 @@ export async function setScreensaver(screen: Screen, patch: Partial<ScreensaverC
   if (screen.virtual) return;
   const edit = ++saverEdits;
   try {
-    const { show, media, camera, order, off } = next;
-    const result = await send<{ screensaver: ScreensaverChoice }>(`screens/${encodeURIComponent(screen.id)}/screensaver`, "PUT", { screensaver: { show, media, camera, order, off } });
+    const { show, media, camera, order, off, weather = "auto" } = next;
+    const result = await send<{ screensaver: ScreensaverChoice }>(`screens/${encodeURIComponent(screen.id)}/screensaver`, "PUT", { screensaver: { show, media, camera, order, off, weather } });
     if (result?.screensaver && edit === saverEdits) screen.screensaver = { ...next, ...result.screensaver };
   } catch (e: any) {
     if (edit === saverEdits) screen.screensaver = { ...before };

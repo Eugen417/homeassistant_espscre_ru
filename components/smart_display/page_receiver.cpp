@@ -361,6 +361,8 @@ std::string receive(const std::string &payload) {
         next.picture = string(extra["pic"], 16);
         next.ground = string(extra["g"], 13);
       }
+      // The outside temperature under the clock (app 0.4.52, firmware 0.31.0+), ready to draw: "21°".
+      if (next.kind == "clock") next.weather = string(root["w"], 8);
       saver_receive(next);
       result = model.ready() ? "Synced" : "Loading tiles";
       return true;

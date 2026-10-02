@@ -31,6 +31,16 @@ const choices = (kind: "media" | "camera") => [
     .map((e) => [e.id, e.area ? `${e.name} · ${e.area}` : e.name] as const)
     .sort((a, b) => a[1].localeCompare(b[1])),
 ];
+// The temperature under the clock (app 0.4.52): Home Assistant's first weather entity by default, one of your choice, or
+// none. The screen shows the number in the unit Home Assistant is set to.
+const weatherChoices = computed(() => [
+  ["auto", t("editor.screen_settings.screensaver.weather_auto")] as const,
+  ["", t("editor.screen_settings.screensaver.weather_none")] as const,
+  ...state.inventory.entities
+    .filter((e) => e.id.startsWith("weather."))
+    .map((e) => [e.id, e.area ? `${e.name} · ${e.area}` : e.name] as const)
+    .sort((a, b) => a[1].localeCompare(b[1])),
+]);
 const detail = (kind: SaverKind) => {
   if (kind !== "clock" && !saver.value?.[kind]) return t(`editor.screen_settings.screensaver.details.${kind}_unset`);
   return t(`editor.screen_settings.screensaver.details.${kind}`);
@@ -141,6 +151,8 @@ function onKey(e: KeyboardEvent, i: number) {
             <b>{{ label(kind) }}</b>
             <UiSelect v-if="kind !== 'clock'" class="saver-pick" :id="`screensaver-${kind}`" :model-value="saver[kind]" :options="choices(kind)"
               @update:model-value="(value: string) => change({ [kind]: value })" />
+            <UiSelect v-else class="saver-pick" id="screensaver-weather" :model-value="saver.weather ?? 'auto'" :options="weatherChoices"
+              @update:model-value="(value: string) => change({ weather: value })" />
             <small>{{ detail(kind) }}</small>
           </span>
           <button type="button" class="switch" role="switch" :aria-checked="isOn(kind) ? 'true' : 'false'"

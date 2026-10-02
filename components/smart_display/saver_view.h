@@ -67,4 +67,16 @@ inline ClockLayout clock(int width, int height, int digits_h, int date_h, int ga
   const int y = (height - group) / 2;
   return {{0, y, width, digits_h}, {0, y + digits_h + gap, width, date_h}};
 }
+// The clock's time with AM or PM after it (firmware 0.31.0+): the two together in the middle, `space` apart; without
+// AM or PM (24 hours) the time alone. The x of each.
+struct ClockRow { int time_x, ampm_x; };
+inline ClockRow clock_row(int width, int time_w, int ampm_w, int space) {
+  const int group = time_w + (ampm_w > 0 ? space + ampm_w : 0);
+  const int x = (width - group) / 2;
+  return {x, x + time_w + space};
+}
+// The outside temperature (firmware 0.31.0+): one small line in the middle at the bottom, a margin from the edge.
+inline Rect temperature(int width, int height, int margin, int line_h) {
+  return {margin, height - margin - line_h, std::max(1, width - 2 * margin), line_h};
+}
 }  // namespace saver_view

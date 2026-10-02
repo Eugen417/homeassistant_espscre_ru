@@ -34,8 +34,11 @@ touch never switches a lamp or opens a card under it.
   A title too long for one line takes two, above the artist (firmware 0.30.0); one longer still ends in dots.
 - **Camera**: the camera over the whole glass, cut to it the way a photo fills a frame, with its name small at the
   bottom left, refreshed every 15 seconds.
-- **Clock**: the time in the bedside clock's digits and the date under it, in the screen's own colours. With Dark mode
-  and night hours the clock stands in white on black at night.
+- **Clock**: the time in the bedside clock's digits and the date under it, white on black whatever the look, so the
+  glass gives as little light as it can (firmware 0.31.0; before, it stood in the screen's own colours). On 12 hours AM
+  or PM stands after the time. Small in the middle at the bottom is the outside temperature: Home Assistant's forecast
+  for its home (Met.no's, else its first weather entity) unless you choose one under the clock in the editor (or none), whole degrees in the unit Home
+  Assistant is set to (app 0.4.52).
 
 The cover and the camera are a little darker everywhere, so the words always read, and there is nothing else on them:
 no bar, no keys, no spinner.
