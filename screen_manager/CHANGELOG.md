@@ -1,3 +1,21 @@
+## 0.4.45 (firmware 0.26.0)
+
+- **Play your speakers together.** The speaker menu on a player's card now groups, the way Home Assistant's own join
+  dialog does: a player that reports grouping (Sonos and others) lists the players of its own integration that do too.
+  A speaker in the group has a filled tick and its own volume under its name, the others a plus; the plus adds one at
+  once, the tick takes it out, and the pill at the top names the group ("Living room + 1"). A tap on the name of a
+  speaker already in the group does nothing, so a finger that misses its volume never breaks the group. More speakers
+  than the glass holds go on pages, as the rest of the screen does.
+- **Spotify on a Sonos.** Spotify Connect rarely lists a Sonos, but Home Assistant's Sonos integration lists your
+  Spotify account in every Sonos's library once Spotify is linked in the Sonos app. The Spotify tile now offers those
+  speakers next to its Spotify Connect devices: pick one and what plays moves there, a playlist or album from the
+  library plays there, and the card follows that speaker (its cover, its keys, its volume) until Spotify plays on its own
+  again. The speakers in that group join and leave as above. A favourite can have such a speaker as its own.
+- **Inputs behind their own key.** Home Assistant's `source` is a player's input, so a Sonos's TV input and favourites,
+  or a TV's ports, showed up as speakers in the pill. They now sit behind an input key at the top of the card, with
+  Home Assistant's own icon for it, and the pill keeps the speakers. Spotify's sources stay speakers, since they are
+  the Spotify Connect devices. A screen on older firmware keeps the menu it had.
+
 ## 0.4.44 (firmware 0.25.0)
 
 - **A heat/cool range on the thermostat card, as a band.** A thermostat set to a range (heat/cool, with a low and a high

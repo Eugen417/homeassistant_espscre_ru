@@ -25,6 +25,7 @@ import ha_catalogue
 import light_effects
 import light_groups
 import media_library
+import speakers
 import map_card
 import map_tiles
 import tile_icons
@@ -263,7 +264,7 @@ class HomeAssistant:
                     self.camera_requests.put_nowait(body)
                 elif event.get('event_type') == light_effects.OPTIONS_EVENT:
                     self.options_requests.put_nowait(body)
-                elif event.get('event_type') in (media_library.BROWSE_EVENT, media_library.PLAY_EVENT):
+                elif event.get('event_type') in (media_library.BROWSE_EVENT, media_library.PLAY_EVENT, speakers.SPEAKER_EVENT):
                     self.media_requests.put_nowait((event['event_type'], body))
                 elif event.get('event_type') == 'state_changed':
                     eid = body.get('entity_id')
@@ -465,6 +466,7 @@ class HomeAssistant:
                     await self.request('subscribe_events', event_type=light_effects.OPTIONS_EVENT)
                     await self.request('subscribe_events', event_type=media_library.BROWSE_EVENT)
                     await self.request('subscribe_events', event_type=media_library.PLAY_EVENT)
+                    await self.request('subscribe_events', event_type=speakers.SPEAKER_EVENT)
                     for event_type in (*REGISTRY_EVENTS, *BROADCAST_EVENTS, ALERT_EVENT, *TILE_EVENTS, *SERVICE_EVENTS):
                         await self.request('subscribe_events', event_type=event_type)
                     self.states = {s['entity_id']: s for s in await self.request('get_states')}
@@ -850,8 +852,8 @@ class Manager:
         # Camera images (firmware 0.2.57+): the feed behind the camera port, and the cameras of recent alerts
         # (entity -> monotonic time) that a screen may open full screen without a tile.
         self.camera = camera_feed.CameraFeed(lambda entity: self.ha.camera_image(entity),
-                                             fetch_cover=lambda entity: self.ha.media_image(entity),
-                                             picture=lambda entity: self.ha.media_picture(entity))
+                                             fetch_cover=lambda entity: self.ha.media_image(self.followed(entity)),
+                                             picture=lambda entity: self.ha.media_picture(self.followed(entity)))
         self.alert_cameras = {}
         # The streets of the map cards (app 0.4.33): one tile source for every screen, through Home Assistant. And the
         # last maps drawn, by their mark, frame and look: a screen in dark mode and one in light mode each have their
@@ -867,6 +869,9 @@ class Manager:
         self.shelves, self.folders, self.browsable, self.browse_probes = {}, OrderedDict(), {}, {}
         self.grounds, self.ground_reads, self.started = OrderedDict(), {}, {}
         self.thumbnails = OrderedDict()
+        # Where a player plays (speakers.py): the speaker this app started each player's music on, which its card
+        # follows, and the top of each player's library as far as it names accounts (entity -> (monotonic, ids)).
+        self.outputs, self.accounts, self.account_probes = {}, {}, {}
         self.preview_tiles = []
         self.map_pictures = OrderedDict()
         self.map_hits = {}
@@ -1589,6 +1594,73 @@ class Manager:
             self.ha.dirty.add(entity)
             self.ha.changed.set()
 
+    # ----- Where a player plays (speakers.py) -----
+    def platform_lookup(self, entity):
+        lookup = getattr(self.ha, 'platform_of', None)
+        return lookup(entity) if lookup else None
+
+    def account_holders(self, entity):
+        """The players whose library lists this player's account (a Sonos lists a linked Spotify account), by name. A
+        player's library top is read once and again after BROWSABLE_SECONDS; until then it holds nothing."""
+        if self.platform_lookup(entity) not in speakers.SOURCE_SPEAKERS:
+            return []
+        entry = (self.registry_index().get(entity) or {}).get('config_entry_id')
+        if not entry:
+            return []
+        now, found = time.monotonic(), []
+        for other, state in list(self.ha.states.items()):
+            if not isinstance(other, str) or not other.startswith('media_player.') or other == entity or not isinstance(state, dict):
+                continue
+            if state.get('state') in ('unavailable', 'unknown'):
+                continue
+            if not self.players.widest(other, state.get('attributes') or {}) & media_library.BROWSE_MEDIA:
+                continue
+            known = self.accounts.get(other)
+            if (not known or now - known[0] >= media_library.BROWSABLE_SECONDS) and other not in self.account_probes \
+                    and getattr(self.ha, 'online', False):
+                self.account_probes[other] = asyncio.ensure_future(self.probe_account(other))
+            if known and speakers.holds_account(known[1], entry):
+                found.append(other)
+        return sorted(found, key=lambda e: speakers.name_of(e, self.ha.states).lower())
+
+    async def probe_account(self, entity):
+        ids = ()
+        try:
+            folder = await self.read_folder(entity, None)
+            ids = tuple(item['id'] for item in folder['items'])
+        except Exception as error:
+            LOG.info('The library of %s does not open (%s)', entity, type(error).__name__)
+        finally:
+            self.account_probes.pop(entity, None)
+        before = self.accounts.get(entity)
+        self.accounts[entity] = (time.monotonic(), ids)
+        if not before or before[1] != ids:
+            # The players whose menu lists this one show it now.
+            self.ha.dirty.update(tile['entity'] for layout in self.layouts.values() for tile in layout['tiles']
+                                 if tile['entity'].startswith('media_player.'))
+            self.ha.changed.set()
+
+    def speaker_menu(self, entity):
+        """A player's speaker menu and inputs (speakers.menu); a player that plays itself again is followed no more."""
+        output = self.outputs.get(entity)
+        found = speakers.menu(entity, self.ha.states, self.platform_lookup, self.account_holders(entity), output)
+        if output and not found['target'] and (self.ha.states.get(entity) or {}).get('state') == 'playing':
+            self.outputs.pop(entity, None)
+        return found
+
+    def followed(self, entity):
+        """The player a card shows: the speaker it follows (speakers.target_of), or the player itself."""
+        return speakers.target_of(entity, self.ha.states, self.outputs.get(entity)) or entity
+
+    def following_states(self, entity, target):
+        """The states with the player's own state replaced by the speaker it follows, under the player's name."""
+        own, other = self.ha.states.get(entity) or {}, self.ha.states.get(target) or {}
+        attrs = {**(other.get('attributes') or {})}
+        name = (own.get('attributes') or {}).get('friendly_name')
+        if name:
+            attrs['friendly_name'] = name
+        return {**self.ha.states, entity: {**other, 'entity_id': entity, 'attributes': attrs}}
+
     async def read_folder(self, entity, item):
         """A folder of a player, read again only after FOLDER_SECONDS: a screen asks for its pages one by one."""
         key = (entity, (item['type'], item['id']) if item else None)
@@ -1625,6 +1697,8 @@ class Manager:
                 try:
                     if kind == media_library.BROWSE_EVENT:
                         await self.answer_browse(request)
+                    elif kind == speakers.SPEAKER_EVENT:
+                        await self.answer_speaker(request)
                     else:
                         await self.answer_play(request)
                 except Exception as error:
@@ -1688,16 +1762,53 @@ class Manager:
         if item is None or not item['play']:
             return
         attrs = self.ha.states.get(entity, {}).get('attributes') or {}
-        if source is not None and source not in (attrs.get('source_list') or []):
+        # The speaker by its row in the menu (speakers.py): a Spotify Connect device is a source of the player, a
+        # speaker of its library plays the item itself, and without one it plays where the card says it does.
+        menu = self.speaker_menu(entity)
+        row = speakers.find(menu, source)
+        where = entity
+        if row is not None and row['source']:
+            source = row['source']
+        elif row is not None and row['entity']:
+            where, source = row['entity'], None
+        elif source is None and menu['target']:
+            where = menu['target']
+        elif source is not None and source not in (attrs.get('source_list') or []):
             LOG.info('%s on %s: no speaker %s', item['title'], entity, source)
             return
-        outcome = await media_library.start(self.ha.states, self.ha.call_service, entity, item, source)
+        outcome = await media_library.start(self.ha.states, self.ha.call_service, where, item, source)
         if outcome == 'playing':
+            if where != entity:
+                self.outputs[entity] = where
+            elif source is not None:
+                self.outputs.pop(entity, None)
             self.started[entity] = (item['type'], item['id'])
             # Every favourite of this player says again whether it is the one that plays.
             self.ha.dirty.add(entity)
             self.ha.changed.set()
         LOG.info('%s on %s from %s: %s', item['title'], entity, screen['name'], outcome)
+
+    async def answer_speaker(self, request):
+        """A tap in a player's speaker menu (firmware with speakers.FEATURE): pick a speaker, join or leave the group, or
+        set a speaker's volume, each through Home Assistant's own action (speakers.plan)."""
+        found = self.player_request(request)
+        if not found:
+            return
+        inbox, screen, entity, action = found
+        op = request.get('op') if request.get('op') in ('pick', 'join', 'leave', 'volume') else None
+        menu = self.speaker_menu(entity)
+        row = speakers.find(menu, request.get('speaker'))
+        steps, follow = speakers.plan(entity, menu, row, op, self.ha.states, self.media_token(request.get('volume')))
+        for domain, service, data in steps:
+            await self.ha.call_service(domain, service, data)
+        if follow == '':
+            self.outputs.pop(entity, None)
+        elif follow:
+            self.outputs[entity] = follow
+        self.ha.dirty.add(entity)
+        self.ha.changed.set()
+        if steps or follow is not None:
+            LOG.info('%s of %s from %s: %s', op, request.get('speaker'), entity, screen['name'])
 
     async def library_art(self, inbox, screen, request):
         """The covers of one page of a folder as one picture (an atlas, tile_art), in the screen's frames: the items by
@@ -1861,6 +1972,14 @@ class Manager:
             followed = (tuple(e for e in self.ha.states if isinstance(e, str) and e.split('.')[0] in ('person', 'device_tracker'))
                         if everyone else tuple(map_card.shown(tile, self.ha.states)))
             return tuple(e for e in followed if e != tile['entity']) + tuple(e for e in self.ha.states if isinstance(e, str) and e.startswith('zone.'))
+        if tile['entity'].startswith('media_player.'):
+            # The speakers of its menu: who it groups with, the speakers that play its library, and the one it follows.
+            entity = tile['entity']
+            related = set(speakers.group_mates(entity, self.ha.states, self.platform_lookup)) | set(self.account_holders(entity))
+            output = self.outputs.get(entity)
+            if output:
+                related |= set(speakers.members(output, self.ha.states))
+            return tuple(sorted(related - {entity}))
         if tile['entity'].startswith('light.'):
             # The selects and numbers of its device (effects page), and a group's lamps (lamp page, app 0.3.16).
             return (tuple(light_effects.related(tile['entity'], self.device_entries(tile['entity']), self.ha.states)) +
@@ -2061,7 +2180,9 @@ class Manager:
         objects when they change; a group's lamps live in its state."""
         groups = tuple((tile['entity'], tuple(light_groups.lamp_ids(tile['entity'], self.ha.states)))
                        for layout in self.layouts.values() for tile in layout['tiles'] if tile['entity'].startswith('light.'))
-        key = (id(getattr(self.ha, 'registry', [])), id(self.layouts), groups)
+        # The speakers a player's menu lists change with what this app started and the libraries it read.
+        media = (tuple(sorted(self.outputs.items())), tuple(sorted(e for e, known in self.accounts.items() if known[1])))
+        key = (id(getattr(self.ha, 'registry', [])), id(self.layouts), groups, media)
         if key != self._watched_key:
             watched = {tile['entity'] for layout in self.layouts.values() for tile in layout['tiles']}
             watched |= {item['entity'] for record in self.store.records().values() if record['format'] == PAGE_FORMAT
@@ -2103,6 +2224,14 @@ class Manager:
         # A vacuum's card also reads selects and the battery sensor of its device (app 0.2.46), a cover's card its battery (0.2.58).
         device=self.device_entries(tile['entity']) if tile['entity'].startswith(('vacuum.', 'cover.', 'light.')) else None
         entry=self.registry_index().get(tile['entity'])
+        # A player's speakers and inputs (speakers.py), to a screen that draws them; a player that plays on a speaker of
+        # its library through this app shows that speaker, under its own name.
+        menu=None
+        states=self.ha.states
+        if tile['entity'].startswith('media_player.') and (features is None or speakers.FEATURE in features):
+            menu=self.speaker_menu(tile['entity'])
+            if menu['target']:
+                states=self.following_states(tile['entity'],menu['target'])
         # A favourite (app 0.4.42) is named after what it plays until it is given a name of its own.
         options=tile.get('options') or {}
         favorite=tile['entity'].startswith('media_player.') and options.get('display')=='favorite'
@@ -2110,19 +2239,21 @@ class Manager:
             tile={**tile,'name':options['play'].get('title') or ''}
         # A light's effects page (app 0.2.83) names the device's selects and numbers as Home Assistant does, with its icons.
         light=tile['entity'].startswith('light.')
-        extra=extras(tile,self.ha.states,forecast,getattr(self.ha,'time_zone',None),hourly,device=device,
+        extra=extras(tile,states,forecast,getattr(self.ha,'time_zone',None),hourly,device=device,
                      entries=self.registry_index() if light or (tile.get('options') or {}).get('display') == 'map' else None,words=getattr(self.ha,'state_words',None) if light else None,
                      icon_of=row_icon if light else None,device_name=self.device_name_of(tile['entity']) if light else None)
         if tile['entity'].startswith('vacuum.'):
             ha_catalogue.chip_words(extra,tile['entity'],self.ha.states,device,getattr(self.ha,'state_words',None))
-        message=state_message(index,tile,self.ha.states,extra,
+        message=state_message(index,tile,states,extra,
                               precision=header_bar.precision_of(entry) if tile['entity'].startswith('sensor.') else None,entry=entry,
                               units=getattr(self.ha,'units',None))
         # A media player at rest keeps the controls it had while it played (GitHub #88): what it draws is cut to the
         # widest features it reported, and the screen fades what it lacks right now.
         player=tile['entity'].startswith('media_player.')
-        attributes=self.ha.states.get(tile['entity'],{}).get('attributes') or {}
-        widest=self.players.note(tile['entity'],attributes) if player else 0
+        attributes=states.get(tile['entity'],{}).get('attributes') or {}
+        # A card that follows a speaker draws the speaker's keys, and leaves the player's own memory as it was.
+        following=bool(menu and menu['target'])
+        widest=(media_library.features_of(attributes) if following else self.players.note(tile['entity'],attributes)) if player else 0
         if self.players.dirty:
             self.players.save()
         if player and widest!=message['a'].get('supported_features',0):
@@ -2138,17 +2269,21 @@ class Manager:
         if player and (features is None or media_library.FEATURE in features):
             more=media_library.player_extras(attributes,widest,self.player_ground(tile['entity'],attributes),
                                              self.player_browsable(tile['entity'],widest))
+            if menu is not None:
+                # The menu's rows replace source_list: a Sonos's inputs go behind their own key, never in the pill.
+                more.pop('so',None);more.pop('sl',None)
+                more.update(speakers.extras(menu))
             if more:
                 message.setdefault('x',{}).update(more)
             # A favourite (firmware 0.24.0): what it plays, on which speaker, and whether it plays now.
             if favorite:
                 play=options.get('play') or {}
-                state_now=self.ha.states.get(tile['entity'],{}).get('state')
+                state_now=states.get(tile['entity'],{}).get('state')
                 started=self.started.get(tile['entity']) if state_now in ('playing','paused') else None
                 word=screen_t(f"addon.screen.media.{play.get('class') or 'music'}") if (play.get('class') or 'music') in FAVORITE_KINDS else ''
                 message.setdefault('x',{}).update(media_library.favorite_extras(play,options.get('speaker'),attributes if state_now in ('playing','paused') else {},started,word))
         # Home Assistant's word where the screen would show the raw state (firmware 0.2.58+ shows it).
-        state=self.ha.states.get(tile['entity'],{})
+        state=states.get(tile['entity'],{})
         word=ha_catalogue.screen_word(tile['entity'],message['state'],state.get('attributes'),entry,getattr(self.ha,'state_words',None))
         if word:
             message.setdefault('x',{})['w']=word
@@ -3551,6 +3686,8 @@ def create_app(manager, development=False):
                 sources = state.get('attributes', {}).get('source_list')
                 if isinstance(sources, list):
                     attributes['source_list'] = [str(s) for s in sources if isinstance(s, str)][:media_library.SOURCES]
+                # The speakers of its menu (speakers.py): what a favourite may play on, a Sonos for Spotify included.
+                attributes['speakers'] = [row['name'] for row in manager.speaker_menu(eid)['rows']]
                 for key in ('media_title', 'media_artist', 'media_album_name', 'media_duration', 'media_position'):
                     value = state.get('attributes', {}).get(key)
                     if isinstance(value, (str, int, float)):

@@ -126,7 +126,9 @@ const favoritePlay = computed(() => props.tile.options?.play as FavoritePlay | u
 const choosing = ref(false);
 watch(() => props.tile.id, () => { choosing.value = false; });
 const speakers = computed(() => {
-  const listed = (liveOf(props.tile.entity)?.a?.source_list as string[] | undefined) ?? [];
+  // The rows of the player's speaker menu (app speakers.py), or its sources from an app before them.
+  const live = liveOf(props.tile.entity)?.a;
+  const listed = ((live?.speakers ?? live?.source_list) as string[] | undefined) ?? [];
   const chosen = props.tile.options?.speaker as string | undefined;
   const names = chosen && !listed.includes(chosen) ? [...listed, chosen] : listed;
   return [["", t("editor.tile.favorite.speaker_now")] as [string, string], ...names.map((name) => [name, name] as [string, string])];

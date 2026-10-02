@@ -216,6 +216,9 @@ FIXED = (
     ('home-map-marker', 'F05F8'),
     ('plus', 'F0415'),
     ('minus', 'F0374'),
+    # A player's input key: Home Assistant's icon for `source` (more-info-media_player, mdiLoginVariant), drawn the same
+    # by exit-to-app in this font.
+    ('exit-to-app', 'F0206'),
     ('chevron-left', 'F0141'),
     ('chevron-right', 'F0142'),
     ('close', 'F0156'),

@@ -229,6 +229,14 @@ on the screen itself, and how updates work.
   one playlist, album or artist, picked in the editor from the same library, with the speaker it plays on; a tap starts
   it and a ring marks it while it plays. A Spotify player at rest keeps its library and speakers. The library and the
   covers need a board with camera pictures; the CYD keeps the card, the speakers and the favourites with icons.
+- **Speakers together** (app 0.4.45 / firmware 0.26.0): the speaker menu of a player that reports grouping lists the
+  players of its own integration that do too, as Home Assistant's own join dialog does. A plus joins one
+  (`media_player.join`), the tick takes it out (`media_player.unjoin`), and each speaker in the group has its own volume.
+  The Spotify tile also lists every speaker whose library holds the Spotify account (a Sonos with Spotify linked shows
+  it): a tap moves what plays there with `play_media`, and the card follows that speaker until Spotify plays on its own
+  again. A player's `source_list` is its input in Home Assistant, so a Sonos's TV input and favourites or a TV's ports
+  sit behind an input key with Home Assistant's icon for it, never among the speakers. Spotify's sources stay speakers,
+  since they are the Spotify Connect devices.
 - **Cameras** on a Guition (app 0.2.66 / firmware 0.2.57): a `camera.*` entity, or an `image.*` one such
   as a doorbell's last ring, is a tile like any other. A tap opens the picture full screen, refreshed every
   four seconds, with the round back key; standby and **Back to page 1** close it. The same camera can bring its

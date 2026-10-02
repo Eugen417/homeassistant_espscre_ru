@@ -650,6 +650,27 @@ std::string receive(const std::string &payload) {
         std::string name = string(source, 48);
         if (!name.empty()) next.media_sources.push_back(std::move(name));
       }
+      // Where it plays (firmware 0.26.0+): each speaker's flags and volume, its inputs and the speaker it follows.
+      if (extra["sf"].is<JsonArray>()) {
+        for (JsonVariant flags : extra["sf"].as<JsonArray>()) {
+          if (next.speaker_flags.size() == next.media_sources.size()) break;
+          next.speaker_flags.push_back(static_cast<uint8_t>(flags.as<unsigned>() & 0xFF));
+        }
+        next.speaker_flags.resize(next.media_sources.size(), 0);
+        if (extra["sv"].is<JsonArray>()) for (JsonVariant volume : extra["sv"].as<JsonArray>()) {
+          if (next.speaker_volumes.size() == next.media_sources.size()) break;
+          const int v = volume.is<int>() ? volume.as<int>() : -1;
+          next.speaker_volumes.push_back(static_cast<int8_t>(v < 0 || v > 100 ? -1 : v));
+        }
+        next.speaker_volumes.resize(next.media_sources.size(), -1);
+      }
+      if (extra["in"].is<JsonArray>()) for (JsonVariant input : extra["in"].as<JsonArray>()) {
+        if (next.media_inputs.size() == 16) break;
+        std::string name = string(input, 48);
+        if (!name.empty()) next.media_inputs.push_back(std::move(name));
+      }
+      next.media_input = string(extra["ic"], 48);
+      next.media_target = string(extra["ct"], 64);
       next.media_shuffle = extra["sh"].is<int>() ? static_cast<int8_t>(extra["sh"].as<int>() ? 1 : 0) : -1;
       next.media_repeat = string(extra["rp"], 4);
       if (next.media_repeat != "off" && next.media_repeat != "all" && next.media_repeat != "one") next.media_repeat.clear();

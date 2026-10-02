@@ -179,6 +179,7 @@ inline constexpr Named NAMES[] = {
   {"home-map-marker", 0xF05F8},
   {"plus", 0xF0415},
   {"minus", 0xF0374},
+  {"exit-to-app", 0xF0206},
   {"chevron-left", 0xF0141},
   {"chevron-right", 0xF0142},
   {"close", 0xF0156},

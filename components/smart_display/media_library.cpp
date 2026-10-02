@@ -30,7 +30,7 @@ struct Art {
 };
 static Art art;
 // What a finger uses, for describe(): the cells of the page, the pager's keys, the menu's rows.
-static std::vector<lv_obj_t *> cell_objs, pager_objs, row_objs;
+static std::vector<lv_obj_t *> cell_objs, pager_objs, row_objs, join_objs, slider_objs, menu_pager_objs;
 // Each cell's parts that say "this plays": its cover's frame (or its card) and its title.
 struct Marked { lv_obj_t *frame = nullptr, *title = nullptr; size_t index = 0; };
 static std::vector<Marked> marks;
@@ -491,14 +491,48 @@ void received(Answer &&answer) {
 }
 
 // ---- the speaker menu ----
+// Two lists open here: the speakers (media_sources) and, from the input key, the inputs (media_inputs, firmware
+// 0.26.0+). A player whose speakers carry flags (the app's speakers.py) gets a speaker menu that groups: a speaker in
+// the group shows a filled tick and its own volume under its name, one that may join a round plus; a tap on the
+// name of one outside the group picks it (or joins it), a tap on the name of one inside does nothing, so a finger
+// that misses the volume never breaks the group.
+static bool menu_inputs = false;
+static std::vector<size_t> menu_starts;  // the first row of each page
 static void draw_menu();
+static const std::vector<std::string> *menu_list(const Tile *t) {
+  if (!t) return nullptr;
+  return menu_inputs ? &t->extra().media_inputs : &t->extra().media_sources;
+}
+static bool grouping(const Tile *t) { return t && !menu_inputs && !t->extra().speaker_flags.empty(); }
+static uint8_t flags_of(const Tile *t, size_t index) {
+  return grouping(t) && index < t->extra().speaker_flags.size() ? t->extra().speaker_flags[index] : 0;
+}
+static int volume_of(const Tile *t, size_t index) {
+  return grouping(t) && index < t->extra().speaker_volumes.size() ? t->extra().speaker_volumes[index] : -1;
+}
+static bool with_volume(const Tile *t, size_t index) {
+  const uint8_t f = flags_of(t, index);
+  return (f & SPEAKER_ON) && (f & SPEAKER_GROUPS) && volume_of(t, index) >= 0;
+}
+// What the menu shows, to draw it again only when that changes.
+static std::string menu_key(const Tile *t) {
+  std::string key = menu_inputs ? "i" + t->extra().media_input : "s" + t->extra().media_source;
+  const auto *list = menu_list(t);
+  for (size_t i = 0; list && i < list->size(); ++i)
+    key += "\n" + (*list)[i] + "," + std::to_string(flags_of(t, i)) + "," + std::to_string(volume_of(t, i));
+  return key;
+}
 static void menu_close() {
   if (menu_root) { lv_obj_delete(menu_root); menu_root = nullptr; }
   row_objs.clear();
+  join_objs.clear();
+  slider_objs.clear();
+  menu_pager_objs.clear();
   const bool was_card = !root;
   menu_entity.clear();
   menu_then = 0;
   menu_tile = -1;
+  menu_inputs = false;
   if (was_card && rt::detail_root && !lv_obj_has_flag(rt::detail_root, LV_OBJ_FLAG_HIDDEN) && rt::detail_index < rt::model.count) rt::refresh_detail(rt::detail_index);
 }
 static void menu_scrim_event(lv_event_t *e) {
@@ -510,14 +544,32 @@ static void menu_pager_event(lv_event_t *e) {
   menu_page = static_cast<unsigned>(std::max(0, static_cast<int>(menu_page) + static_cast<int>(reinterpret_cast<intptr_t>(lv_event_get_user_data(e)))));
   draw_menu();
 }
+// The flags of a speaker on every tile of the player, at once: Home Assistant's next state confirms them.
+static void set_flags(const std::string &id, size_t index, uint8_t flags) {
+  for (size_t i = 0; i < rt::model.count; ++i)
+    if (rt::model.tiles[i].entity == id) if (auto *x = rt::model.tiles[i].extra_ptr()) if (index < x->speaker_flags.size()) x->speaker_flags[index] = flags;
+}
 static void choose(size_t index) {
   const Tile *t = player(menu_entity);
-  if (!t || index >= t->extra().media_sources.size()) return;
-  const std::string name = t->extra().media_sources[index], id = menu_entity;
+  const auto *list = menu_list(t);
+  if (!t || !list || index >= list->size()) return;
+  const std::string name = (*list)[index], id = menu_entity;
+  if (menu_inputs) {
+    // An input: Home Assistant's own action on the player, as its media dialog does.
+    ESP_LOGI("library", "Input %s for %s", name.c_str(), id.c_str());
+    if (name != t->extra().media_input) rt::action("media_player.select_source", id, "source", name);
+    for (size_t i = 0; i < rt::model.count; ++i)
+      if (rt::model.tiles[i].entity == id) if (auto *x = rt::model.tiles[i].extra_ptr()) x->media_input = name;
+    menu_close();
+    return;
+  }
+  const uint8_t flags = flags_of(t, index);
+  const bool groups = grouping(t);
+  if ((flags & SPEAKER_ON) && (flags & SPEAKER_GROUPS)) return;  // in the group: only its tick takes it out
   const uint32_t then = menu_then;
   const int favorite = menu_tile;
   // A speaker it plays on already is no change, unless it plays nowhere: then the choice wakes it.
-  const bool change = name != t->extra().media_source || t->state == "idle";
+  const bool change = groups ? !(flags & SPEAKER_ON) : (name != t->extra().media_source || t->state == "idle");
   ESP_LOGI("library", "Speaker %s for %s", name.c_str(), id.c_str());
   if (favorite >= 0) {
     if (favorite < 64) rt::favorite_started_at[favorite] = std::max<uint32_t>(1, clock_ms());
@@ -527,8 +579,16 @@ static void choose(size_t index) {
     starting = then;
     starting_at = clock_ms();
     rt::play_request(id, then, name);
+  } else if (change && groups) {
+    rt::speaker_request(id, name, "pick");
   } else if (change) {
     rt::action("media_player.select_source", id, "source", name);
+  }
+  if (groups && (flags & SPEAKER_GROUPS) && !then && favorite < 0) {
+    // Joined: the menu stays and shows it in the group at once.
+    set_flags(id, index, flags | SPEAKER_ON);
+    draw_menu();
+    return;
   }
   // The pill says the new speaker at once; Home Assistant's next state confirms it.
   for (size_t i = 0; i < rt::model.count; ++i)
@@ -540,14 +600,67 @@ static void menu_row_event(lv_event_t *e) {
   if (!steady()) return;
   choose(static_cast<size_t>(reinterpret_cast<intptr_t>(lv_event_get_user_data(e))));
 }
+// The round key at the end of a speaker that groups: in the group it takes it out, outside it adds it.
+static void menu_join_event(lv_event_t *e) {
+  if (!steady()) return;
+  const size_t index = static_cast<size_t>(reinterpret_cast<intptr_t>(lv_event_get_user_data(e)));
+  const Tile *t = player(menu_entity);
+  const auto *list = menu_list(t);
+  if (!t || !list || index >= list->size()) return;
+  const uint8_t flags = flags_of(t, index);
+  const bool leave = flags & SPEAKER_ON;
+  rt::speaker_request(menu_entity, (*list)[index], leave ? "leave" : "join");
+  set_flags(menu_entity, index, leave ? flags & ~SPEAKER_ON : flags | SPEAKER_ON);
+  draw_menu();
+}
+// A speaker's volume, sent when the finger lets go.
+static void menu_volume_event(lv_event_t *e) {
+  if (lv_event_get_code(e) != LV_EVENT_RELEASED || !steady()) return;
+  auto *slider = static_cast<lv_obj_t *>(lv_event_get_target(e));
+  const size_t index = static_cast<size_t>(reinterpret_cast<intptr_t>(lv_event_get_user_data(e)));
+  const Tile *t = player(menu_entity);
+  const auto *list = menu_list(t);
+  if (!t || !list || index >= list->size()) return;
+  const int value = lv_slider_get_value(slider);
+  rt::speaker_request(menu_entity, (*list)[index], "volume", value);
+  for (size_t i = 0; i < rt::model.count; ++i)
+    if (rt::model.tiles[i].entity == menu_entity) if (auto *x = rt::model.tiles[i].extra_ptr())
+      if (index < x->speaker_volumes.size()) x->speaker_volumes[index] = static_cast<int8_t>(value);
+  menu_drawn = menu_key(t);
+}
+static lv_obj_t *volume_slider(lv_obj_t *parent, int x, int y, int w, int h, int value) {
+  auto *s = lv_slider_create(parent);
+  lv_obj_remove_style_all(s);
+  lv_obj_remove_flag(s, LV_OBJ_FLAG_SCROLLABLE);
+  const int track = std::max(4, ui::px(ui::large() ? 8 : 6)), knob = track + ui::px(ui::large() ? 14 : 10);
+  lv_obj_set_pos(s, x, y + (h - track) / 2);
+  lv_obj_set_size(s, w, track);
+  lv_obj_set_ext_click_area(s, (h - track) / 2);
+  lv_slider_set_range(s, 0, 100);
+  lv_slider_set_value(s, value, LV_ANIM_OFF);
+  for (auto part : {LV_PART_MAIN, LV_PART_INDICATOR}) {
+    lv_obj_set_style_radius(s, LV_RADIUS_CIRCLE, part);
+    lv_obj_set_style_bg_opa(s, LV_OPA_COVER, part);
+  }
+  lv_obj_set_style_bg_color(s, theme::color(theme::TRACK), LV_PART_MAIN);
+  lv_obj_set_style_bg_color(s, theme::color(theme::ACCENT), LV_PART_INDICATOR);
+  lv_obj_set_style_bg_opa(s, LV_OPA_COVER, LV_PART_KNOB);
+  lv_obj_set_style_bg_color(s, theme::color(theme::SLIDER_KNOB), LV_PART_KNOB);
+  lv_obj_set_style_radius(s, LV_RADIUS_CIRCLE, LV_PART_KNOB);
+  lv_obj_set_style_pad_all(s, (knob - track) / 2, LV_PART_KNOB);
+  return s;
+}
 static void draw_menu() {
   if (menu_root) { lv_obj_delete(menu_root); menu_root = nullptr; }
   row_objs.clear();
+  join_objs.clear();
+  slider_objs.clear();
+  menu_pager_objs.clear();
   const Tile *t = player(menu_entity);
-  if (!t || t->extra().media_sources.empty()) return;
-  const auto &sources = t->extra().media_sources;
-  menu_drawn = t->extra().media_source;
-  for (const auto &name : sources) menu_drawn += "\n" + name;
+  const auto *list = menu_list(t);
+  if (!t || !list || list->empty()) return;
+  const auto &names = *list;
+  menu_drawn = menu_key(t);
   menu_due = false;
   const auto m = effects_page::screen_metrics();
   const int width = overlay_card::screen_width(), height = overlay_card::screen_height();
@@ -558,59 +671,103 @@ static void draw_menu() {
   lv_obj_set_style_bg_color(menu_root, theme::color(theme::CAMERA_PAGE), 0);
   lv_obj_add_event_cb(menu_root, menu_scrim_event, LV_EVENT_SHORT_CLICKED, nullptr);
   lv_obj_move_foreground(menu_root);
-  const int y = m.bar_y + m.bar + m.gap / 2;
-  const Menu at = menu_place(width - 2 * m.pad, ui::px(ui::large() ? 380 : 260), y, height - y - m.pad, std::max(ui::touch_min(), m.row_h), sources.size());
-  const unsigned pages = at.pager ? static_cast<unsigned>((sources.size() + at.per_page - 1) / at.per_page) : 1;
+  const int y = m.bar_y + m.bar + m.gap / 2, room = height - y - m.pad;
+  const int row_h = std::max(ui::touch_min(), m.row_h), volume_h = ui::touch_min();
+  const int panel_w = std::min(width - 2 * m.pad, ui::px(ui::large() ? 380 : 260));
+  // Pages by height: a speaker in the group is a row taller for its volume. The pager takes a row of its own.
+  std::vector<int> heights;
+  for (size_t i = 0; i < names.size(); ++i) heights.push_back(row_h + (with_volume(t, i) ? volume_h : 0));
+  menu_starts = page_starts(heights, room, row_h);
+  const unsigned pages = static_cast<unsigned>(menu_starts.size());
   menu_page = std::min(menu_page, pages - 1);
-  auto *panel = plain(menu_root, m.pad + at.panel.x, at.panel.y, at.panel.w, at.panel.h);
+  const size_t first = menu_starts[menu_page], last = menu_page + 1 < pages ? menu_starts[menu_page + 1] : names.size();
+  int used = 0;
+  for (size_t i = first; i < last; ++i) used += heights[i];
+  const bool pager = pages > 1;
+  auto *panel = plain(menu_root, (width - panel_w) / 2, y, panel_w, used + (pager ? row_h : 0));
   lv_obj_add_flag(panel, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_set_style_bg_opa(panel, LV_OPA_COVER, 0);
   lv_obj_set_style_bg_color(panel, theme::color(theme::RAISED), 0);
   lv_obj_set_style_radius(panel, m.radius, 0);
+  lv_obj_set_style_clip_corner(panel, true, 0);
   // An outline, not a border: a border moves every row inside by its width.
   lv_obj_set_style_outline_width(panel, 1, 0);
   lv_obj_set_style_outline_color(panel, theme::color(theme::RAISED_LINE), 0);
   const lv_font_t *font = name_font();
   const int text_h = lv_font_get_line_height(font), icon_h = lv_font_get_line_height(icons());
-  const std::string current = t->extra().media_source;
-  const size_t first = static_cast<size_t>(menu_page) * at.per_page;
-  for (int r = 0; r < at.per_page && first + r < sources.size(); ++r) {
-    const size_t index = first + r;
-    auto *row = plain(panel, 0, r * at.row_h, at.panel.w, at.row_h);
+  const std::string &current = menu_inputs ? t->extra().media_input : t->extra().media_source;
+  const bool groups = grouping(t);
+  const int key = std::min(row_h - ui::px(6), m.bar);
+  int ry = 0;
+  for (size_t index = first; index < last; ++index) {
+    const uint8_t flags = flags_of(t, index);
+    const bool on = groups ? (flags & SPEAKER_ON) : names[index] == current;
+    const bool joins = groups && (flags & SPEAKER_GROUPS);
+    auto *row = plain(panel, 0, ry, panel_w, heights[index]);
     lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_style_bg_opa(row, LV_OPA_COVER, LV_STATE_PRESSED);
-    lv_obj_set_style_bg_color(row, theme::color(theme::CARD_PRESSED), LV_STATE_PRESSED);
-    lv_obj_set_style_radius(row, m.radius, 0);
+    // The speakers that play together share one pale ground; a chosen input or speaker has it too.
+    if (on) {
+      lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
+      lv_obj_set_style_bg_color(row, theme::color(theme::ACCENT_TINT), 0);
+    }
+    if (!(on && joins)) {
+      lv_obj_set_style_bg_opa(row, LV_OPA_COVER, LV_STATE_PRESSED);
+      lv_obj_set_style_bg_color(row, theme::color(theme::CARD_PRESSED), LV_STATE_PRESSED);
+    }
     lv_obj_add_event_cb(row, menu_row_event, LV_EVENT_SHORT_CLICKED, reinterpret_cast<void *>(static_cast<intptr_t>(index)));
     row_objs.push_back(row);
-    const bool on = sources[index] == current;
-    auto *icon = glyph(row, 0, "\U000F04C3", icons(), theme::hex(on ? theme::ACCENT : theme::MUTED));
-    lv_obj_set_pos(icon, m.inset, (at.row_h - icon_h) / 2);
-    const int x = m.inset + m.icon + ui::px(8);
-    words(row, sources[index], font, on ? theme::ACCENT : theme::INK, LV_TEXT_ALIGN_LEFT, x, (at.row_h - text_h) / 2, at.panel.w - x - m.inset - m.icon - ui::px(6));
-    if (on) {
+    auto *icon = glyph(row, 0, menu_inputs ? "\U000F0206" : "\U000F04C3", icons(), theme::hex(on ? theme::ACCENT : theme::MUTED));
+    lv_obj_set_pos(icon, m.inset, (row_h - icon_h) / 2);
+    const int x = m.inset + m.icon + ui::px(8), end = joins ? key + m.inset / 2 + ui::px(6) : m.inset + m.icon + ui::px(6);
+    words(row, names[index], font, on ? theme::ACCENT : theme::INK, LV_TEXT_ALIGN_LEFT, x, (row_h - text_h) / 2, panel_w - x - end);
+    if (joins) {
+      auto *k = round_key(row, panel_w - m.inset / 2 - key, (row_h - key) / 2, key, on ? "\U000F012C" : "\U000F0415", menu_join_event, static_cast<intptr_t>(index));
+      join_objs.push_back(k);
+      if (on) {
+        lv_obj_set_style_bg_color(k, theme::color(theme::ACCENT), 0);
+        if (auto *mark = lv_obj_get_child(k, 0)) lv_obj_set_style_text_color(mark, theme::color(theme::ON_ACCENT), 0);
+      }
+    } else if (on) {
       auto *check = glyph(row, 0, "\U000F012C", icons(), accent());
-      lv_obj_set_pos(check, at.panel.w - m.inset - m.icon, (at.row_h - icon_h) / 2);
+      lv_obj_set_pos(check, panel_w - m.inset - m.icon, (row_h - icon_h) / 2);
     }
+    if (with_volume(t, index)) {
+      // Its own volume under its name, a finger tall, as the player's card has one for the whole player.
+      auto *slider = volume_slider(row, x, row_h - ui::px(4), panel_w - x - end, volume_h, volume_of(t, index));
+      lv_obj_add_event_cb(slider, menu_volume_event, LV_EVENT_RELEASED, reinterpret_cast<void *>(static_cast<intptr_t>(index)));
+      slider_objs.push_back(slider);
+    }
+    ry += heights[index];
   }
-  if (at.pager) {
-    const int py = at.per_page * at.row_h, key = std::min(at.row_h - ui::px(8), m.bar);
-    auto chevron = [&](int x, const char *mark, int step, bool enabled) { round_key(panel, x, py + (at.row_h - key) / 2, key, mark, menu_pager_event, step, enabled); };
+  if (pager) {
+    const int k = std::min(row_h - ui::px(8), m.bar);
+    auto chevron = [&](int x, const char *mark, int step, bool enabled) { menu_pager_objs.push_back(round_key(panel, x, ry + (row_h - k) / 2, k, mark, menu_pager_event, step, enabled)); };
     chevron(m.inset, "\U000F0141", -1, menu_page > 0);
-    chevron(at.panel.w - m.inset - key, "\U000F0142", 1, menu_page + 1 < pages);
-    words(panel, page_text(menu_page, pages), font, theme::MUTED, LV_TEXT_ALIGN_CENTER, m.inset + key, py + (at.row_h - text_h) / 2, at.panel.w - 2 * (m.inset + key));
+    chevron(panel_w - m.inset - k, "\U000F0142", 1, menu_page + 1 < pages);
+    words(panel, page_text(menu_page, pages), font, theme::MUTED, LV_TEXT_ALIGN_CENTER, m.inset + k, ry + (row_h - text_h) / 2, panel_w - 2 * (m.inset + k));
   }
 }
-void speakers(const std::string &id, uint32_t then, int tile) {
-  const Tile *t = player(id);
-  if (!t || t->extra().media_sources.empty()) return;
+static void open_menu(const std::string &id, bool inputs, uint32_t then, int tile) {
   menu_entity = id;
+  menu_inputs = inputs;
   menu_then = then;
   menu_tile = tile;
   menu_page = 0;
-  // Open on the page with the speaker it plays on.
+  const Tile *t = player(id);
+  const auto *list = menu_list(t);
+  if (!list || list->empty()) { menu_entity.clear(); menu_inputs = false; return; }
+  // Open on the page with the speaker or input it plays on.
+  const std::string &current = inputs ? t->extra().media_input : t->extra().media_source;
   draw_menu();
+  for (size_t i = 0; i < list->size(); ++i) {
+    if (!(grouping(t) ? (flags_of(t, i) & SPEAKER_ON) : (*list)[i] == current)) continue;
+    for (unsigned p = 0; p < menu_starts.size(); ++p) if (menu_starts[p] <= i) menu_page = p;
+    if (menu_page) draw_menu();
+    break;
+  }
 }
+void speakers(const std::string &id, uint32_t then, int tile) { open_menu(id, false, then, tile); }
+void inputs(const std::string &id) { open_menu(id, true, 0, -1); }
 
 // ---- what changes while open ----
 static bool finger_down() {
@@ -621,8 +778,7 @@ void updated(const std::string &id) {
   // The menu changes only when the speakers do, and never under a finger: a row drawn anew loses the tap on it.
   if (menu_root && id == menu_entity) {
     const Tile *t = player(menu_entity);
-    std::string now = t ? t->extra().media_source : std::string();
-    if (t) for (const auto &name : t->extra().media_sources) now += "\n" + name;
+    const std::string now = t ? menu_key(t) : std::string();
     if (now != menu_drawn) { if (finger_down()) menu_due = true; else draw_menu(); }
   }
   if (!root || id != entity) return;
@@ -669,6 +825,7 @@ std::string describe() {
          " items=" + std::to_string(folder.items.size()) + " page=" + std::to_string(page) + "/" + std::to_string(pages) +
          " grid=" + std::to_string(grid.columns) + "x" + std::to_string(grid.rows) + " covers=" + std::to_string(covers.size()) +
          " shown=" + std::to_string(shown) + " marked=" + std::to_string(starting ? starting : marked) + " back=" + centre(back_obj) +
-         " speaker=" + centre(speaker_obj) + " cells=" + list(cell_objs) + " pager=" + list(pager_objs) + " rows=" + list(row_objs);
+         " speaker=" + centre(speaker_obj) + " cells=" + list(cell_objs) + " pager=" + list(pager_objs) + " rows=" + list(row_objs) +
+         " joins=" + list(join_objs) + " sliders=" + list(slider_objs) + " mpager=" + list(menu_pager_objs) + " inkey=" + centre(rt::media_input_key);
 }
 }  // namespace media_library

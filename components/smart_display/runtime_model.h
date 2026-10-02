@@ -237,6 +237,14 @@ struct Extra {
   // its cover that the card's ground is made of, and whether its library opens.
   std::string media_source, media_repeat;
   std::vector<std::string> media_sources;
+  // Where a player plays (firmware 0.26.0+, the app's speakers.py): per speaker of media_sources its flags (SPEAKER_ON,
+  // SPEAKER_GROUPS) and its volume (0 to 100, -1 for none), the inputs Home Assistant lists in source_list for a player
+  // whose sources are inputs (a Sonos's TV input, a TV's ports) with the one in use, and the speaker the card follows:
+  // its media keys act on that player. A media_source here is the pill's words ("Living room + 1").
+  std::vector<uint8_t> speaker_flags;
+  std::vector<int8_t> speaker_volumes;
+  std::vector<std::string> media_inputs;
+  std::string media_input, media_target;
   int8_t media_shuffle = -1;
   uint32_t media_features = 0, ground_top = 0, ground_bottom = 0;
   // ground_known: the app read the cover (its colours, or that it has none to speak of), so its cover may be asked for.
@@ -288,6 +296,7 @@ struct Extra {
            option_rows.empty() && number_rows.empty() && lamps.empty() && code_format.empty() && changed_by.empty() && !arm_code_free &&
            !code_saved && !alarm_end && !alarm_delay && !assumed && activity.empty() && keypad.empty() &&
            media_source.empty() && media_repeat.empty() && media_sources.empty() && media_shuffle < 0 && !media_features &&
+           speaker_flags.empty() && speaker_volumes.empty() && media_inputs.empty() && media_input.empty() && media_target.empty() &&
            !has_ground && !ground_known && !media_library && fav_kind.empty() && fav_source.empty() && fav_mark.empty() &&
            fav_glyph.empty() && !fav_playing;
   }

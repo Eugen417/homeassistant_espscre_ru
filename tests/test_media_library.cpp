@@ -107,14 +107,16 @@ int main() {
     Answer empty; empty.title = "Media Library";
     assert(h.take(std::move(empty)) && h.complete && h.items.empty() && !h.pictured());
   }
-  // The speaker menu: a row per speaker under the pill; more than the glass holds page, the last row the pager.
+  // The speaker menu (firmware 0.26.0+): pages by height, a speaker in the group a row taller for its volume, and the
+  // pager's row kept on every page once they do not all fit.
   {
-    Menu m = menu_place(440, 380, 88, 372, 56, 2);
-    assert(!m.pager && m.rows == 2 && m.per_page == 2 && m.panel.w == 380 && m.panel.x == 30 && m.panel.h == 112);
-    Menu many = menu_place(440, 380, 88, 372, 56, 16);
-    assert(many.pager && many.rows == 6 && many.per_page == 5 && many.panel.h == 336);
-    Menu narrow = menu_place(300, 380, 50, 170, 40, 3);
-    assert(narrow.panel.w == 300 && narrow.rows == 3);
+    assert((page_starts({56, 56}, 372, 56) == std::vector<size_t>{0}));
+    std::vector<int> sixteen(16, 56);
+    assert((page_starts(sixteen, 372, 56) == std::vector<size_t>{0, 5, 10, 15}));
+    // Two in the group (56 + 48 each) and four others on a CYD's 190 pixels.
+    assert((page_starts({104, 104, 40, 40, 40, 40}, 190, 40) == std::vector<size_t>{0, 1, 3}));
+    // A row taller than the page still gets a page of its own.
+    assert((page_starts({300, 40}, 200, 40) == std::vector<size_t>{0, 1}));
   }
   printf("test_media_library: ok\n");
   return 0;

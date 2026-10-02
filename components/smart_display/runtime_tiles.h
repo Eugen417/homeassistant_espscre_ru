@@ -585,6 +585,9 @@ inline void send_action(esphome::api::HomeassistantActionRequest &request, const
   esphome::api::global_api_server->send_homeassistant_action(request);
 }
 // `key2` and `value2`: a second field, for a thermostat's range (both ends in one call, firmware 0.19.0).
+// The player a card's media keys act on (firmware 0.26.0+): the speaker it follows (the app's `ct`, a Spotify tile that
+// plays on a Sonos), or the tile's own.
+inline const std::string &media_entity(const Tile &t){return t.extra().media_target.empty()?t.entity:t.extra().media_target;}
 inline void action(const std::string &service, const std::string &entity, const std::string &key="", const std::string &value="", bool watch=true,
                    const std::string &key2="", const std::string &value2="") {
   if (!fresh() || !valid_entity(entity)) return;
@@ -703,6 +706,12 @@ inline void library_event(const char *service, std::initializer_list<std::pair<c
 inline void library_request(const std::string &entity, uint32_t folder, unsigned page) {
   library_event("esphome.screen_browse", {{"entity", entity}, {"folder", std::to_string(folder)}, {"page", std::to_string(page)}, {"view", std::to_string(++library_view_id)}});
   ESP_LOGI("library", "Asked for folder %u of %s, page %u", (unsigned) folder, entity.c_str(), page);
+}
+// A tap in the speaker menu (firmware 0.26.0+): the app picks the speaker, joins it to the group or takes it out, or
+// sets its volume, each through Home Assistant's own action (speakers.py).
+inline void speaker_request(const std::string &entity, const std::string &speaker, const char *op, int volume = -1) {
+  if (volume >= 0) library_event("esphome.screen_speaker", {{"entity", entity}, {"speaker", speaker}, {"op", op}, {"volume", std::to_string(volume)}});
+  else library_event("esphome.screen_speaker", {{"entity", entity}, {"speaker", speaker}, {"op", op}});
 }
 inline void play_request(const std::string &entity, uint32_t item, const std::string &source) {
   library_event("esphome.screen_play", {{"entity", entity}, {"item", std::to_string(item)}, {"source", source}});
@@ -841,7 +850,7 @@ inline void commit_slider(unsigned i,int raw,bool tilt=false){
   // The slider stays where the finger left it while the light fades towards it (Tile::hold_slider).
   if(d=="light"){int sent=std::max(3,(int)std::lround(value*255));action("light.turn_on",t.entity,"brightness",std::to_string(sent));t.hold_slider(esphome::millis(),sent);}
   if(d=="fan"){int sent=(int)std::lround(value*100);action("fan.set_percentage",t.entity,"percentage",std::to_string(sent));t.hold_slider(esphome::millis(),sent);}
-  if(d=="media_player"){action("media_player.volume_set",t.entity,"volume_level",std::to_string(value));t.hold_slider(esphome::millis(),value);}
+  if(d=="media_player"){action("media_player.volume_set",media_entity(t),"volume_level",std::to_string(value));t.hold_slider(esphome::millis(),value);}
   if(d=="number"||d=="input_number") {
     if(!std::isfinite(t.minimum)||!std::isfinite(t.maximum)||t.maximum<=t.minimum||t.step<=0)return;
     value=std::clamp(t.minimum+std::round(value*(t.maximum-t.minimum)/t.step)*t.step,t.minimum,t.maximum);
@@ -976,6 +985,7 @@ inline void detail_command(int cmd){
   // A player's library and its speakers (firmware 0.24.0+) open while a key of it is still on its way.
   if(cmd==27){media_library::open(t.entity);return;}
   if(cmd==28){media_library::speakers(t.entity);return;}
+  if(cmd==29){media_library::inputs(t.entity);return;}
   if(!t.available()||t.waiting(esphome::millis()))return;
   if(cmd<4){const char *services[]={"vacuum.start","vacuum.pause","vacuum.return_to_base","vacuum.locate"};action(services[cmd],t.entity);}
   // Vacuum rows: 10-15 suction, 50-55 cleaning mode, 60-65 water.
@@ -3597,14 +3607,14 @@ inline media_card::Metrics media_metrics(bool large){
 }
 // What the keys do, on the card and on a tile over the whole page: 20 play or pause, 21 previous, 22 next, 23 mute.
 inline void media_action(Tile &t,int cmd){
-  if(cmd==20)action("media_player.media_play_pause",t.entity);
-  if(cmd==21)action("media_player.media_previous_track",t.entity);
-  if(cmd==22)action("media_player.media_next_track",t.entity);
-  if(cmd==23)action("media_player.volume_mute",t.entity,"is_volume_muted",t.muted?"false":"true");
-  if(cmd==24)action("media_player.turn_on",t.entity);
+  if(cmd==20)action("media_player.media_play_pause",media_entity(t));
+  if(cmd==21)action("media_player.media_previous_track",media_entity(t));
+  if(cmd==22)action("media_player.media_next_track",media_entity(t));
+  if(cmd==23)action("media_player.volume_mute",media_entity(t),"is_volume_muted",t.muted?"false":"true");
+  if(cmd==24)action("media_player.turn_on",media_entity(t));
   // Shuffle and repeat on the card (firmware 0.24.0+): the other way round, and repeat's next step.
-  if(cmd==25)action("media_player.shuffle_set",t.entity,"shuffle",t.extra().media_shuffle==1?"false":"true");
-  if(cmd==26)action("media_player.repeat_set",t.entity,"repeat",media_card::next_repeat(t.extra().media_repeat));
+  if(cmd==25)action("media_player.shuffle_set",media_entity(t),"shuffle",t.extra().media_shuffle==1?"false":"true");
+  if(cmd==26)action("media_player.repeat_set",media_entity(t),"repeat",media_card::next_repeat(t.extra().media_repeat));
 }
 // An off or standby player shows one key: power, when the player can be turned on from here.
 inline bool media_off(const Tile &t){return t.state=="off" || t.state=="standby";}
@@ -3743,7 +3753,7 @@ inline media_card::Seek media_seek;
 inline std::string media_seek_entity;
 inline lv_obj_t *media_knob=nullptr;
 // The card's pill and library key (firmware 0.24.0+), for the render harness.
-inline lv_obj_t *media_pill_obj=nullptr,*media_library_key=nullptr;
+inline lv_obj_t *media_pill_obj=nullptr,*media_library_key=nullptr,*media_input_key=nullptr;
 inline int media_bar_x=0,media_knob_size=0;
 inline bool media_seeking=false;
 // Where the track is now, as the card shows it: a seek just sent wins over Home Assistant's word until it agrees.
@@ -3783,7 +3793,7 @@ inline void media_seek_event(lv_event_t *e){
   if(!fresh()||!t.available())return;
   media_seek.send(seconds,esphome::millis(),now_epoch(),x.media_title);media_seek_entity=t.entity;
   media_bar_at(seconds,x.media_duration,media_progress_fill,media_elapsed_label,media_bar_width);
-  action("media_player.media_seek",t.entity,"seek_position",std::to_string(seconds));
+  action("media_player.media_seek",media_entity(t),"seek_position",std::to_string(seconds));
 }
 // The card's top bar for a player (firmware 0.24.0+): the back key on the ground, the speaker it plays on as a pill
 // in the middle where Home Assistant lists speakers (a tap opens the menu of them), and at the right the key of its
@@ -3796,13 +3806,28 @@ inline void media_top_bar(const Tile &t,lv_obj_t *back,lv_obj_t *heading,int wid
   auto cb=[](lv_event_t *e){detail_command((intptr_t)lv_event_get_user_data(e));};
   const lv_font_t *icons=mini_icon_font?mini_icon_font:detail_font;
   const bool library=x.media_library&&media_library::available();
-  const int right=library?bar+bar_x:0;
-  media_pill_obj=media_library_key=nullptr;
+  // The input key (firmware 0.26.0+): Home Assistant's source of a player whose sources are inputs (a Sonos's TV input,
+  // a TV's ports), with Home Assistant's icon for it, left of the library.
+  const bool inputs=!x.media_inputs.empty();
+  const int key_gap=ui::px(ui::large()?8:6);
+  const int right=(library?bar+bar_x:0)+(inputs?bar+(library?key_gap:bar_x):0);
+  media_pill_obj=media_library_key=media_input_key=nullptr;
   if(library){
     const media_card::Rect r{width-bar_x-bar,bar_y,bar,bar};
     auto *key=media_key(detail_root,nullptr,r,"\U000F0CB8",icons,false,false,true,cb,(void*)(intptr_t)27);
     media_dark_key(key,false,false,g);
     media_library_key=key;
+  }
+  if(inputs){
+    const media_card::Rect r{width-bar_x-bar-(library?bar+key_gap:0),bar_y,bar,bar};
+    auto *key=media_key(detail_root,nullptr,r,"\U000F0206",icons,false,false,true,cb,(void*)(intptr_t)29);
+    media_dark_key(key,false,false,g);
+    media_input_key=key;
+    if(library){
+      // Two keys at the right: the name keeps clear of both, centred between the back key and them.
+      const int left=bar_x+bar+8,w=std::max(1,width-left-right-8);
+      lv_obj_set_x(heading,left);lv_obj_set_width(heading,w);
+    }
   }
   if(x.media_sources.empty())return;
   lv_obj_add_flag(heading,LV_OBJ_FLAG_HIDDEN);
@@ -3971,7 +3996,7 @@ inline void show_detail(unsigned index){
   alarm_forget_widgets();media_progress_fill=nullptr;media_elapsed_label=nullptr;media_detail_picture=nullptr;weather_days_card=nullptr;weather_dots=nullptr;weather_chevron[0]=weather_chevron[1]=nullptr;light_value=nullptr;lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
   lv_obj_set_style_bg_color(detail_root,theme::color(theme::PAGE),0);lv_obj_set_style_bg_opa(detail_root,LV_OPA_COVER,0);
   lv_obj_set_style_bg_grad_dir(detail_root,LV_GRAD_DIR_NONE,0);
-  media_knob=media_pill_obj=media_library_key=nullptr;
+  media_knob=media_pill_obj=media_library_key=media_input_key=nullptr;
   // The card's room: capped to what a hand spans and centred, unless it shows a picture (the media card's
   // cover art, a camera), which may fill the glass. Every size below follows from `width`.
   auto d=t.domain();
@@ -6087,7 +6112,7 @@ inline std::string favorite_line(const Tile &t){
 inline void favorite_tap(size_t index){
   if(index>=model.count)return;
   auto &t=model.tiles[index];
-  if(t.extra().fav_playing&&t.state=="playing"){action("media_player.media_pause",t.entity);return;}
+  if(t.extra().fav_playing&&t.state=="playing"){action("media_player.media_pause",media_entity(t));return;}
   // No speaker of its own and the player plays nowhere: which speaker first, as a cover in the library asks.
   const auto &x=t.extra();
   if(x.fav_source.empty()&&x.media_source.empty()&&!(t.supported&tile_controls::feature::MEDIA_PLAY_MEDIA)&&!x.media_sources.empty()){

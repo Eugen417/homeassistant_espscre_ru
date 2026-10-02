@@ -180,25 +180,26 @@ inline std::string page_text(unsigned page, unsigned pages) {
 }
 
 // ---- the speaker menu ----
-// A panel of rows under the pill in the player's top bar: one row per speaker Home Assistant lists, the one it plays
-// on ticked. More speakers than the glass has rows for page, as everything here does: the last row then holds the
-// pager. `y` is where the panel starts, `room` the height it may take.
-struct Menu {
-  Rect panel;
-  int rows = 1, per_page = 1, row_h = 1;
-  bool pager = false;
-};
-inline Menu menu_place(int width, int panel_w, int y, int room, int row_h, size_t count) {
-  Menu m;
-  m.row_h = std::max(1, row_h);
-  const int fit = std::max(1, room / m.row_h);
-  const int n = static_cast<int>(std::max<size_t>(1, count));
-  m.pager = n > fit && fit >= 2;
-  m.per_page = m.pager ? fit - 1 : std::min(n, fit);
-  m.rows = m.per_page + (m.pager ? 1 : 0);
-  const int w = std::min(width, panel_w);
-  m.panel = {(width - w) / 2, y, w, m.rows * m.row_h};
-  return m;
+// A panel of rows under the pill in the player's top bar, one per speaker (or input); more than the glass holds page,
+// the last row then the pager.
+// A speaker's flags from the app (firmware 0.26.0+, speakers.py): it plays here (in the group), and it may join or
+// leave the group with a key of its own.
+constexpr uint8_t SPEAKER_ON = 1, SPEAKER_GROUPS = 2;
+// The first row of every page of a menu whose rows each have their height (a speaker in the group is taller for its
+// volume), in `room` pixels: when they do not all fit, every page keeps `pager_h` for the pager. A page holds one row
+// at least, however tall.
+inline std::vector<size_t> page_starts(const std::vector<int> &heights, int room, int pager_h) {
+  std::vector<size_t> starts{0};
+  int total = 0;
+  for (int h : heights) total += h;
+  if (total <= room) return starts;
+  const int fit = room - pager_h;
+  int used = 0;
+  for (size_t i = 0; i < heights.size(); ++i) {
+    if (used > 0 && used + heights[i] > fit) { starts.push_back(i); used = 0; }
+    used += heights[i];
+  }
+  return starts;
 }
 
 // ---- what the rest of the firmware sees (media_library.cpp) ----
@@ -217,6 +218,8 @@ bool visible();
 // The speaker menu over the player's card, over the library or over a page; `then` is an item of the library and
 // `tile` a favourite's tile that plays once a speaker is chosen.
 void speakers(const std::string &entity, uint32_t then = 0, int tile = -1);
+// The inputs of a player (firmware 0.26.0+): Home Assistant's source_list where its sources are inputs.
+void inputs(const std::string &entity);
 bool menu_visible();
 void received(Answer &&answer);
 // The covers of the page are here (or failed); a link from the app.

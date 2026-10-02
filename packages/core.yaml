@@ -16,7 +16,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.25.0"
+  SCREEN_FIRMWARE_VERSION: "0.26.0"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -575,6 +575,9 @@ api:
                     // media_library (firmware 0.24.0+, app 0.4.42+): a player's speaker menu, shuffle, repeat, seek, its
                     // cover's colours as the card's ground, and its library with covers and a tap that plays.
                     features.add("media_library");
+                    // speaker_groups (firmware 0.26.0+, app speakers.py): a player's speakers with a key to join or leave
+                    // the group and each one's volume, its inputs behind a key of their own, and the speaker it follows.
+                    features.add("speaker_groups");
                     auto sizes = root["tile_sizes"].to<JsonArray>();
                     for (const auto &size : page_protocol::TILE_SIZES)
                       if (size.fits(runtime_tiles::grid.columns, runtime_tiles::grid.rows)) sizes.add(size.name);
@@ -1047,6 +1050,7 @@ font:
       - "\U000F05F8" # home-map-marker
       - "\U000F0415" # plus
       - "\U000F0374" # minus
+      - "\U000F0206" # exit-to-app
       - "\U000F0141" # chevron-left
       - "\U000F0142" # chevron-right
       - "\U000F0156" # close

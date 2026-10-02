@@ -244,7 +244,11 @@ Click **Save & send** to send your changes.
   pick the command from the list under the field (Android TV, Apple TV, Roku and others) or type it as Home Assistant
   knows it (Harmony, Broadlink).
 - Media player: tap for the media card with the cover (boards with camera pictures), the keys, and the volume. The
-  speaker it plays on is at the top of the card; tap it to choose another. Where Home Assistant can browse the player,
+  speaker it plays on is at the top of the card; tap it to choose another. A player that groups (Sonos and others that
+  report it) lists the speakers it can play together with: the plus at the end of a row adds one, the tick takes it out,
+  and each speaker in the group has its own volume. A speaker whose library holds your Spotify account is a speaker of
+  the Spotify tile too: pick it and the music moves there, and the card follows it. Inputs, such as a Sonos's TV input or
+  its favourites, are behind their own key at the top (firmware 0.26.0+). Where Home Assistant can browse the player,
   the library key opens its library down to a page of covers, and a tap plays one (firmware 0.24.0+, boards with camera
   pictures). **Display → Favourite** makes the tile play one playlist, album or artist you pick from that library, on
   the speaker you choose. A new media tile shows its cover by default on a board with pictures.

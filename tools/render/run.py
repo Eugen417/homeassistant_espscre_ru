@@ -1179,7 +1179,9 @@ class Run:
                 'folder': int(library.get('folder', 0)), 'items': int(library.get('items', 0)), 'page': library.get('page'),
                 'grid': library.get('grid'), 'covers': int(library.get('covers', 0)), 'shown': int(library.get('shown', 0)),
                 'marked': int(library.get('marked', 0)), 'lib_back': point(library.get('back')), 'speaker': point(library.get('speaker')),
-                'cells': points(library.get('cells', '')), 'pager': points(library.get('pager', '')), 'rows': points(library.get('rows', ''))}
+                'cells': points(library.get('cells', '')), 'pager': points(library.get('pager', '')), 'rows': points(library.get('rows', '')),
+                'joins': points(library.get('joins', '')), 'sliders': points(library.get('sliders', '')),
+                'menu_pager': points(library.get('mpager', '')), 'input_key': point(library.get('inkey'))}
 
     async def media_until(self, test, what, timeout=8):
         end = time.monotonic() + timeout
@@ -1199,6 +1201,7 @@ class Run:
         from core import extras, state_message
         import camera_feed
         import media_library
+        import speakers
         import tile_art
         import media_art
         from PIL import Image as PILImage, ImageDraw as PILDraw
@@ -1227,7 +1230,11 @@ class Run:
             values = [state_message(index, tile, states, extras(tile, states)) for index, tile in enumerate(tiles)]
             for value in values:
                 attributes = states[value['entity']]['attributes']
-                value.setdefault('x', {}).update(media_library.player_extras(attributes, PLAYING, ground.get('g'), True))
+                more = media_library.player_extras(attributes, PLAYING, ground.get('g'), True)
+                # This firmware says speaker_groups: the add-on's speaker menu replaces source_list (speakers.py).
+                more.pop('so', None); more.pop('sl', None)
+                more.update(speakers.extras(speakers.menu(value['entity'], states, lambda e: 'spotify')))
+                value.setdefault('x', {}).update(more)
             await self.sender.synchronize(self.inbox.object_id, record, region, values, bars)
         await push()
         await self.call('render_page', page=0)
@@ -1310,9 +1317,10 @@ class Run:
         await self.render('media-speakers')
         since = len(calls)
         await self.tap(*card['rows'][0][:2])
-        sent = await call_for('media_player.select_source', since)
-        if dict(sent.data) != {'entity_id': ENTITY, 'source': 'Bedroom'}:
-            faults.append(f'select_source went out as {dict(sent.data)}')
+        # A speaker goes to the app, which moves Spotify there with select_source (speakers.plan).
+        sent = await call_for('esphome.screen_speaker', since)
+        if {k: v for k, v in dict(sent.data).items() if k in ('entity', 'speaker', 'op')} != {'entity': ENTITY, 'speaker': 'Bedroom', 'op': 'pick'}:
+            faults.append(f'a speaker was picked as {dict(sent.data)}')
         answer(sent)
         states[ENTITY] = spotify(source='Bedroom')
         await push()
@@ -1492,9 +1500,92 @@ class Run:
             await answer_strip(since)
             await asyncio.sleep(1.5)
             await self.render('media-favorites-playing')
+        await self.media_group(grid, calls, call_for, answer, faults, region, bars)
         self.failures += [f'media: {f}' for f in faults]
-        self.warnings.append(f'media: card, speakers, library, albums, play, rest, favourites; {served["cover"]} covers, {served["art"]} pictures')
+        self.warnings.append(f'media: card, speakers, library, albums, play, rest, favourites, group, inputs; {served["cover"]} covers, {served["art"]} pictures')
         return 1
+
+    async def media_group(self, grid, calls, call_for, answer, faults, region, bars):
+        """A Sonos the way it groups (firmware 0.26.0, speakers.py): its card with the input key, the pill naming the
+        group, the speaker menu with a tick and a volume for each speaker in the group and a plus for the others, a plus
+        that joins, and the inputs. Home Assistant's states have the shape of the Sonos integration's."""
+        from core import extras, state_message
+        import media_library
+        import speakers
+        names = {'living_room': 'Living room', 'kitchen': 'Kitchen', 'bedroom': 'Bedroom', 'bathroom': 'Bathroom'}
+        group = ['media_player.living_room', 'media_player.kitchen']
+        def sonos(key, members, volume):
+            on = f'media_player.{key}' in members
+            return {'state': 'playing' if on else 'idle', 'last_changed': MOMENT.isoformat(), 'attributes': {
+                'friendly_name': names[key], 'supported_features': 8321599, 'volume_level': volume, 'group_members': members if on else [],
+                'source_list': ['TV', 'Radio One', 'Radio Two'], **({'media_title': 'Evening Drive', 'media_artist': 'Nova Coast',
+                'media_album_name': 'Low Sun', 'media_duration': 274, 'media_position': 81, 'media_position_updated_at': MOMENT.isoformat()} if on else {})}}
+        volumes = {'living_room': 0.32, 'kitchen': 0.24, 'bedroom': 0.2, 'bathroom': 0.15}
+        def house(members):
+            return {f'media_player.{k}': sonos(k, members, v) for k, v in volumes.items()}
+        states = house(group)
+        ENTITY = 'media_player.living_room'
+        record = send_layout.migrate_legacy(dict(title='Sonos', tiles=[{'entity': ENTITY, 'name': 'Living room', 'slot': 0}]), grid)
+        tiles = send_layout.compile_tiles(record['layout'], grid)
+        async def push():
+            values = [state_message(index, tile, states, extras(tile, states)) for index, tile in enumerate(tiles)]
+            for value in values:
+                more = media_library.player_extras(states[value['entity']]['attributes'], 8321599, None, False)
+                more.pop('so', None); more.pop('sl', None)
+                more.update(speakers.extras(speakers.menu(value['entity'], states, lambda e: 'sonos')))
+                value.setdefault('x', {}).update(more)
+            await self.sender.synchronize(self.inbox.object_id, record, region, values, bars)
+        await push()
+        await asyncio.sleep(1.5)
+        spots = await self.slots()
+        await self.tap(*spots[ENTITY])
+        card = await self.media_until(lambda c: c['open'] and c['pill'] and c['input_key'], 'the Sonos card never opened with its pill and input key')
+        faults += [f'group card: {f}' for f in card['faults'].split(';') if f]
+        await asyncio.sleep(0.8)
+        await self.render('media-group-card')
+        await self.tap(*card['pill'][:2])
+        card = await self.media_until(lambda c: c['menu'] and c['rows'], 'the speaker menu never opened')
+        await self.render('media-group-speakers')
+        if len(card['sliders']) < 1 or not card['joins']:
+            faults.append(f'the group menu shows {len(card["sliders"])} volumes and {len(card["joins"])} keys')
+        # The plus of the first speaker outside the group (the last key on the first page) joins it.
+        since = len(calls)
+        first_page = len(card['rows'])
+        target = None
+        if first_page > 2:
+            await self.tap(*card['joins'][2][:2])
+            target = 'Bathroom'
+        elif card['menu_pager']:
+            await self.tap(*card['menu_pager'][1][:2])
+            card = await self.media_until(lambda c: c['menu'] and c['joins'], 'the second page never came')
+            await self.render('media-group-speakers-2')
+            await self.tap(*card['joins'][0][:2])
+            target = 'Bathroom'
+        if target:
+            sent = await call_for('esphome.screen_speaker', since)
+            if {k: v for k, v in dict(sent.data).items() if k in ('speaker', 'op')} != {'speaker': target, 'op': 'join'}:
+                faults.append(f'a plus asked {dict(sent.data)}')
+            answer(sent)
+            found = speakers.menu(ENTITY, states, lambda e: 'sonos')
+            steps, _ = speakers.plan(ENTITY, found, speakers.find(found, target), 'join', states)
+            if steps != [('media_player', 'join', {'entity_id': ENTITY, 'group_members': ['media_player.bathroom']})]:
+                faults.append(f'the app would join with {steps}')
+            states = house(group + ['media_player.bathroom'])
+            await push()
+            await asyncio.sleep(1.0)
+            await self.render('media-group-joined')
+        # Beside the menu closes it; the input key opens the inputs, and one goes out as Home Assistant's select_source.
+        await self.tap(3, self.canvas[1] - 3)
+        card = await self.media_until(lambda c: c['open'] and not c['menu'], 'the speaker menu never closed')
+        await self.tap(*card['input_key'][:2])
+        card = await self.media_until(lambda c: c['menu'] and len(c['rows']) >= 1, 'the inputs never opened')
+        await self.render('media-inputs')
+        since = len(calls)
+        await self.tap(*card['rows'][0][:2])
+        sent = await call_for('media_player.select_source', since)
+        if dict(sent.data) != {'entity_id': ENTITY, 'source': 'TV'}:
+            faults.append(f'an input went out as {dict(sent.data)}')
+        answer(sent)
 
     async def automation_panel(self, grid):
         """An automation (firmware 0.7.0, GitHub #62) the way it is used: a tap switches it on or off and holding runs its
