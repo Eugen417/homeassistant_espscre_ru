@@ -1,3 +1,16 @@
+## 0.4.44 (firmware 0.25.0)
+
+- **A heat/cool range on the thermostat card, as a band.** A thermostat set to a range (heat/cool, with a low and a high
+  target) showed its two targets as two small numbers above one "Target", and one pair of -/+ keys that moved whichever
+  end was last tapped, which only a fainter shade told apart. The card now shows one big number and, under it, the
+  device's whole span as a band with the degrees along it: the heat colour runs from the minimum up to the low target,
+  the cool colour from the high target up to the maximum, and the bare track lies between them, as Home Assistant's own
+  thermostat draws it. A knob stands on each end; tap one and the number, the -/+ keys and the knob take that side's
+  colour, so what a key moves is always in sight. While the room is colder than the low target or warmer than the high
+  one, the part the device has to cover is drawn in full with a mark at the room's temperature. A thermostat with one
+  target draws exactly as before. The band is LVGL's scale, new in every board's firmware; the CYD stays within its
+  flash budget.
+
 ## 0.4.43 (firmware 0.24.0)
 
 - **The media card sits on one dark colour from its cover** instead of a gradient (#135). Screens draw 16-bit colour, and

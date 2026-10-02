@@ -761,7 +761,8 @@ inline int detail_screen_x(int in_card){
 inline bool detail_placed=false;
 // What the climate card's keys answer with: a mode, a fan or swing choice, the power key and the setpoint's
 // - and + (the card itself is further down, beside the vacuum's and the cover's).
-inline constexpr int CLIMATE_MODE_FIRST=200,CLIMATE_ROW_FIRST=210,CLIMATE_POWER=230,CLIMATE_DOWN=231,CLIMATE_UP=232;
+inline constexpr int CLIMATE_MODE_FIRST=200,CLIMATE_ROW_FIRST=210,CLIMATE_POWER=230,CLIMATE_DOWN=231,CLIMATE_UP=232,CLIMATE_END_LOW=233,CLIMATE_END_HIGH=234;
+inline void climate_paint_ends(const Tile &t);
 // The power key of a light or fan card (firmware 0.2.80), in the same top bar.
 inline constexpr int LIGHT_POWER=240;
 // The rows of the select card (render_select_detail): option i is SELECT_OPTION_FIRST + i.
@@ -945,6 +946,14 @@ inline void detail_command(int cmd){
   }
   // The setpoint's - and +: every clean tap counts, also while the last one is still on its way to Home
   // Assistant, so a series of taps is one series of steps (the send waits for the last of them).
+  if(cmd==CLIMATE_END_LOW||cmd==CLIMATE_END_HIGH){
+    if(detail_index>=model.count)return;
+    auto &tile=model.tiles[detail_index];
+    tile.range_end=cmd==CLIMATE_END_HIGH?tile_controls::RANGE_HIGH:tile_controls::RANGE_LOW;
+    climate_paint_ends(tile);
+    refresh_tile(detail_index);   // the tile's chip says the same end
+    return;
+  }
   if(cmd==CLIMATE_DOWN||cmd==CLIMATE_UP){
     if(!fresh()||detail_index>=model.count)return;
     auto &tile=model.tiles[detail_index];
@@ -2125,14 +2134,43 @@ inline std::string climate_number_text(const Tile &t){
 // A range (firmware 0.19.0): its two ends side by side in the number's place, as on Home Assistant's thermostat card.
 // A tap picks the end the -/+ move (Tile::range_end, the same one the tile's chip shows); that one is drawn in full,
 // the other at 70 %.
-inline lv_obj_t *climate_ends[2]={nullptr,nullptr};
+// A range (heat/cool, firmware 0.25.0): under the number the device's whole span as an LVGL scale, the range on it as
+// Home Assistant's dual thermostat draws it (ha-control-circular-slider, renderArc): the low end's colour runs from
+// the minimum up to the low target, the high end's from the high target up to the maximum, both at half opacity, and
+// the bare track between the two targets. Where the room lies outside the range, the part the device has to cover
+// (current to target) is drawn in full, with a mark at the current temperature; inside it nothing marks the room, the
+// state line says it. A knob stands on each end; a tap on one chooses the end the -/+ move, and the number shows that
+// end. The -/+ and the chosen knob take that side's tint, so what a key moves is always in sight.
+inline lv_obj_t *climate_ends[2]={nullptr,nullptr};       // the knob of each end
+inline lv_obj_t *climate_now_mark=nullptr;                // the current temperature on the band, while it is outside the range
+inline lv_obj_t *climate_keys[2]={nullptr,nullptr};       // the - and +, which take the chosen side's colour
+inline int climate_track_x=0,climate_track_w=1,climate_track_y=0,climate_knob_d=24;
+inline std::vector<std::string> climate_tick_words;inline std::vector<const char*> climate_tick_src;
+inline lv_style_t climate_sec_style[5];inline bool climate_sec_init=false;   // heat 50 %, cool 50 %, heat full, cool full, the bare track
+// The swatch a side of a range is drawn in: Home Assistant's heat and cool, as the tiles' own card colours.
+inline uint32_t range_tint(uint8_t end){return theme::surface(theme::swatch(end==tile_controls::RANGE_HIGH?"blue":"orange"));}
+inline int range_units(const Tile &t,float v){return (int)std::lround((v-t.minimum)/tile_controls::edit_step(t));}
+inline int range_x(const Tile &t,float v){
+  const float span=std::max(0.01f,t.maximum-t.minimum);
+  return climate_track_x+(int)std::lround(std::clamp((v-t.minimum)/span,0.f,1.f)*climate_track_w);
+}
+// The parts that follow the chosen end and the values: the number, the keys' tint, the knobs and the room's mark.
 inline void climate_paint_ends(const Tile &t){
+  const float step=tile_controls::edit_step(t);
+  const float low=tile_controls::range_end(t,tile_controls::RANGE_LOW),high=tile_controls::range_end(t,tile_controls::RANGE_HIGH);
+  if(climate_number)label(climate_number,tile_controls::format_value(tile_controls::range_end(t,t.range_end),step,"°"));
+  for(auto *key:climate_keys)if(key)lv_obj_set_style_bg_color(key,lv_color_hex(range_tint(t.range_end)),0);
   for(uint8_t i=0;i<2;++i){
     if(!climate_ends[i])continue;
     const uint8_t end=i?tile_controls::RANGE_HIGH:tile_controls::RANGE_LOW;
-    label(climate_ends[i],tile_controls::format_value(tile_controls::range_end(t,end),tile_controls::edit_step(t),"°"));
-    lv_obj_set_style_text_opa(climate_ends[i],end==t.range_end?LV_OPA_COVER:LV_OPA_70,0);
+    const bool chosen=end==t.range_end;
+    const int d=chosen?climate_knob_d:climate_knob_d*3/4;
+    lv_obj_set_size(climate_ends[i],d,d);
+    lv_obj_set_pos(climate_ends[i],range_x(t,i?high:low)-d/2,climate_track_y-d/2);
+    lv_obj_set_style_border_width(climate_ends[i],chosen?ui::px(3):ui::px(2),0);
+    lv_obj_set_style_bg_color(climate_ends[i],chosen?lv_color_hex(range_tint(end)):theme::color(theme::CARD),0);
   }
+  if(climate_now_mark&&std::isfinite(t.current))lv_obj_set_x(climate_now_mark,range_x(t,t.current)-ui::px(2)/2);
 }
 inline void climate_end_event(lv_event_t *e){
   if(detail_index>=model.count)return;
@@ -2183,7 +2221,15 @@ inline void render_climate_detail(Tile &t,bool large,int width,int height,int co
   const auto rows=tile_controls::climate_rows(t);
   const climate_card::Metrics m=climate_metrics(large);
   const int top=climate_top(m);
-  const auto l=climate_card::layout(m,width,top,height-m.margin(),(int)modes.size(),(int)rows.size(),columns);
+  const bool range=tile_controls::climate_range(t);
+  // A range's band takes the place of the word under the number: the knob, a hair of air, and the degrees under the
+  // knobs where they stay clear of them.
+  climate_card::Metrics mr=m;
+  if(range){
+    const int knob=std::clamp(m.min_row()-ui::px(6),ui::px(18),ui::px(26));
+    mr.caption_h=knob+ui::px(4)+m.caption_h;
+  }
+  const auto l=climate_card::layout(mr,width,top,height-m.margin(),(int)modes.size(),(int)rows.size(),columns,range);
   const bool off=tile_controls::climate_off(t),known=std::isfinite(tile_controls::edit_target(t))||std::isfinite(t.edit_value);
   const std::string mode=tile_controls::lower_case(t.state);
   detail_placed=true;   // the layout has already put every block where the glass has room for it
@@ -2206,32 +2252,92 @@ inline void render_climate_detail(Tile &t,bool large,int width,int height,int co
   }
   for(lv_obj_t *key:{down,up})lv_obj_add_event_cb(key,climate_hold,LV_EVENT_LONG_PRESSED_REPEAT,(void*)(intptr_t)(key==up?1:-1));
   const lv_font_t *face=l.small_number?(watch_font?watch_font:number_font):number_font;
-  if(tile_controls::climate_range(t)){
-    // Both ends in the number's place, as Home Assistant's thermostat card draws a range: two numbers, the one the -/+
-    // moves in full and the other faded (ha-state-control-climate-temperature, "dual"). The largest face both fit in.
+  if(range){
+    // One number, the end last chosen; under it the band (see climate_paint_ends above).
+    climate_number=detail_text(detail_root,"",l.number.x,l.number.y,l.number.w,face,LV_TEXT_ALIGN_CENTER,off?theme::OFF:theme::INK);
+    climate_keys[0]=down;climate_keys[1]=up;
+    const auto &sw=l.caption;
     const float step=tile_controls::edit_step(t);
-    const std::string low=tile_controls::format_value(tile_controls::range_end(t,tile_controls::RANGE_LOW),step,"°"),
-                      high=tile_controls::format_value(tile_controls::range_end(t,tile_controls::RANGE_HIGH),step,"°");
-    const int gap=ui::px(large?16:8);
-    for(const lv_font_t *candidate:{face,watch_font,detail_font}){
-      if(!candidate)continue;
-      face=candidate;
-      if(face_covers(candidate,low+high)&&std::max(text_width(low,candidate),text_width(high,candidate))*2+gap<=l.number.w)break;
+    const float low=tile_controls::range_end(t,tile_controls::RANGE_LOW),high=tile_controls::range_end(t,tile_controls::RANGE_HIGH);
+    // The knob stays a touch smaller than its row, so it keeps clear of the digits above it.
+    climate_knob_d=std::clamp(m.min_row()-ui::px(6),ui::px(18),ui::px(26));
+    const int track_h=std::max(ui::px(6),climate_knob_d/3);
+    auto *scale=lv_scale_create(detail_root);lv_obj_remove_style_all(scale);
+    climate_track_x=sw.x+climate_knob_d/2;climate_track_w=sw.w-climate_knob_d;climate_track_y=sw.y+climate_knob_d/2+ui::px(2);
+    // The band's centre line is climate_track_y: the scale draws its main line just inside its top edge. Its side
+    // padding holds the band's round ends, which reach half a width past the first and last value.
+    lv_obj_set_pos(scale,climate_track_x-track_h/2,climate_track_y-track_h/2);lv_obj_set_size(scale,climate_track_w+track_h,sw.h-climate_knob_d/2-ui::px(2)+track_h/2);
+    lv_obj_set_style_pad_left(scale,track_h/2,LV_PART_MAIN);lv_obj_set_style_pad_right(scale,track_h/2,LV_PART_MAIN);
+    lv_scale_set_mode(scale,LV_SCALE_MODE_HORIZONTAL_BOTTOM);
+    lv_obj_remove_flag(scale,LV_OBJ_FLAG_CLICKABLE);
+    const int units=std::max(1,range_units(t,t.maximum));
+    lv_scale_set_range(scale,0,units);
+    // A tick a degree places the labels; only the ticks with a degree under them are drawn, every 5 or 10 degrees.
+    const int degrees=std::max(1,(int)std::lround(t.maximum-t.minimum));
+    const int every=degrees>40?10:5;
+    lv_scale_set_total_tick_count(scale,degrees+1);
+    lv_scale_set_major_tick_every(scale,every);
+    lv_scale_set_label_show(scale,true);
+    climate_tick_words.clear();climate_tick_src.clear();
+    for(int d=0;d<=degrees;d+=every)climate_tick_words.push_back(tile_controls::format_value(t.minimum+d,1,"°"));
+    for(auto &w:climate_tick_words)climate_tick_src.push_back(w.c_str());
+    climate_tick_src.push_back(nullptr);
+    lv_scale_set_text_src(scale,climate_tick_src.data());
+    // The main line only sets the band's place; the sections draw it, so no two lines mix at the ends.
+    lv_obj_set_style_line_width(scale,track_h,LV_PART_MAIN);lv_obj_set_style_line_opa(scale,LV_OPA_TRANSP,LV_PART_MAIN);
+    lv_obj_set_style_line_opa(scale,LV_OPA_TRANSP,LV_PART_ITEMS);lv_obj_set_style_length(scale,0,LV_PART_ITEMS);
+    lv_obj_set_style_line_width(scale,1,LV_PART_INDICATOR);lv_obj_set_style_line_color(scale,theme::color(theme::LINE),LV_PART_INDICATOR);
+    lv_obj_set_style_length(scale,track_h/2+ui::px(4),LV_PART_INDICATOR);
+    // The degrees start under the knobs: the gap after the tick is what the knob reaches past the tick. (pad_bottom
+    // of the indicator part is that gap in a straight scale; pad_radial only counts in a round one.)
+    lv_obj_set_style_pad_bottom(scale,std::max(0,climate_knob_d/2-(track_h/2+ui::px(4))+ui::px(2)),LV_PART_INDICATOR);
+    lv_obj_set_style_text_font(scale,small,LV_PART_INDICATOR);lv_obj_set_style_text_color(scale,theme::color(theme::SUBTLE),LV_PART_INDICATOR);
+    if(!climate_sec_init){for(auto &st:climate_sec_style)lv_style_init(&st);climate_sec_init=true;}
+    const char *sides[2]={"heat","cool"};
+    for(int i=0;i<5;++i){
+      lv_style_set_line_width(&climate_sec_style[i],track_h);
+      lv_style_set_line_color(&climate_sec_style[i],i==4?theme::color(theme::TRACK):lv_color_hex(tile_controls::mode_color(sides[i%2])));
+      lv_style_set_line_opa(&climate_sec_style[i],i<2?LV_OPA_50:LV_OPA_COVER);
     }
-    const int half=(l.number.w-gap)/2;
+    const int lo=range_units(t,low),hi=range_units(t,high);
+    const int cur=std::isfinite(t.current)?std::clamp(range_units(t,t.current),0,units):-1;
+    auto band=[&](int style,int from,int to){
+      if(to<from)return;
+      auto *sec=lv_scale_add_section(scale);
+      lv_scale_set_section_range(scale,sec,from,to);
+      lv_scale_set_section_style_main(scale,sec,&climate_sec_style[style]);
+    };
+    band(4,lo,hi);band(0,0,lo);band(1,hi,units);
+    const bool cold=cur>=0&&cur<=lo,hot=cur>=0&&cur>=hi;
+    if(cold)band(2,cur,lo);
+    if(hot)band(3,hi,cur);
+    // A section's line has square ends (the scale reads only its width, colour and opacity): the band's two round
+    // ends are two discs, opaque in the half-mixed colour, so where they overlap the section's end nothing darkens.
+    for(int i=0;i<2;++i){
+      auto *cap=detail_shape(detail_root,(i?climate_track_x+climate_track_w:climate_track_x)-track_h/2,climate_track_y-track_h/2,track_h,track_h,theme::mix(tile_controls::mode_color(sides[i]),theme::hex(theme::CARD),128),LV_RADIUS_CIRCLE);
+      lv_obj_remove_flag(cap,LV_OBJ_FLAG_CLICKABLE);
+    }
     for(uint8_t i=0;i<2;++i){
-      auto *end=detail_text(detail_root,"",l.number.x+(i?half+gap:0),l.number.y,half,face,LV_TEXT_ALIGN_CENTER,off?theme::OFF:theme::INK);
-      lv_obj_add_flag(end,LV_OBJ_FLAG_CLICKABLE);
-      lv_obj_set_ext_click_area(end,gap/2);
-      lv_obj_add_event_cb(end,climate_end_event,LV_EVENT_SHORT_CLICKED,(void*)(uintptr_t)(i?tile_controls::RANGE_HIGH:tile_controls::RANGE_LOW));
-      climate_ends[i]=end;
+      auto *knob=detail_button("",0,0,climate_knob_d,climate_knob_d,i?CLIMATE_END_HIGH:CLIMATE_END_LOW);
+      lv_obj_set_style_radius(knob,LV_RADIUS_CIRCLE,0);
+      lv_obj_set_style_bg_color(knob,theme::color(theme::CARD),0);
+      lv_obj_set_style_bg_color(knob,lv_color_hex(range_tint(i?tile_controls::RANGE_HIGH:tile_controls::RANGE_LOW)),LV_STATE_PRESSED);
+      lv_obj_set_style_border_color(knob,lv_color_hex(tile_controls::mode_color(sides[i])),0);
+      lv_obj_set_style_shadow_width(knob,ui::px(6),0);lv_obj_set_style_shadow_opa(knob,LV_OPA_20,0);
+      lv_obj_set_ext_click_area(knob,ui::touch_min()/2);
+      climate_ends[i]=knob;
     }
+    // The room's mark: a line a little taller than the band, only while the device has work to do. Home Assistant
+    // cuts a gap in its arc of 24 px; in a band this thin a gap reads as a stain, a line reads.
+    climate_now_mark=detail_shape(detail_root,0,climate_track_y-track_h/2-ui::px(2),ui::px(2),track_h+ui::px(4),theme::hex(theme::INK),ui::px(1));
+    lv_obj_remove_flag(climate_now_mark,LV_OBJ_FLAG_CLICKABLE);
+    if(!cold&&!hot)lv_obj_add_flag(climate_now_mark,LV_OBJ_FLAG_HIDDEN);
     climate_paint_ends(t);
   }else{
     climate_number=detail_text(detail_root,climate_number_text(t),l.number.x,l.number.y,l.number.w,face,LV_TEXT_ALIGN_CENTER,off?theme::OFF:theme::INK);
   }
   // The word under the number, or what the thermostat is doing when the glass had no room for a line of its own.
-  if(!l.caption.empty()){
+  if(!range&&!l.caption.empty()){
     auto *caption=detail_text(detail_root,l.caption_is_status?card_status(t,true):std::string(tr(txt::climate_target)),
                               l.caption.x,l.caption.y,l.caption.w,small,LV_TEXT_ALIGN_CENTER,theme::SUBTLE);
     if(l.caption_is_status){detail_status=caption;detail_status_brief=true;}
@@ -3861,7 +3967,7 @@ inline void show_detail(unsigned index){
   }
   lv_obj_set_style_bg_color(detail_backdrop,theme::color(theme::PAGE),0);lv_obj_set_style_bg_opa(detail_backdrop,LV_OPA_COVER,0);
   lv_obj_remove_flag(detail_backdrop,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_backdrop);
-  detail_action_count=0;detail_status=nullptr;detail_badge_status=nullptr;detail_switch=nullptr;climate_number=nullptr;climate_ends[0]=climate_ends[1]=nullptr;detail_placed=false;detail_status_brief=false;history_forget();
+  detail_action_count=0;detail_status=nullptr;detail_badge_status=nullptr;detail_switch=nullptr;climate_number=nullptr;climate_ends[0]=climate_ends[1]=nullptr;climate_now_mark=nullptr;climate_keys[0]=climate_keys[1]=nullptr;detail_placed=false;detail_status_brief=false;history_forget();
   alarm_forget_widgets();media_progress_fill=nullptr;media_elapsed_label=nullptr;media_detail_picture=nullptr;weather_days_card=nullptr;weather_dots=nullptr;weather_chevron[0]=weather_chevron[1]=nullptr;light_value=nullptr;lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
   lv_obj_set_style_bg_color(detail_root,theme::color(theme::PAGE),0);lv_obj_set_style_bg_opa(detail_root,LV_OPA_COVER,0);
   lv_obj_set_style_bg_grad_dir(detail_root,LV_GRAD_DIR_NONE,0);
