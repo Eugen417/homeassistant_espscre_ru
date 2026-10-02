@@ -602,6 +602,15 @@ MEDIA_PROBE = '''    - action: render_media
                      centre(media_library_key).c_str(), centre(media_knob).c_str(), keys.c_str(), faults.c_str(),
                      media_library::describe().c_str());
 '''
+# Standby as Auto standby starts it, and the touch that ends it (the screensaver, firmware 0.29.0+).
+SAVER_PROBE = '''    - action: render_standby
+      variables:
+        enter: int
+      then:
+        - lambda: |-
+            if (enter) id(dim_display).execute(); else id(wake_display).execute();
+            ESP_LOGI("render", "standby %d", enter);
+'''
 # A board with the calibration wizard shows it on the first start; the renders skip it, as a calibrated screen does.
 SKIP_CALIBRATION = '''    - action: render_skip_calibration
       then:
@@ -651,7 +660,7 @@ class Build:
         (mirror_root / 'host-hw.yaml').write_text(host_hw(board.read_text(), chain))
         (mirror_root / 'chain.txt').write_text('\n'.join([str(f) for f in chain.files] + [''] + chain.notes) + '\n')
         chain_text = ''.join((mirror / f).read_text() for f in chain.files)
-        actions = ACTIONS + PROBES + ALARM_PROBE + MEDIA_PROBE + (SKIP_CALIBRATION if 'screen_calibration::' in chain_text else '')
+        actions = ACTIONS + PROBES + ALARM_PROBE + MEDIA_PROBE + SAVER_PROBE + (SKIP_CALIBRATION if 'screen_calibration::' in chain_text else '')
         turned = f'\n  LVGL_ROTATION: "{item.rotation}"' if item.rotation else ''
         rel = f'host/{item.key}'
         return f'''# Host build of {item.key} from {tree} (tools/render/host.py): core and board chain, hardware swapped for SDL.

@@ -1906,7 +1906,31 @@
       },
       "unavailable": "Ez az entitás ki van kapcsolva a Home Assistantban, vagy a kijelző újraindul.",
       "lower": "{name} csökkentése",
-      "higher": "{name} növelése"
+      "higher": "{name} növelése",
+      "screensaver": {
+        "title": "Képernyővédő",
+        "show": "Megjelenítés készenlétben",
+        "standby_off": "Kapcsold be az Automatikus készenlétet a használatához.",
+        "needs_firmware": "Frissítsd ezt a képernyőt a(z) {version} firmware-re a képernyővédő használatához.",
+        "order": "A képernyő az elsőt mutatja, ami elérhető. Húzd a sorrend módosításához.",
+        "no_pictures": "Ennek a képernyőnek nincs memóriája képekhez, ezért az órát mutatja.",
+        "tap": "Egy érintés felébreszti a képernyőt. A képernyővédőn semmit sem lehet megnyomni.",
+        "use": "{name} használata",
+        "choose_media": "Válassz lejátszót",
+        "choose_camera": "Válassz kamerát",
+        "kinds": {
+          "media": "Szóló zene",
+          "camera": "Kamera",
+          "clock": "Óra"
+        },
+        "details": {
+          "media": "Lejátszás közben, a borítójával",
+          "media_unset": "Válassz lejátszót a használatához",
+          "camera": "A képe, 15 másodpercenként",
+          "camera_unset": "Válassz kamerát a használatához",
+          "clock": "Az idő és a dátum"
+        }
+      }
     },
     "update": {
       "starting": "Frissítés indítása…",

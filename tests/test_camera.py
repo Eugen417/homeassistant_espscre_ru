@@ -176,9 +176,10 @@ class Rules(unittest.TestCase):
         # the spinner turns until the first picture or a note is there.
         opened = TILES.split('inline void camera_open(const std::string &entity, const std::string &name, int map_index, const std::string &focus) {', 1)[1].split('\n}\n', 1)[0]
         self.assertIn('camera_spinner = spinner_create(camera_root,', opened)
-        self.assertIn('if (awake() && fresh() && camera.should_ask(now)) {', opened)
+        # pictures_awake: awake, or the screensaver's picture in standby (firmware 0.29.0+).
+        self.assertIn('if (pictures_awake() && fresh() && camera.should_ask(now)) {', opened)
         answer = TILES.split('inline void camera_answer(const std::string &view, const std::string &entity, const std::string &url) {', 1)[1].split('\n}\n', 1)[0]
-        self.assertIn('if (awake() && camera.should_load(now)) camera_load(now);', answer)
+        self.assertIn('if (pictures_awake() && camera.should_load(now)) camera_load(now);', answer)
         # Never under a finger, from the answer or from the tick.
         load = TILES.split('inline void camera_load(uint32_t now) {', 1)[1].split('\n}\n', 1)[0]
         self.assertIn('lv_indev_get_state(input) == LV_INDEV_STATE_PRESSED) return;', load)

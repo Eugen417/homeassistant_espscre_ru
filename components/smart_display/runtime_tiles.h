@@ -37,6 +37,7 @@
 #include "wifi_status.h"
 #include "picture_store.h"
 #include "media_card.h"
+#include "saver_view.h"
 #include "light_card.h"
 #include "weather_card.h"
 #include "forecast_tile.h"
@@ -154,6 +155,27 @@ inline std::function<esphome::ESPTime()> now_time;
 // The analog clock's second hand runs only then; a standby screen stays on its minute redraws.
 inline std::function<bool()> screen_awake;
 inline bool awake() { return !screen_awake || screen_awake(); }
+// The screensaver (firmware 0.29.0+) shows a cover or a camera in standby: those two load their picture while the screen
+// is not awake, everything else keeps waiting for a touch.
+inline bool saver_pictures = false;
+inline bool pictures_awake() { return awake() || saver_pictures; }
+// What ESP Screen Manager says the screensaver shows (op "saver", screen_saver.py): "media", "camera", "clock" or ""
+// for none, with the player's or camera's name and, for a player, its title, artist and album, its picture's mark and
+// the cover's colour (the picture is made again when either changes). Where the track is, is no part of it.
+struct SaverChoice {
+  std::string kind, entity, name, title, artist, album, picture, ground;
+  bool operator==(const SaverChoice &o) const {
+    return kind == o.kind && entity == o.entity && name == o.name && title == o.title && artist == o.artist &&
+           album == o.album && picture == o.picture && ground == o.ground;
+  }
+};
+inline SaverChoice saver_next, saver_now;  // the app's latest word, and what the glass shows
+inline lv_obj_t *saver_root = nullptr;      // the clock
+inline bool saver_camera = false;           // the camera's full view on the glass is the screensaver's (a camera or a cover)
+inline void saver_words();
+inline bool saver_woke = false;  // the last wake took the screensaver away: that touch does nothing else
+inline void saver_tick(uint32_t now);
+inline void saver_forget();
 inline uint32_t now_epoch() { if (!now_time) return 0; auto t = now_time(); return t.is_valid() ? static_cast<uint32_t>(t.timestamp) : 0; }
 inline void tick();
 inline void refresh_tile(size_t index);
@@ -4308,6 +4330,8 @@ inline void event(lv_event_t *event) {
 // touch guard, the busy sheet, the new stand at once) and counts once. A push on the tile's slider or keys, the top bar
 // or the page bar only wakes, as does a flick. Called by both boards' dim_wake_overlay; true when it tapped the tile.
 inline bool wake_tap() {
+  // A touch on the screensaver only wakes: what it lay over was not on the glass to be aimed at (firmware 0.29.0+).
+  if (std::exchange(saver_woke, false)) return false;
   auto &w = widgets[0];
   if (!enabled || !fresh() || !w.tile || !w.full || w.index >= model.count || lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN)) return false;
   const auto &t = model.tiles[w.index];
@@ -8742,9 +8766,17 @@ inline void camera_request(const std::string &entity, int size, uint32_t backgro
   // A map's full view (firmware 0.21.0+) adds its tile's index and the look, which the app draws it in; an older app
   // reads the keys it knows.
   const bool map = size <= 0 && camera_map_index >= 0;
+  // The screensaver's picture (firmware 0.29.0+): the full view's request with what it shows, "camera" or "media".
+  const bool saver = size <= 0 && saver_camera;
   const std::string keys[] = {"inbox", "entity", "size", "bg", "session", "rev", "view", "idx", "dark", "focus"}, values[] = {inbox, entity, size_text, background_text, protocol_key(transfer.lease), layout_rev, std::to_string(size > 0 ? ++cover_view_id : ++camera_view_id), std::to_string(camera_map_index), theme::dark ? "1" : "0", map_focus};
   const int count = map ? 10 : 7;
-  request.data.init(count);
+  request.data.init(count + (saver ? 1 : 0));
+  if (saver) {
+    esphome::api::HomeassistantServiceMap entry;
+    entry.key = esphome::StringRef("saver");
+    entry.value = esphome::StringRef(saver_now.kind);
+    request.data.push_back(entry);
+  }
   for (int i = 0; i < count; ++i) {
     esphome::api::HomeassistantServiceMap entry;
     entry.key = esphome::StringRef(keys[i]);
@@ -8944,7 +8976,7 @@ inline void camera_open(const std::string &entity, const std::string &name, int 
   ESP_LOGI("camera", "open %s", entity.c_str());
   // Asked for now rather than on the next tick (firmware 0.2.73+): the answer is most of the wait.
   const uint32_t now = esphome::millis();
-  if (awake() && fresh() && camera.should_ask(now)) {
+  if (pictures_awake() && fresh() && camera.should_ask(now)) {
     camera.ask(now);
     camera_request(entity);
   }
@@ -8976,7 +9008,8 @@ inline void camera_tick() {
   }
   cover_tick(now);
   live_tick(now);
-  if (!camera_root || !awake()) return;
+  saver_tick(now);
+  if (!camera_root || !pictures_awake()) return;
   if (camera.should_ask(now)) {
     if (!fresh()) return;
     camera.ask(now);
@@ -9021,16 +9054,17 @@ inline void alert_clear() {
 
 inline void camera_answer(const std::string &view, const std::string &entity, const std::string &url) {
   if (!camera_supported()) return;
-  if (view == "full") {
-    if (!camera_root || camera.entity != entity) return;
+  if (view == "full" || view == "saver") {
+    // "saver" (firmware 0.29.0+): the screensaver's picture, into the full view it opened without its keys.
+    if (!camera_root || camera.entity != entity || (view == "saver") != saver_camera) return;
     camera.link(url);
     if (url.empty()) {
-      if (!camera.shown) camera_note_text(tr(txt::camera_no_image));
+      if (!camera.shown && !saver_camera) camera_note_text(tr(txt::camera_no_image));
       return;
     }
     // Loaded now rather than on the next tick (firmware 0.2.73+), as an alert's image is.
     const uint32_t now = esphome::millis();
-    if (awake() && camera.should_load(now)) camera_load(now);
+    if (pictures_awake() && camera.should_load(now)) camera_load(now);
     return;
   }
   if (view == "cover") {  // the media card's album cover (firmware 0.2.64+)
@@ -9152,9 +9186,15 @@ inline void camera_loaded(bool thumb, bool cached) {
   }
   const bool first = camera_picture == nullptr;
   camera_show(camera_root, camera_picture, src, !cached);
-  if (first && camera_picture) {
+  if (first && camera_picture && saver_camera) {
+    // The screensaver's picture is the whole glass; one that came smaller (the size cap, picture_store::MAX_BYTES) is
+    // scaled to it, the same proportions. Its words lie over it.
+    lv_obj_set_size(camera_picture, lv_pct(100), lv_pct(100));
+    lv_image_set_inner_align(camera_picture, LV_IMAGE_ALIGN_COVER);
+    saver_words();
+  } else if (first && camera_picture) {
     camera_note_text("");
-    lv_obj_move_foreground(camera_back);
+    if (camera_back) lv_obj_move_foreground(camera_back);
     lv_obj_move_foreground(camera_title);
     // A map's card (firmware 0.21.0+) may have come before its first picture: it lies over the map as the bar does.
     if (map_card_obj) lv_obj_move_foreground(map_card_obj);
@@ -9179,7 +9219,152 @@ inline void camera_failed(bool thumb) {
   }
   if (!camera.loading) return;
   camera.finish(esphome::millis(), false);
-  if (!camera.shown) camera_note_text(tr(txt::camera_no_image));
+  if (!camera.shown && !saver_camera) camera_note_text(tr(txt::camera_no_image));
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// The screensaver (firmware 0.29.0+, app 0.4.48). When Auto standby dims the screen, a screen whose ESP Screen Manager
+// chose a screensaver shows it over the dimmed tiles, at the standby level: the cover of what plays, a camera, or the
+// clock. The app decides which (screen_manager/app/screen_saver.py) and says so in a small message whenever that
+// changes; the screen keeps the last word and shows it the next time it goes into standby. A cover and a camera are the
+// camera's full view without its keys, holding one picture of the whole glass the app made for it (darkened, the cover
+// in its colour on long glass, camera_feed.encode_saver) with a line or two of words over it (saver_view.h); the clock
+// takes the bedside clock's digits. Nothing on it takes a tap: it lies on the top layer without one clickable object,
+// so a finger falls through to dim_wake_overlay and only wakes the screen, the way it always did in standby (and
+// wake_tap leaves the tile it lay over alone).
+inline std::function<void()> saver_changed;  // the profile's apply_screen_settings, which ends in saver_sync
+inline bool saver_lit = false;               // in standby with the backlight on (the standby or night level)
+inline uint32_t saver_ticked = 0;
+// A camera in standby loads at a live tile's default pace rather than the full view's four seconds: a screensaver can
+// stand there all evening, and the Wi-Fi and Home Assistant need not fetch a picture every four seconds for it.
+constexpr uint32_t SAVER_CAMERA_MS = 15000;
+
+inline bool saver_wanted() {
+  const auto &kind = saver_next.kind;
+  return kind == "clock" || ((kind == "media" || kind == "camera") && camera_supported() && valid_entity(saver_next.entity));
+}
+inline lv_obj_t *saver_text(lv_obj_t *parent, const lv_font_t *font, uint32_t color, const media_card::Rect &r, const std::string &text,
+                            lv_text_align_t align = LV_TEXT_ALIGN_CENTER) {
+  auto *label = lv_label_create(parent);
+  lv_obj_remove_flag(label, LV_OBJ_FLAG_CLICKABLE);
+  if (font) lv_obj_set_style_text_font(label, font, 0);
+  lv_obj_set_style_text_color(label, theme::rgb(color), 0);
+  lv_obj_set_style_text_align(label, align, 0);
+  lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
+  lv_obj_set_pos(label, r.x, r.y);
+  lv_obj_set_width(label, r.w);
+  lv_label_set_text(label, text.c_str());
+  return label;
+}
+
+// The clock: the time in the bedside clock's digits where they fit, else the largest digit step that does, and the date
+// under it in the card heading's font, in the screen's own look (dark mode at night, as the bedside clock asks for).
+inline void saver_clock_draw() {
+  const int width = overlay_card::screen_width(), height = overlay_card::screen_height();
+  const auto now = now_time ? now_time() : esphome::ESPTime{};
+  const std::string time = time_text(now), date = date_text(now);
+  const bool large = ui::large();
+  const int margin = ui::px(large ? 24 : 10), gap = ui::px(large ? 12 : 6);
+  const lv_font_t *date_font = watch_font ? watch_font : detail_font;
+  const int date_h = date_font ? lv_font_get_line_height(date_font) : 24;
+  const lv_font_t *digits = bedside_digits();
+  if (!digits || text_width(time, digits) > width - 2 * margin) digits = largest_digits(time.c_str(), width - 2 * margin, height - 2 * margin - gap - date_h);
+  if (!digits) digits = clock_font;
+  int top = 0, digits_h = 40;
+  if (digits) digit_box(digits, top, digits_h);
+  lv_obj_set_style_bg_color(saver_root, theme::color(theme::PAGE), 0);
+  const auto l = saver_view::clock(width, height, digits_h, date.empty() ? 0 : date_h, date.empty() ? 0 : gap);
+  saver_text(saver_root, digits, theme::hex(theme::INK), {0, l.time.y - top, width, digits ? lv_font_get_line_height(digits) : digits_h}, time);
+  if (!date.empty()) saver_text(saver_root, date_font, theme::hex(theme::MUTED), {margin, l.date.y, width - 2 * margin, date_h}, date);
+}
+
+// The words over the picture, once it is there: a cover's title with its artist and album, a camera's name alone, in
+// white over the darkened picture or the cover's colour.
+inline void saver_words() {
+  if (!camera_root || !saver_camera) return;
+  const auto &c = saver_now;
+  const int width = overlay_card::screen_width(), height = overlay_card::screen_height();
+  const bool large = ui::large();
+  const int margin = ui::px(large ? 28 : 12), gap = ui::px(large ? 4 : 2);
+  const lv_font_t *first_font = watch_font ? watch_font : detail_font;
+  const lv_font_t *second_font = control_font ? control_font : detail_font;
+  const bool media = c.kind == "media";
+  const std::string first = media && !c.title.empty() ? c.title : c.name;
+  const std::string second = media ? media_card::subtitle(c.artist, c.album) : std::string();
+  const lv_font_t *font = media ? first_font : second_font;
+  const int first_h = font ? lv_font_get_line_height(font) : 24;
+  const int second_h = second.empty() || !second_font ? 0 : lv_font_get_line_height(second_font);
+  const auto shape = media ? saver_view::shape(width, height) : saver_view::Shape::fill;
+  const auto w = saver_view::words(shape, width, height, margin, first_h, second_h, gap);
+  saver_text(camera_root, font, media_ink(), w.first, first, LV_TEXT_ALIGN_LEFT);
+  if (second_h) saver_text(camera_root, second_font, theme::mix(media_ink(), 0, 200), w.second, second, LV_TEXT_ALIGN_LEFT);
+}
+
+inline void saver_hide() {
+  if (saver_root) lv_obj_delete(saver_root);
+  saver_root = nullptr;
+  if (saver_camera) camera_close();
+  saver_camera = false;
+  saver_now = SaverChoice{};
+  saver_pictures = false;
+}
+inline void saver_show() {
+  saver_now = saver_next;
+  saver_pictures = saver_now.kind != "clock";
+  if (saver_pictures) {
+    // The full view, asked for as the screensaver's picture (camera_request adds what it shows), then stripped of its
+    // keys, its name and its spinner, and laid under an alert that may come.
+    saver_camera = true;
+    camera_open(saver_now.entity, saver_now.name, -1, "");
+    if (!camera_root) { saver_camera = false; return; }
+    lv_obj_remove_flag(camera_root, LV_OBJ_FLAG_CLICKABLE);
+    for (lv_obj_t **part : {&camera_back, &camera_title, &camera_spinner}) if (*part) { lv_obj_delete(*part); *part = nullptr; }
+    lv_obj_move_to_index(camera_root, 0);
+    // A camera refreshes at its pace; a cover loads once, and a new track is a new picture (saver_sync).
+    if (saver_now.kind == "media") camera.once = true;
+    else camera.every = SAVER_CAMERA_MS;
+    ESP_LOGI("saver", "%s %s", saver_now.kind.c_str(), saver_now.entity.c_str());
+    return;
+  }
+  saver_root = lv_obj_create(lv_layer_top());
+  lv_obj_remove_style_all(saver_root);
+  lv_obj_remove_flag(saver_root, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_remove_flag(saver_root, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_size(saver_root, lv_pct(100), lv_pct(100));
+  lv_obj_set_style_bg_opa(saver_root, LV_OPA_COVER, 0);
+  lv_obj_move_to_index(saver_root, 0);
+  saver_clock_draw();
+  ESP_LOGI("saver", "clock");
+}
+// apply_screen_settings, after every change and every minute: `lit` is standby with a backlight that is on.
+inline void saver_sync(bool lit) {
+  saver_lit = lit;
+  const bool shown = saver_root || saver_camera;
+  if (!lit || !saver_wanted()) { if (shown) saver_hide(); return; }
+  // The camera and the cover stand as they are while nothing changed; the clock is drawn again, a minute later.
+  if (shown && saver_next == saver_now && saver_now.kind != "clock") return;
+  saver_hide();
+  saver_show();
+}
+// wake_display: the screensaver goes, and the touch that woke the screen does nothing else.
+inline void saver_wake() {
+  saver_lit = false;
+  saver_woke = saver_root || saver_camera;
+  saver_hide();
+}
+// A new layout on its way (cancel_layout_input): every picture goes; saver_tick draws the screensaver again.
+inline void saver_forget() { saver_hide(); }
+// The app's word (page_receiver.cpp). In standby the glass follows at once, through apply_screen_settings.
+inline void saver_receive(const SaverChoice &next) {
+  if (next == saver_next) return;
+  saver_next = next;
+  if (!awake() && saver_changed) saver_changed();
+}
+inline void saver_tick(uint32_t now) {
+  if (now - saver_ticked < 1000) return;
+  saver_ticked = now;
+  // Gone under it (a new layout, an alert that closed the camera): drawn again.
+  if (saver_lit && !saver_root && !saver_camera && saver_wanted()) saver_show();
 }
 
 // ---------------------------------------------------------------------------------------------------------
@@ -9407,6 +9592,7 @@ inline void cancel_layout_input(bool invalidate_widgets) {
   slider_changed = false;
   active_index = -1;
   if (dismiss) dismiss();
+  saver_forget();
   camera_close();
   cover_drop();
   live_release();

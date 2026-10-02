@@ -98,7 +98,7 @@ REF = 'main'
 # The shared firmware of this app release: packages/core.yaml's SCREEN_FIRMWARE_VERSION, what every board builds
 # unless its own board file went ahead with a fix for that board alone (firmware_target, docs/BOARD_RELEASES.md). The
 # middle number is the core: the feature gates below name a shared X.Y.0, so a feature always ships with a new core.
-FIRMWARE_VERSION = '0.28.0'
+FIRMWARE_VERSION = '0.29.0'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -808,6 +808,8 @@ OWNED_SETTINGS_MARKERS = frozenset(('Night mode', 'Night starts', 'Night ends', 
 ROTATION_OPTIONS = ('0°', '90°', '180°', '270°')
 # Every board turns since this firmware; the Guition turned since 0.2.9.
 ROTATION_MIN_FIRMWARE = (0, 2, 80)
+# The screensaver (screen_saver.py): what the screen shows in standby instead of its dimmed tiles; its hello lists it.
+SCREENSAVER_MIN_FIRMWARE = (0, 29, 0)
 # The button that starts a screen's calibration wizard again (app 0.2.117). Only a board whose glass is one you
 # calibrate builds it, so the button being on the device is what says this screen can be calibrated at all: no
 # board list here, and a board added later needs nothing of this app. A resistive panel reads a voltage off the

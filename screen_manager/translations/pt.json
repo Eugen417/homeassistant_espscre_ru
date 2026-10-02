@@ -1906,7 +1906,31 @@
       },
       "unavailable": "Esta entidade está desativada no Home Assistant ou o ecrã está a reiniciar.",
       "lower": "{name}: menos",
-      "higher": "{name}: mais"
+      "higher": "{name}: mais",
+      "screensaver": {
+        "title": "Proteção de ecrã",
+        "show": "Mostrar em espera",
+        "standby_off": "Ativa Espera automática para a usar.",
+        "needs_firmware": "Atualiza este ecrã para o firmware {version} para usar uma proteção de ecrã.",
+        "order": "O ecrã mostra o primeiro que estiver disponível. Arrasta para mudar a ordem.",
+        "no_pictures": "Este ecrã não tem memória para imagens, por isso mostra o relógio.",
+        "tap": "Um toque acorda o ecrã. Nada na proteção de ecrã pode ser premido.",
+        "use": "Usar {name}",
+        "choose_media": "Escolhe um leitor",
+        "choose_camera": "Escolhe uma câmara",
+        "kinds": {
+          "media": "Música a tocar",
+          "camera": "Câmara",
+          "clock": "Relógio"
+        },
+        "details": {
+          "media": "Enquanto toca, com a capa",
+          "media_unset": "Escolhe um leitor para o usar",
+          "camera": "A sua imagem, a cada 15 segundos",
+          "camera_unset": "Escolhe uma câmara para a usar",
+          "clock": "A hora e a data"
+        }
+      }
     },
     "update": {
       "starting": "A iniciar a atualização…",

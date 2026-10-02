@@ -1906,7 +1906,31 @@
       },
       "unavailable": "Deze entiteit is uitgeschakeld in Home Assistant, of het scherm herstart.",
       "lower": "{name} verlagen",
-      "higher": "{name} verhogen"
+      "higher": "{name} verhogen",
+      "screensaver": {
+        "title": "Screensaver",
+        "show": "Tonen in stand-by",
+        "standby_off": "Zet Automatisch stand-by aan om hem te gebruiken.",
+        "needs_firmware": "Werk dit scherm bij naar firmware {version} om een screensaver te gebruiken.",
+        "order": "Het scherm toont de eerste die beschikbaar is. Sleep om de volgorde te wijzigen.",
+        "no_pictures": "Dit scherm heeft geen geheugen voor afbeeldingen en toont daarom de klok.",
+        "tap": "Een tik maakt het scherm wakker. Op de screensaver kun je niets indrukken.",
+        "use": "{name} gebruiken",
+        "choose_media": "Kies een speler",
+        "choose_camera": "Kies een camera",
+        "kinds": {
+          "media": "Muziek die speelt",
+          "camera": "Camera",
+          "clock": "Klok"
+        },
+        "details": {
+          "media": "Terwijl hij speelt, met de hoes",
+          "media_unset": "Kies een speler om hem te gebruiken",
+          "camera": "Het beeld, elke 15 seconden",
+          "camera_unset": "Kies een camera om hem te gebruiken",
+          "clock": "De tijd en de datum"
+        }
+      }
     },
     "update": {
       "starting": "Update starten…",

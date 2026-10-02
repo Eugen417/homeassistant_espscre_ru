@@ -1906,7 +1906,31 @@
       },
       "unavailable": "Ta encja jest wyłączona w Home Assistant albo ekran uruchamia się ponownie.",
       "lower": "{name}: zmniejsz",
-      "higher": "{name}: zwiększ"
+      "higher": "{name}: zwiększ",
+      "screensaver": {
+        "title": "Wygaszacz ekranu",
+        "show": "Pokazuj w trybie czuwania",
+        "standby_off": "Włącz Auto czuwanie, aby go używać.",
+        "needs_firmware": "Zaktualizuj ten ekran do firmware {version}, aby używać wygaszacza.",
+        "order": "Ekran pokazuje pierwszy dostępny element. Przeciągnij, aby zmienić kolejność.",
+        "no_pictures": "Ten ekran nie ma pamięci na obrazy, więc pokazuje zegar.",
+        "tap": "Dotknięcie budzi ekran. Na wygaszaczu nie da się niczego nacisnąć.",
+        "use": "Użyj: {name}",
+        "choose_media": "Wybierz odtwarzacz",
+        "choose_camera": "Wybierz kamerę",
+        "kinds": {
+          "media": "Odtwarzana muzyka",
+          "camera": "Kamera",
+          "clock": "Zegar"
+        },
+        "details": {
+          "media": "Podczas odtwarzania, z okładką",
+          "media_unset": "Wybierz odtwarzacz, aby go używać",
+          "camera": "Jej obraz co 15 sekund",
+          "camera_unset": "Wybierz kamerę, aby jej używać",
+          "clock": "Godzina i data"
+        }
+      }
     },
     "update": {
       "starting": "Rozpoczynanie aktualizacji…",

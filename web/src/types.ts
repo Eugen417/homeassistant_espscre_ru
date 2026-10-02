@@ -78,6 +78,12 @@ export type UpdateInfo = {
 // dark has no percentage, so standby and night are on or off there.
 // `calibrate` (app 0.2.117): this screen's panel is one you calibrate, so the panel offers Calibrate touch. The
 // add-on reads it from the screen's own button in Home Assistant, the same one its settings page has a row for.
+// The screensaver (app 0.4.48): a player, a camera and the order the screen tries them in, the clock a step of its own.
+// `ready`: the screen's firmware takes one; `pictures`: its board draws pictures, else the clock alone; `standby`: it
+// goes into standby at all.
+export type SaverKind = "media" | "camera" | "clock";
+export type ScreensaverChoice = { show: boolean; media: string; camera: string; order: SaverKind[]; off: SaverKind[] };
+export type ScreensaverView = ScreensaverChoice & { ready: boolean; pictures: boolean; standby: boolean };
 export type SettingsView = { owner: string; keys: string[]; values: Record<string, any>; unavailable: string[]; rotations?: number[]; switches?: string[]; calibrate?: boolean };
 // The two ways a screen can hang (app 0.2.107), chosen when it is built: lying down or standing up. A board's own
 // numbers for each way come from boards.json, which the add-on serves with the firmware status.
@@ -115,6 +121,7 @@ export type Screen = {
   id: string; name: string; ha_name?: string; online: boolean; area?: string; firmware?: string; board?: string;
   virtual?: boolean;
   layout: Layout; update?: UpdateInfo; settings?: SettingsView; delivery?: string; status?: string;
+  screensaver?: ScreensaverView;
   page_document?: PageDocument | PendingMigration | null;
   source_grid?: PageGrid | null;
   tile_sizes?: string[];

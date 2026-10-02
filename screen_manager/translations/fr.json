@@ -1906,7 +1906,31 @@
       },
       "unavailable": "Cette entité est désactivée dans Home Assistant, ou l'écran redémarre.",
       "lower": "{name} : diminuer",
-      "higher": "{name} : augmenter"
+      "higher": "{name} : augmenter",
+      "screensaver": {
+        "title": "Économiseur d'écran",
+        "show": "Afficher en veille",
+        "standby_off": "Active Veille auto pour l'utiliser.",
+        "needs_firmware": "Mets cet écran à jour vers le firmware {version} pour utiliser un économiseur d'écran.",
+        "order": "L'écran affiche le premier élément disponible. Fais glisser pour changer l'ordre.",
+        "no_pictures": "Cet écran n'a pas de mémoire pour les images, il affiche donc l'horloge.",
+        "tap": "Un appui réveille l'écran. Rien ne peut être pressé sur l'économiseur d'écran.",
+        "use": "Utiliser {name}",
+        "choose_media": "Choisir un lecteur",
+        "choose_camera": "Choisir une caméra",
+        "kinds": {
+          "media": "Musique en cours",
+          "camera": "Caméra",
+          "clock": "Horloge"
+        },
+        "details": {
+          "media": "Pendant la lecture, avec sa pochette",
+          "media_unset": "Choisis un lecteur pour l'utiliser",
+          "camera": "Son image, toutes les 15 secondes",
+          "camera_unset": "Choisis une caméra pour l'utiliser",
+          "clock": "L'heure et la date"
+        }
+      }
     },
     "update": {
       "starting": "Démarrage de la mise à jour…",

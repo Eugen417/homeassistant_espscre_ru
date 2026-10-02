@@ -1193,6 +1193,50 @@ class Run:
                 raise RuntimeError(f'media: {what}: {card}')
             await asyncio.sleep(0.15)
 
+    async def saver_panel(self):
+        """The screensaver (firmware 0.29.0+) over the demo layout in standby: a cover that plays, a camera and the clock,
+        each as ESP Screens says it (screen_saver.py) and with its picture as ESP Screens makes it (camera_feed)."""
+        import camera_feed
+        import media_art
+        import media_library
+        calls = []
+        self.client.subscribe_service_calls(calls.append)
+        pictured = 'camera' in json.loads((REPO / 'screen_manager/app/boards.json').read_text())[self.item.board]
+        served = [0]
+        async def answer(since, timeout=8):
+            end = time.monotonic() + timeout
+            while time.monotonic() < end:
+                for call in calls[since:]:
+                    data = dict(call.data)
+                    if call.service != 'esphome.screen_camera' or data.get('_answered'):
+                        continue
+                    # The screensaver's picture as ESP Screens makes it: the screen's full box, within the picture cap.
+                    kind, box = data.get('saver'), camera_feed.capped(self.canvas)
+                    raw = media_art.png(0, 640) if kind == 'media' else porch(*self.camera)
+                    body = camera_feed.encode_saver(raw, box, kind, int(ground.split(',')[0], 16) if ground else 0)
+                    url = self.pictures.url(f'{self.item.key}-saver-{served[0]}.bmp', body)
+                    served[0] += 1
+                    await self.send({'v': 1, 'op': 'camera', 't': 'saver', 'e': data['entity'], 'u': url, 'view': int(data['view'])})
+                    call.data['_answered'] = '1'
+                    return
+                await asyncio.sleep(0.05)
+        ground = media_library.ground_colours(media_art.png(0)) or ''
+        steps = [('clock', {'k': 'clock'})]
+        if pictured:
+            steps = [('media', {'k': 'media', 'e': 'media_player.living_room', 'n': 'Living room', 't': 'Evening Drive',
+                                'x': {'artist': 'Nova Coast', 'album': 'Low Sun', 'pic': 'c0ffee1234', 'g': ground}}),
+                     ('camera', {'k': 'camera', 'e': 'camera.front_door', 'n': 'Front door'}), *steps]
+        await self.call('render_standby', enter=1)
+        for name, message in steps:
+            start = len(calls)
+            await self.send({'v': 1, 'op': 'saver', **message})
+            if name != 'clock':
+                await answer(start)
+            await asyncio.sleep(1.5)
+            await self.render(f'saver-{name}')
+        await self.call('render_standby', enter=0)
+        return 0
+
     async def media_panel(self, grid):
         """A player the way Spotify is used (firmware 0.24.0, app 0.4.42): its card on its cover's ground with the speaker
         in the top bar, the speaker menu, shuffle and repeat, the library from its folders to a page of covers, a tap
@@ -1844,6 +1888,8 @@ class Run:
             return 1, await self.bedside_clock(grid)
         if self.only == 'media':
             return 1, await self.media_panel(grid)
+        if self.only == 'saver':
+            return 1, await self.saver_panel()
         checks = await self.self_test()
         await self.moments(pages)
         for page in range(pages):
@@ -1931,7 +1977,7 @@ def main():
     parser.add_argument('--out', type=Path, default=REPO / '.esphome' / 'render' / 'out')
     parser.add_argument('--work', type=Path, help='where the host builds go (default: .esphome/render/build)')
     parser.add_argument('--camera', default='960x540', help='the camera picture of the camera alert, WxH')
-    parser.add_argument('--only', choices=['alarm', 'lock', 'automation', 'remote', 'bedside', 'media'], help='after the demo layout arrives, run only this stage')
+    parser.add_argument('--only', choices=['alarm', 'lock', 'automation', 'remote', 'bedside', 'media', 'saver'], help='after the demo layout arrives, run only this stage')
     parser.add_argument('--port-base', type=int, help='the first API port (default host.PORT_BASE); another worktree may use it')
     args = parser.parse_args()
     # The programs write their pictures from their own folder, so every path they get is absolute.

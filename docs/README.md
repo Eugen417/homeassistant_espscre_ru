@@ -6,6 +6,7 @@
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md): what to check when a screen, its touch or its pairing misbehaves.
 - [DOCKER.md](DOCKER.md): ESP Screen Manager on Home Assistant Container, without the App store.
 - [BEDSIDE.md](BEDSIDE.md): the bedside clock, a whole-page clock with keys for the night.
+- [SCREENSAVER.md](SCREENSAVER.md): what a screen shows in standby instead of its dimmed tiles: a cover, a camera or the clock.
 
 ## Per board
 

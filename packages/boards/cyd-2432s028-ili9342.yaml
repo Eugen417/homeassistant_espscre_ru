@@ -66,7 +66,7 @@ substitutions:
   DISPLAY_MODEL: "ILI9342"                      # ESPHome's mipi_spi model of the display controller
   DISPLAY_DATA_RATE: "40MHz"                    # the display's SPI clock; 40MHz matches ESPHome's board preset
   DISPLAY_INVERT_COLORS: "false"
-  BACKLIGHT_FREQUENCY: "20000Hz"                # the backlight's PWM (see the output block)
+  BACKLIGHT_FREQUENCY: "1000Hz"                 # the backlight's PWM; see the output block (GitHub #42)
 
   # The ILI9341 CYD's touch range (packages/boards/cyd-2432s028.yaml): the same XPT2046 on the same glass. The
   # calibration on the first start measures this board's own.

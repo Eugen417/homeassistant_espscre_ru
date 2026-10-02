@@ -1906,7 +1906,31 @@
       },
       "unavailable": "Questa entità è disattivata in Home Assistant, oppure lo schermo si sta riavviando.",
       "lower": "{name}: diminuisci",
-      "higher": "{name}: aumenta"
+      "higher": "{name}: aumenta",
+      "screensaver": {
+        "title": "Salvaschermo",
+        "show": "Mostra in standby",
+        "standby_off": "Attiva Standby automatico per usarlo.",
+        "needs_firmware": "Aggiorna questo schermo al firmware {version} per usare un salvaschermo.",
+        "order": "Lo schermo mostra il primo disponibile. Trascina per cambiare l'ordine.",
+        "no_pictures": "Questo schermo non ha memoria per le immagini, quindi mostra l'orologio.",
+        "tap": "Un tocco riattiva lo schermo. Sul salvaschermo non si può premere nulla.",
+        "use": "Usa {name}",
+        "choose_media": "Scegli un lettore",
+        "choose_camera": "Scegli una telecamera",
+        "kinds": {
+          "media": "Musica in riproduzione",
+          "camera": "Telecamera",
+          "clock": "Orologio"
+        },
+        "details": {
+          "media": "Mentre suona, con la copertina",
+          "media_unset": "Scegli un lettore per usarlo",
+          "camera": "La sua immagine, ogni 15 secondi",
+          "camera_unset": "Scegli una telecamera per usarla",
+          "clock": "L'ora e la data"
+        }
+      }
     },
     "update": {
       "starting": "Avvio dell'aggiornamento…",

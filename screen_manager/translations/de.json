@@ -1906,7 +1906,31 @@
       },
       "unavailable": "Diese Entität ist in Home Assistant deaktiviert, oder der Bildschirm startet neu.",
       "lower": "{name} verringern",
-      "higher": "{name} erhöhen"
+      "higher": "{name} erhöhen",
+      "screensaver": {
+        "title": "Bildschirmschoner",
+        "show": "Im Standby anzeigen",
+        "standby_off": "Schalte Auto-Standby ein, um ihn zu nutzen.",
+        "needs_firmware": "Aktualisiere diesen Bildschirm auf Firmware {version}, um einen Bildschirmschoner zu nutzen.",
+        "order": "Der Bildschirm zeigt das Erste, was verfügbar ist. Ziehen, um die Reihenfolge zu ändern.",
+        "no_pictures": "Dieser Bildschirm hat keinen Speicher für Bilder und zeigt deshalb die Uhr.",
+        "tap": "Ein Tippen weckt den Bildschirm. Auf dem Bildschirmschoner lässt sich nichts drücken.",
+        "use": "{name} verwenden",
+        "choose_media": "Player wählen",
+        "choose_camera": "Kamera wählen",
+        "kinds": {
+          "media": "Laufende Musik",
+          "camera": "Kamera",
+          "clock": "Uhr"
+        },
+        "details": {
+          "media": "Während sie läuft, mit dem Cover",
+          "media_unset": "Wähle einen Player, um ihn zu nutzen",
+          "camera": "Ihr Bild, alle 15 Sekunden",
+          "camera_unset": "Wähle eine Kamera, um sie zu nutzen",
+          "clock": "Uhrzeit und Datum"
+        }
+      }
     },
     "update": {
       "starting": "Update wird gestartet…",

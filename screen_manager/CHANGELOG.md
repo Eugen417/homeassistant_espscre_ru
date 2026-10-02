@@ -1,3 +1,18 @@
+## 0.4.48 (firmware 0.29.0)
+
+- **A screensaver in standby.** When Auto standby dims a screen, it can show something calm instead of the dimmed
+  tiles: the cover of the music that plays, a camera, or a large clock with the date. Choose a player and a camera in
+  **Settings → Screensaver** and drag the three into the order you want: the screen shows the first one that is there
+  right now, such as the cover while music plays, the camera when it stops and the clock when the camera is away.
+- The cover and the camera fill the whole glass, a little darker so the title or the camera's name reads over it. On a
+  screen much wider or taller than square the cover takes the full height or width, beside its own colour.
+- Nothing on the screensaver can be pressed: a tap wakes the screen, as it always did. It keeps your Standby
+  brightness and, at night, your Night brightness. The CYD and the other screens without memory for pictures show the
+  clock.
+- **The CYD dims evenly** (GitHub #42, #20). Its backlight was full at 100 % and nearly dark at 95 %, with little
+  change below. It now runs at the frequency its backlight follows, so every level from 5 to 100 % steps evenly. The
+  Hosyond 4-inch had the same and gets the same.
+
 ## 0.4.47 (firmware 0.28.0)
 
 - **Swipe up from the bottom edge goes home from anywhere.** Over an open card, a camera, a player's library or the

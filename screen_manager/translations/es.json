@@ -1906,7 +1906,31 @@
       },
       "unavailable": "Esta entidad está desactivada en Home Assistant o la pantalla se está reiniciando.",
       "lower": "{name}: menos",
-      "higher": "{name}: más"
+      "higher": "{name}: más",
+      "screensaver": {
+        "title": "Salvapantallas",
+        "show": "Mostrar en reposo",
+        "standby_off": "Activa Reposo automático para usarlo.",
+        "needs_firmware": "Actualiza esta pantalla al firmware {version} para usar un salvapantallas.",
+        "order": "La pantalla muestra el primero que esté disponible. Arrastra para cambiar el orden.",
+        "no_pictures": "Esta pantalla no tiene memoria para imágenes, así que muestra el reloj.",
+        "tap": "Un toque despierta la pantalla. En el salvapantallas no se puede pulsar nada.",
+        "use": "Usar {name}",
+        "choose_media": "Elige un reproductor",
+        "choose_camera": "Elige una cámara",
+        "kinds": {
+          "media": "Música sonando",
+          "camera": "Cámara",
+          "clock": "Reloj"
+        },
+        "details": {
+          "media": "Mientras suena, con su portada",
+          "media_unset": "Elige un reproductor para usarlo",
+          "camera": "Su imagen, cada 15 segundos",
+          "camera_unset": "Elige una cámara para usarla",
+          "clock": "La hora y la fecha"
+        }
+      }
     },
     "update": {
       "starting": "Iniciando la actualización…",

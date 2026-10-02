@@ -1906,7 +1906,31 @@
       },
       "unavailable": "This entity is off in Home Assistant, or the screen is restarting.",
       "lower": "{name} lower",
-      "higher": "{name} higher"
+      "higher": "{name} higher",
+      "screensaver": {
+        "title": "Screensaver",
+        "show": "Show in standby",
+        "standby_off": "Turn on Auto standby to use it.",
+        "needs_firmware": "Update this screen to firmware {version} to use a screensaver.",
+        "order": "The screen shows the first one that is available. Drag to change the order.",
+        "no_pictures": "This screen has no memory for pictures, so it shows the clock.",
+        "tap": "A tap wakes the screen. Nothing on the screensaver can be pressed.",
+        "use": "Use {name}",
+        "choose_media": "Choose a player",
+        "choose_camera": "Choose a camera",
+        "kinds": {
+          "media": "Music playing",
+          "camera": "Camera",
+          "clock": "Clock"
+        },
+        "details": {
+          "media": "While it plays, with its cover",
+          "media_unset": "Choose a player to use it",
+          "camera": "Its picture, every 15 seconds",
+          "camera_unset": "Choose a camera to use it",
+          "clock": "The time and the date"
+        }
+      }
     },
     "update": {
       "starting": "Starting update…",
