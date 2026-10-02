@@ -222,7 +222,7 @@ on the screen itself, and how updates work.
   off shows a power key. A Guition fetches the cover through ESP Screens, like a camera picture
   ([docs/CAMERA.md](docs/CAMERA.md)); the CYD shows the player's icon in its place. A media tile of
   size **Full page** is the same card on the page, with the keys and the volume working on the tile.
-- **Music from the library** (app 0.4.42 / firmware 0.24.0): the media card sits on a ground in the colours of
+- **Music from the library** (app 0.4.42 / firmware 0.24.0): the media card sits on a dark ground in the colour of
   the cover that plays, with the speaker at the top (a tap moves the music to another one), shuffle, repeat and a bar
   you drag through the track. The library key opens what Home Assistant can browse on the player (`media_player.browse_media`),
   folder by folder down to a page of up to 48 covers; a tap plays one. **Display → Favourite** turns a media tile into

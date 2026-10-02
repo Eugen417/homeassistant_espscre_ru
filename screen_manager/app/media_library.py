@@ -172,14 +172,21 @@ def player_extras(attrs, widest=0, ground=None, browsable=False):
     return result
 
 
-def ground_colours(raw):
-    """The card's ground from a cover: two dark colours of its own, 'RRGGBB,RRGGBB' (top, bottom), or None for a cover
-    with no colour to speak of (black and white, greys), which keeps the card's neutral ground.
+# How light the card's ground is: dark, so white words and keys read on it in both looks.
+GROUND_LIGHTNESS = 0.17
 
-    The cover goes down to 64 pixels and six colours; the two that are most coloured and least dark lead, and both are
-    set to the same low lightness, a quarter at the top and a tenth at the bottom, their colour held under 60 % so
-    white text reads on either. Measured on the design study's covers: Daft Punk's Random Access Memories gives
-    2B484F to 121E20, Tame Impala's The Slow Rush 611D18 to 280C0A."""
+
+def ground_colours(raw):
+    """The card's ground from a cover: one dark colour of its own, sent twice as 'RRGGBB,RRGGBB' (top, bottom), or
+    None for a cover with no colour to speak of (black and white, greys), which keeps the card's neutral ground.
+
+    The cover goes down to 64 pixels and six colours; the one that is most coloured and least dark leads, set to a low
+    lightness (0.17) with its colour held under 60 % so white text reads on it. One colour, not a gradient: every
+    screen draws 16-bit colour without dithering, and a gradient between two dark colours has only a handful of steps
+    in it, which showed as broad bands across the card (GitHub #135). A firmware from 0.24.0 draws the same colour at
+    both ends as one flat ground, and the cover's rounded corners, filled with that colour, match the ground behind
+    them. Measured on the design study's covers: Daft Punk's Random Access Memories gives 1F3338, Tame Impala's
+    The Slow Rush 461511."""
     from PIL import Image
     with Image.open(io.BytesIO(raw)) as source:
         source.draft('RGB', (128, 128))
@@ -197,13 +204,10 @@ def ground_colours(raw):
     scored.sort(reverse=True)
     if not scored or scored[0][2] < 0.12:
         return None
-    top = scored[0]
-    bottom = next((c for c in scored[1:] if c[2] >= 0.12), top)
-
-    def colour(h, s, lightness):
-        r, g, b = colorsys.hls_to_rgb(h, lightness, min(0.6, s))
-        return '%02X%02X%02X' % (round(r * 255), round(g * 255), round(b * 255))
-    return f'{colour(top[1], top[2], 0.24)},{colour(bottom[1], bottom[2], 0.10)}'
+    _, hue, saturation = scored[0]
+    r, g, b = colorsys.hls_to_rgb(hue, GROUND_LIGHTNESS, min(0.6, saturation))
+    colour = '%02X%02X%02X' % (round(r * 255), round(g * 255), round(b * 255))
+    return f'{colour},{colour}'
 
 
 # ---- the library itself ----

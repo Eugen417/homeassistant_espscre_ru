@@ -199,10 +199,11 @@ class ThePlayersState(unittest.TestCase):
         image.save(out, 'PNG')
         ground = media_library.ground_colours(out.getvalue())
         top, bottom = (tuple(int(c[i:i + 2], 16) for i in (0, 2, 4)) for c in ground.split(','))
-        # The cover's two colours, one at each end, both dark enough for white words.
-        self.assertEqual({max(range(3), key=lambda i: top[i]), max(range(3), key=lambda i: bottom[i])}, {0, 2})
-        self.assertLess(max(top), 140)
-        self.assertLess(max(bottom), max(top))
+        # One colour at both ends, so the screen draws a flat ground: a 16-bit gradient between two dark colours
+        # showed as bands (GitHub #135). It is the cover's leading colour, dark enough for white words.
+        self.assertEqual(top, bottom)
+        self.assertIn(max(range(3), key=lambda i: top[i]), (0, 2))
+        self.assertLess(max(top), 100)
         self.assertIsNone(media_library.ground_colours(png((128, 128, 128))), 'a grey cover keeps the neutral ground')
 
     def test_a_player_at_rest_keeps_what_it_had(self):

@@ -1,3 +1,11 @@
+## 0.4.43 (firmware 0.24.0)
+
+- **The media card sits on one dark colour from its cover** instead of a gradient (#135). Screens draw 16-bit colour, and
+  a gradient between two dark colours has only a few steps in it, so it showed as broad bands across the card, on the
+  CYD and on the large screens alike. The ground is now one dark shade of the cover's leading colour: no bands, and the
+  rounded corners of the cover match the ground behind them, where a square edge showed before. It comes from the app,
+  so screens on firmware 0.24.0 get it without an update.
+
 ## 0.4.42 (firmware 0.24.0)
 
 - **The media card plays on the colours of its cover.** The card of a media player sits on a ground taken from the
