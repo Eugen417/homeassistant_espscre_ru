@@ -281,12 +281,12 @@ on the screen itself, and how updates work.
 
 <p align="center">
   <img src="docs/images/guition-tiles-controls.png" width="32%" alt="Double-width tiles with direct control: heating mode keys with heat selected, previous, pause and next for the Sonos, and a ceiling fan's speed slider">
-  <img src="docs/images/guition-tiles-values.png" width="32%" alt="Power and humidity as large values, a lamp and a fan with a small slider on the tile, and an all-off script and a welcome-home scene with red and green backgrounds and when they last ran">
+  <img src="docs/images/guition-tiles-values.png" width="32%" alt="Power and humidity as large values, a table lamp with its dimmer on a double-width tile, and an all-off script and a welcome-home scene in pastel pink and lilac with when they last ran">
   <img src="docs/images/guition-tiles-clock.png" width="32%" alt="A digital clock with the date, a pasta timer with pause and cancel, the outside temperature as a large value, and garden lights that are off">
 </p>
 <p align="center">
   <img src="docs/images/cyd-tiles-controls.png" width="32%" alt="The CYD with heating mode keys, playback keys for the radio and a ceiling fan's speed slider">
-  <img src="docs/images/cyd-tiles-values.png" width="32%" alt="The CYD with power and humidity as large values, a lamp and a fan with small sliders, and red and green scene tiles">
+  <img src="docs/images/cyd-tiles-values.png" width="32%" alt="The CYD with power and humidity as large values, the kitchen lamp and the fan, and an all-off script and a welcome-home scene in pastel pink and lilac">
   <img src="docs/images/cyd-tiles-choices.png" width="32%" alt="The CYD with a digital clock, previous and next for the house mode, and start, stop and dock for the robot vacuum">
 </p>
 <p align="center"><sub>What a tile can do: keys and sliders on double-width tiles, previous and next for a choice, large values, small sliders, pastel colors, a clock and a timer.</sub></p>
@@ -296,9 +296,9 @@ on the screen itself, and how updates work.
   <img src="docs/images/guition-light.png" width="32%" alt="Light control: color, color temperature and brightness">
 </p>
 <p align="center">
-  <img src="docs/images/guition-vacuum.png" width="32%" alt="Vacuum card: docked and charging, start and dock, the cleaning mode vacuum, vac and mop or mop, suction and water">
+  <img src="docs/images/guition-vacuum.png" width="32%" alt="Vacuum card: docked at 100 %, Start cleaning and Dock, and the suction from Quiet to Max">
   <img src="docs/images/guition-fan.png" width="32%" alt="Fan card: the speed as a tall slider with the fan in it">
-  <img src="docs/images/guition-page-3.png" width="32%" alt="Curtains with open, stop and close, a kitchen timer counting down, a scene and the sun path">
+  <img src="docs/images/guition-page-3.png" width="32%" alt="The Good morning page: an analog clock with the time and the date, the weather for four days, the coffee machine in orange and Sam at home">
 </p>
 <p align="center">
   <img src="docs/images/guition-blind.png" width="32%" alt="Cover card for a venetian blind: its battery, the position slider with the blind hanging from the top, the tilt slider over slats, and open, stop and close">
@@ -308,10 +308,10 @@ on the screen itself, and how updates work.
 <p align="center">
   <img src="docs/images/guition-history.png" width="32%" alt="History card for a temperature: the value now, the highest and lowest moment with their times, a line over 24 hours with an axis in degrees and clock times, and keys for 1 hour, 24 hours and 1 week">
   <img src="docs/images/guition-history-touch.png" width="32%" alt="A finger on the history graph: the top of the card shows the average of that hour and its time, the graph stays as it is">
-  <img src="docs/images/guition-history-person.png" width="32%" alt="History card for a person over a week: home, away and the zones they were in, with the time in each">
+  <img src="docs/images/guition-history-person.png" width="32%" alt="History card for a person over 24 hours: at the office, away and home, with the time in each">
 </p>
 <p align="center">
-  <img src="docs/images/cyd-vacuum.png" width="32%" alt="The vacuum card on the CYD: state, battery and charging, clean and dock, the cleaning mode, suction and water">
+  <img src="docs/images/cyd-vacuum.png" width="32%" alt="The vacuum card on the CYD: docked at 100 %, clean and dock, and the suction from Quiet to Max">
   <img src="docs/images/cyd-climate.png" width="32%" alt="The climate card on the CYD: the target temperature with big minus and plus keys and one row of mode keys">
   <img src="docs/images/cyd-blind.png" width="32%" alt="The cover card on the CYD: the position and tilt sliders with their values beside them, the battery, and open, stop and close">
 </p>
@@ -335,7 +335,7 @@ keep their icon; on the CYD, the icon and text block are vertically centered.
 
 <p align="center">
   <img src="docs/images/guition-alert.png" width="41%" alt="An alert on the Guition: someone is at the door, with a Coming button">
-  <img src="docs/images/editor-alerts.png" width="53%" alt="The Alerts cheatsheet in ESP Screens: the action name of every screen, ready to copy">
+  <img src="docs/images/editor-alerts.png" width="53%" alt="The Alerts cheatsheet in Tessera: a preview of the alert, a form to try one, and the action name of every screen, ready to copy">
 </p>
 
 Every screen has the action **`esphome.<screen>_show_alert`** (firmware 0.2.31+). It places
@@ -455,7 +455,7 @@ actions:
 ```
 
 <p align="center">
-  <img src="docs/images/guition-camera-tiles.png" width="41%" alt="Cameras as tiles on the Guition: the front door camera, the garden camera live, the doorbell's last ring, next to the door, the porch light and the garage door">
+  <img src="docs/images/guition-camera-tiles.png" width="41%" alt="Cameras as tiles on the Guition: the front door camera filling a tall tile with its name, a porch camera showing its whole picture, the porch light and Sam at home">
 </p>
 
 A camera or image entity also works as a **tile** on a Guition: a tap opens it full screen, refreshed
@@ -551,7 +551,7 @@ claude.ai** gives the same skill as a zip to upload in Claude under Customize â†
 written until you press the button.
 
 <p align="center">
-  <img src="docs/images/editor-settings.png" width="80%" alt="Settings in ESP Screens: New screen and Firmware & USB, the firmware updates, the Alerts cheatsheet, and the Claude skill">
+  <img src="docs/images/editor-settings.png" width="80%" alt="Settings in Tessera: New screen and Firmware & USB, the firmware updates, Language & region, the Alerts cheatsheet, and the Claude skill">
 </p>
 
 ## Wake and sleep from an automation
@@ -614,8 +614,8 @@ to apply the changes.
 After the first supporting firmware update, this requires no new flash.
 
 <p align="center">
-  <img src="docs/images/editor-tile-settings.png" width="39%" alt="Tile settings of the curtains: double-width with open, stop and close on the tile, and on tap Perform action with Set cover position at 50 %">
-  <img src="docs/images/guition-page-3.png" width="57%" alt="The result on the screen: the double-width Curtains tile with open, stop and close, above a kitchen timer, a scene and the sun path">
+  <img src="docs/images/editor-tile-settings.png" width="39%" alt="Tile settings of the curtains: the position slider on the tile, and on tap Perform action with Set cover position at 50 %">
+  <img src="docs/images/guition-controls.png" width="57%" alt="The result on the screen: the Curtains tile one cell wide and two high with its position and slider, beside the heating and above a temperature graph">
 </p>
 <p align="center"><sub>The settings of the Curtains tile, and that tile on the screen: open, stop and close on the tile, and a tap on its name sets the curtains to 50 %.</sub></p>
 
@@ -645,7 +645,7 @@ to change their order; tap one to configure it:
   alarm armed green, alarm triggered red).
 
 <p align="center">
-  <img src="docs/images/editor-top-bar.png" width="31%" alt="Add to the top bar: the time, an analog clock, the date and suggestions from your own home">
+  <img src="docs/images/editor-top-bar.png" width="31%" alt="The top bar in the drawer: the outdoor temperature, people at home and the time, each with how it looks on the screen">
   <img src="docs/images/guition-home.png" width="49%" alt="The top bar on the screen: outdoor temperature, people at home and the time">
 </p>
 
@@ -684,7 +684,7 @@ English is the default. [Translating ESP Screens](docs/TRANSLATING.md) says how 
 <p align="center">
   <img src="docs/images/guition-settings-menu.png" width="32%" alt="The settings menu on the Guition: Brightness, Night, Screen and This screen">
   <img src="docs/images/guition-settings.png" width="32%" alt="The Brightness page: the brightness with minus and plus, Dark mode off, Auto standby on, standby after 10 minutes and the standby brightness">
-  <img src="docs/images/guition-settings-night.png" width="32%" alt="The Night page: Night mode on, starting at 22:00 and ending at 07:00, and the night brightness">
+  <img src="docs/images/guition-settings-night.png" width="32%" alt="The Night page: Night mode on, starting at 22:00 and ending at 07:00, and the night brightness at 10 %">
 </p>
 
 Tap a toggle to flip it, `-` and `+` to change a number or a time (hold them and a time walks
@@ -693,7 +693,7 @@ takes effect at once, and appears in ESP Screens within a second, so both sides 
 the same value. The **Screen settings** cards in ESP Screens have the same rows.
 
 <p align="center">
-  <img src="docs/images/editor-screen-settings.png" width="98%" alt="Screen settings in ESP Screens: Brightness with Dark mode and standby, Night with its hours and brightness, and Screen with back to page 1, swiping, the page buttons and the rotation">
+  <img src="docs/images/editor-screen-settings.png" width="98%" alt="Screen settings in Tessera: Brightness with Dark mode and standby, Night with its hours and brightness, and Screen with back to Home, swiping, the page buttons and the rotation">
 </p>
 
 **In Home Assistant** (firmware 0.2.49+), every setting is an entity on the screen's device, under
