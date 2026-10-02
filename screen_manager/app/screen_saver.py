@@ -14,10 +14,23 @@ import logging
 import os
 import re
 import tempfile
+import time
+from datetime import datetime, timezone
 
 LOG = logging.getLogger(__name__)
 
 FEATURE = 'screensaver'
+# A screen whose screensaver has keys for its player (firmware 0.33.0+, app 0.4.55): play or pause and the volume. Its
+# hello lists it. For such a screen a paused player still counts, after every player that plays, so the key that
+# paused it can start it again; the message then carries the player's state and what Home Assistant says it can do.
+KEYS_FEATURE = 'saver_keys'
+# How long a paused player keeps the screensaver. A speaker stays "paused" in Home Assistant for days, and the camera
+# or the clock after it would never show again.
+PAUSED_SECONDS = 600
+# The player on the glass that is paused keeps the glass this long, also while another one plays: pause is pressed on
+# the screensaver itself, and its play key must still be there for the finger that pressed it. After that a player that
+# plays goes first again.
+HELD_SECONDS = 120
 KINDS = ('media', 'camera', 'clock')
 PICTURE_KINDS = frozenset(('media', 'camera'))
 # `weather` (app 0.4.52): whose temperature the clock shows under the time. 'auto' takes Home Assistant's first weather
@@ -30,6 +43,7 @@ ENTITY = re.compile(r'[a-z0-9_]+\.[a-z0-9_]+')
 DOMAINS = {'media': ('media_player',), 'camera': ('camera', 'image')}
 # What a player does while its cover counts: playing, as Home Assistant's own media card shows its art.
 PLAYING = frozenset(('playing',))
+PAUSED = frozenset(('paused',))
 GONE = frozenset(('', 'unavailable', 'unknown'))
 
 
@@ -108,15 +122,36 @@ def players(choice):
     return [entity for entity in (choice.get('media'), *(choice.get('more') or ())) if entity]
 
 
-def _has_cover(state):
+def _has_cover(state, words=PLAYING):
     attrs = (state or {}).get('attributes') or {}
-    return (state or {}).get('state') in PLAYING and any(isinstance(attrs.get(name), str) and attrs.get(name)
-                                                         for name in ('entity_picture_local', 'entity_picture'))
+    return (state or {}).get('state') in words and any(isinstance(attrs.get(name), str) and attrs.get(name)
+                                                       for name in ('entity_picture_local', 'entity_picture'))
 
 
-def player(choice, states):
-    """The player the music step shows now: the first of its players that plays with a cover, or '' for none."""
-    return next((entity for entity in players(choice) if _has_cover(states.get(entity))), '')
+def _paused_lately(state, now, seconds=PAUSED_SECONDS):
+    """Whether a player was paused at most `seconds` ago, by Home Assistant's last_changed."""
+    try:
+        moment = datetime.fromisoformat(str((state or {}).get('last_changed')).replace('Z', '+00:00'))
+    except (ValueError, TypeError):
+        return False
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return now - moment.timestamp() < seconds
+
+
+def player(choice, states, keys=False, now=None, held=''):
+    """The player the music step shows now, or '' for none: the first of its players that plays with a cover. On a
+    screen with keys (KEYS_FEATURE) a player paused a short while ago counts after those, the first of them in the
+    order, with the cover Home Assistant still has for it. `held` is the player the screen shows: paused just now, it
+    stays before every other (HELD_SECONDS)."""
+    now = time.time() if now is None else now
+    if keys and held in players(choice) and _has_cover(states.get(held), PAUSED) and _paused_lately(states.get(held), now, HELD_SECONDS):
+        return held
+    found = next((entity for entity in players(choice) if _has_cover(states.get(entity))), '')
+    if found or not keys:
+        return found
+    return next((entity for entity in players(choice)
+                 if _has_cover(states.get(entity), PAUSED) and _paused_lately(states.get(entity), now)), '')
 
 
 def entities(choice, states=None):
@@ -126,7 +161,7 @@ def entities(choice, states=None):
     return found | ({weather} if weather else set())
 
 
-def available(kind, choice, states, pictures):
+def available(kind, choice, states, pictures, keys=False, now=None, held=''):
     """Whether a step can show now: one of its players plays with a cover, a camera Home Assistant has, the clock
     always. The two pictures need a board that draws them."""
     if kind == 'clock':
@@ -134,24 +169,25 @@ def available(kind, choice, states, pictures):
     if not pictures:
         return False
     if kind == 'media':
-        return bool(player(choice, states))
+        return bool(player(choice, states, keys, now, held))
     return bool(choice.get(kind)) and (states.get(choice[kind]) or {}).get('state', '') not in GONE
 
 
-def pick(choice, states, pictures):
+def pick(choice, states, pictures, keys=False, now=None, held=''):
     """The first step of the order that is on and available, or '' for none (standby shows the dimmed tiles as before)."""
     if not choice or not choice.get('show'):
         return ''
     for kind in choice.get('order', KINDS):
-        if kind not in choice.get('off', ()) and available(kind, choice, states, pictures):
+        if kind not in choice.get('off', ()) and available(kind, choice, states, pictures, keys, now, held):
             return kind
     return ''
 
 
-def message(choice, states, pictures, short, media_extras, ground=None):
+def message(choice, states, pictures, short, media_extras, ground=None, keys=False, now=None, held=''):
     """The screen message for what the screensaver shows now. `short(text, n)` cuts a text the way every message does,
-    `media_extras(attrs)` is the media card's (core.media_extras), `ground(entity, attrs)` the cover's colours."""
-    kind = pick(choice, states, pictures)
+    `media_extras(attrs)` is the media card's (core.media_extras), `ground(entity, attrs)` the cover's colours, `keys`
+    whether the screen's screensaver has keys (KEYS_FEATURE), `held` the player it shows now."""
+    kind = pick(choice, states, pictures, keys, now, held)
     result = {'op': 'saver', 'k': kind}
     if kind == 'clock':
         # The outside temperature under the time (app 0.4.52, firmware 0.31.0+); older firmware reads past it.
@@ -160,7 +196,7 @@ def message(choice, states, pictures, short, media_extras, ground=None):
             result['w'] = degrees
     if kind not in PICTURE_KINDS:
         return result
-    entity = player(choice, states) if kind == 'media' else choice[kind]
+    entity = player(choice, states, keys, now, held) if kind == 'media' else choice[kind]
     state = states.get(entity) or {}
     attrs = state.get('attributes') or {}
     result['e'] = entity
@@ -176,6 +212,14 @@ def message(choice, states, pictures, short, media_extras, ground=None):
         colours = ground(entity, attrs) if ground else None
         if colours:
             result['x']['g'] = colours
+        if keys:
+            # For the keys (firmware 0.33.0+): what the play key shows, and which keys this player has.
+            result['s'] = state.get('state', '')
+            features = attrs.get('supported_features')
+            result['f'] = features if isinstance(features, int) and not isinstance(features, bool) and features >= 0 else 0
+            # Muted (volume down held on the screen, or from anywhere else): the key shows it and the next tap undoes it.
+            if attrs.get('is_volume_muted') is True:
+                result['m'] = 1
     return result
 
 

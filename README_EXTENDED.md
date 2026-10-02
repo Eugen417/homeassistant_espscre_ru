@@ -57,7 +57,7 @@ on the screen itself, and how updates work.
   so with Dark mode the digits stand on a black page. [Bedside clock](docs/BEDSIDE.md) has the details.
 - **Screensaver** (app 0.4.48, firmware 0.29.0): in standby a screen can show the cover of what plays, a camera or a
   large clock instead of the dimmed tiles, the first of the three that is there right now, in the order you choose
-  under Settings. A tap wakes the screen. [Screensaver](docs/SCREENSAVER.md) has the details.
+  under Settings. A tap wakes the screen, and a cover has keys for play or pause and the volume (firmware 0.33.0). [Screensaver](docs/SCREENSAVER.md) has the details.
 - **Light control:** brightness, rainbow color, and white temperature according to
   the light's capabilities. Open the detailed control with a long touch.
 - **Effects (firmware 0.2.70+):** a light that offers effects (a WLED, a Hue with

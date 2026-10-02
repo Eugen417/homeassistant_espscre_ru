@@ -1,3 +1,29 @@
+## 0.4.55 (firmware 0.33.0)
+
+- **Keys on the screensaver.** Over a cover three round keys stand in the bottom right corner: play or pause at the
+  bottom, volume down over it and volume up at the top. A tap on one of them works for the player on the screen and
+  the screen stays in standby; a tap anywhere else wakes it, as before. A player without a volume in Home Assistant
+  has the play key alone. A long title ends before the keys: it takes its second line and then its dots.
+- **Mute.** Hold volume down for a second and a half and the player is muted; the key shows a muted speaker. The next
+  tap on either volume key takes the mute off, and after that the two are the volume again.
+- **A paused player still shows.** A player that plays goes first, in the order of your list; when none plays, the
+  first paused one shows, with a play key. The player you pause on the screen keeps the screen for two minutes, so
+  its play key stays where your finger is. Ten minutes after a pause the screensaver moves on to the camera or the
+  clock, since a speaker stays paused in Home Assistant for days. A screen on older firmware shows what it showed.
+- **The players are a list you drag.** In a screen's screensaver settings each player has a grip: drag them into
+  their order with the mouse, with a finger on a phone, or with the arrow keys. The steps drag from their grip under
+  a finger the same way.
+- Tested: on a Guition 4848S040 with Home Assistant on the bench, by hand on the glass: volume up and down, pause
+  and play on the same player while another one played, mute after holding volume down and the mute taken off by the
+  next tap, each with the screen staying in standby, and a tap beside the keys woke it. A paused player kept the screen
+  for two minutes and then gave way to the one that played. The real firmware on a computer with a finger made in
+  software did the same on the Guition and the 10.1-inch board, with a long title and a player without a volume. The
+  list of players was dragged in the editor with the mouse, the arrow keys and a finger on a phone-sized window in
+  Chrome, not on a real phone. The CYD, both Guitions and the Waveshare 7 build with ESPHome 2026.9.0 (the CYD image is
+  94.4 % of its slot), and the CYD with 2026.6.2 (96.4 %). The CYD 9342 and the Hosyond 4-inch were not built; the
+  Hosyond was over its flash budget before this release. Not looked at on a 7 or 10-inch glass, and not with a real
+  speaker and television.
+
 ## 0.4.54 (firmware 0.32.0)
 
 - **The screensaver takes more than one player.** Under Music playing in a screen's screensaver settings an empty row

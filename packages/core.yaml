@@ -16,7 +16,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.32.0"
+  SCREEN_FIRMWARE_VERSION: "0.33.0"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -582,6 +582,9 @@ api:
                     features.add("media_library");
                     // screensaver (firmware 0.29.0+, app 0.4.48): the op "saver", what to show in standby instead of the dimmed tiles.
                     features.add("screensaver");
+                    // saver_keys (firmware 0.33.0+, app 0.4.55): a player's screensaver has keys, so the app also names
+                    // a paused player and sends its state and what it can do.
+                    features.add("saver_keys");
                     // speaker_groups (firmware 0.26.0+, app speakers.py): a player's speakers with a key to join or leave
                     // the group and each one's volume, its inputs behind a key of their own, and the speaker it follows.
                     features.add("speaker_groups");

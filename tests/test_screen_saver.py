@@ -12,6 +12,7 @@ import asyncio
 import importlib.util
 import io
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 import sys
 import tempfile
@@ -91,6 +92,47 @@ class Choice(unittest.TestCase):
             path = Path(tmp) / 'screensavers.json'
             path.write_text(json.dumps({'version': 1, 'screens': {'d1': {key: CHOICE[key] for key in CHOICE if key != 'more'}}}))
             self.assertEqual(screen_saver.ScreenSavers(path).get('d1'), CHOICE)
+
+    def test_a_screen_with_keys_keeps_a_paused_player_for_a_while(self):
+        """App 0.4.55, firmware 0.33.0: the screensaver has play or pause and the volume, so a player paused there still
+        shows; one that plays goes first, and a pause of long ago gives way to the camera."""
+        tv = 'media_player.apple_tv'
+        now = 1_800_000_000
+        stamp = lambda ago: datetime.fromtimestamp(now - ago, timezone.utc).isoformat()
+        paused = {**PLAYING, 'state': 'paused', 'last_changed': stamp(30)}
+        poster = {'state': 'playing', 'attributes': {'friendly_name': 'Apple TV', 'media_title': 'Series', 'supported_features': 3,
+                                                     'entity_picture': '/api/media_player_proxy/tv?cache=2'}}
+        choice = {**CHOICE, 'more': [tv]}
+        states = {PLAYER: paused, tv: poster, CAMERA: DOOR}
+        # Without keys nothing changed: a paused player is no step.
+        self.assertEqual(screen_saver.pick(CHOICE, {PLAYER: paused, CAMERA: DOOR}, True), 'camera')
+        self.assertEqual(screen_saver.player(CHOICE, {PLAYER: paused}, True, now), PLAYER)
+        # One that plays goes before one that is paused, whatever their order.
+        self.assertEqual(screen_saver.player(choice, states, True, now), tv)
+        self.assertEqual(screen_saver.player(choice, {**states, tv: {**poster, 'state': 'paused', 'last_changed': stamp(5)}}, True, now), PLAYER)
+        # The player on the glass, paused there, keeps it for two minutes although the other plays; then that one shows.
+        self.assertEqual(screen_saver.player(choice, states, True, now, held=PLAYER), PLAYER)
+        later = {**states, PLAYER: {**paused, 'last_changed': stamp(screen_saver.HELD_SECONDS + 1)}}
+        self.assertEqual(screen_saver.player(choice, later, True, now, held=PLAYER), tv)
+        self.assertEqual(screen_saver.player(choice, states, True, now, held='media_player.gone'), tv)
+        self.assertEqual(screen_saver.player(choice, states, False, now, held=PLAYER), tv)
+        # Ten minutes after the pause the next step shows, and a paused player without a cover never did.
+        old = {PLAYER: {**paused, 'last_changed': stamp(screen_saver.PAUSED_SECONDS + 1)}, CAMERA: DOOR}
+        self.assertEqual(screen_saver.pick(CHOICE, old, True, True, now), 'camera')
+        self.assertEqual(screen_saver.player(CHOICE, {PLAYER: {'state': 'paused', 'attributes': {}, 'last_changed': stamp(5)}}, True, now), '')
+        self.assertEqual(screen_saver.player(CHOICE, {PLAYER: {**paused, 'last_changed': None}}, True, now), '')
+        # The message names the state and what the player can do, for the keys; a screen without keys gets neither.
+        said = screen_saver.message(CHOICE, {PLAYER: {**paused, 'attributes': {**paused['attributes'], 'supported_features': 21437}}},
+                                    True, short, media_extras, keys=True, now=now)
+        self.assertEqual((said['k'], said['e'], said['s'], said['f']), ('media', PLAYER, 'paused', 21437))
+        plain = screen_saver.message(CHOICE, {PLAYER: PLAYING}, True, short, media_extras)
+        self.assertTrue('s' not in plain and 'f' not in plain)
+        self.assertEqual(screen_saver.message(CHOICE, {PLAYER: PLAYING}, True, short, media_extras, keys=True)['f'], 0)
+        # A muted player says so, for the volume keys.
+        muted = {PLAYER: {**PLAYING, 'attributes': {**PLAYING['attributes'], 'is_volume_muted': True}}}
+        self.assertEqual(screen_saver.message(CHOICE, muted, True, short, media_extras, keys=True)['m'], 1)
+        self.assertNotIn('m', screen_saver.message(CHOICE, {PLAYER: PLAYING}, True, short, media_extras, keys=True))
+        self.assertNotIn('m', screen_saver.message(CHOICE, muted, True, short, media_extras))
 
     def test_the_message_carries_what_the_screen_draws(self):
         states = {PLAYER: PLAYING, CAMERA: DOOR}
@@ -253,11 +295,18 @@ class TheApp(unittest.IsolatedAsyncioTestCase):
             sender.session = 'S2'
             await m.sync_saver('text.d1_tiles', screen)
             self.assertEqual((len(sent), sent[-1][1]), (3, 'S2'), 'a new session hears it again')
+            # A screen whose screensaver has keys (firmware 0.33.0+) hears the player's state and what it can do.
+            m.savers.set('d1', CHOICE)
+            ha.states[PLAYER] = PLAYING
+            sender.features = {screen_saver.FEATURE, screen_saver.KEYS_FEATURE}
+            await m.sync_saver('text.d1_tiles', screen)
+            self.assertEqual((sent[-1][0]['k'], sent[-1][0]['s'], sent[-1][0]['f']), ('media', 'playing', 0))
+            count = len(sent)
             # A screen whose hello does not list it hears nothing.
             sender.features = set()
             m.savers.set('d1', {})
             await m.sync_saver('text.d1_tiles', screen)
-            self.assertEqual(len(sent), 3)
+            self.assertEqual(len(sent), count)
 
     async def test_the_editor_sees_the_choice_and_what_the_screen_can(self):
         with tempfile.TemporaryDirectory() as tmp:

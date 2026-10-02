@@ -54,6 +54,45 @@ static void words_on_every_glass() {
   assert(shape(501, 400) == Shape::side && shape(400, 501) == Shape::top && shape(480, 320) == Shape::side);
 }
 
+// A player's keys (firmware 0.33.0+): one column in the bottom right corner, a margin from both edges, play or pause at
+// the bottom and the volume over it; the words end before them, however long the title.
+static bool apart(const Rect &a, const Rect &b) { return a.right() <= b.x || b.right() <= a.x || a.bottom() <= b.y || b.bottom() <= a.y; }
+static void keys_on_every_glass() {
+  for (const auto &g : GLASS) {
+    const int width = g[0], height = g[1];
+    const bool large = width >= 480 && height >= 480;
+    const int margin = large ? 28 : 12, key = large ? 52 : 34, play = large ? 64 : 40, gap = large ? 14 : 8;
+    const Keys k = keys(width, height, margin, key, play, gap, true, true);
+    for (const Rect &r : {k.play, k.minus, k.plus}) assert(inside(r, width, height) && r.w == r.h);
+    assert(width - k.play.right() == margin && height - k.play.bottom() == margin && k.left == k.play.x);
+    assert(k.minus.bottom() + gap == k.play.y && k.plus.bottom() + gap == k.minus.y);
+    assert(k.minus.cx() == k.play.cx() && k.plus.cx() == k.play.cx());
+    // The words, one line or two, never reach the keys and keep room to read.
+    const Shape s = shape(width, height);
+    for (int lines = 1; lines <= 2; ++lines) {
+      Words w = words(s, width, height, margin, lines * 32, 25, 6);
+      before_keys(w, k, margin);
+      for (const Rect &r : {w.first, w.second})
+        for (const Rect &round : {k.play, k.minus, k.plus}) assert(apart(r, round));
+      assert(w.first.w >= 1 && w.first.right() <= k.left - margin / 2);
+      // Every glass that draws pictures (480 pixels and up on its short side) keeps a title's width to read.
+      if (large) assert(w.first.w >= 180);
+      if (large && lines == 1) { std::printf("%4dx%-4d words %d wide beside the keys\n", width, height, w.first.w); }
+    }
+    // A player without a volume has the play key alone in the corner, one without play the volume there, and one
+    // that can do neither has no key: the words keep the whole width.
+    const Keys alone = keys(width, height, margin, key, play, gap, true, false);
+    assert(alone.minus.w == 0 && alone.plus.w == 0 && alone.play.x == k.play.x && alone.play.y == k.play.y);
+    const Keys volume = keys(width, height, margin, key, play, gap, false, true);
+    assert(volume.play.w == 0 && height - volume.minus.bottom() == margin && inside(volume.plus, width, height));
+    const Keys none = keys(width, height, margin, key, play, gap, false, false);
+    Words w = words(s, width, height, margin, 32, 25, 6);
+    const Words whole = w;
+    before_keys(w, none, margin);
+    assert(none.left == width && w.first.w == whole.first.w && w.second.w == whole.second.w);
+  }
+}
+
 static void clock_in_the_middle() {
   const ClockLayout l = clock(480, 480, 120, 32, 12);
   assert(l.time.y + l.time.h + 12 == l.date.y);
@@ -63,6 +102,7 @@ static void clock_in_the_middle() {
 
 int main() {
   words_on_every_glass();
+  keys_on_every_glass();
   clock_in_the_middle();
   std::puts("saver view ok");
 }

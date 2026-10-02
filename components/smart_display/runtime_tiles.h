@@ -165,9 +165,14 @@ inline bool pictures_awake() { return awake() || saver_pictures; }
 struct SaverChoice {
   std::string kind, entity, name, title, artist, album, picture, ground;
   std::string weather;  // the clock's outside temperature, ready to draw (firmware 0.31.0+, app 0.4.52)
+  // A player's keys (firmware 0.33.0+, app 0.4.55): whether it plays or is paused, and what Home Assistant says it can do.
+  std::string state;
+  uint32_t features = 0;
+  bool muted = false;
   bool operator==(const SaverChoice &o) const {
     return kind == o.kind && entity == o.entity && name == o.name && title == o.title && artist == o.artist &&
-           album == o.album && picture == o.picture && ground == o.ground && weather == o.weather;
+           album == o.album && picture == o.picture && ground == o.ground && weather == o.weather &&
+           state == o.state && features == o.features && muted == o.muted;
   }
 };
 inline SaverChoice saver_next, saver_now;  // the app's latest word, and what the glass shows
@@ -176,6 +181,12 @@ inline lv_obj_t *saver_root = nullptr;      // the clock
 // `saver_words_due` until it has come.
 inline lv_obj_t *saver_first = nullptr, *saver_second = nullptr;
 inline bool saver_words_due = false;
+// A player's keys over its cover (firmware 0.33.0+): volume up, volume down, play or pause. They take their own tap, so
+// the screen stays in standby; a touch anywhere else wakes it. `saver_flipped`: when the play key last showed the other
+// face ahead of Home Assistant's word.
+inline std::array<lv_obj_t *, 3> saver_keys{};
+inline uint32_t saver_flipped = 0;
+inline void saver_keys_draw();
 // A next track that came while a picture was on its way (firmware 0.32.0+): followed once that load has ended, so the
 // online_image never gets a second link in the middle of a download and the one that lands is the one asked for.
 inline bool saver_follow_due = false;
@@ -8839,6 +8850,7 @@ inline void camera_close() {
   lv_obj_delete(camera_root);
   camera_root = camera_picture = camera_note = camera_back = camera_title = camera_spinner = map_card_obj = nullptr;
   saver_first = saver_second = nullptr;  // they went with the view
+  saver_keys = {};
   map_focus.clear();
   map_pinned = false;
   map_sheet = MapSheet{};
@@ -9338,6 +9350,18 @@ inline void saver_clock_draw() {
   if (!degrees.empty() && date_font) saver_text(saver_root, date_font, soft, saver_view::temperature(width, height, margin, date_h), degrees);
 }
 
+// Where a player's keys stand on this glass (saver_view::keys), the sizes the media card's keys have: the play key when
+// the player can play or pause, the volume keys when it has a volume. A screensaver that is no player has none.
+inline saver_view::Keys saver_key_layout() {
+  const int width = overlay_card::screen_width(), height = overlay_card::screen_height();
+  const bool large = ui::large(), media = saver_now.kind == "media";
+  using namespace tile_controls;
+  media_card::Metrics m;
+  m.large = large;
+  return saver_view::keys(width, height, ui::px(large ? 28 : 12), m.key_h(), m.play_h(), ui::px(large ? 14 : 8),
+                          media && (saver_now.features & (feature::MEDIA_PLAY | feature::MEDIA_PAUSE)),
+                          media && (saver_now.features & (feature::MEDIA_VOLUME_SET | feature::ha::media_player::VOLUME_STEP)));
+}
 // The words over the picture, once it is there: a cover's title with its artist and album, a camera's name alone, in
 // white over the darkened picture or the cover's colour.
 inline void saver_words() {
@@ -9356,6 +9380,9 @@ inline void saver_words() {
   const int second_h = second.empty() || !second_font ? 0 : lv_font_get_line_height(second_font);
   const auto shape = media ? saver_view::shape(width, height) : saver_view::Shape::fill;
   auto w = saver_view::words(shape, width, height, margin, first_h, second_h, gap);
+  // A player's keys stand in the bottom right corner, and the words end before them (firmware 0.33.0+).
+  const auto keys = saver_key_layout();
+  saver_view::before_keys(w, keys, margin);
   // A long title takes a second line, and the words are laid out again around the taller title (saver_view.h).
   if (font) {
     lv_point_t need;
@@ -9363,13 +9390,121 @@ inline void saver_words() {
     const int lines = saver_view::title_lines(need.y, first_h);
     if (lines > 1) {
       const auto taller = saver_view::words(shape, width, height, margin, lines * first_h, second_h, gap);
-      if (saver_view::fits(shape, taller, width, height)) w = taller;
+      if (saver_view::fits(shape, taller, width, height)) { w = taller; saver_view::before_keys(w, keys, margin); }
     }
   }
   for (lv_obj_t **words : {&saver_first, &saver_second}) if (*words) { lv_obj_delete(*words); *words = nullptr; }
   saver_words_due = false;
   saver_first = saver_text(camera_root, font, media_ink(), w.first, first, LV_TEXT_ALIGN_LEFT);
   if (second_h) saver_second = saver_text(camera_root, second_font, theme::mix(media_ink(), 0, 200), w.second, second, LV_TEXT_ALIGN_LEFT);
+  saver_keys_draw();
+}
+// The keys: white rounds over the darkened cover, the play key whole and the two volume keys a haze with a white sign,
+// as the media card's keys stand over its cover. Each takes its own tap (the touch guard first, as every key), sends its
+// action for the player on the glass and leaves the screen in standby. The play key turns at once and Home Assistant's
+// word follows (saver_tick puts it back when none came).
+// Volume down held for a second and a half mutes the player, where Home Assistant says it can be muted; the key then shows the
+// muted speaker. The next tap on either volume key takes the mute off and changes nothing else, and after that the two
+// are the volume again.
+constexpr uint32_t SAVER_MUTE_HOLD_MS = 1500;
+inline uint32_t saver_pressed = 0;  // when the finger came down on volume down; 0 once this hold has muted
+inline void saver_faces() {
+  auto face = [](lv_obj_t *key, const char *glyph) {
+    auto *icon = key ? lv_obj_get_child(key, 0) : nullptr;
+    if (!icon) return;
+    lv_label_set_text(icon, glyph);
+    lv_obj_center(icon);
+  };
+  face(saver_keys[1], saver_now.muted ? tile_controls::glyph::MUTED : tile_controls::glyph::MINUS);
+  face(saver_keys[2], saver_now.state == "playing" ? tile_controls::glyph::PAUSE : tile_controls::glyph::PLAY);
+}
+inline void saver_send(const char *service, const char *key = nullptr, const char *value = nullptr) {
+  esphome::api::HomeassistantActionRequest request;
+  request.service = esphome::StringRef(service);
+  request.data.init(key ? 2 : 1);
+  esphome::api::HomeassistantServiceMap target;
+  target.key = esphome::StringRef("entity_id");
+  target.value = esphome::StringRef(saver_now.entity);
+  request.data.push_back(target);
+  if (key) {
+    esphome::api::HomeassistantServiceMap field;
+    field.key = esphome::StringRef(key);
+    field.value = esphome::StringRef(value);
+    request.data.push_back(field);
+  }
+  esphome::api::global_api_server->send_homeassistant_action(request);
+  ESP_LOGI("saver", "key %s%s%s for %s", service, value ? " " : "", value ? value : "", saver_now.entity.c_str());
+}
+inline void saver_mute(bool muted, uint32_t now) {
+  saver_send("media_player.volume_mute", "is_volume_muted", muted ? "true" : "false");
+  saver_now.muted = muted;
+  saver_flipped = now ? now : 1;
+  saver_faces();
+}
+inline void saver_key_event(lv_event_t *e) {
+  const int n = (int) (intptr_t) lv_event_get_user_data(e);
+  const auto code = lv_event_get_code(e);
+  const uint32_t now = esphome::millis();
+  if (!saver_camera || saver_now.kind != "media" || !fresh() || !valid_entity(saver_now.entity)) return;
+  if (code == LV_EVENT_PRESSED) { saver_pressed = now ? now : 1; return; }
+  if (code == LV_EVENT_PRESSING) {
+    if (!saver_pressed || now - saver_pressed < SAVER_MUTE_HOLD_MS || saver_now.muted ||
+        !(saver_now.features & tile_controls::feature::MEDIA_VOLUME_MUTE)) return;
+    saver_pressed = 0;
+    if (allowed(now, 703, "screensaver mute")) saver_mute(true, now);
+    return;
+  }
+  if (n == 2) {
+    if (!allowed(now, 700, "screensaver play")) return;
+    saver_send("media_player.media_play_pause");
+    saver_now.state = saver_now.state == "playing" ? "paused" : "playing";
+    saver_flipped = now ? now : 1;
+    saver_faces();
+    return;
+  }
+  // A volume key, on the release: the hold that muted used this contact up, so it does not also step.
+  if (!screen_input::touch_guard.accept_repeat(now, 701 + n)) return;
+  if (saver_now.muted) { saver_mute(false, now); return; }
+  saver_send(n == 0 ? "media_player.volume_up" : "media_player.volume_down");
+}
+inline void saver_keys_draw() {
+  for (lv_obj_t *&key : saver_keys) if (key) { lv_obj_delete(key); key = nullptr; }
+  if (!camera_root || !saver_camera || saver_now.kind != "media") return;
+  const auto l = saver_key_layout();
+  const uint32_t ink = media_ink();
+  const lv_font_t *small = mini_icon_font ? mini_icon_font : detail_font;
+  auto key = [&](int n, const media_card::Rect &r, const char *glyph, const lv_font_t *font, bool primary) {
+    if (r.w <= 0) return;
+    auto *o = lv_obj_create(camera_root);
+    lv_obj_remove_style_all(o);
+    lv_obj_remove_flag(o, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(o, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_ext_click_area(o, ui::px(6));
+    lv_obj_set_pos(o, r.x, r.y);
+    lv_obj_set_size(o, r.w, r.h);
+    lv_obj_set_style_radius(o, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(o, theme::rgb(ink), 0);
+    lv_obj_set_style_bg_opa(o, primary ? LV_OPA_COVER : 56, 0);
+    lv_obj_set_style_bg_color(o, theme::rgb(primary ? theme::mix(ink, 0, 200) : ink), LV_STATE_PRESSED);
+    lv_obj_set_style_bg_opa(o, primary ? LV_OPA_COVER : 110, LV_STATE_PRESSED);
+    auto *icon = lv_label_create(o);
+    lv_obj_remove_flag(icon, LV_OBJ_FLAG_CLICKABLE);
+    if (font) lv_obj_set_style_text_font(icon, font, 0);
+    lv_obj_set_style_text_color(icon, primary ? theme::color(theme::CAMERA_PAGE) : theme::rgb(ink), 0);
+    lv_label_set_text(icon, glyph);
+    lv_obj_center(icon);
+    // The play key takes a short tap, as every play key; a volume key its release, so a slow press still steps, and
+    // volume down also the hold that mutes.
+    lv_obj_add_event_cb(o, saver_key_event, n == 2 ? LV_EVENT_SHORT_CLICKED : LV_EVENT_CLICKED, (void *) (intptr_t) n);
+    if (n == 1) {
+      lv_obj_add_event_cb(o, saver_key_event, LV_EVENT_PRESSED, (void *) (intptr_t) n);
+      lv_obj_add_event_cb(o, saver_key_event, LV_EVENT_PRESSING, (void *) (intptr_t) n);
+    }
+    saver_keys[n] = o;
+  };
+  key(0, l.plus, tile_controls::glyph::PLUS, small, false);
+  key(1, l.minus, saver_now.muted ? tile_controls::glyph::MUTED : tile_controls::glyph::MINUS, small, false);
+  key(2, l.play, saver_now.state == "playing" ? tile_controls::glyph::PAUSE : tile_controls::glyph::PLAY, tile_icon_font(), true);
 }
 
 inline void saver_hide() {
@@ -9422,11 +9557,13 @@ inline void saver_follow() {
       (saver_next.ground == saver_now.ground || !ground_shows)) {
     saver_now = saver_next;
     if (!saver_words_due) saver_words();
+    else saver_keys_draw();
     return;
   }
   if (camera.loading) { saver_follow_due = true; return; }
   saver_follow_due = false;
   saver_now = saver_next;
+  saver_keys_draw();  // the keys are the next player's at once; its words wait for its picture
   camera.open(saver_now.entity);
   if (saver_now.kind == "media") camera.once = true;
   else camera.every = SAVER_CAMERA_MS;
@@ -9468,6 +9605,16 @@ inline void saver_receive(const SaverChoice &next) {
 inline void saver_tick(uint32_t now) {
   if (now - saver_ticked < 1000) return;
   saver_ticked = now;
+  // A play key that turned ahead of Home Assistant and heard nothing shows what the app last said again.
+  if (saver_flipped && now - saver_flipped > 5000) {
+    saver_flipped = 0;
+    if (saver_camera && saver_now.entity == saver_next.entity &&
+        (saver_now.state != saver_next.state || saver_now.muted != saver_next.muted)) {
+      saver_now.state = saver_next.state;
+      saver_now.muted = saver_next.muted;
+      saver_faces();
+    }
+  }
   // Gone under it (a new layout, an alert that closed the camera): drawn again.
   if (saver_lit && !saver_root && !saver_camera && saver_wanted()) saver_show();
 }

@@ -28,8 +28,21 @@ For example, with the order Music playing, Camera, Clock:
 
 With every row off or unavailable, standby shows the dimmed tiles as it did before.
 
-A tap anywhere wakes the screen, as it always did in standby. Nothing on the screensaver can be pressed, so the first
-touch never switches a lamp or opens a card under it.
+A tap wakes the screen, as it always did in standby, and that first touch never switches a lamp or opens a card
+under the screensaver. The one exception is a player's keys.
+
+**A player's keys** (app 0.4.55, firmware 0.33.0). Over a cover three round keys stand in the bottom right corner:
+play or pause at the bottom, volume down over it and volume up at the top. A tap on one of them does what it says for
+the player on the glass, and the screen stays in standby with its screensaver. A tap anywhere else wakes the screen.
+A player without a volume in Home Assistant (many televisions) has the play key alone.
+
+Hold volume down for a second and a half to mute the player. The key then shows a muted speaker. The next tap on either
+volume key takes the mute off and changes nothing else, and after that the two keys are the volume again.
+
+With the keys a paused player still counts, so the key that paused it can start it again. A player that plays always
+goes first, whatever its row, with one exception: the player you paused on the screen keeps the screen for two minutes,
+so its play key is still there. Ten minutes after the pause the screensaver moves on to the next step, the camera or the
+clock, since a speaker stays paused in Home Assistant for days.
 
 ## What you see
 
@@ -39,6 +52,7 @@ touch never switches a lamp or opens a card under it.
   the words in it.
   A title too long for one line takes two, above the artist (firmware 0.30.0); one longer still ends in dots.
   When the next track plays, the last cover and its title stay until the new cover has loaded (firmware 0.32.0).
+  The words end before the keys, so a long title takes its second line and then its dots in the room left of them.
 - **Camera**: the camera over the whole glass, cut to it the way a photo fills a frame, with its name small at the
   bottom left, refreshed every 15 seconds.
 - **Clock**: the time in the bedside clock's digits and the date under it, white on black whatever the look, so the
@@ -47,8 +61,8 @@ touch never switches a lamp or opens a card under it.
   for its home (Met.no's, else its first weather entity) unless you choose one under the clock in the editor (or none), whole degrees in the unit Home
   Assistant is set to (app 0.4.52).
 
-The cover and the camera are a little darker everywhere, so the words always read, and there is nothing else on them:
-no bar, no keys, no spinner.
+The cover and the camera are a little darker everywhere, so the words always read. A camera has nothing else on it,
+and a cover only its three keys: no bar, no spinner.
 
 The screensaver shows at **Standby brightness**, the level standby always dimmed to, and during the night hours at
 the night brightness. Raise Standby brightness for a cover that reads from across the room. With a level of 0 the
@@ -78,7 +92,16 @@ has.
   (`n`), the title (`t`) and `x`: the artist, the album, the picture's mark and the cover's colour, the things its
   picture and words are made from. Where the track is goes along with none of it, so a player that reports its
   position sends nothing new. With several players the message names the one that shows, so the screen needs nothing
-  new for the list. A camera adds `e` and `n`. The screen says it takes the message
+  new for the list. A screen whose hello also lists `saver_keys` (firmware 0.33.0) gets two more fields with a
+  player: `s`, its state (`playing` or `paused`), `f`, Home Assistant's `supported_features`, and `m: 1` while it is muted. For such a screen a
+  player paused less than `PAUSED_SECONDS` ago counts after every player that plays.
+- **The keys** (`saver_keys_draw`, `saver_key_event` in `runtime_tiles.h`) are the only clickable objects of the
+  screensaver, so their tap never reaches the dim overlay and the screen stays in standby. A tap goes through the touch
+  guard like every key and sends `media_player.media_play_pause`, `volume_up` or `volume_down` for the player on the
+  glass. Volume down held for `SAVER_MUTE_HOLD_MS` sends `volume_mute` where `f` has VOLUME_MUTE, and a tap on a
+  volume key of a muted player sends the unmute instead of a step. The play key and the mute show their other face
+  at once and Home Assistant's word follows. Where they stand is
+  `saver_view::keys`: the play key needs PLAY or PAUSE in `f`, the volume keys VOLUME_SET or VOLUME_STEP. A camera adds `e` and `n`. The screen says it takes the message
   with `screensaver` in the feature list of its hello; a screen without it never gets one.
 - **On the screen** (`runtime_tiles.h`, "The screensaver") the last word is kept until the screen goes into standby.
   Then `apply_screen_settings` sets the standby level as before and `saver_sync` draws it, when that level is above 0,

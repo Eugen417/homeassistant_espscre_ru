@@ -360,6 +360,10 @@ std::string receive(const std::string &payload) {
         next.album = string(extra["album"], 80);
         next.picture = string(extra["pic"], 16);
         next.ground = string(extra["g"], 13);
+        // The keys (app 0.4.55, firmware 0.33.0+): "playing" or "paused", and Home Assistant's supported_features.
+        next.state = string(root["s"], 8);
+        next.features = root["f"].is<uint32_t>() ? root["f"].as<uint32_t>() : 0;
+        next.muted = root["m"].is<int>() && root["m"].as<int>() == 1;
       }
       // The outside temperature under the clock (app 0.4.52, firmware 0.31.0+), ready to draw: "21°".
       if (next.kind == "clock") next.weather = string(root["w"], 8);

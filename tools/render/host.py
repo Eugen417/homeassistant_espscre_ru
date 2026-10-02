@@ -610,6 +610,20 @@ SAVER_PROBE = '''    - action: render_standby
         - lambda: |-
             if (enter) id(dim_display).execute(); else id(wake_display).execute();
             ESP_LOGI("render", "standby %d", enter);
+    - action: render_saver
+      then:
+        - lambda: |-
+            // The screensaver's keys (firmware 0.33.0+): whether the screen is in standby, the centre of each key in the
+            // order volume up, volume down, play ("-" for one that is not there), and where the title ends.
+            std::string keys;
+            for (auto *key : runtime_tiles::saver_keys) {
+              if (!key) { keys += "-;"; continue; }
+              lv_area_t a; lv_obj_get_coords(key, &a);
+              keys += std::to_string((a.x1 + a.x2) / 2) + "," + std::to_string((a.y1 + a.y2) / 2) + ";";
+            }
+            lv_area_t words{};
+            if (runtime_tiles::saver_first) lv_obj_get_coords(runtime_tiles::saver_first, &words);
+            ESP_LOGI("render", "saver dimmed=%d keys=%s words_right=%d", (int) id(display_dimmed), keys.c_str(), (int) words.x2);
 '''
 # A board with the calibration wizard shows it on the first start; the renders skip it, as a calibrated screen does.
 SKIP_CALIBRATION = '''    - action: render_skip_calibration

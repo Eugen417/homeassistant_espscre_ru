@@ -7,7 +7,8 @@
 // the app made for it (camera_feed.encode_saver): a camera fills the glass; a cover fills it while the glass is about
 // square, and on longer glass takes the full height at the left or the full width at the top, the rest in the cover's
 // own colour. The whole picture is a little darker, so the few words over it read. The clock is the time with the date.
-// Nothing on it takes a tap: the first touch wakes the screen, as it always did in standby.
+// A touch wakes the screen, as it always did in standby, except on a player's three keys (firmware 0.33.0+): play or
+// pause and the volume work from the screensaver, and the screen stays in standby.
 #include <algorithm>
 #include "media_card.h"
 
@@ -41,6 +42,33 @@ inline Words words(Shape s, int width, int height, int margin, int first_h, int 
   out.first = {x, y, std::max(1, w), first_h};
   if (second_h) out.second = {x, y + first_h + gap, std::max(1, w), second_h};
   return out;
+}
+
+// A player's keys (firmware 0.33.0+): play or pause in the bottom right corner, a margin from the right edge and from
+// the bottom, and over it volume down and volume up, one column going up. A player without a volume has the play key
+// alone, and one that can do neither has none (`left` is then the glass's width).
+struct Keys { Rect play, minus, plus; int left = 0; };
+inline Keys keys(int width, int height, int margin, int key, int play, int gap, bool with_play, bool with_volume) {
+  Keys k;
+  k.left = width;
+  if (!with_play && !with_volume) return k;
+  const int x = width - margin - play;
+  int y = height - margin;
+  if (with_play) { y -= play; k.play = {x, y, play, play}; y -= gap; }
+  if (with_volume) {
+    k.minus = {x + (play - key) / 2, y - key, key, key};
+    k.plus = {k.minus.x, k.minus.y - gap - key, key, key};
+  }
+  k.left = x;
+  return k;
+}
+// The words end before the keys, half a margin from them, however long a title is: it takes its second line and then
+// its dots in that room.
+inline void before_keys(Words &w, const Keys &k, int margin) {
+  for (Rect *r : {&w.first, &w.second}) {
+    if (r->w <= 0 || r->right() <= k.left - margin / 2) continue;
+    r->w = std::max(1, k.left - margin / 2 - r->x);
+  }
 }
 
 // A title too long for one line takes two (firmware 0.30.0+), and the block grows upward with it: the line under it

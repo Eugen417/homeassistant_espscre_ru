@@ -826,6 +826,7 @@ class Manager:
         # each screen holds, by its session: a screen that starts a new session gets it again.
         self.savers = screen_saver.ScreenSavers(self.path.parent / 'screensavers.json')
         self.saver_sent = {}
+        self.saver_shown = {}  # the player each screen's screensaver shows, by inbox
         # Settings -> Language & region (app 0.2.90): the language, clock and numbers of every screen.
         self.region = Region(self.path.parent / 'language.json', ha_language=lambda: getattr(self.ha, 'ha_language', None))
         self.ha.language_of = self.region.language
@@ -2690,7 +2691,12 @@ class Manager:
         """What this screen's screensaver shows now (screen_saver.message), for a board that draws pictures or not."""
         choice = self.savers.get(screen.get('device_id')) if screen.get('device_id') else dict(screen_saver.DEFAULT)
         pictures = bool(camera_feed.box(screen, 'full'))
-        return screen_saver.message(choice, self.ha.states, pictures, short, media_extras, self.player_ground)
+        # A screen whose screensaver has keys (firmware 0.33.0+) also shows a player paused a short while ago.
+        sender = self.page_senders.get(screen.get('id'))
+        keys = screen_saver.KEYS_FEATURE in (getattr(sender, 'features', None) or ())
+        # The player it shows keeps the glass for a while after a pause (screen_saver.HELD_SECONDS).
+        return screen_saver.message(choice, self.ha.states, pictures, short, media_extras, self.player_ground, keys,
+                                    held=self.saver_shown.get(screen.get('id'), ''))
 
     async def sync_saver(self, inbox, screen):
         """Tell a screen that takes a screensaver (its hello lists it, firmware 0.29.0+) what it shows now, whenever that
@@ -2710,6 +2716,7 @@ class Manager:
             return
         if delivered:
             self.saver_sent[inbox] = key
+            self.saver_shown[inbox] = message.get('e', '') if message['k'] == 'media' else ''
             LOG.info('Screensaver on %s: %s', screen.get('name', inbox), message['k'] or 'dark')
 
     async def camera_message(self, entity, view, screen, still=None, box=None):
