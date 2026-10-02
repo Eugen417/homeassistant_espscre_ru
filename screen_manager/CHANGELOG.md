@@ -1,3 +1,15 @@
+## 0.4.53 (firmware 0.32.0)
+
+- **The screensaver keeps its cover until the next one is there.** When the music went to the next track, the
+  screensaver closed and opened again, and the glass stood black for as long as the new cover took to load. Now the
+  last cover and its title stay, and the new cover and title take their place together the moment it has loaded. The
+  same goes for a switch between the music and the camera.
+- Tested: on a Guition 4848S040 with Home Assistant on the bench, the screensaver on a playing player: a new track kept
+  the last cover and title until the new cover had loaded (one load per track), two tracks a second apart ended on the
+  second, and a player that stopped handed over to the camera the same way. The CYD, both Guitions and the Waveshare 7
+  build with ESPHome 2026.9.0, the CYD and the Hosyond 4-inch with 2026.6.2; the Hosyond stays over its flash budget as
+  before. Not looked at on long glass (7 and 10-inch), where the cover's colour beside it loads a second time.
+
 ## 0.4.52 (firmware 0.31.0)
 
 - **The screensaver's clock is white on black.** It stood in the screen's own colours, a lit white glass in the light

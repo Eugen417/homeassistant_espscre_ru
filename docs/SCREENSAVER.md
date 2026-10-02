@@ -32,6 +32,7 @@ touch never switches a lamp or opens a card under it.
   there it takes the full height at the left, or the full width at the top, and the rest is the cover's own colour with
   the words in it.
   A title too long for one line takes two, above the artist (firmware 0.30.0); one longer still ends in dots.
+  When the next track plays, the last cover and its title stay until the new cover has loaded (firmware 0.32.0).
 - **Camera**: the camera over the whole glass, cut to it the way a photo fills a frame, with its name small at the
   bottom left, refreshed every 15 seconds.
 - **Clock**: the time in the bedside clock's digits and the date under it, white on black whatever the look, so the

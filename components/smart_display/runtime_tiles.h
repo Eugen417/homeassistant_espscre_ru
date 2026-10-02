@@ -172,6 +172,14 @@ struct SaverChoice {
 };
 inline SaverChoice saver_next, saver_now;  // the app's latest word, and what the glass shows
 inline lv_obj_t *saver_root = nullptr;      // the clock
+// The words over the screensaver's picture (firmware 0.32.0+): drawn again with the next track's picture, and
+// `saver_words_due` until it has come.
+inline lv_obj_t *saver_first = nullptr, *saver_second = nullptr;
+inline bool saver_words_due = false;
+// A next track that came while a picture was on its way (firmware 0.32.0+): followed once that load has ended, so the
+// online_image never gets a second link in the middle of a download and the one that lands is the one asked for.
+inline bool saver_follow_due = false;
+inline void saver_follow_pending();
 inline bool saver_camera = false;           // the camera's full view on the glass is the screensaver's (a camera or a cover)
 inline void saver_words();
 inline bool saver_woke = false;  // the last wake took the screensaver away: that touch does nothing else
@@ -8830,6 +8838,7 @@ inline void camera_close() {
   if (!camera_root) return;
   lv_obj_delete(camera_root);
   camera_root = camera_picture = camera_note = camera_back = camera_title = camera_spinner = map_card_obj = nullptr;
+  saver_first = saver_second = nullptr;  // they went with the view
   map_focus.clear();
   map_pinned = false;
   map_sheet = MapSheet{};
@@ -9215,6 +9224,9 @@ inline void camera_loaded(bool thumb, bool cached) {
     lv_obj_set_size(camera_picture, lv_pct(100), lv_pct(100));
     lv_image_set_inner_align(camera_picture, LV_IMAGE_ALIGN_COVER);
     saver_words();
+  } else if (camera_picture && saver_camera && saver_words_due) {
+    // The next track's picture is on the glass: its words come with it (saver_follow).
+    saver_words();
   } else if (first && camera_picture) {
     camera_note_text("");
     if (camera_back) lv_obj_move_foreground(camera_back);
@@ -9222,6 +9234,7 @@ inline void camera_loaded(bool thumb, bool cached) {
     // A map's card (firmware 0.21.0+) may have come before its first picture: it lies over the map as the bar does.
     if (map_card_obj) lv_obj_move_foreground(map_card_obj);
   }
+  saver_follow_pending();
 }
 
 inline void camera_failed(bool thumb) {
@@ -9243,6 +9256,7 @@ inline void camera_failed(bool thumb) {
   if (!camera.loading) return;
   camera.finish(esphome::millis(), false);
   if (!camera.shown && !saver_camera) camera_note_text(tr(txt::camera_no_image));
+  saver_follow_pending();
 }
 
 // ---------------------------------------------------------------------------------------------------------
@@ -9352,11 +9366,14 @@ inline void saver_words() {
       if (saver_view::fits(shape, taller, width, height)) w = taller;
     }
   }
-  saver_text(camera_root, font, media_ink(), w.first, first, LV_TEXT_ALIGN_LEFT);
-  if (second_h) saver_text(camera_root, second_font, theme::mix(media_ink(), 0, 200), w.second, second, LV_TEXT_ALIGN_LEFT);
+  for (lv_obj_t **words : {&saver_first, &saver_second}) if (*words) { lv_obj_delete(*words); *words = nullptr; }
+  saver_words_due = false;
+  saver_first = saver_text(camera_root, font, media_ink(), w.first, first, LV_TEXT_ALIGN_LEFT);
+  if (second_h) saver_second = saver_text(camera_root, second_font, theme::mix(media_ink(), 0, 200), w.second, second, LV_TEXT_ALIGN_LEFT);
 }
 
 inline void saver_hide() {
+  saver_follow_due = false;
   if (saver_root) lv_obj_delete(saver_root);
   saver_root = nullptr;
   if (saver_camera) camera_close();
@@ -9392,6 +9409,37 @@ inline void saver_show() {
   saver_clock_draw();
   ESP_LOGI("saver", "clock");
 }
+// Another track, another cover or another picture step while a picture stands (firmware 0.32.0+): the view stays, with
+// the picture and its words, and the next picture loads under it; the words change when it has come. Before, the view
+// closed and opened again, and the glass stood black for as long as the next picture took.
+inline void saver_follow() {
+  const std::string before = camera.entity;
+  // The same picture with other words (the title came before the cover's colour, or the other way round): the words
+  // alone, nothing loads; while that picture is still on its way, they come with it.
+  // The cover's colour only shows beside a cover on long glass (saver_view::shape): on square glass it is no new picture.
+  const bool ground_shows = saver_view::shape(overlay_card::screen_width(), overlay_card::screen_height()) != saver_view::Shape::fill;
+  if (saver_next.kind == saver_now.kind && saver_next.entity == saver_now.entity && saver_next.picture == saver_now.picture &&
+      (saver_next.ground == saver_now.ground || !ground_shows)) {
+    saver_now = saver_next;
+    if (!saver_words_due) saver_words();
+    return;
+  }
+  if (camera.loading) { saver_follow_due = true; return; }
+  saver_follow_due = false;
+  saver_now = saver_next;
+  camera.open(saver_now.entity);
+  if (saver_now.kind == "media") camera.once = true;
+  else camera.every = SAVER_CAMERA_MS;
+  // The last one's copy goes once its picture has made way for the next (pictures_collect).
+  if (before != saver_now.entity) pictures.retire(camera_key(before));
+  saver_words_due = true;
+  ESP_LOGI("saver", "%s %s, the last picture stays until it comes", saver_now.kind.c_str(), saver_now.entity.c_str());
+}
+inline void saver_follow_pending() {
+  if (!std::exchange(saver_follow_due, false)) return;
+  if (saver_lit && saver_camera && camera_root && camera_picture && !(saver_next == saver_now) &&
+      (saver_next.kind == "media" || saver_next.kind == "camera")) saver_follow();
+}
 // apply_screen_settings, after every change and every minute: `lit` is standby with a backlight that is on.
 inline void saver_sync(bool lit) {
   saver_lit = lit;
@@ -9399,6 +9447,7 @@ inline void saver_sync(bool lit) {
   if (!lit || !saver_wanted()) { if (shown) saver_hide(); return; }
   // The camera and the cover stand as they are while nothing changed; the clock is drawn again, a minute later.
   if (shown && saver_next == saver_now && saver_now.kind != "clock") return;
+  if (saver_camera && camera_root && camera_picture && (saver_next.kind == "media" || saver_next.kind == "camera")) { saver_follow(); return; }
   saver_hide();
   saver_show();
 }
