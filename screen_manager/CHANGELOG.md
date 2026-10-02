@@ -1,3 +1,17 @@
+## 0.4.46 (firmware 0.27.0)
+
+- **Every Sonos has its plus on the Spotify tile.** The speakers of Spotify's library showed a plus only once music
+  already played on one of them, so there was nothing to tap to start a group. Now every speaker that groups has its
+  plus at once: the first one starts what plays (or the next playlist you tap) on that speaker, and the next ones join
+  it.
+- **The speaker's name stays whole.** With the input key and the library key both at the top, the pill with the
+  speaker's name was cut short ("Sla..."). It now takes the room between the back key and those two keys.
+- **More speakers on a page.** A speaker's volume line in the menu is a little lower, so the Guition shows a group of
+  three and the fourth speaker on one page. Its slider still reacts across a finger's height.
+- **A coffee card on the overview.** The editor's home overview shows a small card at the bottom right with a link to
+  support the project. It waits two days after your first visit, never shows while you edit a screen, and stays away
+  for good once you say you already donated. Only your browser remembers the choice.
+
 ## 0.4.45 (firmware 0.26.0)
 
 - **Play your speakers together.** The speaker menu on a player's card now groups, the way Home Assistant's own join

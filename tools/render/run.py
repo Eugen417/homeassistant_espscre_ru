@@ -1505,6 +1505,14 @@ class Run:
         self.warnings.append(f'media: card, speakers, library, albums, play, rest, favourites, group, inputs; {served["cover"]} covers, {served["art"]} pictures')
         return 1
 
+    async def _menu_next(self, card):
+        """The menu's next page, when there is one (its pager says '3 / 3' on the last)."""
+        before = card['rows']
+        await self.tap(*card['menu_pager'][1][:2])
+        await asyncio.sleep(0.5)
+        after = await self.media_probe()
+        return after['rows'] != before
+
     async def media_group(self, grid, calls, call_for, answer, faults, region, bars):
         """A Sonos the way it groups (firmware 0.26.0, speakers.py): its card with the input key, the pill naming the
         group, the speaker menu with a tick and a volume for each speaker in the group and a plus for the others, a plus
@@ -1530,7 +1538,7 @@ class Run:
         async def push():
             values = [state_message(index, tile, states, extras(tile, states)) for index, tile in enumerate(tiles)]
             for value in values:
-                more = media_library.player_extras(states[value['entity']]['attributes'], 8321599, None, False)
+                more = media_library.player_extras(states[value['entity']]['attributes'], 8321599, None, True)
                 more.pop('so', None); more.pop('sl', None)
                 more.update(speakers.extras(speakers.menu(value['entity'], states, lambda e: 'sonos')))
                 value.setdefault('x', {}).update(more)
@@ -1548,19 +1556,13 @@ class Run:
         await self.render('media-group-speakers')
         if len(card['sliders']) < 1 or not card['joins']:
             faults.append(f'the group menu shows {len(card["sliders"])} volumes and {len(card["joins"])} keys')
-        # The plus of the first speaker outside the group (the last key on the first page) joins it.
+        # The plus of the last speaker, outside the group, on the last page joins it.
+        while card['menu_pager'] and await self._menu_next(card):
+            card = await self.media_until(lambda c: c['menu'] and c['joins'], 'the next page never came')
+        await self.render('media-group-speakers-last')
         since = len(calls)
-        first_page = len(card['rows'])
-        target = None
-        if first_page > 2:
-            await self.tap(*card['joins'][2][:2])
-            target = 'Bathroom'
-        elif card['menu_pager']:
-            await self.tap(*card['menu_pager'][1][:2])
-            card = await self.media_until(lambda c: c['menu'] and c['joins'], 'the second page never came')
-            await self.render('media-group-speakers-2')
-            await self.tap(*card['joins'][0][:2])
-            target = 'Bathroom'
+        await self.tap(*card['joins'][-1][:2])
+        target = 'Bedroom'
         if target:
             sent = await call_for('esphome.screen_speaker', since)
             if {k: v for k, v in dict(sent.data).items() if k in ('speaker', 'op')} != {'speaker': target, 'op': 'join'}:
@@ -1568,9 +1570,9 @@ class Run:
             answer(sent)
             found = speakers.menu(ENTITY, states, lambda e: 'sonos')
             steps, _ = speakers.plan(ENTITY, found, speakers.find(found, target), 'join', states)
-            if steps != [('media_player', 'join', {'entity_id': ENTITY, 'group_members': ['media_player.bathroom']})]:
+            if steps != [('media_player', 'join', {'entity_id': ENTITY, 'group_members': ['media_player.bedroom']})]:
                 faults.append(f'the app would join with {steps}')
-            states = house(group + ['media_player.bathroom'])
+            states = house(group + ['media_player.bedroom'])
             await push()
             await asyncio.sleep(1.0)
             await self.render('media-group-joined')

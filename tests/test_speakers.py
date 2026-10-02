@@ -136,7 +136,10 @@ class LibrarySpeakers(unittest.TestCase):
     def test_the_spotify_tile_lists_connect_devices_and_the_speakers_of_its_library(self):
         found = menu('media_player.spotify_account', house(), self.HOLDERS)
         self.assertEqual([r['name'] for r in found['rows']], ['MacBook', 'iMac', 'Bedroom', 'Kitchen', 'Living room'])
-        self.assertFalse(any(r['groups'] for r in found['rows']))   # nothing plays there yet: no group to join
+        # Every speaker that groups shows its plus at once; the first one starts the music there.
+        self.assertEqual([r['groups'] for r in found['rows']], [False, False, True, True, True])
+        steps, follow = speakers.plan('media_player.spotify_account', found, speakers.find(found, 'Kitchen'), 'join', house())
+        self.assertEqual((steps, follow), ([], 'media_player.kitchen'))
         self.assertIsNone(found['target'])
 
     def test_picking_a_speaker_moves_what_plays_and_the_card_follows_it(self):

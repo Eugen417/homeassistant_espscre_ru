@@ -672,7 +672,9 @@ static void draw_menu() {
   lv_obj_add_event_cb(menu_root, menu_scrim_event, LV_EVENT_SHORT_CLICKED, nullptr);
   lv_obj_move_foreground(menu_root);
   const int y = m.bar_y + m.bar + m.gap / 2, room = height - y - m.pad;
-  const int row_h = std::max(ui::touch_min(), m.row_h), volume_h = ui::touch_min();
+  // The volume line is three quarters of a finger; its slider reaches a finger's height with its click area, and a
+  // tap beside it lands on a row that does nothing.
+  const int row_h = std::max(ui::touch_min(), m.row_h), volume_h = ui::touch_min() * 3 / 4;
   const int panel_w = std::min(width - 2 * m.pad, ui::px(ui::large() ? 380 : 260));
   // Pages by height: a speaker in the group is a row taller for its volume. The pager takes a row of its own.
   std::vector<int> heights;

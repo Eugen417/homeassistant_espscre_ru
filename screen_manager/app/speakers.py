@@ -112,12 +112,13 @@ def menu(entity, states, platform_of, holders=(), output=None):
     rows, inputs = [], []
     target = target_of(entity, states, output)
 
-    def row(name, source=None, entity=None, on=False, groups=False, volume=-1):
+    def row(name, source=None, entity=None, on=False, groups=False, volume=-1, plays=False):
         # One row per name: a Spotify Connect device that is also a speaker of its own is one speaker.
         found = next((r for r in rows if r['name'] == name), None)
         if found is None:
-            found = {'name': name, 'source': None, 'entity': None, 'on': False, 'groups': False, 'volume': -1}
+            found = {'name': name, 'source': None, 'entity': None, 'on': False, 'groups': False, 'volume': -1, 'plays': False}
             rows.append(found)
+        found['plays'] = found['plays'] or plays
         found['source'] = found['source'] or source
         found['entity'] = found['entity'] or entity
         found['on'] = found['on'] or on
@@ -140,15 +141,16 @@ def menu(entity, states, platform_of, holders=(), output=None):
             on = other in now
             row(name_of(other, states), entity=other, on=on, groups=True, volume=volume_of(other, states) if on else -1)
     # Speakers that play this player's library: the one it follows and those with it are ticked, and they group
-    # among themselves.
+    # among themselves. Before anything plays on one, every speaker that groups shows its plus all the same: the first
+    # one starts the music there, the next ones join it.
     with_target = members(target, states) if target else []
     lead_mates = set(group_mates(target, states, platform_of)) if target else set()
     for other in holders:
         if other == entity or (states.get(other) or {}).get('state') in GONE[:2]:
             continue
         on = other in with_target
-        groups = bool(target) and (other == target or other in lead_mates)
-        row(name_of(other, states), entity=other, on=on, groups=groups, volume=volume_of(other, states) if on else -1)
+        groups = (other == target or other in lead_mates) if target else bool(features(states.get(other)) & GROUPING)
+        row(name_of(other, states), entity=other, on=on, groups=groups, volume=volume_of(other, states) if on else -1, plays=True)
     rows = rows[:ROWS]
     if target:
         pill = name_of(target, states) + (f' + {len(with_target) - 1}' if len(with_target) > 1 else '')
@@ -204,8 +206,10 @@ def plan(entity, found, row, op, states, volume=None):
         if other == found['target']:
             follow = next((e for e in together if e != other), '')
         return [('media_player', 'unjoin', {'entity_id': other})], follow
-    if op in ('join', 'pick') and other and row['groups'] and not row['on']:
+    if op in ('join', 'pick') and other and row['groups'] and not row['on'] and not (row['plays'] and not found['target']):
         return [('media_player', 'join', {'entity_id': lead, 'group_members': [other]})], None
+    if op == 'join' and row['plays'] and not found['target']:
+        op = 'pick'   # the first speaker of a library: the music starts there, the next ones join it
     if op != 'pick' or row['on']:
         return [], None
     if row['source']:

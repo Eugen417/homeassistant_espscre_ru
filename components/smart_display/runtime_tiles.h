@@ -3835,10 +3835,13 @@ inline void media_top_bar(const Tile &t,lv_obj_t *back,lv_obj_t *heading,int wid
   const lv_font_t *font=control_font?control_font:detail_font;
   const std::string name=x.media_source.empty()?std::string(tr(txt::media_choose_speaker)):x.media_source;
   const int h=bar*3/4,inset=ui::px(ui::large()?14:8),icon_w=lv_font_get_line_height(icons),gap=ui::px(ui::large()?6:4);
-  const int room=width-2*(bar_x+std::max(bar,right))-2*gap;
+  // The room between the back key and the keys at the right; the pill stands in the middle of the glass where it fits
+  // there, and in the middle of that room when two keys at the right leave too little (a speaker's name stays whole).
+  const int lo=bar_x+bar+gap,hi=width-bar_x-std::max(bar,right-bar_x)-gap,room=std::max(h,hi-lo);
   const int w=std::max(h,std::min(room,inset+icon_w+gap+text_width(name,font)+gap+icon_w+inset));
+  const int centred=(width-w)/2,px_left=centred>=lo&&centred+w<=hi?centred:lo+(room-w)/2;
   auto *pill=lv_obj_create(detail_root);lv_obj_remove_style_all(pill);
-  lv_obj_set_pos(pill,(width-w)/2,bar_y+(bar-h)/2);lv_obj_set_size(pill,w,h);
+  lv_obj_set_pos(pill,px_left,bar_y+(bar-h)/2);lv_obj_set_size(pill,w,h);
   lv_obj_set_style_radius(pill,LV_RADIUS_CIRCLE,0);lv_obj_add_flag(pill,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(pill,LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_bg_color(pill,theme::rgb(media_ink()),0);lv_obj_set_style_bg_opa(pill,40,0);lv_obj_set_style_bg_opa(pill,90,LV_STATE_PRESSED);
   lv_obj_set_ext_click_area(pill,(bar-h)/2);
