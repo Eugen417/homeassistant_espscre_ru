@@ -2,6 +2,8 @@
 
 <sub>Tessera is the new name for ESP Screens. Since app 0.3.18 Home Assistant shows the app as Tessera Screen Manager and its panel as Tessera. More on the [Tessera website](https://tessera-maxgramser.on-forge.com).</sub>
 
+<sub>Looking for e-ink? [Tesserae (tesserae.ink)](https://tesserae.ink) is a separate open-source project with a similar name, for calm dashboards on e-ink panels. Tessera is for colour LCD touch screens.</sub>
+
 The [README](README.md) shows what Tessera is and how to install it. This page has the rest:
 every card and setting, what an automation can do with a screen, the top bar, the settings page
 on the screen itself, and how updates work.

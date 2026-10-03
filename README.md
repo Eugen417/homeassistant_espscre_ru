@@ -22,6 +22,8 @@
 
 <p align="center"><sub>Tessera is the new name for ESP Screens. In Home Assistant the app is called Tessera Screen Manager and its panel Tessera (app 0.3.18); the repository, the add-on and your screens stay exactly as they are.</sub></p>
 
+<p align="center"><sub>Looking for e-ink? Tessera is for colour LCD touch screens. For calm dashboards on e-ink panels, have a look at <a href="https://tesserae.ink">Tesserae (tesserae.ink)</a>, a separate open-source project for Home Assistant with a similar name.</sub></p>
+
 Thank you! I work on this project with a lot of love, and every bit of support helps. I truly love the Home Assistant community.
 
 <a href="https://buymeacoffee.com/f5j9jnkmhpv"><img src="https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=f5j9jnkmhpv&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Buy me a coffee" height="42"></a>
@@ -49,9 +51,9 @@ it over Wi-Fi and sends it your tiles. Changing a screen is pick, drag and **Sav
 no reflash, no YAML to write, no blueprint, MQTT or token. Brightness, night hours and Dark mode can
 also be changed on the screen or by an automation, and your own YAML for one screen survives every update.
 
-**[Install it](#installing-from-home-assistant)** · [Documentation](https://tessera-maxgramser.on-forge.com/docs) · [Pages and tiles](https://tessera-maxgramser.on-forge.com/docs/pages-and-tiles) · [Troubleshooting](https://tessera-maxgramser.on-forge.com/docs/troubleshooting) · [What's new](screen_manager/CHANGELOG.md)
+**[Install it](#installing-from-home-assistant)** · [The manual](https://tessera-maxgramser.on-forge.com/docs/) · [Pages](https://tessera-maxgramser.on-forge.com/docs/pages) · [Screen settings](https://tessera-maxgramser.on-forge.com/docs/screen-settings) · [Troubleshooting](https://tessera-maxgramser.on-forge.com/docs/troubleshooting) · [What's new](screen_manager/CHANGELOG.md)
 
-> **The full documentation is on the [Tessera website](https://tessera-maxgramser.on-forge.com/docs):** a [quick start](https://tessera-maxgramser.on-forge.com/docs/quick-start), getting started, pages and tiles, screen settings, cameras, Docker and troubleshooting, kept up to date for users. This README is the overview; the files under `docs/` are the reference for contributors.
+> **The manual is on the [Tessera website](https://tessera-maxgramser.on-forge.com/docs/):** from the [quick start](https://tessera-maxgramser.on-forge.com/docs/quick-start) to every tile, every screen setting, every supported screen and troubleshooting, with search. Anyone with a GitHub account can improve a page with **Edit this page**. This README is the overview; the files under `docs/` are the reference for contributors.
 
 ## In real life
 
@@ -438,12 +440,12 @@ every night if you turn that on under **Settings**; **Firmware & USB → Wi-Fi /
 installs it by hand. For an existing screen, always use the existing profile; creating a new
 installation profile generates new keys.
 
-The [getting started guide](https://tessera-maxgramser.on-forge.com/docs/getting-started) on the website walks through every step in more detail.
+The [manual](https://tessera-maxgramser.on-forge.com/docs/install) on the website walks through every step in more detail.
 
 ## More
 
-- **[Documentation on the Tessera website](https://tessera-maxgramser.on-forge.com/docs):** [getting started](https://tessera-maxgramser.on-forge.com/docs/getting-started),
-  [pages and tiles](https://tessera-maxgramser.on-forge.com/docs/pages-and-tiles), [screen settings](https://tessera-maxgramser.on-forge.com/docs/screen-settings),
+- **[The manual on the Tessera website](https://tessera-maxgramser.on-forge.com/docs/):** [installing](https://tessera-maxgramser.on-forge.com/docs/install),
+  [pages](https://tessera-maxgramser.on-forge.com/docs/pages), [tiles](https://tessera-maxgramser.on-forge.com/docs/tiles), [screen settings](https://tessera-maxgramser.on-forge.com/docs/screen-settings),
   [cameras](https://tessera-maxgramser.on-forge.com/docs/cameras), [Docker](https://tessera-maxgramser.on-forge.com/docs/docker) and [troubleshooting](https://tessera-maxgramser.on-forge.com/docs/troubleshooting).
 - **[Full reference](README_EXTENDED.md):** every card and setting, alerts and wake/sleep from an
   automation, the top bar, the settings page on the screen, and how updates keep your settings.
@@ -457,6 +459,10 @@ The very first version started from Adrian Kuehlewind's
 [ESPHome-touch-display-mount](https://github.com/akuehlewind/ESPHome-touch-display-mount).
 Little of that code is left, but his repository has 3D-printable desk, under-desk, wall and flush
 mounts for the CYD.
+
+Not to be confused with [Tesserae (tesserae.ink)](https://tesserae.ink), a separate open-source project that
+makes calm dashboards for e-ink panels in Home Assistant. Same word, different screens: Tessera is for colour LCD
+touch screens, Tesserae for e-ink. A question meant for the other project is gladly passed on.
 
 The front door in the camera pictures is a photo by
 [Virginia Marinova](https://unsplash.com/photos/the-door-welcomes-with-plants-on-both-sides-80uwJgdeqWg) on Unsplash.
