@@ -25,7 +25,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.33.1",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -38,6 +38,9 @@
   "height": 240,
   "hotspot": false,
   "look": "compact",
+  "max_bar_items": 6,
+  "max_pages": 8,
+  "max_tiles": 64,
   "orientations": {
    "landscape": {
     "columns": 2,
@@ -84,7 +87,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.33.1",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -97,6 +100,9 @@
   "height": 240,
   "hotspot": false,
   "look": "compact",
+  "max_bar_items": 6,
+  "max_pages": 8,
+  "max_tiles": 64,
   "orientations": {
    "landscape": {
     "columns": 2,
@@ -158,7 +164,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -171,6 +177,9 @@
   "height": 480,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "camera": {
@@ -237,7 +246,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 146,
-  "firmware": "0.33.1",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 18,
    "icon_home": 26,
@@ -250,6 +259,9 @@
   "height": 320,
   "hotspot": false,
   "look": "compact",
+  "max_bar_items": 6,
+  "max_pages": 8,
+  "max_tiles": 64,
   "orientations": {
    "landscape": {
     "columns": 2,
@@ -306,7 +318,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -319,6 +331,9 @@
   "height": 600,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 16,
+  "max_tiles": 256,
   "orientations": {
    "landscape": {
     "camera": {
@@ -395,7 +410,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -408,6 +423,9 @@
   "height": 600,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 16,
+  "max_tiles": 256,
   "orientations": {
    "landscape": {
     "camera": {
@@ -484,7 +502,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 26,
    "icon_home": 33,
@@ -497,6 +515,9 @@
   "height": 320,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "camera": {
@@ -580,7 +601,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.33.1",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -593,6 +614,9 @@
   "height": 800,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 16,
+  "max_tiles": 256,
   "orientations": {
    "landscape": {
     "camera": {
@@ -676,7 +700,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.33.1",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -689,6 +713,9 @@
   "height": 800,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 16,
+  "max_tiles": 256,
   "orientations": {
    "landscape": {
     "camera": {
@@ -772,7 +799,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.33.1",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -785,6 +812,9 @@
   "height": 800,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 16,
+  "max_tiles": 256,
   "orientations": {
    "landscape": {
     "camera": {
@@ -861,7 +891,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 133,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 21,
    "icon_home": 26,
@@ -874,6 +904,9 @@
   "height": 480,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "camera": {
@@ -940,7 +973,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 26,
    "icon_home": 33,
@@ -953,6 +986,9 @@
   "height": 320,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "columns": 2,
@@ -1009,7 +1045,7 @@
   "columns": 3,
   "dimmable": false,
   "dpi": 217,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 34,
    "icon_home": 43,
@@ -1022,6 +1058,9 @@
   "height": 480,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "camera": {
@@ -1098,7 +1137,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -1111,6 +1150,9 @@
   "height": 480,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "camera": {
@@ -1187,7 +1229,7 @@
   "columns": 4,
   "dimmable": false,
   "dpi": 133,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 21,
    "icon_home": 26,
@@ -1200,6 +1242,9 @@
   "height": 480,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "camera": {
@@ -1276,7 +1321,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 27,
    "icon_home": 26,
@@ -1289,6 +1334,9 @@
   "height": 600,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "camera": {
@@ -1360,7 +1408,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.33.1",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -1373,6 +1421,9 @@
   "height": 240,
   "hotspot": false,
   "look": "compact",
+  "max_bar_items": 6,
+  "max_pages": 8,
+  "max_tiles": 64,
   "orientations": {
    "landscape": {
     "columns": 2,
@@ -1419,7 +1470,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.33.1",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -1432,6 +1483,9 @@
   "height": 240,
   "hotspot": false,
   "look": "compact",
+  "max_bar_items": 6,
+  "max_pages": 8,
+  "max_tiles": 64,
   "orientations": {
    "landscape": {
     "columns": 2,
@@ -1493,7 +1547,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -1506,6 +1560,9 @@
   "height": 480,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "camera": {
@@ -1572,7 +1629,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 146,
-  "firmware": "0.33.1",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 18,
    "icon_home": 26,
@@ -1585,6 +1642,9 @@
   "height": 320,
   "hotspot": false,
   "look": "compact",
+  "max_bar_items": 6,
+  "max_pages": 8,
+  "max_tiles": 64,
   "orientations": {
    "landscape": {
     "columns": 2,
@@ -1641,7 +1701,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -1654,6 +1714,9 @@
   "height": 600,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 16,
+  "max_tiles": 256,
   "orientations": {
    "landscape": {
     "camera": {
@@ -1730,7 +1793,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -1743,6 +1806,9 @@
   "height": 600,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 16,
+  "max_tiles": 256,
   "orientations": {
    "landscape": {
     "camera": {
@@ -1819,7 +1885,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 26,
    "icon_home": 33,
@@ -1832,6 +1898,9 @@
   "height": 320,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "camera": {
@@ -1915,7 +1984,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.33.1",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -1928,6 +1997,9 @@
   "height": 800,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 16,
+  "max_tiles": 256,
   "orientations": {
    "landscape": {
     "camera": {
@@ -2011,7 +2083,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.33.1",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -2024,6 +2096,9 @@
   "height": 800,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 16,
+  "max_tiles": 256,
   "orientations": {
    "landscape": {
     "camera": {
@@ -2107,7 +2182,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.33.1",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -2120,6 +2195,9 @@
   "height": 800,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 16,
+  "max_tiles": 256,
   "orientations": {
    "landscape": {
     "camera": {
@@ -2191,7 +2269,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.33.1",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -2204,6 +2282,9 @@
   "height": 240,
   "hotspot": false,
   "look": "compact",
+  "max_bar_items": 6,
+  "max_pages": 8,
+  "max_tiles": 64,
   "orientations": {
    "landscape": {
     "columns": 2,
@@ -2250,7 +2331,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.33.1",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -2263,6 +2344,9 @@
   "height": 240,
   "hotspot": false,
   "look": "compact",
+  "max_bar_items": 6,
+  "max_pages": 8,
+  "max_tiles": 64,
   "orientations": {
    "landscape": {
     "columns": 2,
@@ -2324,7 +2408,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -2337,6 +2421,9 @@
   "height": 480,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "camera": {
@@ -2403,7 +2490,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 146,
-  "firmware": "0.33.1",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 18,
    "icon_home": 26,
@@ -2416,6 +2503,9 @@
   "height": 320,
   "hotspot": false,
   "look": "compact",
+  "max_bar_items": 6,
+  "max_pages": 8,
+  "max_tiles": 64,
   "orientations": {
    "landscape": {
     "columns": 2,
@@ -2472,7 +2562,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -2485,6 +2575,9 @@
   "height": 600,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 16,
+  "max_tiles": 256,
   "orientations": {
    "landscape": {
     "camera": {
@@ -2561,7 +2654,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -2574,6 +2667,9 @@
   "height": 600,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 16,
+  "max_tiles": 256,
   "orientations": {
    "landscape": {
     "camera": {
@@ -2650,7 +2746,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 26,
    "icon_home": 33,
@@ -2663,6 +2759,9 @@
   "height": 320,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "camera": {
@@ -2746,7 +2845,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.33.1",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -2759,6 +2858,9 @@
   "height": 800,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 16,
+  "max_tiles": 256,
   "orientations": {
    "landscape": {
     "camera": {
@@ -2842,7 +2944,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.33.1",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -2855,6 +2957,9 @@
   "height": 800,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 16,
+  "max_tiles": 256,
   "orientations": {
    "landscape": {
     "camera": {
@@ -2938,7 +3043,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.33.1",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -2951,6 +3056,9 @@
   "height": 800,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 16,
+  "max_tiles": 256,
   "orientations": {
    "landscape": {
     "camera": {
@@ -3027,7 +3135,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 133,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 21,
    "icon_home": 26,
@@ -3040,6 +3148,9 @@
   "height": 480,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "camera": {
@@ -3106,7 +3217,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 26,
    "icon_home": 33,
@@ -3119,6 +3230,9 @@
   "height": 320,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "columns": 2,
@@ -3175,7 +3289,7 @@
   "columns": 3,
   "dimmable": false,
   "dpi": 217,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 34,
    "icon_home": 43,
@@ -3188,6 +3302,9 @@
   "height": 480,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "camera": {
@@ -3264,7 +3381,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -3277,6 +3394,9 @@
   "height": 480,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "camera": {
@@ -3353,7 +3473,7 @@
   "columns": 4,
   "dimmable": false,
   "dpi": 133,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 21,
    "icon_home": 26,
@@ -3366,6 +3486,9 @@
   "height": 480,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "camera": {
@@ -3442,7 +3565,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 27,
    "icon_home": 26,
@@ -3455,6 +3578,9 @@
   "height": 600,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "camera": {
@@ -3531,7 +3657,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 133,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 21,
    "icon_home": 26,
@@ -3544,6 +3670,9 @@
   "height": 480,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "camera": {
@@ -3610,7 +3739,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 26,
    "icon_home": 33,
@@ -3623,6 +3752,9 @@
   "height": 320,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "columns": 2,
@@ -3679,7 +3811,7 @@
   "columns": 3,
   "dimmable": false,
   "dpi": 217,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 34,
    "icon_home": 43,
@@ -3692,6 +3824,9 @@
   "height": 480,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "camera": {
@@ -3768,7 +3903,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -3781,6 +3916,9 @@
   "height": 480,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "camera": {
@@ -3857,7 +3995,7 @@
   "columns": 4,
   "dimmable": false,
   "dpi": 133,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 21,
    "icon_home": 26,
@@ -3870,6 +4008,9 @@
   "height": 480,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "camera": {
@@ -3946,7 +4087,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.33.0",
+  "firmware": "0.34.0",
   "fonts": {
    "headline": 27,
    "icon_home": 26,
@@ -3959,6 +4100,9 @@
   "height": 600,
   "hotspot": true,
   "look": "standard",
+  "max_bar_items": 12,
+  "max_pages": 24,
+  "max_tiles": 128,
   "orientations": {
    "landscape": {
     "camera": {
