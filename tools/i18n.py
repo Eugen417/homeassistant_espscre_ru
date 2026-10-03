@@ -65,18 +65,12 @@ FORMS = {'one_other': 2, 'one_upto_1': 2, 'slavic_pl': 3, 'east_slavic': 3, 'non
 
 def font_letters():
     """The characters every text font of the screens carries: what a `screen` text may use."""
+    spec = importlib.util.spec_from_file_location('profiles', ROOT / 'tools' / 'profiles.py')
+    profiles = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(profiles)
     text = CORE.read_text(encoding='utf-8')
-    sets = []
-    for block in re.finditer(r'(?ms)^  - file: "\$\{FONT_DIR\}/Roboto-\d+\.ttf"\n(.*?)(?=^  - |^\S|\Z)', text):
-        body = block.group(1)
-        if not re.search(r'(?m)^\s+id: (headline|label|sublabel|sublabel_big|watch_value)\s*$', body):
-            continue
-        glyphs = re.search(r'(?s)glyphs:\s*\[(.*?)\]', body)
-        if glyphs:
-            letters = set()
-            for item in re.findall(r"'((?:[^'\\]|\\.)*)'|\"((?:[^\"\\]|\\.)*)\"", glyphs.group(1)):
-                letters.update(item[0] or item[1])
-            sets.append(letters)
+    sets = [profiles.glyphs(text, font) for font in ('headline', 'watch_value', 'label', 'sublabel', 'sublabel_big')]
+    sets = [letters for letters in sets if letters is not None]
     return set.intersection(*sets) if sets else set()
 
 

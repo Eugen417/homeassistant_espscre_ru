@@ -1,12 +1,13 @@
 """One mu on the wire (app 0.2.134): Home Assistant's Greek letter becomes the micro sign the screens draw."""
-import re
 import sys
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
+sys.path.append(str(ROOT / 'tools'))  # after the app: tools/i18n.py is not the app's i18n
 import header_bar  # noqa: E402
+import profiles  # noqa: E402
 from core import one_mu, short, state_message  # noqa: E402
 
 MU, MICRO = 'μ', 'µ'
@@ -34,10 +35,10 @@ class MicroSignTests(unittest.TestCase):
         self.assertNotIn(MU, header_bar.GLYPHS)
         text = (ROOT / 'packages/core.yaml').read_text()
         for font in TEXT_FONTS:
-            block = re.search(r'id: ' + font + r'\n    size: [^\n]+\n    bpp: 4\n    glyphs: \[([^\]]*)\]', text)
-            self.assertIsNotNone(block, font)
-            self.assertIn(f"'{MICRO}'", block.group(1), font)
-            self.assertNotIn(f"'{MU}'", block.group(1), font)
+            glyphs = profiles.glyphs(text, font)
+            self.assertIsNotNone(glyphs, font)
+            self.assertIn(MICRO, glyphs, font)
+            self.assertNotIn(MU, glyphs, font)
 
 
 if __name__ == '__main__':

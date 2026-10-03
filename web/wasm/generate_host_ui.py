@@ -53,7 +53,8 @@ def generate(dpi, look, profile):
             font_config = merge_config(font_config, yaml.safe_load(section(resolved, 'font')))
     fonts = font_config['font']
     for font in fonts:
-        font['file'] = str((ROOT / profile).parent / font['file'])
+        for part in [font] + font.get('extras', []):  # the hearts come from a font of their own (firmware 0.36.0+)
+            part['file'] = str((ROOT / profile).parent / part['file'])
     class Loader(yaml.SafeLoader):
         pass
     for tag in ('!extend', '!lambda'):

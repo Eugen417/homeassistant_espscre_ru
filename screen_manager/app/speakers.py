@@ -18,6 +18,7 @@ through its own Spotify service, so the card shows the speaker's state and its k
 player plays itself again.
 """
 import catalogue
+import core
 
 # The name a screen's hello lists when its firmware draws the rows below: a mark, a key and a volume per speaker,
 # the inputs behind their own key, and a target its media keys act on.
@@ -37,7 +38,7 @@ GONE = ('unavailable', 'unknown', 'off')
 
 
 def short(value, limit=NAME_LIMIT):
-    return str(value if value is not None else '').strip().encode('utf-8')[:limit].decode('utf-8', errors='ignore')
+    return core.short(str(value if value is not None else '').strip(), limit)
 
 
 def features(state):

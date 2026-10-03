@@ -17,7 +17,7 @@ import profiles  # noqa: E402
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 import header_bar  # noqa: E402
 import tile_icons  # noqa: E402
-from core import FIRMWARE_VERSION, HEADER_MIN_FIRMWARE, discover, header_items, validate_header, validate_layout  # noqa: E402
+from core import FIRMWARE_VERSION, HEADER_MIN_FIRMWARE, discover, header_items, state_message, validate_header, validate_layout  # noqa: E402
 
 FIRMWARE = (ROOT / 'components/smart_display/header_bar.h').read_text()
 # The firmware's words live in the translations since app 0.2.90 (screen.time in English, the language of reference).
@@ -228,10 +228,23 @@ class ParityTests(unittest.TestCase):
     def test_text_font_carries_exactly_the_glyphs_the_add_on_sends(self):
         for name in PROFILES + ('packages/cyd.yaml', 'packages/guition.yaml'):
             text = profiles.resolved(name)
-            block = re.search(r'id: sublabel_big\n    size: \d+\n    bpp: 4\n    glyphs: \[(.*?)\]\n', text, re.S)
-            self.assertIsNotNone(block, name)
-            glyphs = set(re.findall(r"'([^'])'|\"(')\"", block.group(1)))
-            self.assertEqual({a or b for a, b in glyphs}, set(header_bar.GLYPHS), name)
+            for font in ('headline', 'watch_value', 'label', 'sublabel', 'sublabel_big'):
+                self.assertEqual(profiles.glyphs(text, font), set(header_bar.GLYPHS), (name, font))
+
+    def test_every_printable_ascii_character_is_drawn(self):
+        # GitHub #147: an artist called "bbno$" lost the dollar (firmware 0.36.0 draws all of ASCII).
+        ascii = {chr(code) for code in range(0x20, 0x7f)}
+        self.assertLessEqual(ascii, set(header_bar.GLYPHS))
+        self.assertEqual(header_bar.clean_text('bbno$ #1 [x] {y} a|b ~c ^d `e` f\\g'), 'bbno$ #1 [x] {y} a|b ~c ^d `e` f\\g')
+
+    def test_a_heart_is_drawn_and_an_emoji_heart_brings_no_box(self):
+        # The hearts come from NotoSansSymbols2-hearts.ttf; an emoji's variation selector has no glyph, and LVGL would
+        # draw a box for it after the heart.
+        self.assertLessEqual({'♡', '♥', '❤'}, set(header_bar.GLYPHS))
+        self.assertEqual(header_bar.clean_text('I \u2764\ufe0f you \u2665'), 'I \u2764 you \u2665')
+        self.assertEqual(state_message(0, {'entity': 'media_player.room', 'name': ''}, {'media_player.room': {
+            'state': 'playing', 'attributes': {'media_title': 'Love \u2764\ufe0f', 'media_artist': 'bbno$'}}})['a']['media_title'],
+            'Love \u2764')
 
     def test_editor_and_firmware_share_words_and_spacing(self):
         for phrase in ('Just now', ' min ago', ' hour ago', ' hours ago', 'Yesterday', ' days ago', '1 week ago', ' weeks ago',

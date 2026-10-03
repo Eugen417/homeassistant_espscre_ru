@@ -99,7 +99,7 @@ REF = 'main'
 # The shared firmware of this app release: packages/core.yaml's SCREEN_FIRMWARE_VERSION, what every board builds
 # unless its own board file went ahead with a fix for that board alone (firmware_target, docs/BOARD_RELEASES.md). The
 # middle number is the core: the feature gates below name a shared X.Y.0, so a feature always ships with a new core.
-FIRMWARE_VERSION = '0.35.0'
+FIRMWARE_VERSION = '0.36.0'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -1080,8 +1080,14 @@ def one_mu(text):
     screens have a glyph for. ESPHome's "µs" and most integrations already use the micro sign."""
     return str(text).replace('μ', 'µ')
 
+# Characters that only steer how the one before them is drawn: the variation selectors after an emoji's base ("❤️" is
+# U+2764 U+FE0F) and the joiner between emoji. The screens have no glyph for them and LVGL draws a box for a missing
+# one, so they go (app 0.4.60): firmware 0.36.0 draws the U+2764 before it as a heart.
+STEERING = dict.fromkeys(map(ord, '\ufe0e\ufe0f\u200d'))
+
 def short(value, limit):
-    return one_mu(value).encode('utf-8')[:limit].decode('utf-8', errors='ignore')
+    """A text the screen can draw, cut to `limit` bytes of UTF-8 without breaking a character."""
+    return one_mu(value).translate(STEERING).encode('utf-8')[:limit].decode('utf-8', errors='ignore')
 
 # ----- Tiles from a Home Assistant event (app 0.2.51) -----
 # Claude in Home Assistant, or any automation, can put something on a screen without opening the editor:

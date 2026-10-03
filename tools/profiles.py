@@ -251,6 +251,19 @@ def resolved(name):
     return resolve(text(name), substitutions(name))
 
 
+def glyphs(source, font):
+    """The characters `font` carries in `source` (packages/core.yaml or a profile's text): its glyph list and those of its
+    extras, or None. Each list is read as YAML: it holds a ']' and a backslash of its own (firmware 0.36.0+), so a
+    pattern up to the first ']' cuts it."""
+    flow = r'(\[(?:\'[^\']*\'|"(?:[^"\\]|\\.)*"|[^\]\'"])*\])'
+    block = re.search(r'id: ' + font + r'\n    size: [^\n]+\n    bpp: 4\n    glyphs: ' + flow
+                      + r'((?:\n    extras:)?(?:\n      - file: [^\n]+\n        glyphs: ' + flow + r')*)', source)
+    if not block:
+        return None
+    lists = [block.group(1)] + re.findall(r'glyphs: ' + flow, block.group(2))
+    return {char for found in lists for char in yaml.safe_load(found)}
+
+
 def merged(name):
     """Closer to what ESPHome builds: the chain's files without their substitutions blocks, every ${NAME} filled in.
     For a check that counts things, so a hook's definition in a board or feature file is not counted next to its use."""

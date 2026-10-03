@@ -77,9 +77,8 @@ class BinaryWords(unittest.TestCase):
         for name in PROFILES:
             text = profiles.resolved(name)
             for font in ('headline', 'watch_value', 'label', 'sublabel', 'sublabel_big'):
-                block = re.search(r'id: ' + font + r'\n    size: \d+\n    bpp: 4\n    glyphs: \[(.*?)\]\n', text, re.S)
-                self.assertIsNotNone(block, (name, font))
-                glyphs = {a or b for a, b in re.findall(r"'([^'])'|\"(')\"", block.group(1))}
+                glyphs = profiles.glyphs(text, font)
+                self.assertIsNotNone(glyphs, (name, font))
                 self.assertLessEqual(letters, glyphs, (name, font))
 
 

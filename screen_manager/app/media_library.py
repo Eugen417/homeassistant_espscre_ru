@@ -30,6 +30,7 @@ import time
 from collections import OrderedDict
 
 import catalogue
+import core
 
 LOG = logging.getLogger(__name__)
 
@@ -67,8 +68,8 @@ FOLDER_ICON = 'F024B'
 
 
 def short(value, limit):
-    """A text cut to `limit` bytes of UTF-8 without breaking a character."""
-    return str(value if value is not None else '').strip().encode('utf-8')[:limit].decode('utf-8', errors='ignore')
+    """A text the screen can draw (core.short), cut to `limit` bytes of UTF-8 without breaking a character."""
+    return core.short(str(value if value is not None else '').strip(), limit)
 
 
 def icon_of(item):

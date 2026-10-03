@@ -121,6 +121,11 @@ def web_font():
     font.save(buffer)
     return buffer.getvalue()
 
+def bar_codepoints(weight):
+    """The characters of header_bar.GLYPHS that Roboto has: the hearts come from another font on the screens
+    (packages/core.yaml), and the browser draws them from its own."""
+    return {ord(char) for char in header_bar.GLYPHS} & set(TTFont(ROOT / f'fonts/Roboto-{weight}.ttf').getBestCmap())
+
 def bar_font(weight):
     """Roboto subset for the editor's top bar mockup: the glyphs and metrics the screens draw."""
     font = TTFont(ROOT / f'fonts/Roboto-{weight}.ttf')
@@ -129,7 +134,7 @@ def bar_font(weight):
     options.layout_features = ['kern']
     options.name_IDs = [0, 1, 2]
     subsetter = subset.Subsetter(options)
-    subsetter.populate(unicodes=[ord(char) for char in header_bar.GLYPHS])
+    subsetter.populate(unicodes=sorted(bar_codepoints(weight)))
     subsetter.subset(font)
     buffer = io.BytesIO()
     font.flavor = 'woff'
@@ -154,7 +159,7 @@ def main():
         if not WEB_FONT.exists() or set(TTFont(WEB_FONT).getBestCmap()) != wanted:
             raise SystemExit(f'Outdated: {WEB_FONT.name}')
         for weight, path in BAR_FONTS.items():
-            if not path.exists() or set(TTFont(path).getBestCmap()) != {ord(char) for char in header_bar.GLYPHS}:
+            if not path.exists() or set(TTFont(path).getBestCmap()) != bar_codepoints(weight):
                 raise SystemExit(f'Outdated: {path.name}')
     else:
         NAME_TABLE.write_text(name_table())

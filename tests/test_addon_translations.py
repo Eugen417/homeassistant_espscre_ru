@@ -190,8 +190,9 @@ class ScreenWords(unittest.TestCase):
         with Language('addon.screen.'):
             i18n.set_screens('xx', 'point')
             message = history_card.timeline('sensor.status', 24, changes, start, end, timezone.utc, {})
-            # Folded to the letters the screen draws, like every label of the card: the brackets go.
-            self.assertEqual(message['states'][-1][0], 'xx Other')
+            # Folded to the letters the screen draws, like every label of the card: the brackets stay since firmware
+            # 0.36.0 draws them.
+            self.assertEqual(message['states'][-1][0], '[xx] Other')
 
 
 class Updates(unittest.IsolatedAsyncioTestCase):

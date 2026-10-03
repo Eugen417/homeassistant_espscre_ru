@@ -1,3 +1,19 @@
+## 0.4.60 (firmware 0.36.0)
+
+- **Every character on your keyboard shows on the screen** ([#147](https://github.com/MaxGramser/homeassistant_espscreen/issues/147)).
+  The screens drew letters in every European language but missed a few plain ones, so an artist called "bbno$" lost its
+  dollar sign on the media card. Every text on the screen (card titles, tile names, values, the top bar, the media card)
+  now also draws ``# $ * = ^ ~ | ` [ ] { } \`` and `– × © ® ™ ¢ ¥ §`.
+- **Hearts.** ♡, ♥ and ❤ show as hearts, also the red-heart emoji in a song title: the invisible character an emoji
+  carries after the heart no longer leaves a box behind it. The hearts come from Noto Sans Symbols 2
+  (SIL Open Font License), cut down to just these three, as Roboto has none.
+- It costs 8 KB of flash on the CYD (now 86.3 % of its slot) and 10 to 15 KB on the larger screens, measured against
+  0.4.59.
+- Every screen is offered this firmware, 0.36.0.
+- Tested: the add-on and editor checks, the editor's preview rebuilt from this firmware with the layout check of every
+  card on every board, and the firmware built for the CYD, the 4-inch Guition, the 10.1-inch Guition and the 7-inch
+  Waveshare, and for the CYD on the oldest ESPHome the packages support. Not yet seen on a real screen.
+
 ## 0.4.59 (firmware 0.35.0)
 
 - **Five to eight rows on the 10.1-inch Guition**, thanks to Jeroen Peters
