@@ -25,8 +25,6 @@ packages:
 substitutions:
   # The key of this board file; the firmware reports it so ESP Screens knows what board a screen is.
   BOARD_ID: "jc8012p4a1"
-  # This board's own firmware revision (docs/BOARD_RELEASES.md): configurable row counts for 10.1-inch screens.
-  # The next shared release takes this line out again.
   DEVICE_NAME: "jc8012p4a1-new"
   DEVICE_FRIENDLY_NAME: "My Guition 10"
 
