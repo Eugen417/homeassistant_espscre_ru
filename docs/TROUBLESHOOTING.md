@@ -21,6 +21,9 @@ The user-facing symptoms (the screen's own messages, touch, picture, Home Assist
 
 ## Advanced: manual USB route
 
+On a CYD or a Hosyond 4-inch, a USB install writes the partition table of firmware 0.33.1 and later, and the screen
+takes its settings along the first time it starts with it: [UPDATING_4MB_SCREENS.md](UPDATING_4MB_SCREENS.md).
+
 The touch measurement over USB with `tools/calibrate.py` ([CALIBRATING.md](CALIBRATING.md)). A CYD normally calibrates on the screen itself: **Calibrate touch** under Settings → This screen.
 
 | Symptom | Check first |

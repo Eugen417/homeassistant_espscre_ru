@@ -1,9 +1,10 @@
 # The flash of a board with 4 MB
 
 A board with 4 MB of flash (the CYD, its ILI9342 variant and the Hosyond 4-inch) builds with a partition table of its
-own since firmware 0.33.1 of those boards. It gives each of the two update slots 2,031,616 bytes where ESPHome's own table gives
-1,835,008. This page says what the table is, how a screen that is already out there gets it without losing anything,
-and what to keep in mind when you change any of it.
+own since firmware 0.33.1 of those boards. It gives each of the two update slots 2,031,616 bytes where ESPHome's own
+table gives 1,835,008. This page says what the table is, how a screen that is already out there gets it without
+losing anything, and what to keep in mind when you change any of it. For what a screen's owner notices and what to
+do when you flash a screen yourself, read [UPDATING_4MB_SCREENS.md](UPDATING_4MB_SCREENS.md).
 
 ## The two tables
 

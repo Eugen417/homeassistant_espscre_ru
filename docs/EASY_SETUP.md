@@ -140,7 +140,8 @@ in the sidebar, open its details with the arrow at its right and use **Download 
 screen that isn't in Home Assistant yet has it under its API key). The zip holds the screen's own
 YAML, its Override YAML and a `secrets.yaml` with only the secrets the two use, normally the Wi-Fi.
 Unpack it and run `esphome run <name>.yaml` in that folder. Like the firmware file, it holds your
-Wi-Fi password and the screen's keys.
+Wi-Fi password and the screen's keys. A CYD or a Hosyond you build yourself needs one more step once, for the
+partition table its firmware has had since 0.33.1: [UPDATING_4MB_SCREENS.md](UPDATING_4MB_SCREENS.md) says what.
 
 **CYD:** calibration appears on first boot. Calmly tap the visible crosshair
 three times, hold each tap briefly, and follow each next crosshair in turn.
