@@ -1,5 +1,9 @@
 ## 0.4.58 (firmware 0.34.0)
 
+- **More rows on the 10.1-inch Guition.** Choose five, six, seven or eight rows per page when building any of the three
+  JC8012P4A1 variants. Five remains the default; other boards are unchanged.
+- Verified the generated cells, board catalog and row-choice profile paths. No physical screen was tested.
+
 - **More than 100 tiles on a screen that has the memory for them.** A screen now says how many tiles, pages and top bar
   items it takes. Boards with PSRAM (the ESP32-S3 boards) take 128 tiles on up to 24 pages, the ESP32-P4 boards 256
   tiles on up to 16 pages, and both up to 12 items in each page's top bar. The boards with 4 MB of flash and no PSRAM
