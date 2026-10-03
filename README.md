@@ -1,4 +1,8 @@
 <p align="center">
+  <a href="https://tessera-maxgramser.on-forge.com"><img src="docs/images/tessera-mosaic.jpg" width="100%" alt="A mosaic of real Tessera screens in every size, from the 2.8-inch CYD to the 10.1-inch Guition: lights, music, the thermostat, the weather, locks, blinds and the vacuum, in light and dark mode"></a>
+</p>
+
+<p align="center">
   <a href="https://tessera-maxgramser.on-forge.com"><img src="docs/images/tessera-mark.svg" width="112" alt="The Tessera logo: four rounded tiles in yellow, blue, purple and green, like a small mosaic"></a>
 </p>
 
@@ -26,7 +30,10 @@
 
 Thank you! I work on this project with a lot of love, and every bit of support helps. I truly love the Home Assistant community.
 
-<a href="https://buymeacoffee.com/f5j9jnkmhpv"><img src="https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=f5j9jnkmhpv&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Buy me a coffee" height="42"></a>
+If you'd like me to keep building new cards and boards, consider a small monthly contribution. A one-time coffee is just as welcome.
+
+<a href="https://buymeacoffee.com/f5j9jnkmhpv/membership"><img src="https://img.buymeacoffee.com/button-api/?text=Support%20monthly&emoji=&slug=f5j9jnkmhpv&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Support monthly" height="42"></a>
+&nbsp; or <a href="https://buymeacoffee.com/f5j9jnkmhpv">buy me a coffee once</a>
 
 <p align="center">
   <img src="docs/images/photo-guition-page-2.jpg" width="49%" alt="The Guition 4-inch screen on a table: the Evening page with Movie night and Good night in pastel lilac and blue, and the ceiling light and the bedroom fan as tall tiles with their sliders">

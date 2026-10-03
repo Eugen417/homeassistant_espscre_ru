@@ -2657,8 +2657,9 @@
     },
     "donate": {
       "title": "Fatto da una sola persona",
-      "body": "Tessera è gratuito e senza abbonamento. Lo sviluppo nel mio tempo libero. Se i tuoi schermi rendono la tua casa un po' più piacevole, un caffè mi aiuta ad andare avanti.",
-      "buy": "Offri un caffè a Max",
+      "body": "Tessera è gratuito e lo resterà. Lo sviluppo nel mio tempo libero. Se vuoi che continui ad aggiungere nuove schede e nuovi schermi, un piccolo contributo mensile lo rende possibile. Un caffè una tantum è altrettanto gradito.",
+      "monthly": "Sostieni ogni mese",
+      "once": "oppure offrimi un caffè una volta",
       "later": "Forse più tardi",
       "donated": "Ho già donato",
       "thanks": "Grazie! Questo messaggio non tornerà più."

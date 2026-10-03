@@ -2657,8 +2657,9 @@
     },
     "donate": {
       "title": "Made by one person",
-      "body": "Tessera is free and has no subscription. I build it in my spare time. If your screens make your home a little nicer, a coffee helps me keep going.",
-      "buy": "Buy Max a coffee",
+      "body": "Tessera is free and stays free. I build it in my spare time. If you'd like me to keep adding new cards and boards, a small monthly contribution makes that possible. A one-time coffee is just as welcome.",
+      "monthly": "Support monthly",
+      "once": "or buy me a coffee once",
       "later": "Maybe later",
       "donated": "I already donated",
       "thanks": "Thank you! This won't ask again."

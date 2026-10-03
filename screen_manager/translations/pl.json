@@ -2657,8 +2657,9 @@
     },
     "donate": {
       "title": "Zrobione przez jedną osobę",
-      "body": "Tessera jest darmowa i nie ma subskrypcji. Tworzę ją w wolnym czasie. Jeśli Twoje ekrany sprawiają, że dom jest trochę przyjemniejszy, kawa pomaga mi działać dalej.",
-      "buy": "Postaw Maxowi kawę",
+      "body": "Tessera jest darmowa i taka pozostanie. Tworzę ją w wolnym czasie. Jeśli chcesz, żebym dalej dodawał nowe karty i ekrany, mała comiesięczna wpłata to umożliwia. Jednorazowa kawa jest równie mile widziana.",
+      "monthly": "Wspieraj co miesiąc",
+      "once": "albo postaw mi kawę jednorazowo",
       "later": "Może później",
       "donated": "Już wpłaciłem",
       "thanks": "Dziękuję! Ta wiadomość już nie wróci."

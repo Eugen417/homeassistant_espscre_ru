@@ -2657,8 +2657,9 @@
     },
     "donate": {
       "title": "Von einer Person gemacht",
-      "body": "Tessera ist kostenlos und ohne Abo. Ich entwickle es in meiner Freizeit. Wenn deine Bildschirme dein Zuhause ein bisschen schöner machen, hilft mir ein Kaffee weiterzumachen.",
-      "buy": "Spendiere Max einen Kaffee",
+      "body": "Tessera ist kostenlos und bleibt kostenlos. Ich entwickle es in meiner Freizeit. Wenn ich weiter neue Karten und Bildschirme hinzufügen soll, macht ein kleiner monatlicher Beitrag das möglich. Ein einmaliger Kaffee ist genauso willkommen.",
+      "monthly": "Monatlich unterstützen",
+      "once": "oder einmal einen Kaffee spendieren",
       "later": "Vielleicht später",
       "donated": "Ich habe schon gespendet",
       "thanks": "Danke! Diese Frage kommt nicht wieder."

@@ -2657,8 +2657,9 @@
     },
     "donate": {
       "title": "Feito por uma pessoa",
-      "body": "O Tessera é gratuito e não tem assinatura. Desenvolvo-o no meu tempo livre. Se os teus ecrãs tornam a tua casa um pouco mais agradável, um café ajuda-me a continuar.",
-      "buy": "Paga um café ao Max",
+      "body": "O Tessera é gratuito e vai continuar a ser. Desenvolvo-o no meu tempo livre. Se queres que continue a acrescentar cartões e ecrãs novos, uma pequena contribuição mensal torna isso possível. Um café único é igualmente bem-vindo.",
+      "monthly": "Apoiar todos os meses",
+      "once": "ou paga-me um café uma vez",
       "later": "Talvez mais tarde",
       "donated": "Já fiz um donativo",
       "thanks": "Obrigado! Esta mensagem não volta a aparecer."

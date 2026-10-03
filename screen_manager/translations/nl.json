@@ -2657,8 +2657,9 @@
     },
     "donate": {
       "title": "Gemaakt door één persoon",
-      "body": "Tessera is gratis en heeft geen abonnement. Ik bouw het in mijn vrije tijd. Maken je schermen je huis een beetje fijner? Een koffie helpt me om door te gaan.",
-      "buy": "Trakteer Max op koffie",
+      "body": "Tessera is gratis en blijft gratis. Ik bouw het in mijn vrije tijd. Wil je dat ik nieuwe kaarten en schermen blijf toevoegen? Met een kleine maandelijkse bijdrage kan dat. Een eenmalige koffie is net zo welkom.",
+      "monthly": "Steun maandelijks",
+      "once": "of trakteer één keer op koffie",
       "later": "Misschien later",
       "donated": "Ik heb al gedoneerd",
       "thanks": "Dank je wel! Dit komt niet meer terug."

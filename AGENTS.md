@@ -158,7 +158,7 @@ with the same signature: a blank line, a `---` rule, and two italic lines, each 
 
 _Got a screen running? Tell others which board you have and what works on the [Tessera website](https://tessera-maxgramser.on-forge.com/community/share?type=installation). It helps everyone pick a screen that works._
 
-_Like my work? Consider [buying me a coffee](https://buymeacoffee.com/f5j9jnkmhpv), much appreciated!_
+_Want me to keep building? Consider [supporting monthly](https://buymeacoffee.com/f5j9jnkmhpv/membership) or [buying me a coffee](https://buymeacoffee.com/f5j9jnkmhpv), much appreciated!_
 ```
 
 When the thread is about one board, append `&board=<key>` to that link, with the board's key from boards.yaml (`cyd`,

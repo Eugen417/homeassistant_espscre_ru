@@ -1,3 +1,9 @@
+## 0.4.57 (firmware 0.33.0)
+
+- **Support Tessera every month.** The card on the editor's overview now offers a monthly membership first, with a
+  one-time coffee next to it. Tessera stays free; a small monthly contribution pays for the time that goes into new
+  cards and new boards. The README and the add-on's page link the same way.
+
 ## 0.4.56 (firmware 0.33.1 for cyd, cyd9342, hosyond40)
 
 - **More room for firmware on a screen with 4 MB of flash** (the CYD, the CYD with an ILI9342 and the Hosyond

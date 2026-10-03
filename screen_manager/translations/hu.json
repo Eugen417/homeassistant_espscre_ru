@@ -2657,8 +2657,9 @@
     },
     "donate": {
       "title": "Egyetlen ember készíti",
-      "body": "A Tessera ingyenes, és nincs előfizetés. A szabadidőmben fejlesztem. Ha a kijelzőid egy kicsit kellemesebbé teszik az otthonodat, egy kávé segít, hogy folytassam.",
-      "buy": "Hívd meg Maxet egy kávéra",
+      "body": "A Tessera ingyenes, és az is marad. A szabadidőmben fejlesztem. Ha szeretnéd, hogy továbbra is új kártyákat és kijelzőket adjak hozzá, egy kis havi támogatás ezt lehetővé teszi. Egy egyszeri kávé is ugyanolyan szívesen fogadott.",
+      "monthly": "Havi támogatás",
+      "once": "vagy hívj meg egyszer egy kávéra",
       "later": "Talán később",
       "donated": "Már adományoztam",
       "thanks": "Köszönöm! Ez az üzenet többé nem jelenik meg."
