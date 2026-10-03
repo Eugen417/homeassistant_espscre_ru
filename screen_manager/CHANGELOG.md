@@ -1,3 +1,9 @@
+## 0.4.58 (firmware 0.33.1 for jc8012p4a1, jc8012p4a1v2, jc8012p4a1v3)
+
+- **More rows on the 10.1-inch Guition.** Choose five, six, seven or eight rows per page when building any of the three
+  JC8012P4A1 variants. Five remains the default; other boards are unchanged.
+- Verified the generated cells, board catalog and row-choice profile paths. No physical screen was tested.
+
 ## 0.4.57 (firmware 0.33.0)
 
 - **Support Tessera every month.** The card on the editor's overview now offers a monthly membership first, with a
