@@ -90,8 +90,10 @@ cut square with the tile's rounded corners, delivered as described below.
   slow cameras would do every 15 s. Nobody loading means nothing fetched, as with the camera full
   screen.
 - **After the other pictures.** The strip waits for the alert's picture, a cover on its way and the
-  camera full screen (one picture loads at a time), and does not load under an open card, in standby,
-  under a finger or while the pages are turning. Dark mode (other colours behind the corners) or a
+  camera full screen (one picture loads at a time), and does not load under an open card, under a finger or
+  while the pages are turning. In standby it keeps loading while the tiles are seen (firmware 0.40.0+,
+  `runtime_tiles::tiles_seen`): no screensaver over them, the clock included, and the glass at 5 % or more. A
+  screensaver or a darker glass stops it until the screen wakes. Dark mode (other colours behind the corners) or a
   changed tile asks for a new picture. On a board with PSRAM (firmware 0.3.2+, `picture_store.h`) a kept
   page keeps its last pictures, so turning back shows them at once and the next load follows at the
   tile's pace; the CYD-class boards have no live pictures at all.
@@ -214,7 +216,8 @@ Guition it comes in about 1.8 s (2.8 s with 4 KB).
   the camera or the alert closes. A new alert closes an open camera first.
 - The internal heap stays level while a camera refreshes: 77.2 KB free after 91 images in six minutes,
   and PSRAM unchanged.
-- Standby, **Back to page 1** and a new layout close the camera; nothing loads in standby.
+- Standby, **Back to page 1** and a new layout close the camera. In standby only the screensaver's picture loads, or
+  the tiles' pictures while the dimmed tiles are seen (see the live pictures above).
 - The first image (firmware 0.2.73, measured 2026-09-19 with an EZVIZ camera): the screen asks when
   the camera opens and loads the link as soon as it comes. About 2 s when the app still has the
   camera's last snapshot (it keeps one for 30 s after the last load), 4.5 s when it must ask Home

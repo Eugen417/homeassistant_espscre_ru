@@ -1,3 +1,19 @@
+## 0.4.67 (firmware 0.40.0)
+
+- **A live camera tile keeps refreshing on a dimmed screen**
+  ([#161](https://github.com/MaxGramser/homeassistant_espscreen/issues/161)). When Auto standby dimmed a screen and the
+  screensaver had nothing to show (say only a music player is chosen and nothing plays), the dimmed tiles stayed on the
+  glass, but their camera pictures stopped loading: the picture stood still and the camera looked broken. Now the
+  pictures on the tiles keep loading as long as the tiles are seen: in standby without a screensaver over them, at a
+  standby or night brightness of 5 % or more. A screensaver, the clock included, covers the tiles, and below 5 % nobody
+  reads a picture, so then they wait until the screen wakes, as before. The same goes for a media card's album cover.
+  Sleep pressed in Home Assistant follows the same rule.
+- The backlight in standby and this rule take the level from one place in the firmware, so they always agree.
+- Tested on the bench Guition 4-inch with a live camera tile: in standby at 40 % it kept loading every 15 seconds, at
+  3 % it stopped and went on again at 40 %, the clock screensaver stopped it, and a touch brought it back. Every Python,
+  C++, editor and WASM preview check, and the firmware of the sample boards on ESPHome 2026.9.0 and the CYD on 2026.6.2.
+- Every screen is offered firmware 0.40.0, the Tab5 too: its own 0.39.1 is part of it.
+
 ## 0.4.66 (firmware 0.39.1 for tab5)
 
 - **Wi-Fi on the M5Stack Tab5 after a cold start** ([#150](https://github.com/MaxGramser/homeassistant_espscreen/pull/150)).

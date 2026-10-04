@@ -843,6 +843,24 @@ class LiveTiles(unittest.TestCase):
         self.assertEqual(ha_catalogue.capabilities('camera.front_door', [], {}, {})['displays'], ['standard', 'live'])
         self.assertNotIn('live', ha_catalogue.capabilities('light.hall', [], {}, {})['displays'])
 
+    def test_pictures_load_while_the_tiles_are_seen(self):
+        """GitHub #161 (firmware 0.40.0): a dimmed screen without a screensaver still shows its tiles, so their pictures
+        keep loading there. The rule itself is camera_view::tiles_seen (tests/test_camera_view.cpp); the firmware asks
+        it everywhere a picture on the tiles loads, and the backlight goes by the same standby level."""
+        live_tick = TILES.split('inline void live_tick(uint32_t now) {', 1)[1].split('\n}', 1)[0]
+        self.assertIn('if (!live.open() || camera_root || card_open() || !tiles_seen()) return;', live_tick)
+        waiting = TILES.split('inline bool live_waiting(const Tile &t) {', 1)[1].split('\n}', 1)[0]
+        self.assertIn('!tiles_seen()', waiting)
+        # A cover on the glass follows the tiles; one fetched ahead for a page that is not shown waits for a screen in use.
+        cover_tick = TILES.split('inline void cover_tick(uint32_t now) {', 1)[1].split('\n}', 1)[0]
+        self.assertIn('if (cover_wish.owner == CoverOwner::PREFETCH ? !awake() : !tiles_seen()) return;', cover_tick)
+        self.assertNotIn('if (!awake()) return;', live_tick + cover_tick)
+        # Any screensaver covers the tiles, the clock (saver_root) as much as a camera or a cover (saver_camera).
+        self.assertIn('camera_view::tiles_seen(awake(), saver_root || saver_camera, standby_level())', TILES)
+        core = (ROOT / 'packages/core.yaml').read_text()
+        self.assertIn('const int level = id(display_dimmed) ? runtime_tiles::standby_level() : settings.brightness;', core)
+        self.assertNotIn('dim_level(', core)
+
     def test_a_media_tile_may_show_its_cover_in_the_icons_place(self):
         from core import COVER_TILE_MIN_FIRMWARE, resolve_controls
         import ha_catalogue

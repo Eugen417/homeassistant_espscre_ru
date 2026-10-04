@@ -69,6 +69,11 @@ the night brightness. Raise Standby brightness for a cover that reads from acros
 screen goes dark and shows no screensaver. Sleep pressed in Home Assistant keeps the screen at its standby level
 without a screensaver.
 
+When the screensaver has nothing to show (no music playing and no camera or clock chosen), the dimmed tiles stay on the
+glass. Their camera pictures and album covers keep refreshing then, as they do with the screen in use, as long as the
+level is 5 % or more (firmware 0.40.0). Under a screensaver, the clock too, and on a darker glass they wait until the
+screen wakes.
+
 The CYD, the Waveshare 3.5-inch and the Hosyond 4-inch have no memory for pictures (see [CAMERA.md](CAMERA.md)). On
 them the card offers the clock alone. The Waveshare 4.3 and 7-inch never go into standby, so they have no
 screensaver either.

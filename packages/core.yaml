@@ -16,7 +16,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.39.0"
+  SCREEN_FIRMWARE_VERSION: "0.40.0"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -1462,9 +1462,7 @@ sensor:
     lambda: |-
       #ifdef USE_ESP32
         if (!heap_caps_get_total_size(MALLOC_CAP_SPIRAM)) return 0;
-        const auto now = id(homeassistant_time).now();
-        const int minute = now.is_valid() ? now.hour * 60 + now.minute : -1;
-        if (!id(display_dimmed) || screen_settings::current.dim_level(minute) != 0) return {};
+        if (!id(display_dimmed) || runtime_tiles::standby_level() != 0) return {};
         return heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM);
       #else
         return 0;
@@ -2385,9 +2383,7 @@ script:
           if (id(display_dimmed) && !settings.standby_enabled && !id(sleep_requested)) {
             id(display_dimmed) = false;
           }
-          auto now = id(homeassistant_time).now();
-          const int minute = now.is_valid() ? now.hour * 60 + now.minute : -1;
-          const int level = id(display_dimmed) ? settings.dim_level(minute) : settings.brightness;
+          const int level = id(display_dimmed) ? runtime_tiles::standby_level() : settings.brightness;
           ${APPLY_BACKLIGHT}
           if (id(display_dimmed)) { lv_obj_clear_flag(id(dim_wake_overlay), LV_OBJ_FLAG_HIDDEN); lv_obj_move_foreground(id(dim_wake_overlay)); }
           else lv_obj_add_flag(id(dim_wake_overlay), LV_OBJ_FLAG_HIDDEN);

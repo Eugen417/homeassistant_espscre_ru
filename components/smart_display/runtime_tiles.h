@@ -199,6 +199,16 @@ inline bool saver_woke = false;  // the last wake took the screensaver away: tha
 inline void saver_tick(uint32_t now);
 inline void saver_forget();
 inline uint32_t now_epoch() { if (!now_time) return 0; auto t = now_time(); return t.is_valid() ? static_cast<uint32_t>(t.timestamp) : 0; }
+// The minute of the day on the screen's clock, -1 until Home Assistant has given the time.
+inline int minute_of_day() {
+  const auto now = now_time ? now_time() : esphome::ESPTime{};
+  return now.is_valid() ? now.hour * 60 + now.minute : -1;
+}
+// The level of the glass in standby right now, 0 to 100: the night level at night, else the standby level. The backlight
+// (apply_screen_settings) and what is seen in standby (tiles_seen) both go by it (firmware 0.40.0+).
+inline int standby_level() { return screen_settings::current.dim_level(minute_of_day()); }
+// The tiles are there to be seen, so their pictures load (camera_view::tiles_seen, firmware 0.40.0+).
+inline bool tiles_seen() { return camera_view::tiles_seen(awake(), saver_root || saver_camera, standby_level()); }
 inline void tick();
 inline void refresh_tile(size_t index);
 // Style setters that only touch a property when it changes (defined with the card renderers below).
@@ -8921,7 +8931,9 @@ inline void cover_tick(uint32_t now) {
   if (cover_wish.owner == CoverOwner::NONE) { cover_offer(); if (cover_wish.owner == CoverOwner::NONE && !cover_prefetch()) return; }
   if (cover_wish.owner == CoverOwner::NONE) return;
   if (!cover_visible()) { cover_drop(); return; }
-  if (!awake()) return;
+  // A cover on the glass loads while the tiles are seen, a dimmed screen too (firmware 0.40.0+); one fetched ahead for
+  // another page waits for a screen in use.
+  if (cover_wish.owner == CoverOwner::PREFETCH ? !awake() : !tiles_seen()) return;
   // A cover kept from before is on the card already: nothing to fetch until the track changes.
   if (pictures_kept() && pictures.entry(cover_key(cover_wish))) return;
   if (!cover.open()) cover.open(cover_wish.entity, true);
@@ -9096,7 +9108,7 @@ inline lv_image_dsc_t *live_ready(size_t index, const std::string &entity, int s
 // A screen that cannot ask right now (after a restart, before the app has sent the layout again; Home Assistant away)
 // is not waiting for anything: the card shows its head as every card does then, not a spinner that never ends.
 inline bool live_waiting(const Tile &t) {
-  if (!live_supported() || !fresh() || !awake()) return false;
+  if (!live_supported() || !fresh() || !tiles_seen()) return false;
   return !(live.open() && list_index(live.entity, t.entity) >= 0 && live.animation_ready());
 }
 // Draws the camera cards again once their wait is over without a picture (a failed load, an app with none).
@@ -9251,7 +9263,8 @@ inline void live_tick(uint32_t now) {
     }
   }
   live_marquees();
-  if (!live.open() || camera_root || card_open() || !awake()) return;
+  // While the tiles are seen, a dimmed screen without a screensaver too (firmware 0.40.0+, GitHub #161).
+  if (!live.open() || camera_root || card_open() || !tiles_seen()) return;
   if (alert_image_due() || alert_thumb_loading || cover.loading || camera.loading) return;  // one picture at a time
   if (live.should_ask(now)) {
     if (!fresh()) return;
