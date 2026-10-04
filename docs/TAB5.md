@@ -35,6 +35,10 @@ The INA226 battery monitor exposes **Battery Voltage** as a diagnostic sensor an
 sensor in Home Assistant. The percentage is an estimate from the 2-cell lithium-ion pack voltage, using a piecewise
 voltage curve from 6.0 V (empty) to 8.4 V (full); voltage changes under load or while charging can affect the estimate.
 
+The battery shows in the top bar from firmware 0.41.0, with Home Assistant's icon for its level and while it charges
+(**Add → Battery** in the editor). **Battery Charging** is on while more than 50 mA flows into the pack, from the same
+INA226, and **Battery Current** shows that current. docs/BATTERY.md has the details.
+
 The ESP32-C6 that does the Wi-Fi and the battery charger get their power from the second I/O expander (address 0x44),
 which starts with every output off. The firmware switches on its Wi-Fi power (P0), quick charge (P5) and charge enable
 (P7) at boot, as M5Stack's own firmware does. Without the Wi-Fi power output, the screen only finds its network while

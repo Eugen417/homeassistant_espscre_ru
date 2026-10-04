@@ -7,6 +7,8 @@
 - [DOCKER.md](DOCKER.md): Tessera Screen Manager on Home Assistant Container, without the App store.
 - [BEDSIDE.md](BEDSIDE.md): the bedside clock, a whole-page clock with keys for the night.
 - [SCREENSAVER.md](SCREENSAVER.md): what a screen shows in standby instead of its dimmed tiles: a cover, a camera or the clock.
+- [BATTERY.md](BATTERY.md): a screen's battery in its top bar, and how a board or your own YAML measures it (also a
+  recipe for the code).
 - [UPDATING_4MB_SCREENS.md](UPDATING_4MB_SCREENS.md): the CYD and the Hosyond get more room for firmware, and what to do
   if you flash them yourself.
 

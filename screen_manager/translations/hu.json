@@ -884,7 +884,8 @@
           "analog": "Analóg óra",
           "date": "Dátum",
           "wifi": "Wi-Fi-jel",
-          "link": "Kapcsolati figyelmeztetés"
+          "link": "Kapcsolati figyelmeztetés",
+          "battery": "Akkumulátor"
         },
         "contents": {
           "state": "Állapot",
@@ -913,6 +914,14 @@
         "wifi_shows": {
           "always": "Mindig",
           "weak": "Csak ha gyenge"
+        },
+        "battery_contents": {
+          "icon": "Csak ikon",
+          "percent": "Százalék"
+        },
+        "battery_shows": {
+          "always": "Mindig",
+          "low": "Csak ha alacsony"
         }
       }
     },
@@ -1859,7 +1868,8 @@
         "overflow": "Nem fér el a név mellett",
         "dial": "Számlap",
         "hidden_signal": "Rejtve, amíg a jel jó",
-        "hidden_link": "Rejtve, amíg minden csatlakoztatva van"
+        "hidden_link": "Rejtve, amíg minden csatlakoztatva van",
+        "hidden_battery": "Rejtve, amíg az akkumulátor 20 % fölött van"
       },
       "live": {
         "hidden": "Most rejtve: nem aktív",
@@ -1897,9 +1907,12 @@
       "left_hint": "Cím és kezdőlap gomb: az oldal beállításaiban",
       "wifi_sample": "A kijelző saját jele",
       "link_sample": "Csak ha a Home Assistant vagy a Tessera nem elérhető",
+      "battery_sample": "A kijelző saját akkumulátora",
       "wifi_hint": "A kijelző a saját jelét olvassa, így ez az elem a sávban marad, amikor a Home Assistant nem elérhető. Négy csíktól egyig, hálózat nélkül áthúzva.",
       "wifi_show_hint": "A Csak ha gyenge üresen hagyja a sávot, amíg a jel egy csíkra nem esik vagy a hálózat el nem tűnik.",
       "link_hint": "Csak akkor jelenik meg, amikor a Home Assistant vagy a Tessera nem elérhető, így egy pillantással látod, miért hiányoznak értékek.",
+      "battery_hint": "A kijelző maga olvassa az akkumulátorát, így ez az elem a sávon marad, amikor a Home Assistant nem elérhető. Az ikon úgy követi a töltöttséget, ahogy a Home Assistant rajzolja, töltés közben villámmal.",
+      "battery_show_hint": "A Csak ha alacsony üresen hagyja a sávot, amíg az akkumulátor 20 % vagy kevesebb nem lesz.",
       "status_firmware": "Ez az elem a(z) {version} firmware-től jelenik meg. A frissítésig a kijelző kihagyja."
     },
     "screen_settings": {

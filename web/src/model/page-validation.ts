@@ -40,10 +40,12 @@ export function validatePageShape(layout: PageLayout) {
       let key: string;
       if (rules.headerBuiltin.includes(item.type) || item.type === rules.headerLink) {
         fields(item, ['id', 'type']); key = item.type;
-      } else if (item.type === rules.headerWifi) {
-        // The screen's own Wi-Fi item (firmware 0.38.0): what it shows beside its bars, and when.
+      } else if (item.type === rules.headerWifi || item.type === rules.headerBattery) {
+        // The screen's own Wi-Fi item (firmware 0.38.0) and its battery (firmware 0.41.0): what each shows beside its
+        // icon, and when.
         fields(item, ['id', 'type', 'content', 'show'], ['id', 'type']);
-        if (!rules.wifiContents.includes(item.content ?? 'icon') || !rules.wifiShows.includes(item.show ?? 'always')) fail();
+        const [contents, shows] = item.type === rules.headerWifi ? [rules.wifiContents, rules.wifiShows] : [rules.batteryContents, rules.batteryShows];
+        if (!contents.includes(item.content ?? 'icon') || !shows.includes(item.show ?? 'always')) fail();
         key = JSON.stringify([item.type, item.content ?? 'icon', item.show ?? 'always']);
       } else {
         if (['content', 'show', 'icon'].some(key => key in item && typeof (item as any)[key] !== 'string')) fail();

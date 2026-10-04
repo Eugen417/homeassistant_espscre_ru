@@ -99,7 +99,7 @@ REF = 'main'
 # The shared firmware of this app release: packages/core.yaml's SCREEN_FIRMWARE_VERSION, what every board builds
 # unless its own board file went ahead with a fix for that board alone (firmware_target, docs/BOARD_RELEASES.md). The
 # middle number is the core: the feature gates below name a shared X.Y.0, so a feature always ships with a new core.
-FIRMWARE_VERSION = '0.40.0'
+FIRMWARE_VERSION = '0.41.0'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -619,6 +619,15 @@ def able(screen, feature):
         return feature in words
     return bool(SHAPES.get(board_of(screen), {}).get(FEATURES[feature], True))
 
+def has_battery(screen, said=()):
+    """Whether this screen has a battery the top bar can show (firmware 0.41.0, docs/BATTERY.md): the word `battery` in
+    its Screen features or in its hello (`said`), which a battery in its own Override YAML gives too, or its board's
+    `battery` in boards.json, so a Tab5 that still runs older firmware is offered the item with the note to update.
+    Unlike the other abilities a board this app does not know has none."""
+    if BATTERY_FEATURE in (features_of(screen) or ()) or BATTERY_FEATURE in (said or ()):
+        return True
+    return bool(SHAPES.get(board_of(screen), {}).get('battery'))
+
 def dimmable(screen):
     """Whether this screen's backlight takes levels: no normal brightness without it, and standby and night as the
     switch they really are."""
@@ -979,12 +988,19 @@ HEADER_BUILTIN = ('clock', 'analog', 'date')
 # The screen's own items (firmware 0.38.0, GitHub #130): its Wi-Fi signal, and a mark while Home Assistant or Tessera is
 # away. The screen reads both itself, so they stay when Home Assistant goes; a screen gets them once its hello names
 # BAR_STATUS_FEATURE, and an older one simply goes without (header_bar.message).
-HEADER_STATUS = ('wifi', 'link')
+HEADER_STATUS = ('wifi', 'link', 'battery')
 BAR_STATUS_FEATURE = 'bar_status'
 BAR_STATUS_MIN_FIRMWARE = (0, 38, 0)
 # What the Wi-Fi item shows beside its bars, and when it shows.
 WIFI_CONTENTS = ('icon', 'percent', 'dbm')
 WIFI_SHOWS = ('always', 'weak')
+# The battery item (firmware 0.41.0, docs/BATTERY.md): only a screen with a battery has it, which it says in its hello
+# (BATTERY_FEATURE) and which its board says before it ever connected (boards.json `battery`). It shows Home Assistant's
+# battery icon alone or with the percentage, always or only while the battery runs low.
+BATTERY_FEATURE = 'battery'
+BATTERY_MIN_FIRMWARE = (0, 41, 0)
+BATTERY_CONTENTS = ('icon', 'percent')
+BATTERY_SHOWS = ('always', 'low')
 # Only shown, never controlled: the top bar takes these besides every tile domain.
 HEADER_ONLY_DOMAINS = frozenset('device_tracker zone counter event input_datetime input_text water_heater humidifier'.split())
 # What an entity item shows: its status, when it last changed, or its icon alone (GitHub #144, any firmware with a top bar:
@@ -1015,11 +1031,12 @@ def validate_header(data, most=HEADER_MAX_ITEMS):
             if set(item) != {'type'}:
                 raise ValueError(t('addon.errors.top_bar.invalid_setting'))
             clean = {'type': kind}
-        elif kind == 'wifi':
+        elif kind in ('wifi', 'battery'):
             if set(item) - {'type', 'content', 'show'}:
                 raise ValueError(t('addon.errors.top_bar.unknown_setting'))
-            clean = {'type': 'wifi', 'content': item.get('content', 'icon'), 'show': item.get('show', 'always')}
-            if clean['content'] not in WIFI_CONTENTS or clean['show'] not in WIFI_SHOWS:
+            clean = {'type': kind, 'content': item.get('content', 'icon'), 'show': item.get('show', 'always')}
+            contents, shows = (WIFI_CONTENTS, WIFI_SHOWS) if kind == 'wifi' else (BATTERY_CONTENTS, BATTERY_SHOWS)
+            if clean['content'] not in contents or clean['show'] not in shows:
                 raise ValueError(t('addon.errors.top_bar.invalid_setting'))
         elif kind == 'entity':
             if set(item) - {'type', 'entity', 'content', 'icon', 'show'}:

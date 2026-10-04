@@ -90,6 +90,15 @@
     "always",
     "weak"
   ],
+  "headerBattery": "battery",
+  "batteryContents": [
+    "icon",
+    "percent"
+  ],
+  "batteryShows": [
+    "always",
+    "low"
+  ],
   "displays": {
     "camera": [
       "standard",

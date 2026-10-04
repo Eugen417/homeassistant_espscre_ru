@@ -884,7 +884,8 @@
           "analog": "Analoge klok",
           "date": "Datum",
           "wifi": "Wifi-signaal",
-          "link": "Verbindingswaarschuwing"
+          "link": "Verbindingswaarschuwing",
+          "battery": "Accu"
         },
         "contents": {
           "state": "Status",
@@ -913,6 +914,14 @@
         "wifi_shows": {
           "always": "Altijd",
           "weak": "Alleen als zwak"
+        },
+        "battery_contents": {
+          "icon": "Alleen icoon",
+          "percent": "Percentage"
+        },
+        "battery_shows": {
+          "always": "Altijd",
+          "low": "Alleen als laag"
         }
       }
     },
@@ -1859,7 +1868,8 @@
         "overflow": "Past niet naast de naam",
         "dial": "Wijzerplaat",
         "hidden_signal": "Verborgen zolang het signaal goed is",
-        "hidden_link": "Verborgen zolang alles verbonden is"
+        "hidden_link": "Verborgen zolang alles verbonden is",
+        "hidden_battery": "Verborgen zolang de accu boven 20 % is"
       },
       "live": {
         "hidden": "Nu verborgen: niet actief",
@@ -1897,9 +1907,12 @@
       "left_hint": "Titel en thuisknop: in de pagina-instellingen",
       "wifi_sample": "Het signaal van dit scherm zelf",
       "link_sample": "Alleen als Home Assistant of Tessera weg is",
+      "battery_sample": "De accu van dit scherm zelf",
       "wifi_hint": "Het scherm leest zijn eigen signaal, dus dit item blijft in de balk staan als Home Assistant weg is. Vier streepjes tot één, doorgestreept zonder netwerk.",
       "wifi_show_hint": "Alleen als zwak houdt de balk leeg tot het signaal op één streepje staat of het netwerk weg is.",
       "link_hint": "Verschijnt alleen als Home Assistant of Tessera weg is, zodat je in één oogopslag ziet waarom waarden ontbreken.",
+      "battery_hint": "Het scherm leest zijn eigen accu, dus dit item blijft in de balk als Home Assistant weg is. Het icoon volgt het niveau zoals Home Assistant het tekent, met een bliksemschicht tijdens het laden.",
+      "battery_show_hint": "Alleen als laag houdt de balk leeg tot de accu op 20 % of minder staat.",
       "status_firmware": "Dit item verschijnt vanaf firmware {version}. Tot die update laat het scherm het weg."
     },
     "screen_settings": {

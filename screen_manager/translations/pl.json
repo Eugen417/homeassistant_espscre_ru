@@ -884,7 +884,8 @@
           "analog": "Zegar analogowy",
           "date": "Data",
           "wifi": "Sygnał Wi-Fi",
-          "link": "Ostrzeżenie o połączeniu"
+          "link": "Ostrzeżenie o połączeniu",
+          "battery": "Bateria"
         },
         "contents": {
           "state": "Stan",
@@ -913,6 +914,14 @@
         "wifi_shows": {
           "always": "Zawsze",
           "weak": "Tylko gdy słaby"
+        },
+        "battery_contents": {
+          "icon": "Tylko ikona",
+          "percent": "Procent"
+        },
+        "battery_shows": {
+          "always": "Zawsze",
+          "low": "Tylko gdy słaba"
         }
       }
     },
@@ -1859,7 +1868,8 @@
         "overflow": "Nie mieści się obok nazwy",
         "dial": "Tarcza",
         "hidden_signal": "Ukryty, dopóki sygnał jest dobry",
-        "hidden_link": "Ukryty, dopóki wszystko jest połączone"
+        "hidden_link": "Ukryty, dopóki wszystko jest połączone",
+        "hidden_battery": "Ukryte, dopóki bateria ma ponad 20 %"
       },
       "live": {
         "hidden": "Teraz ukryty: nieaktywny",
@@ -1897,9 +1907,12 @@
       "left_hint": "Tytuł i przycisk strony głównej: w ustawieniach strony",
       "wifi_sample": "Sygnał tego ekranu",
       "link_sample": "Tylko gdy brakuje Home Assistant lub Tessera",
+      "battery_sample": "Bateria tego ekranu",
       "wifi_hint": "Ekran odczytuje własny sygnał, więc ten element zostaje na pasku, gdy Home Assistant jest niedostępny. Od czterech kresek do jednej, przekreślony bez sieci.",
       "wifi_show_hint": "Tylko gdy słaby zostawia pasek pusty, dopóki sygnał nie spadnie do jednej kreski lub sieć nie zniknie.",
       "link_hint": "Pojawia się tylko, gdy brakuje Home Assistant lub Tessera, żeby od razu było widać, dlaczego brakuje wartości.",
+      "battery_hint": "Ekran sam odczytuje swoją baterię, więc ten element zostaje na pasku, gdy Home Assistant jest niedostępny. Ikona pokazuje poziom tak, jak rysuje go Home Assistant, z błyskawicą podczas ładowania.",
+      "battery_show_hint": "Tylko gdy słaba zostawia pasek pusty, dopóki bateria nie spadnie do 20 % lub mniej.",
       "status_firmware": "Ten element pojawia się od firmware {version}. Do tej aktualizacji ekran go pomija."
     },
     "screen_settings": {

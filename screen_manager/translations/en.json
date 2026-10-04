@@ -884,7 +884,8 @@
           "analog": "Analog clock",
           "date": "Date",
           "wifi": "Wi-Fi signal",
-          "link": "Connection warning"
+          "link": "Connection warning",
+          "battery": "Battery"
         },
         "contents": {
           "state": "Status",
@@ -913,6 +914,14 @@
         "wifi_shows": {
           "always": "Always",
           "weak": "Only when weak"
+        },
+        "battery_contents": {
+          "icon": "Icon only",
+          "percent": "Percentage"
+        },
+        "battery_shows": {
+          "always": "Always",
+          "low": "Only when low"
         }
       }
     },
@@ -1859,7 +1868,8 @@
         "overflow": "Doesn't fit next to the name",
         "dial": "Dial",
         "hidden_signal": "Hidden while the signal is good",
-        "hidden_link": "Hidden while everything is connected"
+        "hidden_link": "Hidden while everything is connected",
+        "hidden_battery": "Hidden while the battery is above 20 %"
       },
       "live": {
         "hidden": "Hidden right now: not active",
@@ -1897,9 +1907,12 @@
       "left_hint": "Title and home button: in the page settings",
       "wifi_sample": "This screen's own signal",
       "link_sample": "Only when Home Assistant or Tessera is away",
+      "battery_sample": "This screen's own battery",
       "wifi_hint": "The screen reads its own signal, so this item stays in the bar when Home Assistant is away. Four bars down to one, struck through without a network.",
       "wifi_show_hint": "Only when weak keeps the bar clear until the signal drops to one bar or the network is gone.",
       "link_hint": "Appears only while Home Assistant or Tessera is away, so you can tell at a glance why values are missing.",
+      "battery_hint": "The screen reads its own battery, so this item stays in the bar when Home Assistant is away. The icon follows the level the way Home Assistant draws it, with a lightning bolt while it charges.",
+      "battery_show_hint": "Only when low keeps the bar clear until the battery is at 20 % or less.",
       "status_firmware": "This item shows from firmware {version}. Until that update, the screen leaves it out."
     },
     "screen_settings": {

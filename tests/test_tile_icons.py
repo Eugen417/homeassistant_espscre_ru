@@ -33,9 +33,16 @@ class IconSetTests(unittest.TestCase):
                                                            'materialdesign_icons_back', 'materialdesign_icons_status',
                                                            'materialdesign_icons_big', 'watch_icon'], name)
             self.assertEqual(dict(fonts)['materialdesign_icons_back'].strip(), '["\\U000F0141"]', name)
-            # The top bar's Wi-Fi bars (firmware 0.38.0): struck through, then one to four bars, the order header_bar.h counts.
-            self.assertEqual(dict(fonts)['materialdesign_icons_status'].strip(),
-                             '["\\U000F092E", "\\U000F091F", "\\U000F0922", "\\U000F0925", "\\U000F0928"]', name)
+            # The top bar's Wi-Fi bars (firmware 0.38.0): struck through, then one to four bars, the order header_bar.h counts;
+            # then the battery's icons the tile icons lack (firmware 0.41.0, battery_status.h): charging per ten up to 90,
+            # the charging outline and the alert outline.
+            status = re.search(r'id: materialdesign_icons_status\n    size: \d+\n    bpp: 4\n    glyphs: (\[.*?\])', text, re.S)[1]
+            self.assertEqual(re.findall(r'\\U000(F[0-9A-F]{4})', status),
+                             ['F092E', 'F091F', 'F0922', 'F0925', 'F0928', 'F089C', 'F0086', 'F0087', 'F0088', 'F089D', 'F0089',
+                              'F089E', 'F008A', 'F008B', 'F089F', 'F10CD'], name)
+            # The battery's level icons, battery-unknown and the full charging one are tile icons already.
+            for code in ('F0079', 'F007A', 'F007B', 'F007C', 'F007D', 'F007E', 'F007F', 'F0080', 'F0081', 'F0082', 'F0091', 'F0084'):
+                self.assertIn(code, tile_icons.GLYPHS.values(), code)
             self.assertTrue(fonts[0][1].startswith('&tile_icons ')
                             and all(g == '*tile_icons' for font, g in fonts[1:]
                                     if font not in ('materialdesign_icons_big', 'materialdesign_icons_back', 'materialdesign_icons_status')), name)

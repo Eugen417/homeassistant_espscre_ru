@@ -884,7 +884,8 @@
           "analog": "Analoguhr",
           "date": "Datum",
           "wifi": "WLAN-Signal",
-          "link": "Verbindungswarnung"
+          "link": "Verbindungswarnung",
+          "battery": "Akku"
         },
         "contents": {
           "state": "Status",
@@ -913,6 +914,14 @@
         "wifi_shows": {
           "always": "Immer",
           "weak": "Nur wenn schwach"
+        },
+        "battery_contents": {
+          "icon": "Nur Symbol",
+          "percent": "Prozent"
+        },
+        "battery_shows": {
+          "always": "Immer",
+          "low": "Nur wenn niedrig"
         }
       }
     },
@@ -1859,7 +1868,8 @@
         "overflow": "Passt nicht neben den Namen",
         "dial": "Zifferblatt",
         "hidden_signal": "Ausgeblendet, solange das Signal gut ist",
-        "hidden_link": "Ausgeblendet, solange alles verbunden ist"
+        "hidden_link": "Ausgeblendet, solange alles verbunden ist",
+        "hidden_battery": "Ausgeblendet, solange der Akku über 20 % ist"
       },
       "live": {
         "hidden": "Gerade ausgeblendet: nicht aktiv",
@@ -1897,9 +1907,12 @@
       "left_hint": "Titel und Startseiten-Schaltfläche: in den Seiteneinstellungen",
       "wifi_sample": "Das Signal dieses Bildschirms",
       "link_sample": "Nur wenn Home Assistant oder Tessera fehlt",
+      "battery_sample": "Der Akku dieses Bildschirms",
       "wifi_hint": "Der Bildschirm liest sein eigenes Signal, daher bleibt dieses Element in der Leiste, wenn Home Assistant weg ist. Vier Balken bis einer, durchgestrichen ohne Netzwerk.",
       "wifi_show_hint": "Nur wenn schwach hält die Leiste frei, bis das Signal auf einen Balken fällt oder das Netzwerk weg ist.",
       "link_hint": "Erscheint nur, solange Home Assistant oder Tessera fehlt, damit du auf einen Blick siehst, warum Werte fehlen.",
+      "battery_hint": "Der Bildschirm liest seinen eigenen Akku, daher bleibt dieses Element in der Leiste, wenn Home Assistant weg ist. Das Symbol folgt dem Ladestand so, wie Home Assistant ihn zeichnet, mit einem Blitz während des Ladens.",
+      "battery_show_hint": "Nur wenn niedrig hält die Leiste frei, bis der Akku bei 20 % oder weniger ist.",
       "status_firmware": "Dieses Element erscheint ab Firmware {version}. Bis zu diesem Update lässt der Bildschirm es weg."
     },
     "screen_settings": {

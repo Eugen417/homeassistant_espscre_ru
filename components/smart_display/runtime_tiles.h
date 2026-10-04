@@ -1,4 +1,5 @@
 #pragma once
+#include <cstring>
 #include "runtime_model.h"
 #ifdef ESP_SCREEN_HOST
 #include "host_shims.h"
@@ -12,6 +13,14 @@
 #include "esphome/core/hal.h"
 #include "esphome/core/util.h"
 #include "esphome/core/time.h"
+// The screen's own battery sensors (firmware 0.41.0, find_battery).
+#include "esphome/core/application.h"
+#ifdef USE_SENSOR
+#include "esphome/components/sensor/sensor.h"
+#endif
+#ifdef USE_BINARY_SENSOR
+#include "esphome/components/binary_sensor/binary_sensor.h"
+#endif
 #endif
 #include "header_bar.h"
 #include "page_header.h"
@@ -7581,10 +7590,44 @@ inline const void *header_home_mark = nullptr;  // the Tessera mark of the home 
 inline const lv_font_t *header_back_font = nullptr;
 inline const lv_font_t *header_status_font = nullptr;  // the Wi-Fi item's bars (firmware 0.38.0)
 inline std::function<void()> back_home;
-// What the screen's own top bar items read (firmware 0.38.0): its network and whether Home Assistant and Tessera are there.
+// The battery the top bar can show (firmware 0.41.0, docs/BATTERY.md): the first of the screen's sensors in Home
+// Assistant's `battery` device class (percent), and the first binary sensor in its `battery_charging` class. Whatever the
+// board measures them with, a fuel gauge, a power chip, a voltage on a pin and a formula or the Tab5's INA226, the
+// firmware reads them itself, so the item stays right while Home Assistant is away. Found once at boot (packages/core.yaml);
+// a screen without such a sensor has no battery, says none in its hello, and ESP Screens offers no item for it.
+#ifndef ESP_SCREEN_HOST
+inline bool has_device_class(const esphome::EntityBase *entity, const char *wanted) {
+  std::array<char, esphome::MAX_DEVICE_CLASS_LENGTH> buffer{};
+  const char *name = entity->get_device_class_to(buffer);
+  return name != nullptr && std::strcmp(name, wanted) == 0;
+}
+#endif
+inline void find_battery() {
+#ifndef ESP_SCREEN_HOST
+#ifdef USE_SENSOR
+  for (auto *sensor : esphome::App.get_sensors()) {
+    if (!has_device_class(sensor, "battery")) continue;
+    battery_status::level = [sensor]() { return sensor->state; };
+    ESP_LOGI("battery", "Top bar battery: %s", sensor->get_name().c_str());
+    break;
+  }
+#endif
+#ifdef USE_BINARY_SENSOR
+  if (battery_status::level) {
+    for (auto *binary : esphome::App.get_binary_sensors()) {
+      if (!has_device_class(binary, "battery_charging")) continue;
+      battery_status::charging = [binary]() { return binary->has_state() ? (binary->state ? 1 : 0) : -1; };
+      break;
+    }
+  }
+#endif
+#endif
+}
+// What the screen's own top bar items read (firmware 0.38.0): its network and whether Home Assistant and Tessera are there,
+// and its battery (firmware 0.41.0).
 inline header_bar::Device header_device() {
   const auto link = wifi_status::link();
-  return {link.connected, link.rssi, ha_connected() && feed_alive()};
+  return {link.connected, link.rssi, ha_connected() && feed_alive(), battery_status::read()};
 }
 inline const header_bar::Bar *shown_bar() {
   const int index = shown_page ? *shown_page : 0;
@@ -8496,19 +8539,22 @@ inline void tick() {
     static uint32_t told=0;
     if(esphome::millis()-told>2000){told=esphome::millis();settings_screen::refresh();}
   }
-  // The Wi-Fi item follows the signal (firmware 0.38.0): looked at every five seconds, drawn when what it says changes.
+  // The Wi-Fi item follows the signal (firmware 0.38.0) and the battery item its level and charging (firmware 0.41.0):
+  // looked at every five seconds, drawn when what one of them says changes.
   if(const auto *bar=shown_bar()){
     static uint32_t looked=0;
-    static header_bar::Shown said;
+    static std::string said;
     if(esphome::millis()-looked>5000){
       looked=esphome::millis();
       const auto device=header_device();
+      std::string now_said;
       for(size_t i=0;i<bar->count;++i){
-        if(bar->items[i].kind!=header_bar::Kind::wifi)continue;
+        const auto kind=bar->items[i].kind;
+        if(kind!=header_bar::Kind::wifi && kind!=header_bar::Kind::battery)continue;
         const auto now_shown=header_bar::device_item(bar->items[i],device);
-        if(now_shown.shown!=said.shown || now_shown.icon!=said.icon || now_shown.text!=said.text){said=now_shown;refresh_header_only();}
-        break;
+        now_said+=std::to_string(now_shown.shown)+':'+std::to_string(now_shown.icon)+':'+now_shown.text+'\x1f';
       }
+      if(now_said!=said){said=std::move(now_said);refresh_header_only();}
     }
   }
   media_library::tick(esphome::millis());

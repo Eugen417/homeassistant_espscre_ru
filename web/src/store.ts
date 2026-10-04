@@ -5,7 +5,7 @@ import { isTallSize, sizeColumns, spanOf, spanOffered } from "./model/sizes";
 import { api, getJson, send, setCsrf } from "./api";
 import { andList, editorLanguage, languageMeta, loadLanguage, type NumberMarks, pickLanguage, STYLE_MARKS, t } from "./i18n";
 import { entriesOf, effectiveControls, isFull, isWide, newTile, pageOrder, pagePlaces, pageTarget, reorderTitles, retargetedPage, sizeOf, supportsFirmware as supportsVersion } from "./model/layout";
-import { agoText, barMetricsFor, clockText, dateText, itemKey, LINK_GLYPH, SAMPLE_RSSI, type ItemView, whenBarFontsLoad, wifiView } from "./model/topbar";
+import { agoText, barMetricsFor, batteryView, clockText, dateText, itemKey, LINK_GLYPH, SAMPLE_BATTERY, SAMPLE_RSSI, type ItemView, whenBarFontsLoad, wifiView } from "./model/topbar";
 import { pillMetrics, uiScale } from "./model/ui-scale";
 import { createLayout, dimensions, type Size, versionAtLeast } from "./model/layout";
 import { memoryCrossing, memoryUse } from "./model/memory";
@@ -1539,6 +1539,8 @@ export function topbarView(item: HeaderItem): ItemView {
   // The screen's own items (firmware 0.38.0): a good signal, and every link there, so the link mark hides.
   if (item.type === "wifi") return wifiView(item, SAMPLE_RSSI, (n) => `${n}${t("screen.number.percent", {}, { locale: screenLanguage.value })}`);
   if (item.type === "link") return { icon: LINK_GLYPH, text: "", shown: false };
+  // The battery (firmware 0.41.0): three quarters and not charging, as the firmware's preview draws it.
+  if (item.type === "battery") return batteryView(item, SAMPLE_BATTERY, false, (n) => `${n}${t("screen.number.percent", {}, { locale: screenLanguage.value })}`);
   const p = state.topbarPreviews[itemKey(item)];
   if (!p) return { icon: item.icon === "none" ? null : iconNamed(item.icon)?.cp || automaticIcon(item.entity!), text: item.content === "icon" ? "" : "…", shown: true, loading: true };
   return { icon: p.i || null, text: p.k === "ago" ? agoText(p.e, Math.floor(state.now / 1000), screenLanguage.value) : p.t, color: p.c ? `#${p.c}` : null, shown: p.shown };

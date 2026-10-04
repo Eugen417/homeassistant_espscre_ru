@@ -884,7 +884,8 @@
           "analog": "Orologio analogico",
           "date": "Data",
           "wifi": "Segnale Wi-Fi",
-          "link": "Avviso di connessione"
+          "link": "Avviso di connessione",
+          "battery": "Batteria"
         },
         "contents": {
           "state": "Stato",
@@ -913,6 +914,14 @@
         "wifi_shows": {
           "always": "Sempre",
           "weak": "Solo se debole"
+        },
+        "battery_contents": {
+          "icon": "Solo icona",
+          "percent": "Percentuale"
+        },
+        "battery_shows": {
+          "always": "Sempre",
+          "low": "Solo se scarica"
         }
       }
     },
@@ -1859,7 +1868,8 @@
         "overflow": "Non sta accanto al nome",
         "dial": "Quadrante",
         "hidden_signal": "Nascosto finché il segnale è buono",
-        "hidden_link": "Nascosto finché tutto è connesso"
+        "hidden_link": "Nascosto finché tutto è connesso",
+        "hidden_battery": "Nascosto finché la batteria è sopra il 20 %"
       },
       "live": {
         "hidden": "Nascosto al momento: non attivo",
@@ -1897,9 +1907,12 @@
       "left_hint": "Titolo e pulsante Home: nelle impostazioni della pagina",
       "wifi_sample": "Il segnale di questo schermo",
       "link_sample": "Solo quando Home Assistant o Tessera manca",
+      "battery_sample": "La batteria di questo schermo",
       "wifi_hint": "Lo schermo legge il proprio segnale, quindi questo elemento resta nella barra quando Home Assistant non c'è. Da quattro tacche a una, barrato senza rete.",
       "wifi_show_hint": "Solo se debole lascia la barra libera finché il segnale non scende a una tacca o la rete sparisce.",
       "link_hint": "Compare solo mentre Home Assistant o Tessera manca, così vedi subito perché mancano dei valori.",
+      "battery_hint": "Lo schermo legge la propria batteria, quindi questo elemento resta nella barra quando Home Assistant non c'è. L'icona segue il livello come la disegna Home Assistant, con un fulmine durante la ricarica.",
+      "battery_show_hint": "Solo se scarica lascia la barra libera finché la batteria non è al 20 % o meno.",
       "status_firmware": "Questo elemento compare dal firmware {version}. Fino a quell'aggiornamento, lo schermo lo omette."
     },
     "screen_settings": {

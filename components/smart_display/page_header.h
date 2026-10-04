@@ -235,12 +235,16 @@ public:
       else {
         uint32_t icon = item.icon;
         const lv_font_t *font = header_icon_font;
-        if (item.kind == Kind::wifi || item.kind == Kind::link) {
+        if (item.kind == Kind::wifi || item.kind == Kind::link || item.kind == Kind::battery) {
           const auto own = header_bar::device_item(item, view.device);
           if (!own.shown) continue;
           p.text = own.text;
           icon = own.icon;
           if (item.kind == Kind::wifi && surface.status_font) font = surface.status_font;
+          // The battery's charging and alert icons are in the status font, its level icons among the tile icons.
+          lv_font_glyph_dsc_t probe;
+          if (item.kind == Kind::battery && surface.status_font && lv_font_get_glyph_dsc(surface.status_font, &probe, icon, 0))
+            font = surface.status_font;
         } else {
           p.text = item.kind == Kind::clock ? (now.is_valid() ? screen_text::clock_text(hhmm(now), view.clock_24h) : std::string("--:--"))
                  : item.kind == Kind::date ? (now.is_valid() ? header_bar::date_text(now.day_of_week, now.day_of_month, now.month) : std::string("—"))
@@ -319,7 +323,7 @@ public:
       auto &slot = header_slots[k];
       int x = left + placement.x[k];
       const auto kind = bar.items[p.item].kind;
-      if (kind == header_bar::Kind::wifi || kind == header_bar::Kind::link) {
+      if (kind == header_bar::Kind::wifi || kind == header_bar::Kind::link || kind == header_bar::Kind::battery) {
         if (status_left < 0) status_left = x;
         status_right = x + p.width;
       }

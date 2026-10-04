@@ -1,3 +1,25 @@
+## 0.4.68 (firmware 0.41.0)
+
+- **A screen's battery in its top bar.** In the editor, click the top bar and choose Add, Battery: Home Assistant's
+  battery icon at the level the screen has, with the lightning bolt while it charges, and the percentage beside it if
+  you choose. Show it always, or only when the battery is at 20 % or less. The screen reads its battery itself, so the
+  item stays right while Home Assistant is away. It is offered only on a screen that has a battery.
+- **Any ESPHome battery sensor works.** The firmware finds the screen's sensor in Home Assistant's `battery` device
+  class and its binary sensor in the `battery_charging` class, the way Home Assistant itself knows a battery. A fuel
+  gauge, a power chip, a voltage on a pin with a formula or a curve of your own all work, also from a screen's
+  Override YAML. Two packages turn a voltage into a level for a board: `battery-adc.yaml` reads a pin through a
+  divider, and `battery-voltage.yaml` applies a formula you can replace. [docs/BATTERY.md](../docs/BATTERY.md) has the
+  recipes, the pins that work next to Wi-Fi, and the Override YAML for a battery of your own.
+- **The M5Stack Tab5 is the first board with it**: its level from the INA226 on the battery, and a new **Battery
+  Charging** sensor in Home Assistant, on while more than 50 mA flows into the pack (the way M5Stack's own firmware
+  reads that current), with **Battery Current** beside it.
+- Every screen is offered this firmware, 0.41.0. A screen without a battery only gets the few new icons in its font.
+- Tested: every Python, C++, editor and WASM preview check, with Home Assistant's battery icon rules as a test of their
+  own. Firmware builds on ESPHome 2026.9.0 for the CYD (87.2 % of its slot), the 4-inch Guition, the 10.1-inch Guition,
+  the Waveshare 7-inch and the Tab5, on 2026.6.2 for the CYD and on 2026.7.1 for the Tab5. The pin recipe compiles on a
+  CYD (87.6 %), and the battery item was rendered from the real firmware in the top bar. Not tested on glass: the
+  Tab5's charging current and its sign come from M5Stack's own firmware, and its owner is asked to try it.
+
 ## 0.4.67 (firmware 0.40.0)
 
 - **A live camera tile keeps refreshing on a dimmed screen**

@@ -154,6 +154,9 @@ What else a new board touches (the Sunton 8048S070, the Waveshare 7B and the JC8
   `.github/workflows/preview.yml` on the branch).
 - `tools/render/host.py` `HARDWARE_BLOCKS`, when the board brings a hardware block the host build must take out (the
   Waveshare 7B's `waveshare_io_ch32v003`).
+- A battery: a sensor in the `battery` device class (and a `battery_charging` binary sensor when the board can tell)
+  in its hardware file, which the firmware finds and the top bar shows. `packages/features/battery-voltage.yaml` and
+  `battery-adc.yaml` turn a voltage on a pin into one (docs/BATTERY.md).
 - The docs: `docs/<BOARD>.md` for what is particular to it and what has been tried on glass, the board table in
   README.md and docs/EASY_SETUP.md, and the boards and tile counts in README_EXTENDED.md.
 

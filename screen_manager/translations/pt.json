@@ -884,7 +884,8 @@
           "analog": "Relógio analógico",
           "date": "Data",
           "wifi": "Sinal Wi-Fi",
-          "link": "Aviso de ligação"
+          "link": "Aviso de ligação",
+          "battery": "Bateria"
         },
         "contents": {
           "state": "Estado",
@@ -913,6 +914,14 @@
         "wifi_shows": {
           "always": "Sempre",
           "weak": "Apenas quando fraco"
+        },
+        "battery_contents": {
+          "icon": "Só ícone",
+          "percent": "Percentagem"
+        },
+        "battery_shows": {
+          "always": "Sempre",
+          "low": "Só quando fraca"
         }
       }
     },
@@ -1859,7 +1868,8 @@
         "overflow": "Não cabe ao lado do nome",
         "dial": "Mostrador",
         "hidden_signal": "Oculto enquanto o sinal é bom",
-        "hidden_link": "Oculto enquanto tudo está ligado"
+        "hidden_link": "Oculto enquanto tudo está ligado",
+        "hidden_battery": "Oculto enquanto a bateria estiver acima de 20 %"
       },
       "live": {
         "hidden": "Oculto neste momento: não está ativo",
@@ -1897,9 +1907,12 @@
       "left_hint": "Título e botão de início: nas definições da página",
       "wifi_sample": "O sinal deste ecrã",
       "link_sample": "Apenas quando falta o Home Assistant ou o Tessera",
+      "battery_sample": "A bateria deste ecrã",
       "wifi_hint": "O ecrã lê o seu próprio sinal, por isso este item fica na barra quando o Home Assistant não está. De quatro barras a uma, riscado sem rede.",
       "wifi_show_hint": "Apenas quando fraco deixa a barra livre até o sinal descer a uma barra ou a rede desaparecer.",
       "link_hint": "Só aparece enquanto falta o Home Assistant ou o Tessera, para perceber de relance porque faltam valores.",
+      "battery_hint": "O ecrã lê a sua própria bateria, por isso este item fica na barra quando o Home Assistant não está disponível. O ícone segue o nível como o Home Assistant o desenha, com um raio enquanto carrega.",
+      "battery_show_hint": "Só quando fraca deixa a barra livre até a bateria estar a 20 % ou menos.",
       "status_firmware": "Este item aparece a partir do firmware {version}. Até essa atualização, o ecrã omite-o."
     },
     "screen_settings": {

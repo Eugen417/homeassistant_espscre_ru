@@ -72,6 +72,10 @@ switch:
     pin: {pi4ioe5v6408: tab5_ioe2, number: 7}
     restore_mode: ALWAYS_ON
 
+# The battery (docs/BATTERY.md): the INA226 at 0x41 sits in the battery's path, so its bus voltage is the pack's and its
+# current flows into the pack while it charges, positive the way M5Stack's own firmware reads it (its power monitor
+# draws the charging arrows while the current is not negative). The level follows the 2S pack's voltage. The firmware
+# finds both by their device classes (`battery`, `battery_charging`) and shows them in the top bar.
 sensor:
   - platform: ina226
     address: 0x41
@@ -84,8 +88,13 @@ sensor:
       id: tab5_battery_voltage
       name: "Battery Voltage"
       entity_category: diagnostic
+    current:
+      id: tab5_battery_current
+      name: "Battery Current"
+      entity_category: diagnostic
 
   - platform: template
+    id: tab5_battery_level
     name: "Battery Level"
     device_class: battery
     state_class: measurement
@@ -113,6 +122,18 @@ sensor:
       - clamp:
           min_value: 0
           max_value: 100
+
+binary_sensor:
+  # Charging while more than 50 mA flows into the pack, until it falls under 20 mA: the IP2326 stops at a full pack
+  # and the current goes to about nothing, and the band keeps a reading near the line from flickering.
+  - platform: analog_threshold
+    id: tab5_battery_charging
+    name: "Battery Charging"
+    device_class: battery_charging
+    sensor_id: tab5_battery_current
+    threshold:
+      upper: 0.05
+      lower: 0.02
 
 output:
   - platform: ledc

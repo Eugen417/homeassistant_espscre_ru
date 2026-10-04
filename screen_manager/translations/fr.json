@@ -884,7 +884,8 @@
           "analog": "Horloge analogique",
           "date": "Date",
           "wifi": "Signal Wi-Fi",
-          "link": "Alerte de connexion"
+          "link": "Alerte de connexion",
+          "battery": "Batterie"
         },
         "contents": {
           "state": "État",
@@ -913,6 +914,14 @@
         "wifi_shows": {
           "always": "Toujours",
           "weak": "Seulement si faible"
+        },
+        "battery_contents": {
+          "icon": "Icône seule",
+          "percent": "Pourcentage"
+        },
+        "battery_shows": {
+          "always": "Toujours",
+          "low": "Seulement si faible"
         }
       }
     },
@@ -1859,7 +1868,8 @@
         "overflow": "Ne tient pas à côté du nom",
         "dial": "Cadran",
         "hidden_signal": "Masqué tant que le signal est bon",
-        "hidden_link": "Masqué tant que tout est connecté"
+        "hidden_link": "Masqué tant que tout est connecté",
+        "hidden_battery": "Masqué tant que la batterie dépasse 20 %"
       },
       "live": {
         "hidden": "Masqué en ce moment : pas actif",
@@ -1897,9 +1907,12 @@
       "left_hint": "Titre et bouton d’accueil : dans les réglages de la page",
       "wifi_sample": "Le signal de cet écran",
       "link_sample": "Seulement si Home Assistant ou Tessera est absent",
+      "battery_sample": "La batterie de cet écran",
       "wifi_hint": "L'écran lit son propre signal, cet élément reste donc dans la barre quand Home Assistant est absent. De quatre barres à une, barré sans réseau.",
       "wifi_show_hint": "Seulement si faible garde la barre libre jusqu'à ce que le signal tombe à une barre ou que le réseau disparaisse.",
       "link_hint": "N'apparaît que si Home Assistant ou Tessera est absent, pour voir d'un coup d'œil pourquoi des valeurs manquent.",
+      "battery_hint": "L'écran lit sa propre batterie : cet élément reste dans la barre quand Home Assistant est absent. L'icône suit le niveau comme Home Assistant la dessine, avec un éclair pendant la charge.",
+      "battery_show_hint": "Seulement si faible laisse la barre libre jusqu’à ce que la batterie soit à 20 % ou moins.",
       "status_firmware": "Cet élément apparaît à partir du firmware {version}. D'ici là, l'écran l'omet."
     },
     "screen_settings": {

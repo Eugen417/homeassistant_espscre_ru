@@ -3146,6 +3146,301 @@
     }
   },
   {
+    "name": "battery items",
+    "valid": true,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "b",
+                "type": "battery"
+              },
+              {
+                "id": "b2",
+                "type": "battery",
+                "content": "percent",
+                "show": "low"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "battery with the dbm of wifi",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "b",
+                "type": "battery",
+                "content": "dbm"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "battery shown only when weak",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "b",
+                "type": "battery",
+                "show": "weak"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "battery with an entity",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "b",
+                "type": "battery",
+                "entity": "sensor.phone_battery"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "duplicate normalized battery",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "b",
+                "type": "battery"
+              },
+              {
+                "id": "b2",
+                "type": "battery",
+                "content": "icon",
+                "show": "always"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
     "name": "home links survive deleting the original home",
     "valid": true,
     "grid": {

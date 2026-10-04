@@ -170,6 +170,8 @@ export type Screen = {
   orientation?: Orientation;
   // Whether its board draws pictures: camera tiles, an alert's snapshot, an album cover (app 0.2.94).
   pictures?: boolean;
+  // Whether it has a battery the top bar can show (app 0.4.68, firmware 0.41.0): its hello said so, or its board has one.
+  battery?: boolean;
 };
 export type ScreenShape = NonNullable<Screen["shape"]>;
 // Language & region of the screens (app 0.2.90): the language setting ("auto" follows Home Assistant), the language that
@@ -220,6 +222,10 @@ export type Inventory = {
     wifi_contents?: { key: string; label: string }[];
     wifi_shows?: { key: string; label: string }[];
     status_types?: string[]; status_min_firmware?: string;
+    // The battery item's choices and the firmware that draws it (app 0.4.68); offered where Screen.battery is true.
+    battery_contents?: { key: string; label: string }[];
+    battery_shows?: { key: string; label: string }[];
+    battery_min_firmware?: string;
     suggestions?: Record<string, { item: HeaderItem; label: string; name?: string; area?: string; icon?: string }[]>;
   };
   alerts?: any;

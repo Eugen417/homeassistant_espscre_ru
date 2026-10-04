@@ -4,6 +4,7 @@
    "line": 16,
    "title_line": 21
   },
+  "battery": false,
   "board": "cyd",
   "can_standby": true,
   "catalog": {
@@ -25,7 +26,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -71,6 +72,7 @@
    "line": 16,
    "title_line": 21
   },
+  "battery": false,
   "board": "cyd9342",
   "can_standby": true,
   "catalog": {
@@ -87,7 +89,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -133,6 +135,7 @@
    "line": 25,
    "title_line": 32
   },
+  "battery": false,
   "board": "guition",
   "camera": {
    "full": [
@@ -164,7 +167,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -230,6 +233,7 @@
    "line": 16,
    "title_line": 21
   },
+  "battery": false,
   "board": "hosyond40",
   "can_standby": true,
   "catalog": {
@@ -246,7 +250,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 146,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 18,
    "icon_home": 26,
@@ -292,6 +296,7 @@
    "line": 25,
    "title_line": 32
   },
+  "battery": false,
   "board": "jc1060p470",
   "camera": {
    "full": [
@@ -318,7 +323,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -384,6 +389,7 @@
    "line": 25,
    "title_line": 32
   },
+  "battery": false,
   "board": "jc1060p470v2",
   "camera": {
    "full": [
@@ -410,7 +416,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -476,6 +482,7 @@
    "line": 23,
    "title_line": 30
   },
+  "battery": false,
   "board": "jc3248w535",
   "camera": {
    "full": [
@@ -502,7 +509,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 26,
    "icon_home": 33,
@@ -568,6 +575,7 @@
    "line": 21,
    "title_line": 28
   },
+  "battery": false,
   "board": "jc8012p4a1",
   "camera": {
    "full": [
@@ -601,7 +609,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -667,6 +675,7 @@
    "line": 21,
    "title_line": 28
   },
+  "battery": false,
   "board": "jc8012p4a1v2",
   "camera": {
    "full": [
@@ -700,7 +709,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -766,6 +775,7 @@
    "line": 21,
    "title_line": 28
   },
+  "battery": false,
   "board": "jc8012p4a1v3",
   "camera": {
    "full": [
@@ -799,7 +809,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -865,6 +875,7 @@
    "line": 19,
    "title_line": 25
   },
+  "battery": false,
   "board": "sunton8048s070",
   "camera": {
    "full": [
@@ -891,7 +902,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 133,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 21,
    "icon_home": 26,
@@ -957,6 +968,7 @@
    "line": 42,
    "title_line": 55
   },
+  "battery": true,
   "board": "tab5",
   "camera": {
    "full": [
@@ -988,7 +1000,7 @@
   "columns": 3,
   "dimmable": true,
   "dpi": 294,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 47,
    "icon_home": 59,
@@ -1054,6 +1066,7 @@
    "line": 23,
    "title_line": 30
   },
+  "battery": false,
   "board": "waveshare35",
   "can_standby": true,
   "catalog": {
@@ -1070,7 +1083,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 26,
    "icon_home": 33,
@@ -1116,6 +1129,7 @@
    "line": 32,
    "title_line": 40
   },
+  "battery": false,
   "board": "waveshare43",
   "camera": {
    "full": [
@@ -1142,7 +1156,7 @@
   "columns": 3,
   "dimmable": false,
   "dpi": 217,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 34,
    "icon_home": 43,
@@ -1208,6 +1222,7 @@
    "line": 25,
    "title_line": 32
   },
+  "battery": false,
   "board": "waveshare4b",
   "camera": {
    "full": [
@@ -1234,7 +1249,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -1300,6 +1315,7 @@
    "line": 19,
    "title_line": 25
   },
+  "battery": false,
   "board": "waveshare7",
   "camera": {
    "full": [
@@ -1326,7 +1342,7 @@
   "columns": 4,
   "dimmable": false,
   "dpi": 133,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 21,
    "icon_home": 26,
@@ -1392,6 +1408,7 @@
    "line": 25,
    "title_line": 32
   },
+  "battery": false,
   "board": "waveshare7b",
   "camera": {
    "full": [
@@ -1418,7 +1435,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 27,
    "icon_home": 26,
@@ -1484,6 +1501,7 @@
    "line": 16,
    "title_line": 21
   },
+  "battery": false,
   "board": "cyd",
   "can_standby": true,
   "catalog": {
@@ -1505,7 +1523,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -1551,6 +1569,7 @@
    "line": 16,
    "title_line": 21
   },
+  "battery": false,
   "board": "cyd9342",
   "can_standby": true,
   "catalog": {
@@ -1567,7 +1586,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -1613,6 +1632,7 @@
    "line": 25,
    "title_line": 32
   },
+  "battery": false,
   "board": "guition",
   "camera": {
    "full": [
@@ -1644,7 +1664,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -1710,6 +1730,7 @@
    "line": 16,
    "title_line": 21
   },
+  "battery": false,
   "board": "hosyond40",
   "can_standby": true,
   "catalog": {
@@ -1726,7 +1747,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 146,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 18,
    "icon_home": 26,
@@ -1772,6 +1793,7 @@
    "line": 25,
    "title_line": 32
   },
+  "battery": false,
   "board": "jc1060p470",
   "camera": {
    "full": [
@@ -1798,7 +1820,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -1864,6 +1886,7 @@
    "line": 25,
    "title_line": 32
   },
+  "battery": false,
   "board": "jc1060p470v2",
   "camera": {
    "full": [
@@ -1890,7 +1913,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -1956,6 +1979,7 @@
    "line": 23,
    "title_line": 30
   },
+  "battery": false,
   "board": "jc3248w535",
   "camera": {
    "full": [
@@ -1982,7 +2006,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 26,
    "icon_home": 33,
@@ -2048,6 +2072,7 @@
    "line": 21,
    "title_line": 28
   },
+  "battery": false,
   "board": "jc8012p4a1",
   "camera": {
    "full": [
@@ -2081,7 +2106,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -2147,6 +2172,7 @@
    "line": 21,
    "title_line": 28
   },
+  "battery": false,
   "board": "jc8012p4a1v2",
   "camera": {
    "full": [
@@ -2180,7 +2206,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -2246,6 +2272,7 @@
    "line": 21,
    "title_line": 28
   },
+  "battery": false,
   "board": "jc8012p4a1v3",
   "camera": {
    "full": [
@@ -2279,7 +2306,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -2345,6 +2372,7 @@
    "line": 16,
    "title_line": 21
   },
+  "battery": false,
   "board": "cyd",
   "can_standby": true,
   "catalog": {
@@ -2366,7 +2394,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -2412,6 +2440,7 @@
    "line": 16,
    "title_line": 21
   },
+  "battery": false,
   "board": "cyd9342",
   "can_standby": true,
   "catalog": {
@@ -2428,7 +2457,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -2474,6 +2503,7 @@
    "line": 25,
    "title_line": 32
   },
+  "battery": false,
   "board": "guition",
   "camera": {
    "full": [
@@ -2505,7 +2535,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -2571,6 +2601,7 @@
    "line": 16,
    "title_line": 21
   },
+  "battery": false,
   "board": "hosyond40",
   "can_standby": true,
   "catalog": {
@@ -2587,7 +2618,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 146,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 18,
    "icon_home": 26,
@@ -2633,6 +2664,7 @@
    "line": 25,
    "title_line": 32
   },
+  "battery": false,
   "board": "jc1060p470",
   "camera": {
    "full": [
@@ -2659,7 +2691,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -2725,6 +2757,7 @@
    "line": 25,
    "title_line": 32
   },
+  "battery": false,
   "board": "jc1060p470v2",
   "camera": {
    "full": [
@@ -2751,7 +2784,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -2817,6 +2850,7 @@
    "line": 23,
    "title_line": 30
   },
+  "battery": false,
   "board": "jc3248w535",
   "camera": {
    "full": [
@@ -2843,7 +2877,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 26,
    "icon_home": 33,
@@ -2909,6 +2943,7 @@
    "line": 21,
    "title_line": 28
   },
+  "battery": false,
   "board": "jc8012p4a1",
   "camera": {
    "full": [
@@ -2942,7 +2977,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -3008,6 +3043,7 @@
    "line": 21,
    "title_line": 28
   },
+  "battery": false,
   "board": "jc8012p4a1v2",
   "camera": {
    "full": [
@@ -3041,7 +3077,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -3107,6 +3143,7 @@
    "line": 21,
    "title_line": 28
   },
+  "battery": false,
   "board": "jc8012p4a1v3",
   "camera": {
    "full": [
@@ -3140,7 +3177,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -3206,6 +3243,7 @@
    "line": 19,
    "title_line": 25
   },
+  "battery": false,
   "board": "sunton8048s070",
   "camera": {
    "full": [
@@ -3232,7 +3270,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 133,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 21,
    "icon_home": 26,
@@ -3298,6 +3336,7 @@
    "line": 42,
    "title_line": 55
   },
+  "battery": true,
   "board": "tab5",
   "camera": {
    "full": [
@@ -3329,7 +3368,7 @@
   "columns": 3,
   "dimmable": true,
   "dpi": 294,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 47,
    "icon_home": 59,
@@ -3395,6 +3434,7 @@
    "line": 23,
    "title_line": 30
   },
+  "battery": false,
   "board": "waveshare35",
   "can_standby": true,
   "catalog": {
@@ -3411,7 +3451,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 26,
    "icon_home": 33,
@@ -3457,6 +3497,7 @@
    "line": 32,
    "title_line": 40
   },
+  "battery": false,
   "board": "waveshare43",
   "camera": {
    "full": [
@@ -3483,7 +3524,7 @@
   "columns": 3,
   "dimmable": false,
   "dpi": 217,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 34,
    "icon_home": 43,
@@ -3549,6 +3590,7 @@
    "line": 25,
    "title_line": 32
   },
+  "battery": false,
   "board": "waveshare4b",
   "camera": {
    "full": [
@@ -3575,7 +3617,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -3641,6 +3683,7 @@
    "line": 19,
    "title_line": 25
   },
+  "battery": false,
   "board": "waveshare7",
   "camera": {
    "full": [
@@ -3667,7 +3710,7 @@
   "columns": 4,
   "dimmable": false,
   "dpi": 133,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 21,
    "icon_home": 26,
@@ -3733,6 +3776,7 @@
    "line": 25,
    "title_line": 32
   },
+  "battery": false,
   "board": "waveshare7b",
   "camera": {
    "full": [
@@ -3759,7 +3803,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 27,
    "icon_home": 26,
@@ -3825,6 +3869,7 @@
    "line": 19,
    "title_line": 25
   },
+  "battery": false,
   "board": "sunton8048s070",
   "camera": {
    "full": [
@@ -3851,7 +3896,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 133,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 21,
    "icon_home": 26,
@@ -3917,6 +3962,7 @@
    "line": 42,
    "title_line": 55
   },
+  "battery": true,
   "board": "tab5",
   "camera": {
    "full": [
@@ -3948,7 +3994,7 @@
   "columns": 3,
   "dimmable": true,
   "dpi": 294,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 47,
    "icon_home": 59,
@@ -4014,6 +4060,7 @@
    "line": 23,
    "title_line": 30
   },
+  "battery": false,
   "board": "waveshare35",
   "can_standby": true,
   "catalog": {
@@ -4030,7 +4077,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 26,
    "icon_home": 33,
@@ -4076,6 +4123,7 @@
    "line": 32,
    "title_line": 40
   },
+  "battery": false,
   "board": "waveshare43",
   "camera": {
    "full": [
@@ -4102,7 +4150,7 @@
   "columns": 3,
   "dimmable": false,
   "dpi": 217,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 34,
    "icon_home": 43,
@@ -4168,6 +4216,7 @@
    "line": 25,
    "title_line": 32
   },
+  "battery": false,
   "board": "waveshare4b",
   "camera": {
    "full": [
@@ -4194,7 +4243,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -4260,6 +4309,7 @@
    "line": 19,
    "title_line": 25
   },
+  "battery": false,
   "board": "waveshare7",
   "camera": {
    "full": [
@@ -4286,7 +4336,7 @@
   "columns": 4,
   "dimmable": false,
   "dpi": 133,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 21,
    "icon_home": 26,
@@ -4352,6 +4402,7 @@
    "line": 25,
    "title_line": 32
   },
+  "battery": false,
   "board": "waveshare7b",
   "camera": {
    "full": [
@@ -4378,7 +4429,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.40.0",
+  "firmware": "0.41.0",
   "fonts": {
    "headline": 27,
    "icon_home": 26,
