@@ -99,7 +99,7 @@ REF = 'main'
 # The shared firmware of this app release: packages/core.yaml's SCREEN_FIRMWARE_VERSION, what every board builds
 # unless its own board file went ahead with a fix for that board alone (firmware_target, docs/BOARD_RELEASES.md). The
 # middle number is the core: the feature gates below name a shared X.Y.0, so a feature always ships with a new core.
-FIRMWARE_VERSION = '0.38.0'
+FIRMWARE_VERSION = '0.39.0'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -2255,8 +2255,9 @@ def state_message(index, tile, states, extra=None, precision=None, entry=None, u
     for key in ATTRS:
         value = attrs.get(key)
         if isinstance(value, bool):
-            # assumed_state only matters to a lock's keys (firmware 0.5.0+); anywhere else it is bytes for nothing.
-            if key in BOOL_ATTRS and (key != 'assumed_state' or tile['entity'].startswith('lock.')):
+            # assumed_state only matters to a lock's keys (firmware 0.5.0+) and a player's power keys (firmware
+            # 0.39.0, both as Home Assistant's dialog has them); anywhere else it is bytes for nothing.
+            if key in BOOL_ATTRS and (key != 'assumed_state' or tile['entity'].startswith(('lock.', 'media_player.'))):
                 bounded[key] = value
             continue
         if value is None:

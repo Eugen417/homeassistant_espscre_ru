@@ -31,6 +31,10 @@ The board has two USB-C ports. Logs go out over the one with the USB-to-UART chi
   the same tiles in millimetres, the standard look at 170 dpi. The glass is square, so it turns a quarter as well as a half.
 - The backlight hangs on a PWM pin of the chip (GPIO4), not on an I2C expander as on the 4.3-inch and 7-inch Waveshares.
   Brightness is a percentage, and standby, night mode, Sleep, Wake and the alert's flashes are enabled, as on the Guition.
+  GPIO4 is the analog dim input of the LED driver (an AP3032), not a switch for the LEDs: it reaches the driver's feedback
+  pin through a 160 Hz filter, and the driver stops altogether once that level passes about 1.78 V. So the pin runs at
+  300 kHz, the dimmest step stays just inside the steady range, 0 stays dark, and the light skips ESPHome's gamma
+  (firmware 0.39.0; before, everything under 74 % brightness was dark).
   The 4.3-inch browned out when it switched its backlight on from dark; on this board only the PWM duty falls, but the
   wake from a dark standby has not been seen on this hardware yet.
 - Camera tiles, full-screen snapshots, live tile pictures, camera alerts and media artwork use the shared PSRAM implementation.
@@ -49,7 +53,7 @@ The board has two USB-C ports. Logs go out over the one with the USB-to-UART chi
 - The ST7701S takes its setup over three-wire SPI on the expander: CS on EXIO0, data on EXIO1, clock on EXIO2.
   EXIO3 enables the speaker amplifier and stays off.
 - RGB: DE GPIO17, PCLK GPIO9, HSYNC GPIO46, VSYNC GPIO3, 16 MHz pixel clock, 18-bit pixel mode, inverted colours.
-- Backlight: GPIO4, PWM at 5 kHz, inverted.
+- Backlight: GPIO4, PWM at 300 kHz, inverted, `min_power: 0.52` (duty 48 % at the dimmest), `zero_means_zero`, gamma 1.0.
 
 ## What to report while testing
 

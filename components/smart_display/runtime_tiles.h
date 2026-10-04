@@ -693,19 +693,22 @@ inline void action(const std::string &service, const std::string &entity, const 
   send_action(request, entity, watch);
   ESP_LOGI("runtime_action","Sent service=%s entity=%s",service.c_str(),entity.c_str());
 }
-// A remote's key (firmware 0.22.0+): remote.send_command with one command, sent as a remote sends it. It changes no state,
-// so nothing waits for one: no busy tile, no redraw, and the next key goes out at once, as on the remote in your hand.
-inline void remote_key(const std::string &entity, const std::string &command) {
+// An action that waits for nothing: no busy tile, no redraw, and the next one goes out at once. A remote's key and a
+// player's volume step, which a finger repeats faster than Home Assistant answers.
+inline void step_action(const std::string &service, const std::string &entity, const std::string &key = "", const std::string &value = "") {
   if (!fresh() || !valid_entity(entity)) return;
   esphome::api::HomeassistantActionRequest request;
-  request.service = esphome::StringRef("remote.send_command");
-  request.data.init(2);
-  esphome::api::HomeassistantServiceMap target, value;
+  request.service = esphome::StringRef(service);
+  request.data.init(key.empty() ? 1 : 2);
+  esphome::api::HomeassistantServiceMap target, field;
   target.key = esphome::StringRef("entity_id"); target.value = esphome::StringRef(entity); request.data.push_back(target);
-  value.key = esphome::StringRef("command"); value.value = esphome::StringRef(command); request.data.push_back(value);
+  if (!key.empty()) { field.key = esphome::StringRef(key); field.value = esphome::StringRef(value); request.data.push_back(field); }
   esphome::api::global_api_server->send_homeassistant_action(request);
-  ESP_LOGI("runtime_action", "Sent remote key %s to %s", command.c_str(), entity.c_str());
+  ESP_LOGI("runtime_action", "Sent %s%s%s to %s", service.c_str(), value.empty() ? "" : " ", value.c_str(), entity.c_str());
 }
+// A remote's key (firmware 0.22.0+): remote.send_command with one command, sent as a remote sends it. It changes no state,
+// so nothing waits for one, as on the remote in your hand.
+inline void remote_key(const std::string &entity, const std::string &command) { step_action("remote.send_command", entity, "command", command); }
 // An action whose one value Home Assistant renders itself: a list such as a lamp's hs_color "[20, 100]" does not
 // travel as text (firmware 0.3.9+, the lamp page of a light group).
 inline void action_template(const std::string &service, const std::string &entity, const std::string &key, const std::string &value) {
@@ -3695,24 +3698,21 @@ inline media_card::Metrics media_metrics(bool large){
   m.title_h=lv_font_get_line_height(title);m.artist_h=lv_font_get_line_height(artist);m.small_h=lv_font_get_line_height(small);
   return m;
 }
-// What the keys do, on the card and on a tile over the whole page: 20 play or pause, 21 previous, 22 next, 23 mute.
+// What the keys do, on the card and on a tile over the whole page: 20 play or pause, 21 previous, 22 next, 23 mute,
+// 24 turn on, 30 turn off.
 inline void media_action(Tile &t,int cmd){
   if(cmd==20)action("media_player.media_play_pause",media_entity(t));
   if(cmd==21)action("media_player.media_previous_track",media_entity(t));
   if(cmd==22)action("media_player.media_next_track",media_entity(t));
   if(cmd==23)action("media_player.volume_mute",media_entity(t),"is_volume_muted",t.muted?"false":"true");
   if(cmd==24)action("media_player.turn_on",media_entity(t));
+  if(cmd==30)action("media_player.turn_off",media_entity(t));
   // Shuffle and repeat on the card (firmware 0.24.0+): the other way round, and repeat's next step.
   if(cmd==25)action("media_player.shuffle_set",media_entity(t),"shuffle",t.extra().media_shuffle==1?"false":"true");
   if(cmd==26)action("media_player.repeat_set",media_entity(t),"repeat",media_card::next_repeat(t.extra().media_repeat));
 }
 // An off or standby player shows one key: power, when the player can be turned on from here.
 inline bool media_off(const Tile &t){return t.state=="off" || t.state=="standby";}
-inline std::string media_volume_text(const Tile &t){
-  if(t.muted)return tr(txt::media_muted);
-  if(!std::isfinite(t.volume))return "";
-  return screen_text::percent((int)std::lround(std::clamp(t.volume,0.0f,1.0f)*100));
-}
 // A rounded box without a style of its own: the art's placeholder, the bar's track and its fill.
 inline lv_obj_t *media_box(lv_obj_t *parent,lv_obj_t *existing,const media_card::Rect &r,uint32_t color,int radius){
   auto *o=existing;
@@ -3723,7 +3723,8 @@ inline lv_obj_t *media_box(lv_obj_t *parent,lv_obj_t *existing,const media_card:
 }
 // A round key: a glyph on a grey circle, the play key on the accent, the mute key bare beside the slider. Faded while
 // it cannot be used. `existing` keeps a tile's key across redraws; the card builds its keys anew each time.
-inline lv_obj_t *media_key(lv_obj_t *parent,lv_obj_t *existing,const media_card::Rect &r,const char *glyph,const lv_font_t *font,bool accent,bool bare,bool enabled,lv_event_cb_t cb,void *user){
+inline lv_obj_t *media_key(lv_obj_t *parent,lv_obj_t *existing,const media_card::Rect &r,const char *glyph,const lv_font_t *font,bool accent,bool bare,bool enabled,lv_event_cb_t cb,void *user,
+                           lv_event_code_t code=LV_EVENT_SHORT_CLICKED){
   auto *key=existing;
   if(!key){
     key=lv_obj_create(parent);lv_obj_remove_style_all(key);
@@ -3732,7 +3733,7 @@ inline lv_obj_t *media_key(lv_obj_t *parent,lv_obj_t *existing,const media_card:
     lv_obj_add_flag(key,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(key,LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_ext_click_area(key,bare?10:6);
     auto *icon=lv_label_create(key);lv_obj_remove_flag(icon,LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(key,cb,LV_EVENT_SHORT_CLICKED,user);
+    lv_obj_add_event_cb(key,cb,code,user);
   }
   lv_obj_set_pos(key,r.x,r.y);lv_obj_set_size(key,r.w,r.h);
   set_color(key,LV_STYLE_BG_COLOR,theme::color(accent?theme::ACCENT:theme::KEY));
@@ -3810,7 +3811,8 @@ inline void media_progress(const Tile &t,lv_obj_t *fill,lv_obj_t *elapsed,int ba
 // top to another at the bottom, both read from the cover by the app (two colours with the player's state, a few bytes),
 // white words and keys on it. Everything is there before a picture is: a screen without pictures (the CYD) gets the
 // same ground, and a cover only comes over its placeholder. Before the app has read a cover's colours, and for a cover
-// without colour, the card keeps a neutral dark ground (theme::MEDIA_TOP and MEDIA_BOTTOM).
+// without colour, and while nothing plays, the card is plain black (theme::MEDIA_TOP and MEDIA_BOTTOM; firmware 0.39.0,
+// a grey to black gradient before).
 struct MediaGround { uint32_t top, bottom; };
 inline MediaGround media_ground(const Tile &t){
   const auto &x=t.extra();
@@ -3832,6 +3834,79 @@ inline void media_dark_key(lv_obj_t *key,bool primary,bool bare,const MediaGroun
   set_number(key,LV_STYLE_BG_OPA,primary?LV_OPA_COVER:bare?LV_OPA_TRANSP:40);
   set_number(key,LV_STYLE_BG_OPA,primary?LV_OPA_COVER:90,LV_STATE_PRESSED);
   if(auto *icon=lv_obj_get_child(key,0))set_color(icon,LV_STYLE_TEXT_COLOR,theme::rgb(icon_color?icon_color:primary?g.bottom:media_ink()));
+}
+// The volume row's keys (firmware 0.39.0, GitHub #146), on the card and on a tile over the whole page, the keys the
+// screensaver has: volume down and up step the player (Home Assistant's volume_down and volume_up), every clean tap
+// counts and nothing waits for an answer, so a series of taps is a series of steps. Volume down held for a second and
+// a half mutes the player where Home Assistant says it can be muted, and shows the muted speaker; the next tap on
+// either key takes the mute off and changes nothing else.
+constexpr uint32_t MEDIA_MUTE_HOLD_MS=1500;
+inline uint32_t media_hold_at=0;    // when the finger came down on volume down; 0 once this hold has muted
+inline bool media_hold_muted=false; // the hold muted: its own release is no step
+// The tile the key belongs to: the open card's, or the tile over the whole page whose part the key is (asked of the
+// key itself, never of a slot handed to LVGL: kept pages swap whole Widgets).
+inline Tile *media_volume_tile(lv_obj_t *key,bool card){
+  if(card)return detail_index<model.count?&model.tiles[detail_index]:nullptr;
+  for(auto &w:widgets)if(w.extra_mode=="media"&&key&&(w.parts[11]==key||w.parts[13]==key))return w.index<model.count?&model.tiles[w.index]:nullptr;
+  return nullptr;
+}
+inline std::string media_mute_entity;
+inline void media_mute(Tile &t,bool muted){
+  step_action("media_player.volume_mute",media_entity(t),"is_volume_muted",muted?"true":"false");
+  t.muted=muted;
+  // The card and the tiles show it at once; drawn after this event, which belongs to a key the redraw may delete.
+  media_mute_entity=t.entity;
+  lv_async_call([](void *){
+    for(size_t i=0;i<model.count;++i)if(model.tiles[i].entity==media_mute_entity)refresh_tile(i);
+    if(detail_root&&!lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN))redraw_detail();
+  },nullptr);
+}
+inline void media_volume_event(lv_event_t *e){
+  const intptr_t tag=(intptr_t)lv_event_get_user_data(e);
+  const bool up=tag&1,card=tag&2;
+  const auto code=lv_event_get_code(e);
+  const uint32_t now=esphome::millis();
+  auto *key=lv_event_get_current_target_obj(e);
+  if(!enabled||!fresh()||lv_obj_has_state(key,LV_STATE_DISABLED))return;
+  Tile *t=media_volume_tile(key,card);
+  if(!t||!t->available())return;
+  if(code==LV_EVENT_PRESSED){media_hold_at=now?now:1;media_hold_muted=false;return;}
+  if(code==LV_EVENT_PRESSING){
+    if(!media_hold_at||now-media_hold_at<MEDIA_MUTE_HOLD_MS||t->muted||!(t->supported&tile_controls::feature::MEDIA_VOLUME_MUTE))return;
+    media_hold_at=0;media_hold_muted=true;
+    media_mute(*t,true);
+    return;
+  }
+  if(media_hold_muted){media_hold_muted=false;return;}
+  if(!screen_input::touch_guard.accept_repeat(now,720+up))return;
+  if(t->muted){media_mute(*t,false);return;}
+  step_action(up?"media_player.volume_up":"media_player.volume_down",media_entity(*t));
+}
+// Volume down, the slider and volume up. `parts` keeps a tile's three across redraws (nullptr: the card makes them
+// anew), `g` the card's ground its keys are drawn on (a tile keeps the keys' own colours).
+inline void media_volume_row(lv_obj_t *parent,lv_obj_t **parts,const media_card::Rect &minus,const media_card::Rect &volume,const media_card::Rect &plus,
+                             const Tile &t,bool large,bool usable,void *slider_user,bool card,const MediaGround *g,const lv_font_t *font){
+  using namespace tile_controls;
+  const uint32_t f=t.supported;auto can=[&](uint32_t bit){return usable&&(!f||(f&bit));};
+  const bool step=can(feature::MEDIA_VOLUME_SET|feature::MEDIA_VOLUME_STEP)||(t.muted&&can(feature::MEDIA_VOLUME_MUTE));
+  const intptr_t tag=card?2:0;
+  lv_obj_t *made[3];
+  const bool fresh_minus=!parts||!parts[0];
+  made[0]=media_key(parent,parts?parts[0]:nullptr,minus,t.muted?glyph::MUTED:glyph::MINUS,font,false,false,step,media_volume_event,(void*)tag,LV_EVENT_CLICKED);
+  if(fresh_minus){
+    lv_obj_add_event_cb(made[0],media_volume_event,LV_EVENT_PRESSED,(void*)tag);
+    lv_obj_add_event_cb(made[0],media_volume_event,LV_EVENT_PRESSING,(void*)tag);
+  }
+  made[1]=media_slider(parent,parts?parts[1]:nullptr,volume,t,large,can(feature::MEDIA_VOLUME_SET),slider_user);
+  made[2]=media_key(parent,parts?parts[2]:nullptr,plus,glyph::PLUS,font,false,false,step,media_volume_event,(void*)(tag|1),LV_EVENT_CLICKED);
+  if(g){
+    const uint32_t ink=media_ink(),soft=media_soft(*g);
+    media_dark_key(made[0],false,false,*g);media_dark_key(made[2],false,false,*g);
+    set_color(made[1],LV_STYLE_BG_COLOR,theme::rgb(theme::mix(ink,g->bottom,70)),LV_PART_MAIN);
+    set_color(made[1],LV_STYLE_BG_COLOR,theme::rgb(t.muted?soft:ink),LV_PART_INDICATOR);
+    set_color(made[1],LV_STYLE_BG_COLOR,theme::rgb(ink),LV_PART_KNOB);
+  }
+  if(parts)for(int i=0;i<3;++i)parts[i]=made[i];
 }
 // The media card's seek (firmware 0.24.0+): a finger on the bar moves its knob, and the place it lets go of is sent.
 // The bar then stands there until Home Assistant reports the player near it (media_card::Seek).
@@ -3886,38 +3961,37 @@ inline void media_seek_event(lv_event_t *e){
   action("media_player.media_seek",media_entity(t),"seek_position",std::to_string(seconds));
 }
 // The card's top bar for a player (firmware 0.24.0+): the back key on the ground, the speaker it plays on as a pill
-// in the middle where Home Assistant lists speakers (a tap opens the menu of them), and at the right the key of its
-// library where it has one. A player without speakers keeps its name there.
+// in the middle where Home Assistant lists speakers (a tap opens the menu of them), and at the right the power key,
+// where every other card has it (firmware 0.39.0, GitHub #146). A player without speakers keeps its name there. The
+// library and the input keys stood at the right before; they close the volume row now (media_row_keys).
+// The power key follows Home Assistant's dialog (computeMediaControls): turn off for a player that is on and can be
+// turned off, and for a player whose state is only assumed both keys, whatever it reports. An off player's turn on is
+// the big key in the middle of the card.
 inline void media_top_bar(const Tile &t,lv_obj_t *back,lv_obj_t *heading,int width,int bar,int bar_x,int bar_y){
+  using namespace tile_controls;
   const auto &x=t.extra();
   const MediaGround g=media_ground(t);
   media_dark_key(back,false,false,g);
   set_color(heading,LV_STYLE_TEXT_COLOR,theme::rgb(media_ink()));
   auto cb=[](lv_event_t *e){detail_command((intptr_t)lv_event_get_user_data(e));};
   const lv_font_t *icons=mini_icon_font?mini_icon_font:detail_font;
-  const bool library=x.media_library&&media_library::available();
-  // The input key (firmware 0.26.0+): Home Assistant's source of a player whose sources are inputs (a Sonos's TV input,
-  // a TV's ports), with Home Assistant's icon for it, left of the library.
-  const bool inputs=!x.media_inputs.empty();
+  const bool usable=fresh()&&t.available(),off=media_off(t);
+  const bool power_off=usable&&(t.supported&feature::MEDIA_TURN_OFF)&&(!off||x.assumed);
+  const bool power_on=usable&&(t.supported&feature::MEDIA_TURN_ON)&&!off&&x.assumed;
   const int key_gap=ui::px(ui::large()?8:6);
-  const int right=(library?bar+bar_x:0)+(inputs?bar+(library?key_gap:bar_x):0);
-  media_pill_obj=media_library_key=media_input_key=nullptr;
-  if(library){
-    const media_card::Rect r{width-bar_x-bar,bar_y,bar,bar};
-    auto *key=media_key(detail_root,nullptr,r,"\U000F0CB8",icons,false,false,true,cb,(void*)(intptr_t)27);
+  int right=0;  // the room the keys at the right take, from the glass's edge
+  for(int cmd:{30,24}){
+    if(cmd==30?!power_off:!power_on)continue;
+    const media_card::Rect r{width-bar_x-bar-(right?right-bar_x+key_gap:0),bar_y,bar,bar};
+    auto *key=media_key(detail_root,nullptr,r,glyph::STANDBY,icons,false,false,true,cb,(void*)(intptr_t)cmd);
     media_dark_key(key,false,false,g);
-    media_library_key=key;
+    right=width-r.x;
   }
-  if(inputs){
-    const media_card::Rect r{width-bar_x-bar-(library?bar+key_gap:0),bar_y,bar,bar};
-    auto *key=media_key(detail_root,nullptr,r,"\U000F0206",icons,false,false,true,cb,(void*)(intptr_t)29);
-    media_dark_key(key,false,false,g);
-    media_input_key=key;
-    if(library){
-      // Two keys at the right: the name keeps clear of both, centred between the back key and them.
-      const int left=bar_x+bar+8,w=std::max(1,width-left-right-8);
-      lv_obj_set_x(heading,left);lv_obj_set_width(heading,w);
-    }
+  media_pill_obj=nullptr;
+  if(right>bar_x+bar){
+    // Two keys at the right: the name keeps clear of both, centred between the back key and them.
+    const int left=bar_x+bar+8,w=std::max(1,width-left-right-8);
+    lv_obj_set_x(heading,left);lv_obj_set_width(heading,w);
   }
   if(x.media_sources.empty())return;
   lv_obj_add_flag(heading,LV_OBJ_FLAG_HIDDEN);
@@ -3953,7 +4027,9 @@ inline void render_media_detail(Tile &t,unsigned index,bool large,int width,int 
   using namespace tile_controls;
   const auto &x=t.extra();
   const Metrics m=media_metrics(large);
-  const Layout l=layout(m,width,std::max(60,height-top-(ui::px(large?12:6))));
+  // The volume row ends with the keys of what the player has besides: its inputs, and its library outermost.
+  const bool library=x.media_library&&media_library::available(),inputs=!x.media_inputs.empty();
+  const Layout l=layout(m,width,std::max(60,height-top-(ui::px(large?12:6))),library+inputs);
   auto at=[&](Rect r){r.y+=top;return r;};
   const bool usable=fresh()&&t.available(),track=usable&&has_track(t.state),play=media_card::playing(t.state);
   const uint32_t f=t.supported,had=f|x.media_features;auto can=[&](uint32_t bit){return usable&&(!f||(f&bit));};
@@ -3963,10 +4039,12 @@ inline void render_media_detail(Tile &t,unsigned index,bool large,int width,int 
   // to start it, and its one key is the library.
   const bool rest=usable&&!track&&!media_off(t)&&x.media_library&&media_library::available()&&!(f&(feature::MEDIA_PLAY|feature::MEDIA_PAUSE));
   // The cover, or its placeholder with the player's icon; the cover comes over it once the app served it.
-  auto *frame=media_box(detail_root,nullptr,at(l.art),theme::hex(theme::CAMERA_PAGE),l.art_radius);
-  lv_obj_set_style_bg_opa(frame,60,0);
+  // A darker square on a cover's colours, a faint white one on the plain black.
+  auto *frame=media_box(detail_root,nullptr,at(l.art),x.has_ground?theme::hex(theme::CAMERA_PAGE):ink,l.art_radius);
+  lv_obj_set_style_bg_opa(frame,x.has_ground?60:24,0);
   const std::string glyph=rest?std::string("\U000F04C7"):icon_for(t);
-  const lv_font_t *placeholder_font=big_icon_font&&font_has(big_icon_font,glyph)?big_icon_font:tile_icon_font();
+  // The big icon where the square holds it, the tile's icon in a small one.
+  const lv_font_t *placeholder_font=big_icon_font&&font_has(big_icon_font,glyph)&&lv_font_get_line_height(big_icon_font)<=l.art.h?big_icon_font:tile_icon_font();
   auto *icon=lv_label_create(frame);lv_obj_remove_flag(icon,LV_OBJ_FLAG_CLICKABLE);lv_obj_set_style_text_font(icon,placeholder_font,0);
   lv_obj_set_style_text_color(icon,theme::rgb(theme::mix(ink,g.top,120)),0);lv_label_set_text(icon,glyph.c_str());center_icon(icon);
   media_art_rect=at(l.art);media_detail_picture=nullptr;
@@ -4013,25 +4091,25 @@ inline void render_media_detail(Tile &t,unsigned index,bool large,int width,int 
       detail_text(detail_root,clock_text(x.media_duration),l.total.x,l.total.y+top,l.total.w,small,LV_TEXT_ALIGN_RIGHT,soft);
     }
   }
-  // The keys: previous, play or pause in white, next; shuffle and repeat at the ends where the row has room; the mute
-  // key bare at the start of the volume row. An off player shows one power key instead, and no volume row: it reports
-  // no volume. A player at rest with a library shows the Library key.
+  // The keys: previous, play or pause in white, next; shuffle and repeat at the ends where the row has room; under them
+  // the volume row. An off player shows one power key instead, and no volume: it reports none. A player at rest with a
+  // library shows the Library key.
   auto cb=[](lv_event_t *e){detail_command((intptr_t)lv_event_get_user_data(e));};
   const lv_font_t *key_font=mini_icon_font?mini_icon_font:detail_font;
   std::vector<lv_obj_t *> keys;
   if(rest){
     // Where the keys would be: under the words on a tall card, in the column beside the cover on a wide one.
     const int w=std::min(std::max(l.next.right()-l.prev.x,ui::px(large?200:120)),l.title.w);
-    auto *library=detail_button(tr(txt::media_library),l.play.cx()-w/2,l.play.y+top,w,l.play.h,27);
-    lv_obj_set_style_radius(library,LV_RADIUS_CIRCLE,0);
-    set_color(library,LV_STYLE_BG_COLOR,theme::rgb(ink));set_color(library,LV_STYLE_BG_COLOR,theme::rgb(theme::mix(ink,g.bottom,200)),LV_STATE_PRESSED);
-    if(auto *words=lv_obj_get_child(library,0)){
+    auto *start=detail_button(tr(txt::media_library),l.play.cx()-w/2,l.play.y+top,w,l.play.h,27);
+    lv_obj_set_style_radius(start,LV_RADIUS_CIRCLE,0);
+    set_color(start,LV_STYLE_BG_COLOR,theme::rgb(ink));set_color(start,LV_STYLE_BG_COLOR,theme::rgb(theme::mix(ink,g.bottom,200)),LV_STATE_PRESSED);
+    if(auto *words=lv_obj_get_child(start,0)){
       set_color(words,LV_STYLE_TEXT_COLOR,theme::rgb(g.bottom));
       if(control_font){set_font(words,control_font);lv_obj_set_height(words,lv_font_get_line_height(control_font));}
       lv_obj_center(words);
     }
   }else if(usable && media_off(t)){
-    if(can(feature::MEDIA_TURN_ON)){keys.push_back(media_key(detail_root,nullptr,at(l.play),glyph::POWER,tile_icon_font(),true,false,true,cb,(void*)(intptr_t)24));media_dark_key(keys.back(),true,false,g);}
+    if(can(feature::MEDIA_TURN_ON)){keys.push_back(media_key(detail_root,nullptr,at(l.play),glyph::STANDBY,tile_icon_font(),true,false,true,cb,(void*)(intptr_t)24));media_dark_key(keys.back(),true,false,g);}
   }else{
     keys={media_key(detail_root,nullptr,at(l.prev),glyph::PREVIOUS,key_font,false,false,can(feature::MEDIA_PREVIOUS),cb,(void*)(intptr_t)21),
           media_key(detail_root,nullptr,at(l.play),play?glyph::PAUSE:glyph::PLAY,tile_icon_font(),true,false,can(feature::MEDIA_PLAY|feature::MEDIA_PAUSE),cb,(void*)(intptr_t)20),
@@ -4049,15 +4127,18 @@ inline void render_media_detail(Tile &t,unsigned index,bool large,int width,int 
       keys.push_back(media_key(detail_root,nullptr,at(l.repeat),x.media_repeat=="one"?"\U000F0458":"\U000F0456",key_font,false,true,can(feature::MEDIA_REPEAT),cb,(void*)(intptr_t)26));
       media_dark_key(keys.back(),false,true,g,on?media_accent():soft);
     }
-    if(std::isfinite(t.volume)){
-      keys.push_back(media_key(detail_root,nullptr,at(l.mute),t.muted?glyph::MUTED:glyph::VOLUME,key_font,false,true,can(feature::MEDIA_VOLUME_MUTE),cb,(void*)(intptr_t)23));
-      media_dark_key(keys.back(),false,true,g);
-      auto *slider=media_slider(detail_root,nullptr,at(l.volume),t,large,can(feature::MEDIA_VOLUME_SET),(void*)(uintptr_t)index);
-      set_color(slider,LV_STYLE_BG_COLOR,theme::rgb(theme::mix(ink,g.bottom,70)),LV_PART_MAIN);
-      set_color(slider,LV_STYLE_BG_COLOR,theme::rgb(t.muted?soft:ink),LV_PART_INDICATOR);
-      set_color(slider,LV_STYLE_BG_COLOR,theme::rgb(ink),LV_PART_KNOB);
-      detail_text(detail_root,media_volume_text(t),l.percent.x,l.percent.y+top,l.percent.w,small,LV_TEXT_ALIGN_RIGHT,soft);
-    }
+    if(std::isfinite(t.volume))media_volume_row(detail_root,nullptr,at(l.minus),at(l.volume),at(l.plus),t,large,usable,(void*)(uintptr_t)index,true,&g,key_font);
+  }
+  // The player's own keys at the right end of the volume row, whatever it plays: the inputs (firmware 0.26.0+, Home
+  // Assistant's source of a player whose sources are inputs, a Sonos's TV input or a TV's ports, with its icon) and the
+  // library (firmware 0.24.0+).
+  media_library_key=media_input_key=nullptr;
+  int end=0;
+  for(int cmd:{27,29}){
+    if(cmd==27?!library:!inputs)continue;
+    auto *key=media_key(detail_root,nullptr,at(l.ends[end++]),cmd==27?"\U000F0CB8":"\U000F0206",key_font,false,false,true,cb,(void*)(intptr_t)cmd);
+    media_dark_key(key,false,false,g);
+    (cmd==27?media_library_key:media_input_key)=key;
   }
   // Only the keys the player supports join the card's actions: tick() enables those again after a wait, and a key
   // the player lacks stays faded.
@@ -5940,11 +6021,11 @@ inline void set_loading(Widgets &w,bool on,int width,int height){
 // (clock, forecast, sun path) simply get the whole page.
 // A media player over the whole page (firmware 0.2.64+): the head as on every full card, and under it the media card
 // itself, wide: the cover at the left, the track, the bar and the keys beside it, the volume row along the bottom.
-// Parts: 0 placeholder, 1 its icon, 2 title, 3 artist, 4 track, 5 fill, 6 elapsed, 7 total, 8-10 keys, 11 mute,
-// 12 slider, 13 percent, MEDIA_PICTURE (14) the cover. Built once per slot and moved on every redraw.
+// Parts: 0 placeholder, 1 its icon, 2 title, 3 artist, 4 track, 5 fill, 6 elapsed, 7 total, 8-10 keys, 11 volume
+// down, 12 slider, 13 volume up (firmware 0.39.0; a mute key and the percentage before), MEDIA_PICTURE (14) the cover. Built once per slot and moved on every redraw.
 inline void media_tile_key_event(lv_event_t *e){
   unsigned code=(uintptr_t)lv_event_get_user_data(e);unsigned slot=code/16,n=code%16;
-  if(slot>=widgets.size() || n>3)return;
+  if(slot>=widgets.size() || n>2)return;
   auto &w=widgets[slot];
   if(!enabled || !fresh() || w.index>=model.count || w.extra_mode!="media")return;
   if(lv_obj_has_state(lv_event_get_target_obj(e),LV_STATE_DISABLED))return;
@@ -5952,7 +6033,7 @@ inline void media_tile_key_event(lv_event_t *e){
   if(!allowed(now,500+slot*16+n,"media key "+std::to_string(slot)))return;
   auto &t=model.tiles[w.index];
   if(!t.available() || t.waiting(now))return;
-  static const int commands[]={21,20,22,23};
+  static const int commands[]={21,20,22};
   media_action(t,n==1 && media_off(t)?24:commands[n]);
 }
 inline void render_media_full(Widgets &w,const Tile &t,bool big,int content_w,int content_h,int head_h){
@@ -5970,7 +6051,8 @@ inline void render_media_full(Widgets &w,const Tile &t,bool big,int content_w,in
   // The placeholder and the player's icon; the cover comes over them once the app served it.
   w.parts[0]=media_box(w.extra,w.parts[0],at(l.art),theme::tint(theme::ha::LIGHT_BLUE,51),l.art_radius);
   const std::string glyph=icon_for(t);
-  const lv_font_t *placeholder_font=big_icon_font&&font_has(big_icon_font,glyph)?big_icon_font:w.icon_font;
+  // The big icon where the square holds it (a cover that shrank for the volume row may not), else the tile's icon.
+  const lv_font_t *placeholder_font=big_icon_font&&font_has(big_icon_font,glyph)&&lv_font_get_line_height(big_icon_font)<=l.art.h?big_icon_font:w.icon_font;
   if(!w.parts[1]){w.parts[1]=lv_label_create(w.parts[0]);lv_obj_remove_flag(w.parts[1],LV_OBJ_FLAG_CLICKABLE);}
   set_font(w.parts[1],placeholder_font);set_color(w.parts[1],LV_STYLE_TEXT_COLOR,theme::rgb(theme::icon(theme::ha::LIGHT_BLUE)));label(w.parts[1],glyph);lv_obj_center(w.parts[1]);
   // The colour behind the cover's rounded corners: the card's own, as the palette below will paint it (firmware 0.3.2).
@@ -6016,7 +6098,7 @@ inline void render_media_full(Widgets &w,const Tile &t,bool big,int content_w,in
   auto show=[&](unsigned i,bool on){if(w.parts[i]){if(on)lv_obj_remove_flag(w.parts[i],LV_OBJ_FLAG_HIDDEN);else lv_obj_add_flag(w.parts[i],LV_OBJ_FLAG_HIDDEN);}};
   const bool off=usable && media_off(t), volume=!off && std::isfinite(t.volume);
   if(off){
-    w.parts[9]=media_key(w.extra,w.parts[9],at(l.play),glyph::POWER,w.icon_font,true,false,can(feature::MEDIA_TURN_ON),media_tile_key_event,user(1));
+    w.parts[9]=media_key(w.extra,w.parts[9],at(l.play),glyph::STANDBY,w.icon_font,true,false,can(feature::MEDIA_TURN_ON),media_tile_key_event,user(1));
     show(9,can(feature::MEDIA_TURN_ON));
   }else{
     w.parts[8]=media_key(w.extra,w.parts[8],at(l.prev),glyph::PREVIOUS,key_font,false,false,can(feature::MEDIA_PREVIOUS),media_tile_key_event,user(0));
@@ -6025,11 +6107,7 @@ inline void render_media_full(Widgets &w,const Tile &t,bool big,int content_w,in
     show(9,true);
   }
   show(8,!off);show(10,!off);
-  if(volume){
-    w.parts[11]=media_key(w.extra,w.parts[11],at(l.mute),t.muted?glyph::MUTED:glyph::VOLUME,key_font,false,true,can(feature::MEDIA_VOLUME_MUTE),media_tile_key_event,user(3));
-    w.parts[12]=media_slider(w.extra,w.parts[12],at(l.volume),t,big,can(feature::MEDIA_VOLUME_SET),(void*)(uintptr_t)w.index);
-    text(13,small,l.percent,LV_TEXT_ALIGN_RIGHT,media_volume_text(t),theme::MUTED);
-  }
+  if(volume)media_volume_row(w.extra,&w.parts[11],at(l.minus),at(l.volume),at(l.plus),t,big,usable,(void*)(uintptr_t)w.index,false,nullptr,key_font);
   show(11,volume);show(12,volume);show(13,volume);
 }
 // Both overlay and tile use the same feature-filtered cover commands. Slot
@@ -9823,7 +9901,7 @@ inline void saver_words() {
 // Volume down held for a second and a half mutes the player, where Home Assistant says it can be muted; the key then shows the
 // muted speaker. The next tap on either volume key takes the mute off and changes nothing else, and after that the two
 // are the volume again.
-constexpr uint32_t SAVER_MUTE_HOLD_MS = 1500;
+constexpr uint32_t SAVER_MUTE_HOLD_MS = MEDIA_MUTE_HOLD_MS;
 inline uint32_t saver_pressed = 0;  // when the finger came down on volume down; 0 once this hold has muted
 inline void saver_faces() {
   auto face = [](lv_obj_t *key, const char *glyph) {

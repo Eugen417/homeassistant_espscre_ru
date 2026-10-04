@@ -1463,7 +1463,7 @@ class Run:
         await push()
         card = await self.media_until(lambda c: c['open'] and not c['menu'], 'the menu never closed')
         # Shuffle and repeat, where the row has room: the first key after next is shuffle.
-        # The library: its key at the top right, then the eight folders as cards.
+        # The library: its key at the end of the volume row (the top right before 0.39.0), then the eight folders as cards.
         since = len(calls)
         await self.tap(*card['library_key'][:2])
         await answer_browse(since)
@@ -1504,6 +1504,15 @@ class Run:
         card = await self.media_until(lambda c: c['library'] and c['items'] == 8, 'back never went to the folders')
         await self.tap(*card['lib_back'][:2])
         card = await self.media_until(lambda c: c['open'] and not c['library'], 'back never went to the card')
+        # A player that is on and can be turned off (a TV): its power key at the top right (firmware 0.39.0, GitHub #146).
+        # Nothing plays and there is no cover, so the card is plain black.
+        states[ENTITY] = spotify('on', features=PLAYING | 256, volume_level=0.28, friendly_name='TV', device_class='tv', source_list=[])
+        cover_ground = ground.pop('g', None)
+        await push()
+        await asyncio.sleep(1.0)
+        await self.render('media-power')
+        if cover_ground is not None:
+            ground['g'] = cover_ground
         # At rest, as Spotify playing nowhere: only SELECT_SOURCE, no track; the card offers the library.
         states[ENTITY] = spotify('idle', features=2048)
         ground.pop('g')
@@ -1725,6 +1734,21 @@ class Run:
         if dict(sent.data) != {'entity_id': ENTITY, 'source': 'TV'}:
             faults.append(f'an input went out as {dict(sent.data)}')
         answer(sent)
+        # The same player as a tile over the whole page (firmware 0.39.0, GitHub #146): the volume row is volume down,
+        # the slider and volume up, as on the card.
+        await asyncio.sleep(0.6)
+        card = await self.media_probe()
+        if card['menu']:
+            await self.tap(3, self.canvas[1] - 3)
+            card = await self.media_until(lambda c: not c['menu'], 'the inputs never closed')
+        if card['open'] and card['back']:
+            await self.tap(*card['back'][:2])
+            await self.media_until(lambda c: not c['open'], 'the card never closed')
+        record = send_layout.migrate_legacy(dict(title='Sonos', tiles=[{'entity': ENTITY, 'name': 'Living room', 'slot': 0, 'options': {'size': 'full'}}]), grid)
+        tiles = send_layout.compile_tiles(record['layout'], grid)
+        await push()
+        await asyncio.sleep(1.5)
+        await self.render('media-full')
 
     async def automation_panel(self, grid):
         """An automation (firmware 0.7.0, GitHub #62) the way it is used: a tap switches it on or off and holding runs its

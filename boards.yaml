@@ -128,3 +128,12 @@ jc8012p4a1v2:
   status: experimental
   choices:
     GRID_ROWS: ["5", "6", "7", "8"]
+
+tab5:
+  file: tab5.yaml
+  name: M5Stack Tab5
+  model: Tab5 ST7121
+  status: new
+  choices:
+    # Three columns of three, or four with smaller tiles and more on a page.
+    GRID_ROWS: ["3", "4"]

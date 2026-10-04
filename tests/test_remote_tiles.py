@@ -150,7 +150,7 @@ class Keypad(unittest.TestCase):
         server = (ROOT / 'screen_manager/app/server.py').read_text()
         self.assertIn("keys=catalogue.remote_keypad((entry or {}).get('platform'))", server)
         self.assertIn('if (extra["keys"].is<JsonArray>())', RECEIVER)
-        self.assertIn('request.service = esphome::StringRef("remote.send_command");', TILES)
+        self.assertIn('step_action("remote.send_command", entity, "command", command);', TILES)
         # Every clean tap counts, as on the -/+ keys, and a key does not wait for a state that never comes.
         self.assertIn('touch_guard.accept_repeat(esphome::millis(),300+cmd))return;\n    remote_key(t.entity,keys[i]);', TILES)
 

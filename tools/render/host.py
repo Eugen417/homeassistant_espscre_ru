@@ -126,6 +126,9 @@ def host_common(text):
     text = text.replace('esp_get_free_heap_size()', '0u')
     # The resistive panel's raw readings and its affine correction: the SDL touchscreen reports pixels.
     text = re.sub(r'id\((\w+)\)\.filtered_raw_[xy]\(\)', '0', text)
+    # The partition table a 4 MB board reports (features of hardware/flash-4mb.yaml): flash_layout is ESP32 hardware,
+    # dropped with the rest, so the host says the table it would have.
+    text = text.replace('esphome::flash_layout::word()', 'std::string("wide")')
     return re.sub(r'id\(\w+\)\.set_raw_correction\([^;]*\);', '/* XPT2046 affine correction: not on the host */', text)
 
 

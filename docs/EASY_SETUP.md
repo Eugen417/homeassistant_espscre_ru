@@ -28,6 +28,7 @@ ESPHome Device Builder is optional:
 | Guition, 10.1 inch V2 (experimental) | JC8012P4A1 V2, 1280×800, JD9365 MIPI-DSI and GSL3680, early ESP32-P4 with the newer LCD ([details](JC8012P4A1.md)) |
 | Guition, 10.1 inch V3 (experimental) | JC8012P4A1 V3, 1280×800, JD9365 MIPI-DSI and GSL3680, rev3 ESP32-P4 ([details](JC8012P4A1.md)) |
 | Guition, 7 inch (experimental) | JC1060P470 or JC1060P470 V2, 1024×600, JD9165 MIPI-DSI and GT911, ESP32-P4 ([details](JC1060P470.md)) |
+| M5Stack Tab5, 5 inch (new) | Tab5 ST7121, 1280×720, ST7121 MIPI-DSI and touch, ESP32-P4 ([details](TAB5.md)) |
 
 Other screens with roughly the same name can have different pins. Use
 the board profile that matches the hardware. Use a USB cable that supports data.
@@ -252,13 +253,15 @@ Click **Save & send** to send your changes.
   a key such as Play or Menu, add the remote again with **On tap** set to **Perform action** and **Send command**, and
   pick the command from the list under the field (Android TV, Apple TV, Roku and others) or type it as Home Assistant
   knows it (Harmony, Broadlink).
-- Media player: tap for the media card with the cover (boards with camera pictures), the keys, and the volume. The
+- Media player: tap for the media card with the cover (boards with camera pictures), the keys, and the volume row:
+  volume down, the slider and volume up, as on the screensaver. Hold volume down to mute; the next tap on either key
+  takes the mute off. A player Home Assistant can turn off has its power key at the top right (firmware 0.39.0). The
   speaker it plays on is at the top of the card; tap it to choose another. A player that groups (Sonos and others that
   report it) lists the speakers it can play together with: the plus at the end of a row adds one, the tick takes it out,
   and each speaker in the group has its own volume. A speaker whose library holds your Spotify account is a speaker of
   the Spotify tile too: pick it and the music moves there, and the card follows it. Inputs, such as a Sonos's TV input or
-  its favourites, are behind their own key at the top (firmware 0.26.0+). Where Home Assistant can browse the player,
-  the library key opens its library down to a page of covers, and a tap plays one (firmware 0.24.0+, boards with camera
+  its favourites, are behind their own key at the end of the volume row (firmware 0.26.0+). Where Home Assistant can
+  browse the player, the library key beside it opens its library down to a page of covers, and a tap plays one (firmware 0.24.0+, boards with camera
   pictures). **Display → Favourite** makes the tile play one playlist, album or artist you pick from that library, on
   the speaker you choose. A new media tile shows its cover by default on a board with pictures.
 - Camera or image (every board except the CYD, the Waveshare 3.5-inch and the Hosyond 4-inch): tap for the
@@ -359,8 +362,8 @@ that screen and says where it is set.
 | `DISPLAY_MODEL` | CYD, Hosyond | ESPHome's `mipi_spi` model of the display controller (`ILI9341`, `ST7789V`, ...) |
 | `DISPLAY_DATA_RATE` | CYD, Hosyond | the display's SPI clock (`40MHz`; some boards want `20MHz`) |
 | `DISPLAY_INVERT_COLORS` | CYD, Hosyond | `true` for a panel that shows its colours inverted |
-| `GRID_ROWS` | 4-inch Guition, 10.1-inch Guition | 4-inch: `4` for two columns of four smaller tiles a page instead of three (firmware 0.18.1). 10.1-inch: `6`, `7` or `8` for up to forty tiles a page instead of twenty-five (firmware 0.35.0). New screen asks on both |
-| `BACKLIGHT_FREQUENCY` | CYD, 4-inch Guition, 3.5-inch Guition, Waveshare 4B, Waveshare 3.5, Hosyond | the backlight's PWM frequency (the 4-inch Guition runs `150Hz` since firmware 0.3.5, the CYD and the Hosyond `1000Hz` since firmware 0.29.0) |
+| `GRID_ROWS` | 4-inch Guition, M5Stack Tab5, 10.1-inch Guition | 4-inch Guition and Tab5: `4` for four rows of smaller tiles a page instead of three (firmware 0.18.1; the Tab5 from app 0.4.64). 10.1-inch: `6`, `7` or `8` for up to forty tiles a page instead of twenty-five (firmware 0.35.0). New screen asks on each |
+| `BACKLIGHT_FREQUENCY` | CYD, 4-inch Guition, 3.5-inch Guition, Waveshare 4B, Waveshare 3.5, Hosyond | the backlight's PWM frequency (the 4-inch Guition runs `150Hz` since firmware 0.3.5, the CYD and the Hosyond `1000Hz` since firmware 0.29.0, the Waveshare 4B `300000Hz` since firmware 0.39.0) |
 
 The parts an override names stay the same on every board and in every update:
 `my_display` (the display), `ts_touch` (the touch panel), `gpio_backlight_pwm`

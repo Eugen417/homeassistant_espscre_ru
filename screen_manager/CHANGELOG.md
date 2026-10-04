@@ -1,3 +1,43 @@
+## 0.4.64 (firmware 0.39.0)
+
+- **New board: the M5Stack Tab5** ([#79](https://github.com/MaxGramser/homeassistant_espscreen/issues/79), PR
+  [#150](https://github.com/MaxGramser/homeassistant_espscreen/pull/150)), the 5-inch 1280 x 720 tablet with an ESP32-P4,
+  in its ST7121 variant (the factory log says "Detected ST7121 touch controller"). Three rows of three tiles, or four
+  rows when you choose that in New screen, camera tiles and pictures, the Wi-Fi hotspot with its QR code, and the
+  battery's voltage and level as sensors in Home Assistant. Other Tab5 variants are not covered yet: check the factory
+  log first ([docs/TAB5.md](docs/TAB5.md)). It needs ESPHome 2026.7 or newer, which the app has. Thanks to
+  @Heronimonimo, who built and tested it on his own Tab5.
+- **The Waveshare 4B dims over the whole range** ([#158](https://github.com/MaxGramser/homeassistant_espscreen/issues/158)).
+  Everything under about 74 % brightness was dark, so night and standby brightness turned the screen off instead of
+  dimming it. On this board GPIO4 is not a switch for the LEDs but the analog dim input of their driver (an AP3032),
+  behind a filter, and the driver stops altogether once that level passes about 1.78 V. At the 5 kHz it ran (as
+  Waveshare's own examples do), the ripple behind the filter crossed that line long before the average did. The pin now
+  runs at 300 kHz, the dimmest step stays just inside the range where the driver runs steadily, a brightness of 0 is
+  still dark, and the light no longer applies ESPHome's gamma, which pressed everything under 30 % onto the dimmest step.
+  Thanks to @EythorE for the schematic reading and the measurements on a real panel.
+- **A diabetes icon** for a tile or the top bar ([#156](https://github.com/MaxGramser/homeassistant_espscreen/issues/156),
+  PR [#160](https://github.com/MaxGramser/homeassistant_espscreen/pull/160)), `mdi:diabetes`, under Other in the icon
+  picker. Thanks to @Heronimonimo.
+- **A power key on the media card, and volume keys** ([#146](https://github.com/MaxGramser/homeassistant_espscreen/issues/146)).
+  A player that Home Assistant can turn off (a TV, an AV receiver, a speaker with a power switch) has its power key at
+  the top right of the card, where every other card keeps its keys, and only then: Spotify and other players that
+  cannot be turned off show none. A player whose state Home Assistant only assumes gets both power keys, as in Home
+  Assistant's own dialog, and the power keys use its icon. The row at the bottom of the card is new: volume down, a
+  shorter slider and volume up, round keys like the screensaver's, and after them the player's inputs and its
+  library, which moved down from the top bar. Every tap on volume down or up is a step, also when you tap fast. Hold
+  volume down to mute, and the next tap on either key takes the mute off. A media tile over a whole page has the same
+  row, without the percentage it showed.
+- **A player's card is plain black while nothing plays**, without the grey to black gradient it still had. A cover's
+  own colours still colour the card while it plays.
+- A camera picture on an alert stays within the screen's own full-screen picture, also on a large glass.
+- Every screen is offered this firmware, 0.39.0.
+- Tested: every Python, C++, editor and WASM preview check, and the layout audit of every card on every board shape.
+  Firmware builds on ESPHome 2026.9.0 for the CYD (87.0 % of its slot), the Guition, the 10.1-inch Guition, the
+  Waveshare 7-inch, the Waveshare 4B and the Tab5. The media card, its power key, the new volume row and the tile over
+  a whole page were rendered from the firmware on the CYD, the Guition, the Waveshare 4.3 and the 10.1-inch Guition.
+  Not tested on glass in this release: the Tab5 was tested by its contributor, the 4B dimming by its reporter's
+  measurements, and the volume keys and power key only in renders.
+
 ## 0.4.63 (firmware 0.38.0)
 
 - **The starting screen says what it is doing, step by step** ([#130](https://github.com/MaxGramser/homeassistant_espscreen/issues/130)).

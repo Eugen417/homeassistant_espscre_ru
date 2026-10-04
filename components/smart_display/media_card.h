@@ -4,7 +4,7 @@
 //
 // The card is a "now playing" view like a phone's: the album art (or a placeholder with the player's icon), the title,
 // the artist and the album, a progress bar with the elapsed and total time, three round keys (previous, play or pause,
-// next) and a volume row (a mute key, a slider, the percentage). Two forms share one recipe: a tall area (the Guition's
+// next) and a volume row (volume down, a slider, volume up and the player's own keys). Two forms share one recipe: a tall area (the Guition's
 // card, 480 wide under its top bar) stacks everything under the art; a wide area (the CYD's card, a tile over the whole
 // page) puts the art at the left with the texts, the bar and the keys beside it. The volume row always runs along the
 // bottom. What does not fit goes: first the artist line, then the times beside the bar, and the art shrinks last.
@@ -13,6 +13,11 @@
 // with the glass, while the texts, the keys and the volume row keep a hand's width and stand together in the middle.
 // Before that the cover stayed a thumbnail in the left corner and the volume slider ran from edge to edge, nineteen
 // centimetres of it (firmware 0.2.82).
+//
+// The volume row (firmware 0.39.0, GitHub #146) is a row of round keys as tall as previous and next: volume down at
+// the left, then the slider, volume up, and at the right end the keys of what the player has besides (its inputs, its
+// library), which stood in the card's top bar before; the top bar's right corner is the power key's now, where every
+// other card has it. Before that the row was a bare mute key, the slider and the percentage.
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
@@ -38,7 +43,7 @@ struct Metrics {
   int play_h() const { return ui::px(large ? 64 : 40); }     // play or pause, the biggest key: a thumb finds it without looking
   int key_gap() const { return ui::px(large ? 28 : 14); }    // between the keys, less when the row has no room
   int min_gap() const { return ui::px(large ? 12 : 8); }
-  int mute_h() const { return ui::px(large ? 32 : 22); }
+  int mute_h() const { return ui::px(large ? 32 : 22); }    // shuffle and repeat, bare at the ends of the keys
   int slider_h() const { return ui::px(large ? 20 : 12); }
   int bar_h() const { return ui::px(large ? 6 : 4); }
   int gap() const { return ui::px(large ? 12 : 6); }
@@ -57,7 +62,6 @@ struct Metrics {
   }
   // The widest a row a finger works may get (overlay_card::reach, without pulling LVGL in here).
   int reach() const { return ui::control_max_width(); }
-  int percent_w() const { return ui::px(large ? 52 : 34); }
   int time_w() const { return ui::px(large ? 48 : 34); }     // "12:34" beside the bar
 };
 struct Layout {
@@ -65,7 +69,11 @@ struct Layout {
   bool times = false;   // the elapsed and total time at the ends of the bar
   bool artist = true;   // the artist line (a tile over a CYD page has no room for it)
   bool sides = false;   // shuffle and repeat at the ends of the keys' row (firmware 0.24.0+), where it has room
-  Rect art, title, artist_line, bar, elapsed, total, prev, play, next, mute, volume, percent;
+  Rect art, title, artist_line, bar, elapsed, total, prev, play, next;
+  // The volume row: volume down, the slider, volume up, and `ends` of the player's own keys at the right end, ends[0]
+  // the outermost.
+  Rect minus, volume, plus;
+  Rect ends[2];
   Rect shuffle, repeat;
   // Where a finger takes the bar to seek (firmware 0.24.0+): the bar's length, and a finger's height round its line.
   Rect seek;
@@ -74,19 +82,25 @@ struct Layout {
 
 inline int radius_for(int art) { return std::max(4, art / 12); }
 
-// The card's parts inside an area of `width` × `height` whose top left is (0, 0): the room under the top bar of a
-// card, or under the head of a tile over the whole page.
-inline Layout layout(const Metrics &m, int width, int height) {
+// The card's parts inside an area of `width` × `height` whose top left is (0, 0), with the volume row's keys
+// `volume_h` tall (layout() below chooses).
+inline Layout layout_with(const Metrics &m, int width, int height, int ends, int volume_h) {
   Layout l;
   const int g = m.gap(), margin = m.margin();
   // The volume row along the bottom, whatever the form: a slider is dragged, so it never runs wider than a hand
   // spans, and on wider glass it stands in the middle.
-  const int volume_h = std::max(m.mute_h(), m.slider_h());
-  const int row_w = std::min(width - 2 * margin, m.reach()), row_x = (width - row_w) / 2;
-  l.mute = {row_x, height - volume_h + (volume_h - m.mute_h()) / 2, m.mute_h(), m.mute_h()};
-  l.percent = {row_x + row_w - m.percent_w(), height - volume_h + (volume_h - m.small_h) / 2, m.percent_w(), m.small_h};
-  const int slider_x = l.mute.right() + g;
-  l.volume = {slider_x, height - volume_h + (volume_h - m.slider_h()) / 2, std::max(1, l.percent.x - g - slider_x), m.slider_h()};
+  const int row_w = std::min(width - 2 * margin, m.reach()), row_x = (width - row_w) / 2, row_y = height - volume_h;
+  ends = std::clamp(ends, 0, 2);
+  int right = row_x + row_w;
+  for (int i = 0; i < ends; ++i) {
+    right -= volume_h;
+    l.ends[i] = {right, row_y, volume_h, volume_h};
+    right -= g;
+  }
+  l.minus = {row_x, row_y, volume_h, volume_h};
+  l.plus = {right - volume_h, row_y, volume_h, volume_h};
+  const int slider_x = l.minus.right() + g;
+  l.volume = {slider_x, row_y + (volume_h - m.slider_h()) / 2, std::max(1, l.plus.x - g - slider_x), m.slider_h()};
   const int above = height - volume_h - g;  // room for the rest
   // The wide form is for an area too short to stack: a tile over a CYD page. Glass wider than a hand with room
   // for a full cover and the stack takes the tall form instead, the "now playing" a phone draws, and the cover
@@ -166,6 +180,16 @@ inline Layout layout(const Metrics &m, int width, int height) {
   const int reach = std::max(m.bar_h(), ui::px(m.large ? 32 : 22));
   l.seek = {l.bar.x, l.bar.cy() - reach / 2, l.bar.w, reach};
   return l;
+}
+// The card's parts inside an area of `width` × `height` whose top left is (0, 0): the room under the top bar of a
+// card, or under the head of a tile over the whole page. `ends` keys (0 to 2) close the volume row at the right.
+// The volume row's keys are as big as previous and next where the area has the room; where they would push the
+// artist line out (a tile over a whole page under its head) they are the size of shuffle and repeat, the height
+// the row had before.
+inline Layout layout(const Metrics &m, int width, int height, int ends = 0) {
+  const Layout l = layout_with(m, width, height, ends, m.key_h());
+  if (!l.wide || l.artist) return l;
+  return layout_with(m, width, height, ends, m.mute_h());
 }
 
 // ---- Seeking (firmware 0.24.0+) ----

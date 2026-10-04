@@ -25,7 +25,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -87,7 +87,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -164,7 +164,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -246,7 +246,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 146,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 18,
    "icon_home": 26,
@@ -318,7 +318,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -410,7 +410,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -502,7 +502,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 26,
    "icon_home": 33,
@@ -601,7 +601,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -700,7 +700,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -799,7 +799,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -891,7 +891,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 133,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 21,
    "icon_home": 26,
@@ -952,6 +952,103 @@
   "wide_slots": false,
   "width": 800
  },
+ "checkout/tab5.yaml": {
+  "alert": {
+   "line": 42,
+   "title_line": 55
+  },
+  "board": "tab5",
+  "camera": {
+   "full": [
+    1280,
+    720
+   ],
+   "thumb": [
+    659,
+    370
+   ]
+  },
+  "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {
+    "GRID_ROWS": [
+     "3",
+     "4"
+    ]
+   },
+   "inch": 5.0,
+   "model": "Tab5 ST7121",
+   "name": "M5Stack Tab5",
+   "order": 16,
+   "status": "new",
+   "touch": "ST7121"
+  },
+  "chip": "ESP32-P4",
+  "columns": 3,
+  "dimmable": true,
+  "dpi": 294,
+  "firmware": "0.39.0",
+  "fonts": {
+   "headline": 47,
+   "icon_home": 59,
+   "icon_mini": 45,
+   "label": 31,
+   "sublabel": 28,
+   "sublabel_big": 36,
+   "watch_value": 66
+  },
+  "height": 720,
+  "hotspot": true,
+  "look": "standard",
+  "max_bar_items": 6,
+  "max_pages": 8,
+  "max_tiles": 64,
+  "orientations": {
+   "landscape": {
+    "camera": {
+     "full": [
+      1280,
+      720
+     ],
+     "thumb": [
+      659,
+      370
+     ]
+    },
+    "columns": 3,
+    "height": 720,
+    "rotation": 90,
+    "rows": 3,
+    "width": 1280
+   },
+   "portrait": {
+    "camera": {
+     "full": [
+      720,
+      1280
+     ],
+     "thumb": [
+      595,
+      334
+     ]
+    },
+    "columns": 1,
+    "height": 1280,
+    "rotation": 180,
+    "rows": 5,
+    "width": 720
+   }
+  },
+  "rows": 3,
+  "spacing": {
+   "gap": 12,
+   "margin": 16,
+   "tile_pad": 21
+  },
+  "wide_slots": false,
+  "width": 1280
+ },
  "checkout/waveshare35.yaml": {
   "alert": {
    "line": 23,
@@ -973,7 +1070,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 26,
    "icon_home": 33,
@@ -1045,7 +1142,7 @@
   "columns": 3,
   "dimmable": false,
   "dpi": 217,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 34,
    "icon_home": 43,
@@ -1137,7 +1234,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -1229,7 +1326,7 @@
   "columns": 4,
   "dimmable": false,
   "dpi": 133,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 21,
    "icon_home": 26,
@@ -1321,7 +1418,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 27,
    "icon_home": 26,
@@ -1408,7 +1505,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -1470,7 +1567,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -1547,7 +1644,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -1629,7 +1726,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 146,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 18,
    "icon_home": 26,
@@ -1701,7 +1798,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -1793,7 +1890,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -1885,7 +1982,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 26,
    "icon_home": 33,
@@ -1984,7 +2081,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -2083,7 +2180,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -2182,7 +2279,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -2269,7 +2366,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -2331,7 +2428,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 18,
    "icon_home": 25,
@@ -2408,7 +2505,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -2490,7 +2587,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 146,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 18,
    "icon_home": 26,
@@ -2562,7 +2659,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -2654,7 +2751,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -2746,7 +2843,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 26,
    "icon_home": 33,
@@ -2845,7 +2942,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -2944,7 +3041,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -3043,7 +3140,7 @@
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 24,
    "icon_home": 30,
@@ -3135,7 +3232,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 133,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 21,
    "icon_home": 26,
@@ -3196,6 +3293,103 @@
   "wide_slots": false,
   "width": 800
  },
+ "packages/tab5.yaml": {
+  "alert": {
+   "line": 42,
+   "title_line": 55
+  },
+  "board": "tab5",
+  "camera": {
+   "full": [
+    1280,
+    720
+   ],
+   "thumb": [
+    659,
+    370
+   ]
+  },
+  "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {
+    "GRID_ROWS": [
+     "3",
+     "4"
+    ]
+   },
+   "inch": 5.0,
+   "model": "Tab5 ST7121",
+   "name": "M5Stack Tab5",
+   "order": 16,
+   "status": "new",
+   "touch": "ST7121"
+  },
+  "chip": "ESP32-P4",
+  "columns": 3,
+  "dimmable": true,
+  "dpi": 294,
+  "firmware": "0.39.0",
+  "fonts": {
+   "headline": 47,
+   "icon_home": 59,
+   "icon_mini": 45,
+   "label": 31,
+   "sublabel": 28,
+   "sublabel_big": 36,
+   "watch_value": 66
+  },
+  "height": 720,
+  "hotspot": true,
+  "look": "standard",
+  "max_bar_items": 6,
+  "max_pages": 8,
+  "max_tiles": 64,
+  "orientations": {
+   "landscape": {
+    "camera": {
+     "full": [
+      1280,
+      720
+     ],
+     "thumb": [
+      659,
+      370
+     ]
+    },
+    "columns": 3,
+    "height": 720,
+    "rotation": 90,
+    "rows": 3,
+    "width": 1280
+   },
+   "portrait": {
+    "camera": {
+     "full": [
+      720,
+      1280
+     ],
+     "thumb": [
+      595,
+      334
+     ]
+    },
+    "columns": 1,
+    "height": 1280,
+    "rotation": 180,
+    "rows": 5,
+    "width": 720
+   }
+  },
+  "rows": 3,
+  "spacing": {
+   "gap": 12,
+   "margin": 16,
+   "tile_pad": 21
+  },
+  "wide_slots": false,
+  "width": 1280
+ },
  "packages/waveshare35.yaml": {
   "alert": {
    "line": 23,
@@ -3217,7 +3411,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 26,
    "icon_home": 33,
@@ -3289,7 +3483,7 @@
   "columns": 3,
   "dimmable": false,
   "dpi": 217,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 34,
    "icon_home": 43,
@@ -3381,7 +3575,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -3473,7 +3667,7 @@
   "columns": 4,
   "dimmable": false,
   "dpi": 133,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 21,
    "icon_home": 26,
@@ -3565,7 +3759,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 27,
    "icon_home": 26,
@@ -3657,7 +3851,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 133,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 21,
    "icon_home": 26,
@@ -3718,6 +3912,103 @@
   "wide_slots": false,
   "width": 800
  },
+ "tab5": {
+  "alert": {
+   "line": 42,
+   "title_line": 55
+  },
+  "board": "tab5",
+  "camera": {
+   "full": [
+    1280,
+    720
+   ],
+   "thumb": [
+    659,
+    370
+   ]
+  },
+  "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {
+    "GRID_ROWS": [
+     "3",
+     "4"
+    ]
+   },
+   "inch": 5.0,
+   "model": "Tab5 ST7121",
+   "name": "M5Stack Tab5",
+   "order": 16,
+   "status": "new",
+   "touch": "ST7121"
+  },
+  "chip": "ESP32-P4",
+  "columns": 3,
+  "dimmable": true,
+  "dpi": 294,
+  "firmware": "0.39.0",
+  "fonts": {
+   "headline": 47,
+   "icon_home": 59,
+   "icon_mini": 45,
+   "label": 31,
+   "sublabel": 28,
+   "sublabel_big": 36,
+   "watch_value": 66
+  },
+  "height": 720,
+  "hotspot": true,
+  "look": "standard",
+  "max_bar_items": 6,
+  "max_pages": 8,
+  "max_tiles": 64,
+  "orientations": {
+   "landscape": {
+    "camera": {
+     "full": [
+      1280,
+      720
+     ],
+     "thumb": [
+      659,
+      370
+     ]
+    },
+    "columns": 3,
+    "height": 720,
+    "rotation": 90,
+    "rows": 3,
+    "width": 1280
+   },
+   "portrait": {
+    "camera": {
+     "full": [
+      720,
+      1280
+     ],
+     "thumb": [
+      595,
+      334
+     ]
+    },
+    "columns": 1,
+    "height": 1280,
+    "rotation": 180,
+    "rows": 5,
+    "width": 720
+   }
+  },
+  "rows": 3,
+  "spacing": {
+   "gap": 12,
+   "margin": 16,
+   "tile_pad": 21
+  },
+  "wide_slots": false,
+  "width": 1280
+ },
  "waveshare35": {
   "alert": {
    "line": 23,
@@ -3739,7 +4030,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 165,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 26,
    "icon_home": 33,
@@ -3811,7 +4102,7 @@
   "columns": 3,
   "dimmable": false,
   "dpi": 217,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 34,
    "icon_home": 43,
@@ -3903,7 +4194,7 @@
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 27,
    "icon_home": 34,
@@ -3995,7 +4286,7 @@
   "columns": 4,
   "dimmable": false,
   "dpi": 133,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 21,
    "icon_home": 26,
@@ -4087,7 +4378,7 @@
   "columns": 4,
   "dimmable": true,
   "dpi": 170,
-  "firmware": "0.38.0",
+  "firmware": "0.39.0",
   "fonts": {
    "headline": 27,
    "icon_home": 26,

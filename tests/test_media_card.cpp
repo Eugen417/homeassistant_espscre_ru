@@ -12,7 +12,7 @@ static bool above(const Rect &a, const Rect &b) { return a.bottom() <= b.y; }
 
 // Every part inside the area, nothing over anything else, the keys in one row and the volume row at the bottom.
 static void sound(const Layout &l, int width, int height) {
-  const Rect *parts[] = {&l.art, &l.title, &l.bar, &l.prev, &l.play, &l.next, &l.mute, &l.volume, &l.percent};
+  const Rect *parts[] = {&l.art, &l.title, &l.bar, &l.prev, &l.play, &l.next, &l.minus, &l.volume, &l.plus};
   for (const Rect *r : parts) assert(r->w > 0 && r->h > 0 && inside(*r, width, height));
   if (l.artist) assert(l.artist_line.h > 0 && inside(l.artist_line, width, height));
   if (l.times) assert(l.elapsed.h > 0 && l.total.h > 0 && inside(l.elapsed, width, height) && inside(l.total, width, height));
@@ -20,11 +20,17 @@ static void sound(const Layout &l, int width, int height) {
   assert(l.prev.cy() == l.play.cy() && l.next.cy() == l.play.cy());
   assert(l.play.w > l.prev.w && l.prev.w == l.next.w && l.prev.w == l.prev.h);
   assert(l.prev.right() < l.play.x && l.play.right() < l.next.x);
-  // The volume row runs along the bottom under everything else: the mute key, the slider, the percentage.
-  assert(l.mute.right() < l.volume.x && l.volume.right() < l.percent.x);
-  for (const Rect *r : {&l.art, &l.title, &l.bar, &l.prev, &l.play, &l.next}) assert(above(*r, l.volume) && above(*r, l.mute));
+  // The volume row runs along the bottom under everything else: volume down, the slider, volume up, the player's own
+  // keys, round keys as big as previous and next on one centre line (firmware 0.39.0, GitHub #146).
+  assert(l.minus.right() < l.volume.x && l.volume.right() < l.plus.x);
+  // (smaller where those keys would push the artist line out: layout()).
+  assert(l.minus.w <= l.prev.w && l.minus.h == l.minus.w && l.plus.w == l.minus.w);
+  assert(l.minus.cy() == l.volume.cy() && l.plus.cy() == l.volume.cy());
+  for (const Rect *e : {&l.ends[0], &l.ends[1]}) if (e->w) assert(inside(*e, width, height) && e->x > l.plus.right() && e->cy() == l.plus.cy());
+  if (l.ends[1].w) assert(l.ends[1].right() < l.ends[0].x);
+  for (const Rect *r : {&l.art, &l.title, &l.bar, &l.prev, &l.play, &l.next}) assert(above(*r, l.minus));
   // Nothing overlaps.
-  const Rect *rects[] = {&l.art, &l.title, &l.artist_line, &l.bar, &l.elapsed, &l.total, &l.prev, &l.play, &l.next, &l.mute, &l.volume, &l.percent};
+  const Rect *rects[] = {&l.art, &l.title, &l.artist_line, &l.bar, &l.elapsed, &l.total, &l.prev, &l.play, &l.next, &l.minus, &l.volume, &l.plus, &l.ends[0], &l.ends[1]};
   for (const Rect *a : rects) for (const Rect *b : rects) if (a != b && a->w && b->w) assert(apart(*a, *b));
   // The art is square and its corner follows its size.
   assert(l.art.w == l.art.h && l.art_radius == radius_for(l.art.w));
@@ -36,7 +42,8 @@ int main() {
     Metrics m; Layout l = layout(m, 480, 396);
     sound(l, 480, 396);
     assert(!l.wide && l.times && l.artist);
-    assert(l.art.w >= 160 && l.art.cx() == 240);
+    // The volume row of round keys (firmware 0.39.0) costs the cover 20 px of the 164 it had.
+    assert(l.art.w >= 140 && l.art.cx() == 240 && l.minus.w == m.key_h());
     assert(above(l.art, l.title) && above(l.title, l.artist_line) && above(l.artist_line, l.bar) && above(l.bar, l.play));
     assert(l.play.cx() == 240 && l.title.x == 24 && l.title.w == 432);
     // The times sit at the ends of the bar, on its line.
@@ -60,7 +67,7 @@ int main() {
   {
     Metrics m; Layout l = layout(m, 448, 236);
     sound(l, 448, 236);
-    assert(l.wide && l.times && l.artist && l.art.w >= 180);
+    assert(l.wide && l.times && l.artist && l.art.w >= 170);  // 180 before the round volume keys (0.39.0)
     // The head of a real tile leaves 202 px: the artist line still fits beside a smaller cover.
     Layout r = layout(m, 448, 202);
     sound(r, 448, 202);
@@ -76,6 +83,18 @@ int main() {
     assert(l.wide && !l.artist && l.art.w < 120 && l.art.w >= 60);
     assert(l.play.bottom() <= 108 - 22 - 6 && l.bar.h == 4);
     printf("cyd full: art %d keys y=%d bottom=%d\n", l.art.w, l.play.y, l.play.bottom());
+  }
+  // The player's own keys (its inputs, its library) close the volume row; the slider gives them the room.
+  {
+    Metrics m; Layout none = layout(m, 480, 396), two = layout(m, 480, 396, 2);
+    sound(two, 480, 396);
+    assert(none.ends[0].w == 0 && two.ends[0].w == m.key_h() && two.ends[1].w == m.key_h());
+    assert(two.ends[0].right() == none.plus.right() && two.volume.w < none.volume.w && two.volume.w >= 2 * m.key_h());
+    Metrics small; small.large = false; small.title_h = 21; small.artist_h = 17; small.small_h = 13;
+    Layout cyd = layout(small, 320, 192, 2);
+    sound(cyd, 320, 192);
+    assert(cyd.volume.w >= 2 * small.key_h());
+    printf("volume row: guition slider %d (%d with two keys), cyd %d with two keys\n", none.volume.w, two.volume.w, cyd.volume.w);
   }
   // A very short tall area still holds every part (times gone, a small cover).
   {

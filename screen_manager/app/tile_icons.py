@@ -186,6 +186,7 @@ GROUPS = (
         ('alert-outline', 'F002A', 'Warning'),
         ('cog', 'F0493', 'Settings'),
         ('broom', 'F00E2', 'Cleaning'),
+        ('diabetes', 'F1126', 'Diabetes'),
     )),
 )
 
@@ -219,6 +220,8 @@ FIXED = (
     # A player's input key: Home Assistant's icon for `source` (more-info-media_player, mdiLoginVariant), drawn the same
     # by exit-to-app in this font.
     ('exit-to-app', 'F0206'),
+    # A player's power key (firmware 0.39.0): Home Assistant's icon for turn_on and turn_off (computeMediaControls).
+    ('power-standby', 'F0906'),
     ('chevron-left', 'F0141'),
     ('chevron-right', 'F0142'),
     ('close', 'F0156'),

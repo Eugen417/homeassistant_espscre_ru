@@ -29,6 +29,9 @@ constexpr uint32_t COVER_OPEN_TILT = ha::cover::OPEN_TILT, COVER_CLOSE_TILT = ha
 constexpr uint32_t MEDIA_PAUSE = ha::media_player::PAUSE, MEDIA_VOLUME_SET = ha::media_player::VOLUME_SET, MEDIA_VOLUME_MUTE = ha::media_player::VOLUME_MUTE,
                    MEDIA_PREVIOUS = ha::media_player::PREVIOUS_TRACK, MEDIA_NEXT = ha::media_player::NEXT_TRACK, MEDIA_TURN_ON = ha::media_player::TURN_ON,
                    MEDIA_PLAY = ha::media_player::PLAY;
+// The card's power key at the top right and its volume keys (firmware 0.39.0): Home Assistant offers volume_up and
+// volume_down to a player with either VOLUME_STEP or VOLUME_SET.
+constexpr uint32_t MEDIA_TURN_OFF = ha::media_player::TURN_OFF, MEDIA_VOLUME_STEP = ha::media_player::VOLUME_STEP;
 // The media card's seek, shuffle and repeat, and what a library start takes (firmware 0.24.0+).
 constexpr uint32_t MEDIA_SEEK = ha::media_player::SEEK, MEDIA_SHUFFLE = ha::media_player::SHUFFLE_SET, MEDIA_REPEAT = ha::media_player::REPEAT_SET,
                    MEDIA_PLAY_MEDIA = ha::media_player::PLAY_MEDIA, MEDIA_SELECT_SOURCE = ha::media_player::SELECT_SOURCE;
@@ -42,7 +45,7 @@ namespace glyph {
 constexpr const char *PLAY = "\U000F040A", *PAUSE = "\U000F03E4", *STOP = "\U000F04DB", *NEXT = "\U000F04AD", *PREVIOUS = "\U000F04AE";
 constexpr const char *VOLUME = "\U000F057E", *MUTED = "\U000F0581", *UP = "\U000F005D", *DOWN = "\U000F0045";
 constexpr const char *EXPAND = "\U000F084E", *COLLAPSE = "\U000F084C", *DOCK = "\U000F05F8", *PLUS = "\U000F0415", *MINUS = "\U000F0374";
-constexpr const char *LEFT = "\U000F0141", *RIGHT = "\U000F0142", *CLOSE = "\U000F0156", *POWER = "\U000F0425", *FIRE = "\U000F0238";
+constexpr const char *LEFT = "\U000F0141", *RIGHT = "\U000F0142", *CLOSE = "\U000F0156", *POWER = "\U000F0425", *STANDBY = "\U000F0906", *FIRE = "\U000F0238";
 constexpr const char *SNOWFLAKE = "\U000F0717", *HEAT_COOL = "\U000F1A79", *AUTO = "\U000F1B17", *DRY = "\U000F058E", *FAN = "\U000F0210";
 constexpr const char *BLINDS_OPEN = "\U000F1011", *BLINDS = "\U000F00AC", *MORE = "\U000F01D8";
 }
