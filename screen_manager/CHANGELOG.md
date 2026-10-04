@@ -1,3 +1,15 @@
+## 0.4.66 (firmware 0.39.1 for tab5)
+
+- **Wi-Fi on the M5Stack Tab5 after a cold start** ([#150](https://github.com/MaxGramser/homeassistant_espscreen/pull/150)).
+  The Tab5's Wi-Fi is an ESP32-C6 beside the ESP32-P4, and it gets its power from an output of the board's second I/O
+  expander (0x44). The firmware never switched that output on, so the C6 only had power when an earlier firmware had
+  left it on, and after the battery was off the screen stopped at "esp_wifi_init failed: ESP_FAIL". The firmware now
+  switches the C6 on at boot, together with the battery charger and its quick charge, the same three outputs M5Stack's
+  own firmware and ESPHome's Tab5 configuration switch on. Thanks to @Heronimonimo for the report.
+- Only the Tab5 is offered this firmware, 0.39.1. Every other screen keeps 0.39.0.
+- Tested: every Python, C++, editor and WASM preview check, and the Tab5 firmware builds on ESPHome 2026.9.0 and on
+  2026.7.1. Not tested on glass: there is no Tab5 here, and its owner is asked to try it.
+
 ## 0.4.65 (firmware 0.39.0)
 
 - **A build on a machine with little memory finishes instead of being killed**

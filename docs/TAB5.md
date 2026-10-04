@@ -35,6 +35,11 @@ The INA226 battery monitor exposes **Battery Voltage** as a diagnostic sensor an
 sensor in Home Assistant. The percentage is an estimate from the 2-cell lithium-ion pack voltage, using a piecewise
 voltage curve from 6.0 V (empty) to 8.4 V (full); voltage changes under load or while charging can affect the estimate.
 
+The ESP32-C6 that does the Wi-Fi and the battery charger get their power from the second I/O expander (address 0x44),
+which starts with every output off. The firmware switches on its Wi-Fi power (P0), quick charge (P5) and charge enable
+(P7) at boot, as M5Stack's own firmware does. Without the Wi-Fi power output, the screen only finds its network while
+an earlier firmware left the C6 powered, and after a cold start it stops at `esp_wifi_init failed: ESP_FAIL`.
+
 After flashing, confirm that the screen boots, has a stable picture with correct colors, responds at the four corners
 and across the surface, changes pages, pairs with Home Assistant, and remains working after a restart and a cold start.
 Check the USB log and report the firmware and board variant with the results.

@@ -52,6 +52,25 @@ i2c:
 pi4ioe5v6408:
   - id: tab5_ioe
     address: 0x43
+  # The second expander powers the ESP32-C6 and the battery charger. It comes up with every output off, so without
+  # these switches the C6 has no power after a cold start and Wi-Fi fails with "esp_wifi_init failed" (issue #150).
+  # The same three outputs M5Stack's own firmware and ESPHome's Tab5 configuration switch on at boot.
+  - id: tab5_ioe2
+    address: 0x44
+
+switch:
+  - platform: gpio
+    id: tab5_wifi_power
+    pin: {pi4ioe5v6408: tab5_ioe2, number: 0}
+    restore_mode: ALWAYS_ON
+  - platform: gpio
+    id: tab5_quick_charge
+    pin: {pi4ioe5v6408: tab5_ioe2, number: 5, inverted: true}
+    restore_mode: ALWAYS_ON
+  - platform: gpio
+    id: tab5_charge
+    pin: {pi4ioe5v6408: tab5_ioe2, number: 7}
+    restore_mode: ALWAYS_ON
 
 sensor:
   - platform: ina226
