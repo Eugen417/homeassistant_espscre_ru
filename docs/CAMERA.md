@@ -176,7 +176,7 @@ The screen never talks to Home Assistant about images, and it never holds a Home
 2. The app fetches the snapshot from Home Assistant with its own access (the same pictures the
    Home Assistant frontend shows), and makes it exactly as large as the screen draws it: full screen
    at most the board's canvas (`camera.full` in boards.json: 480×480 on the 4-inch Guition, 800×480 on
-   the Waveshare 4.3 and 7, 1024×600 on the JC1060P470), an alert card at its frame (`camera.thumb`,
+   the Waveshare 4.3, 5 and 7, 1024×600 on the JC1060P470), an alert card at its frame (`camera.thumb`,
    392×220 on the 4-inch Guition), proportions kept. Neither is ever larger than the cap above
    (`camera_feed.PICTURE_MAX_SIDE` and `PICTURE_MAX_BYTES`): the JC8012P4A1's 1280×800 canvas gets a
    full-screen picture of at most 1024×640, shown in the middle.

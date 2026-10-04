@@ -140,7 +140,7 @@ An owner's Override YAML hangs on names in these files, and it lives on the owne
 ours sees it. These stay, whichever file they move to:
 
 - on every board: `my_display` (the display), `ts_touch` (the touch panel), `gpio_backlight_pwm` (the output that drives
-  the backlight) and `back_light` (the light on it); on the Waveshare 4.3 and 7, `backlight_line` as well;
+  the backlight) and `back_light` (the light on it); on the Waveshare 4.3, 5 and 7, `backlight_line` as well;
 - the substitutions a board offers for its hardware: `DISPLAY_MODEL`, `DISPLAY_DATA_RATE` and `DISPLAY_INVERT_COLORS`
   on the CYD, `BACKLIGHT_FREQUENCY` on the boards with a PWM backlight, and `BACKLIGHT_DIMMABLE`, `LVGL_ROTATION` and the
   `TOUCH_*` values on every board.

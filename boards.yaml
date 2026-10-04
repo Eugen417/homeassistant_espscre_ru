@@ -137,3 +137,9 @@ tab5:
   choices:
     # Three columns of three, or four with smaller tiles and more on a page.
     GRID_ROWS: ["3", "4"]
+
+waveshare5:
+  file: waveshare-esp32s3-5.yaml
+  name: Waveshare
+  model: ESP32-S3-Touch-LCD-5
+  status: new

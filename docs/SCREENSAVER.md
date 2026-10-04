@@ -75,7 +75,7 @@ level is 5 % or more (firmware 0.40.0). Under a screensaver, the clock too, and 
 screen wakes.
 
 The CYD, the Waveshare 3.5-inch and the Hosyond 4-inch have no memory for pictures (see [CAMERA.md](CAMERA.md)). On
-them the card offers the clock alone. The Waveshare 4.3 and 7-inch never go into standby, so they have no
+them the card offers the clock alone. The Waveshare 4.3, 5 and 7-inch never go into standby, so they have no
 screensaver either.
 
 ## How it works

@@ -1,3 +1,19 @@
+## 0.4.72 (firmware 0.44.0)
+
+- **The Waveshare ESP32-S3-Touch-LCD-5 as a board of its own** ([docs/WAVESHARE5.md](../docs/WAVESHARE5.md)). The
+  5-inch with 800 x 480 glass is the board of the Waveshare 4.3-inch with a larger panel: the same pins, timings,
+  GT911 touch and CH422G expander in Waveshare's own library, and a 5-inch built from the 4.3-inch package ran with
+  picture, touch and connection working. As its own board it draws tiles, text and keys at their size in millimetres
+  on the larger glass (186.6 dpi instead of 217), three by three lying down like the 4.3-inch and one column of five
+  standing up. It starts as **new**, not experimental. Choose **Waveshare · 5 inch** in New screen; a 5-inch that runs
+  the 4.3-inch package can switch to `packages/waveshare5.yaml` in its own YAML. Not the 5B (1024 x 600). Thanks to
+  jlwinland, who ran it and reported it on the Tessera website.
+- Its hardware comes from the new `packages/hardware/waveshare-esp32s3-43.yaml`, which only the 5-inch includes for
+  now; the 4.3-inch's board file is untouched and moves onto it at the next shared release.
+- No firmware for a screen that exists: every screen stays on 0.44.0 and is offered nothing new.
+- Tested: the 5-inch's firmware builds on ESPHome 2026.9.0. Not rendered (the 4.3-inch renders stand for it: the
+  same canvas) and not tried on glass with this package.
+
 ## 0.4.71 (firmware 0.44.0)
 
 - **The simple dial stays inside its card.** The clock's Simple dial face reached into the card's padding on a card
