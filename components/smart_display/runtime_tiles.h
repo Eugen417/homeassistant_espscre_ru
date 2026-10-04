@@ -36,6 +36,7 @@
 #include "kept_pages.h"
 #include "tile_memory.h"
 #include "wifi_status.h"
+#include "ota_status.h"
 #include "picture_store.h"
 #include "media_card.h"
 #include "saver_view.h"
@@ -503,7 +504,13 @@ inline bool font_has(const lv_font_t *font, const std::string &utf8) {
 }
 // Home Assistant's API link as ESPHome itself tracks it: gone the moment the socket drops,
 // back the moment HA reconnects, no guessing from message age.
+#ifdef SCREEN_HOST_LINK
+// The host renders draw the starting screen's steps without Home Assistant: -1 follows the API, 0 and 1 say it.
+inline int host_ha = -1;
+inline bool ha_connected() { return host_ha >= 0 ? host_ha != 0 : esphome::api_is_connected(); }
+#else
 inline bool ha_connected() { return esphome::api_is_connected(); }
+#endif
 // The manager repeats the whole layout every keepalive; one missed round plus its 20 s
 // loop slack and the sending itself are tolerated before the feed counts as gone.
 inline bool feed_alive() { return esphome::millis() - last_received < keepalive_seconds * 2000 + 60000; }
@@ -582,6 +589,11 @@ inline void watch_busy() { if (!busy_timer) busy_timer = lv_timer_create(busy_wa
 // time and ends the ones Home Assistant never gives (actions not allowed, an older Home Assistant) after eight seconds.
 // Only a refusal shows: the tile says Refused for a moment instead of waiting.
 struct WatchedCall { uint32_t id = 0, since = 0; };
+// The screen's own alert card (firmware 0.38.0): the first tap Home Assistant leaves without an answer explains itself
+// once per start, through the same card an automation shows (packages/core.yaml binds it). Such an alert of the
+// screen's own sends no esphome.screen_alert event when it closes (own_alert), so no automation takes it for its own.
+inline void (*hint_alert)(const std::string &title, const std::string &text) = nullptr;
+inline bool own_alert = false, own_alert_next = false, unanswered_told = false;
 inline std::array<WatchedCall, 4> watched_calls{};
 inline const char *const NO_ANSWER = "no answer";
 inline void watch_call(esphome::api::HomeassistantActionRequest &request, const std::string &entity) {
@@ -595,7 +607,34 @@ inline void watch_call(esphome::api::HomeassistantActionRequest &request, const 
   esphome::api::global_api_server->register_action_response_callback(id, [id, entity, session, revision](const esphome::api::ActionResponse &answer) {
     for (auto &c : watched_calls) if (c.id == id) c = {};
     if (!transfer.active || transfer.lease != session || transfer.revision != revision) return;
-    if (answer.is_success() || answer.get_error_message().c_str() == NO_ANSWER) {
+    // No answer and no new state in eight seconds (firmware 0.38.0): Home Assistant took the action and did nothing, which
+    // is what it does when the screen may not perform actions (the ESPHome integration's option); it answers every
+    // other call since 2025.10. The tile says so, the first time a card says why, and the app shows the fix in the editor.
+    if (answer.get_error_message().c_str() == NO_ANSWER) {
+      bool silent = false;
+      const uint32_t now = esphome::millis();
+      for (size_t i = 0; i < model.tiles.size(); ++i) {
+        auto &t = model.tiles[i];
+        // The tile's own wait ended after BUSY_CAP and it went back already; what counts is that no state changed since
+        // the tap and no "it worked" came.
+        if (t.entity != entity || t.confirmed || t.answered_at || t.revision != t.pending_revision ||
+            now - t.pending_since > 12000) continue;
+        silent = true;
+        t.pending = false;
+        t.undo_optimistic();
+        t.release_slider();
+        t.refused_at = std::max<uint32_t>(1, esphome::millis());
+        t.unanswered = true;
+        refresh_tile(i);
+      }
+      if (silent) ESP_LOGW("runtime_action", "Home Assistant neither answered nor acted on %s: may this screen perform actions?", entity.c_str());
+      if (silent && !unanswered_told && hint_alert) {
+        unanswered_told = true;
+        hint_alert(tr(txt::status_no_answer_title), tr(txt::status_no_answer_text));
+      }
+      return;
+    }
+    if (answer.is_success()) {
       // "It worked" without a new state (a stop on a cover that already stands still) ends the wait in a moment
       // instead of running to the cap.
       if (answer.is_success())
@@ -612,6 +651,7 @@ inline void watch_call(esphome::api::HomeassistantActionRequest &request, const 
       model.tiles[i].undo_optimistic();
       model.tiles[i].release_slider();
       model.tiles[i].refused_at = std::max<uint32_t>(1, esphome::millis());
+      model.tiles[i].unanswered = false;
       refresh_tile(i);
     }
   });
@@ -6625,7 +6665,7 @@ inline void render_slot(size_t slot) {
           : t.is_settings() ? std::string(tr(txt::tile_tap_to_open))
           : fill(txt::tile_page, "n", t.page_target());
   else if (!fresh() || !t.available()) value = tr(txt::ha_unavailable);
-  else if (t.refused_at && esphome::millis() - t.refused_at < 4000) value = tr(txt::tile_refused);
+  else if (t.refused_at && esphome::millis() - t.refused_at < 4000) value = tr(t.unanswered ? txt::tile_no_answer : txt::tile_refused);
   else if (set_by_hand) value = chosen;
   else if (d == "light" && t.state == "on" && tile_controls::effect_running(t.extra().effect)) value = t.extra().effect;
   else if (d == "light" && t.state == "on" && std::isfinite(t.brightness)) value = screen_text::percent(static_cast<int>(std::lround(std::clamp(t.brightness, 0.0f, 255.0f) * 100 / 255)));
@@ -7103,11 +7143,29 @@ inline lv_obj_t *boot_brand_create(lv_obj_t *parent) {
   return box;
 }
 // `cover`: over everything on the page, opaque, with the spinner turning ("Preparing pages", firmware 0.3.2+).
-inline void boot_status(lv_obj_t *page, const char *text, bool waiting = true, bool cover = false) {
+// `facts` and `hint` (firmware 0.38.0): small lines under the text, what the screen knows of the step it is on (its
+// network, its address, how long it has waited) and, once a step takes long, what usually fixes it.
+// `qr` (firmware 0.38.0): what a phone's camera reads under the hint, the hotspot to join on the Wi-Fi problem screen,
+// drawn with LVGL's QR code where the board builds it (features/hotspot.yaml, the boards with a hotspot).
+inline lv_obj_t *boot_facts = nullptr, *boot_hint = nullptr, *boot_qr = nullptr;
+inline void boot_status(lv_obj_t *page, const char *text, bool waiting = true, bool cover = false,
+                        const std::string &facts = std::string(), const std::string &hint = std::string(),
+                        const std::string &qr = std::string()) {
   const int width = lv_display_get_horizontal_resolution(lv_obj_get_display(page));
   const bool large = ui::large();
   const int ring = ui::px(large ? 48 : 32), gap = ui::px(large ? 24 : 16), text_width = width - 2 * lv_obj_get_style_x(room_label, LV_PART_MAIN);
+  const int line_gap = ui::px(large ? 8 : 4);
   const lv_font_t *font = watch_font ? watch_font : lv_obj_get_style_text_font(room_label, LV_PART_MAIN);
+  const lv_font_t *note_font = small_font ? small_font : font;
+  auto note = [&](theme::Paint paint) {
+    auto *label = lv_label_create(boot_panel);
+    lv_obj_add_style(label, theme::style(paint), 0);
+    lv_obj_set_style_text_font(label, note_font, 0);
+    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(label, text_width);
+    return label;
+  };
   if (!boot_panel) {
     boot_panel = lv_obj_create(page);
     lv_obj_remove_style_all(boot_panel);
@@ -7123,6 +7181,8 @@ inline void boot_status(lv_obj_t *page, const char *text, bool waiting = true, b
     lv_obj_set_style_text_align(boot_text, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_long_mode(boot_text, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(boot_text, text_width);
+    boot_facts = note(theme::Paint::muted);
+    boot_hint = note(theme::Paint::ink_soft);
     boot_spinner = spinner_create(boot_panel, ring, ui::px(large ? 5 : 4));
     if (firmware_version) {
       boot_version = lv_label_create(boot_panel);
@@ -7145,18 +7205,75 @@ inline void boot_status(lv_obj_t *page, const char *text, bool waiting = true, b
     lv_obj_set_style_bg_opa(boot_panel, LV_OPA_TRANSP, 0);
   }
   if (boot_spinner) set_hidden(boot_spinner, !waiting);
-  lv_label_set_text(boot_text, text);
+  if (strcmp(lv_label_get_text(boot_text), text) != 0) lv_label_set_text(boot_text, text);
+  if (facts != lv_label_get_text(boot_facts)) lv_label_set_text(boot_facts, facts.c_str());
+  if (hint != lv_label_get_text(boot_hint)) lv_label_set_text(boot_hint, hint.c_str());
+  set_hidden(boot_facts, facts.empty());
+  set_hidden(boot_hint, hint.empty());
   // The lockup, the text and the spinner as one block in the middle of the page, the lockup a wider step away: it
-  // names the screen, the text and the spinner say what it waits for.
-  lv_point_t size;
-  lv_text_get_size(&size, text, font, 0, 0, text_width, LV_TEXT_FLAG_NONE);
-  const int brand = boot_brand ? lv_obj_get_height(boot_brand) : 0, brand_gap = boot_brand ? 2 * gap : 0;
-  const int block = brand + brand_gap + size.y + (waiting ? gap + ring : 0);
+  // names the screen, the text and the spinner say what it waits for. The facts sit close under the text they belong
+  // to, the hint a step further.
+  auto height = [&](const char *words, const lv_font_t *f) {
+    lv_point_t size;
+    lv_text_get_size(&size, words, f, 0, 0, text_width, LV_TEXT_FLAG_NONE);
+    return (int) size.y;
+  };
+  const int text_h = height(text, font);
+  const int facts_h = facts.empty() ? 0 : line_gap + height(facts.c_str(), note_font);
+  const int hint_h = hint.empty() ? 0 : gap + height(hint.c_str(), note_font);
+  int brand = boot_brand ? lv_obj_get_height(boot_brand) : 0, brand_gap = boot_brand ? 2 * gap : 0;
+  int qr_h = 0;
+#if LV_USE_QRCODE
+  if (!qr.empty()) {
+    // As large as the room leaves, at most half the glass's width, with a quiet zone of a tenth on every side. Where
+    // that leaves too small a code, the lockup goes first.
+    const int height = lv_display_get_vertical_resolution(lv_obj_get_display(page));
+    const int foot = boot_version ? 2 * ui::px(large ? 16 : 8) + lv_obj_get_height(boot_version) : gap;
+    auto room = [&]() { return height - foot - gap - (brand + brand_gap + text_h + facts_h + hint_h) - gap; };
+    if (room() < ui::px(120) && boot_brand) { set_hidden(boot_brand, true); brand = brand_gap = 0; }
+    const int side = std::max(ui::px(60), std::min(width / 2, room()));
+    const int zone = std::max(4, side / 10), code = side - 2 * zone;
+    if (!boot_qr) {
+      boot_qr = lv_qrcode_create(boot_panel);
+      lv_qrcode_set_dark_color(boot_qr, theme::color(theme::QR_DARK));
+      lv_qrcode_set_light_color(boot_qr, theme::color(theme::QR_LIGHT));
+      lv_obj_set_style_border_color(boot_qr, theme::color(theme::QR_LIGHT), 0);
+    }
+    if (lv_obj_get_style_border_width(boot_qr, LV_PART_MAIN) != zone) lv_obj_set_style_border_width(boot_qr, zone, 0);
+    lv_qrcode_set_size(boot_qr, code);
+    lv_qrcode_update(boot_qr, qr.data(), qr.size());
+    set_hidden(boot_qr, false);
+    qr_h = gap + side;
+  } else if (boot_qr) {
+    set_hidden(boot_qr, true);
+  }
+  if (qr.empty() && boot_brand) set_hidden(boot_brand, false);
+#endif
+  const int block = brand + brand_gap + text_h + facts_h + hint_h + qr_h + (waiting ? gap + ring : 0);
   int top = -block / 2;
   if (boot_brand) { lv_obj_align(boot_brand, LV_ALIGN_CENTER, 0, top + brand / 2); top += brand + brand_gap; }
-  lv_obj_align(boot_text, LV_ALIGN_CENTER, 0, top + size.y / 2);
-  top += size.y + gap;
+  lv_obj_align(boot_text, LV_ALIGN_CENTER, 0, top + text_h / 2);
+  top += text_h;
+  if (facts_h) { lv_obj_align(boot_facts, LV_ALIGN_CENTER, 0, top + line_gap + (facts_h - line_gap) / 2); top += facts_h; }
+  if (hint_h) { lv_obj_align(boot_hint, LV_ALIGN_CENTER, 0, top + gap + (hint_h - gap) / 2); top += hint_h; }
+#if LV_USE_QRCODE
+  if (qr_h && boot_qr) { lv_obj_align(boot_qr, LV_ALIGN_CENTER, 0, top + gap + (qr_h - gap) / 2); top += qr_h; }
+#endif
+  top += gap;
   if (boot_spinner) lv_obj_align(boot_spinner, LV_ALIGN_CENTER, 0, top + ring / 2);
+}
+// A connection that left before it said who it was (firmware 0.38.0, ESPHome's api on_client_disconnected): every
+// client names itself in its first message after the encrypted handshake, so one without a name never got through it.
+// That is Home Assistant (or another ESPHome client) with a key that is not this screen's, and the starting screen says
+// so while it waits for Home Assistant. A client that does get in clears it.
+inline std::string turned_away;
+inline void client_left(const std::string &name, const std::string &address) {
+  if (name.empty() && !address.empty()) turned_away = address;
+}
+inline void client_came() { turned_away.clear(); }
+inline void boot_forget() {
+  if (boot_panel) lv_obj_delete(boot_panel);
+  boot_panel = boot_text = boot_spinner = boot_brand = boot_version = boot_facts = boot_hint = boot_qr = nullptr;
 }
 // A line of fun under "Preparing pages", about what the page being built holds: a joke is welcome where nothing is at
 // stake, and waiting for a screen to load is such a moment. Its first tile of a kind with a line of its own picks it;
@@ -7198,20 +7315,146 @@ inline void prepare_status() {
                            "\n" + tr(next >= 0 ? prepare_joke(next) : txt::preparing_default);
   boot_status(lv_obj_get_parent(room_label), text.c_str(), true, true);
 }
+// The network as a line of facts: its name, the signal and the address, as far as the screen has them.
+inline std::string network_facts(const wifi_status::Link &link) {
+  std::string facts = link.ssid;
+  auto add = [&](const std::string &part) { if (!part.empty()) facts += (facts.empty() ? "" : " \u00B7 ") + part; };
+  if (link.connected && link.rssi < 0) add(std::to_string(link.rssi) + " dBm");
+  add(link.address);
+  return facts;
+}
+// What keeps the screen off its network, in words (wifi_status::trouble), empty while nothing is known to be wrong.
+inline std::string trouble_text(const wifi_status::Link &link) {
+  switch (wifi_status::trouble(link)) {
+    case wifi_status::Trouble::not_found: return tr(txt::status_wifi_not_found);
+    case wifi_status::Trouble::password: return tr(txt::status_wifi_password);
+    case wifi_status::Trouble::weak:
+      return fill(txt::status_wifi_weak, "dbm", std::to_string(link.seen ? link.seen_rssi : link.reason_rssi));
+    case wifi_status::Trouble::failed: return tr(txt::status_wifi_failed);
+    default: return std::string();
+  }
+}
 // A network the screen cannot reach, said on the loading screen over everything (firmware 0.19.0, wifi_status.h): what is
-// wrong, then what fixes it, the hotspot to join with its password or, without one, the way over USB.
-inline std::string wifi_problem_text(const wifi_status::Problem &wifi) {
-  const std::string fix = wifi.hotspot
+// wrong, then what fixes it, the hotspot to join with its password or, without one, the way over USB. Since firmware
+// 0.38.0 the network it tries and why that fails stand between the two.
+// What a phone's camera reads to join the hotspot: the Wi-Fi QR code every phone knows (WIFI:T:WPA;S:...;P:...;;), with
+// the characters it reserves escaped.
+inline std::string hotspot_qr(const wifi_status::Problem &wifi) {
+  if (!wifi.hotspot || wifi.ssid.empty()) return std::string();
+  auto escape = [](const std::string &value) {
+    std::string out;
+    for (char c : value) { if (c == '\\' || c == ';' || c == ',' || c == ':' || c == '"') out += '\\'; out += c; }
+    return out;
+  };
+  return "WIFI:T:" + std::string(wifi.password.empty() ? "nopass" : "WPA") + ";S:" + escape(wifi.ssid) + ";P:" +
+         escape(wifi.password) + ";;";
+}
+inline std::string wifi_fix_text(const wifi_status::Problem &wifi) {
+  return wifi.hotspot
       ? fill(fill(std::string(tr(txt::status_wifi_hotspot)), "name", wifi.ssid), "password", wifi.password)
       : std::string(tr(txt::status_wifi_usb));
-  return std::string(tr(txt::status_wifi_problem)) + "\n\n" + fix;
+}
+// The starting screen, step by step (firmware 0.38.0). People asked what the screen is doing while it starts, and the
+// screen knows: which network it tries and why that fails, its address once it has one, whether Home Assistant came,
+// whether Tessera sent the tiles and how many of them arrived. Every step says itself with what the screen knows of it
+// and how long it has been at it, and once a step takes long, what usually fixes it. tick() draws it again as soon as
+// any of it changes.
+enum class BootStep : uint8_t { wifi, address, home_assistant, tessera, tiles };
+struct BootView { std::string title, facts, hint; };
+// How long a step may take before the screen says what usually fixes it.
+constexpr uint32_t BOOT_HINT_MS = 30000;
+inline BootStep boot_step = BootStep::wifi;
+inline uint32_t boot_step_since = 0;
+inline std::string elapsed_text(uint32_t ms) {
+  const uint32_t seconds = ms / 1000;
+  char text[12];
+  snprintf(text, sizeof(text), "%u:%02u", (unsigned) (seconds / 60), (unsigned) (seconds % 60));
+  return text;
+}
+inline BootView boot_view(uint32_t now) {
+  const auto link = wifi_status::link();
+  const BootStep step = link.wifi && !link.connected ? (link.joined ? BootStep::address : BootStep::wifi)
+                      : !ha_connected() ? BootStep::home_assistant
+                      : transfer.begun ? BootStep::tiles : BootStep::tessera;
+  if (step != boot_step || !boot_step_since) { boot_step = step; boot_step_since = now ? now : 1; }
+  const uint32_t waited = now - boot_step_since;
+  BootView view;
+  std::vector<std::string> lines;
+  if (link.wifi) lines.push_back(network_facts(link));
+  std::string status;
+  switch (step) {
+    case BootStep::wifi:
+      view.title = tr(txt::status_wifi_connecting);
+      status = trouble_text(link);
+      break;
+    case BootStep::address: view.title = tr(txt::status_wifi_address); break;
+    case BootStep::home_assistant:
+      view.title = tr(txt::status_connecting);
+      if (!turned_away.empty()) view.hint = fill(txt::status_hint_key, "address", turned_away);
+      else if (waited >= BOOT_HINT_MS) view.hint = tr(txt::status_hint_home_assistant);
+      break;
+    case BootStep::tessera:
+      view.title = tr(txt::status_waiting);
+      if (waited >= BOOT_HINT_MS) view.hint = tr(txt::status_hint_tessera);
+      break;
+    case BootStep::tiles:
+      view.title = transfer.expected_tiles
+          ? fill(fill(txt::status_loading_tiles_count, "n", (int) transfer.tiles.count()), "total", std::to_string(transfer.expected_tiles))
+          : std::string(tr(txt::status_loading_tiles));
+      break;
+  }
+  // The time a step takes, once it takes long enough to wonder about (a normal start passes each step in a second).
+  if (waited >= 3000) status += (status.empty() ? "" : " \u00B7 ") + elapsed_text(waited);
+  if (!status.empty()) lines.push_back(status);
+  for (const auto &line : lines) if (!line.empty()) view.facts += (view.facts.empty() ? "" : "\n") + line;
+  return view;
+}
+// An update coming in, over everything (ota_status.h): drawn at once, since ESPHome's update loop holds LVGL's own. It
+// stands on LVGL's top layer, over the screensaver, a card and the settings page, and the screen wakes for it first
+// (ota_status::wake): an update that ran under a screensaver showed nothing until the screen restarted.
+inline lv_obj_t *ota_panel = nullptr, *ota_label = nullptr;
+inline void ota_forget() {
+  if (ota_panel) lv_obj_delete(ota_panel);
+  ota_panel = ota_label = nullptr;
+}
+inline void ota_draw() {
+  const auto &p = ota_status::now;
+  if (p.phase == ota_status::Phase::none) { ota_forget(); return; }
+  if (!ota_panel) {
+    if (ota_status::wake) ota_status::wake();
+    ota_panel = lv_obj_create(lv_layer_top());
+    lv_obj_remove_style_all(ota_panel);
+    lv_obj_set_size(ota_panel, lv_pct(100), lv_pct(100));
+    lv_obj_remove_flag(ota_panel, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(ota_panel, LV_OBJ_FLAG_CLICKABLE);  // nothing under it takes a tap meanwhile
+    lv_obj_set_style_bg_color(ota_panel, theme::color(theme::PAGE), 0);
+    lv_obj_set_style_bg_opa(ota_panel, LV_OPA_COVER, 0);
+    ota_label = lv_label_create(ota_panel);
+    lv_obj_add_style(ota_label, theme::style(theme::Paint::ink), 0);
+    if (watch_font) lv_obj_set_style_text_font(ota_label, watch_font, 0);
+    lv_obj_set_style_text_align(ota_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_label_set_long_mode(ota_label, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(ota_label, lv_pct(86));
+    lv_obj_center(ota_label);
+  }
+  lv_obj_move_foreground(ota_panel);
+  const std::string text = p.phase == ota_status::Phase::done ? std::string(tr(txt::status_update_restart))
+                         : p.phase == ota_status::Phase::failed ? std::string(tr(txt::status_update_failed))
+                         : fill(txt::status_updating, "percent", screen_text::percent(p.percent));
+  lv_label_set_text(ota_label, text.c_str());
+  lv_refr_now(nullptr);
 }
 // Before the first layout the screen is starting: HA connects, then ESP Screens sends the tiles.
 inline void render(lv_obj_t *room) {
   if (!enabled) return;
   room_label=room; swipe_profile::Lap lap;
+  ota_status::watch();
+  ota_status::draw = ota_draw;
   if (const auto wifi = wifi_status::problem(); wifi.shown) {
-    boot_status(lv_obj_get_parent(room), wifi_problem_text(wifi).c_str(), false, true);
+    const auto link = wifi_status::link();
+    std::string facts = link.ssid;
+    if (const std::string why = trouble_text(link); !why.empty()) facts += (facts.empty() ? "" : "\n") + why;
+    boot_status(lv_obj_get_parent(room), tr(txt::status_wifi_problem), false, true, facts, wifi_fix_text(wifi), hotspot_qr(wifi));
     return;
   }
   if (protocol_problem != ProtocolProblem::none) {
@@ -7220,9 +7463,12 @@ inline void render(lv_obj_t *room) {
     return;
   }
   if (!model.configured && !model.refusal.empty()) boot_status(lv_obj_get_parent(room), tr(txt::tile_refused), false);
-  else if (!model.configured) boot_status(lv_obj_get_parent(room), tr(!ha_connected() ? txt::status_connecting : transfer.begun ? txt::status_loading_tiles : txt::status_waiting));
+  else if (!model.configured) {
+    const auto view = boot_view(esphome::millis());
+    boot_status(lv_obj_get_parent(room), view.title.c_str(), true, false, view.facts, view.hint);
+  }
   else if (preparing.foreground) prepare_status();
-  else if (boot_panel) { lv_obj_delete(boot_panel); boot_panel = boot_text = boot_spinner = boot_brand = boot_version = nullptr; }
+  else if (boot_panel) boot_forget();
   name_label(room, !model.configured ? std::string() : !model.ready() ? tr(txt::status_loading_tiles) : !ha_connected() ? tr(txt::status_ha_not_connected) : !feed_alive() ? tr(txt::status_manager_not_active) : model.title_of(applied_page));
   render_header();
   lap(swipe_profile::HEADER);
@@ -7245,7 +7491,18 @@ inline void render(lv_obj_t *room) {
 // The page owns the header data; this adapter resolves navigation and settings.
 inline const void *header_home_mark = nullptr;  // the Tessera mark of the home key, an lv_image_dsc_t
 inline const lv_font_t *header_back_font = nullptr;
+inline const lv_font_t *header_status_font = nullptr;  // the Wi-Fi item's bars (firmware 0.38.0)
 inline std::function<void()> back_home;
+// What the screen's own top bar items read (firmware 0.38.0): its network and whether Home Assistant and Tessera are there.
+inline header_bar::Device header_device() {
+  const auto link = wifi_status::link();
+  return {link.connected, link.rssi, ha_connected() && feed_alive()};
+}
+inline const header_bar::Bar *shown_bar() {
+  const int index = shown_page ? *shown_page : 0;
+  return model.configured && index >= 0 && static_cast<size_t>(index) < model.page_data.records.size()
+       ? &model.page_data.records[index].bar : nullptr;
+}
 inline page_header::Renderer header_renderer;
 inline void draw_header(bool live) {
   const int index = shown_page ? *shown_page : 0;
@@ -7255,18 +7512,26 @@ inline void draw_header(bool live) {
   using page_header::Leading;
   const auto leading = !record ? Leading::none : header_back() ? Leading::back
                      : record->home_control && settings_screen::home_button ? Leading::home : Leading::none;
+  page_header::View view{record ? record->bar : empty, header_name, now_time ? now_time() : esphome::ESPTime{},
+                         now_epoch(), leading, live, screen_settings::current.clock_24h != 0, header_device()};
   header_renderer.draw({room_label, time_label, tile_grid, settings_screen::hold_area,
-                        header_text_font, header_icon_font, header_home_mark, header_back_font},
-                       {record ? record->bar : empty, header_name, now_time ? now_time() : esphome::ESPTime{},
-                        now_epoch(), leading, live, screen_settings::current.clock_24h != 0}, []() {
+                        header_text_font, header_icon_font, header_home_mark, header_back_font, header_status_font},
+                       view, []() {
     // The leading key keeps its existing place in the shared action guard.
     if (!allowed(esphome::millis(), 14, "header navigation")) return;
     if (header_back()) go_back();
     else if (back_home) back_home();
   });
 }
+// A tap on the Wi-Fi item or the link mark opens "This screen" (firmware 0.38.0), the network and links in words.
+inline std::function<void()> open_this_screen;
 inline void render_header() {
-  if (enabled) draw_header(ha_connected() && feed_alive());
+  if (!enabled) return;
+  header_renderer.on_status([]() {
+    if (!allowed(esphome::millis(), 14, "header navigation")) return;
+    if (open_this_screen) open_this_screen();
+  });
+  draw_header(ha_connected() && feed_alive());
 }
 
 // Inspect actual LVGL coordinates, including padding and the loaded font metrics.
@@ -8124,6 +8389,40 @@ inline void tick() {
     }
   }
   if(!enabled)return;
+  // A failed update says so for five seconds, then the pages come back (ota_status.h).
+  if(ota_status::now.phase==ota_status::Phase::failed){
+    static uint32_t failed_at=0;
+    if(!failed_at)failed_at=esphome::millis()|1;
+    else if(esphome::millis()-failed_at>5000){failed_at=0;ota_status::now={};ota_forget();refresh_all();}
+  }
+  // The starting screen follows every step as it happens (firmware 0.38.0): drawn again whenever what it says changes,
+  // the seconds of a step that takes long included.
+  if(room_label && !model.configured && model.refusal.empty() && protocol_problem==ProtocolProblem::none && !wifi_shown){
+    static std::string said;
+    const auto view=boot_view(esphome::millis());
+    std::string now_said=view.title+'\x1f'+view.facts+'\x1f'+view.hint;
+    if(now_said!=said || !boot_panel){said=std::move(now_said);boot_status(lv_obj_get_parent(room_label),view.title.c_str(),true,false,view.facts,view.hint);}
+  }
+  // "This screen" on the settings page tells its network and links again every two seconds while it is open.
+  if(settings_screen::root && settings_screen::current_page==4){
+    static uint32_t told=0;
+    if(esphome::millis()-told>2000){told=esphome::millis();settings_screen::refresh();}
+  }
+  // The Wi-Fi item follows the signal (firmware 0.38.0): looked at every five seconds, drawn when what it says changes.
+  if(const auto *bar=shown_bar()){
+    static uint32_t looked=0;
+    static header_bar::Shown said;
+    if(esphome::millis()-looked>5000){
+      looked=esphome::millis();
+      const auto device=header_device();
+      for(size_t i=0;i<bar->count;++i){
+        if(bar->items[i].kind!=header_bar::Kind::wifi)continue;
+        const auto now_shown=header_bar::device_item(bar->items[i],device);
+        if(now_shown.shown!=said.shown || now_shown.icon!=said.icon || now_shown.text!=said.text){said=now_shown;refresh_header_only();}
+        break;
+      }
+    }
+  }
   media_library::tick(esphome::millis());
   // Only the cards that change are drawn again: a clock or a finished command redraws its own card.
   bool redraw=false;

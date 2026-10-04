@@ -1,3 +1,56 @@
+## 0.4.63 (firmware 0.38.0)
+
+- **The starting screen says what it is doing, step by step** ([#130](https://github.com/MaxGramser/homeassistant_espscreen/issues/130)).
+  Connecting to Wi-Fi and the network's name, getting an address, waiting for Home Assistant, waiting for Tessera,
+  loading tiles 12/40, preparing pages. Under each step stands what the screen knows of it: the network, its signal in
+  dBm and the address, and how long the step has taken once it takes more than a few seconds. Everything comes from
+  ESPHome itself (the network it tries, the signal, the address, its Wi-Fi scan), so nothing new runs on the screen.
+- **When the Wi-Fi does not work, the screen says why**: the network is not found, the password is not accepted, or
+  the signal is too weak. The reason is the one ESP-IDF gives when the access point turns the screen away, which ESPHome
+  only writes to its log. After a minute, or once the hotspot is up, the Wi-Fi problem screen also names the network and
+  the reason.
+- **The hotspot of a screen that lost its network says which screen it is**, "Tessera Living room" instead of
+  "living-room Setup", so a house full of screens after a new router shows which hotspot is which. A screen made before
+  gets the new name with its next update. Under the hotspot's name and password stands a **QR code**: point a phone's
+  camera at it and the phone joins the hotspot, where ESPHome's page lets you pick the new network. Only on boards with a
+  hotspot; the CYD and the other 4 MB boards have none and build no QR code.
+- **A step that takes long says what usually fixes it.** After 30 seconds without Home Assistant: is this screen added
+  under Settings → Devices & services → ESPHome? After 30 seconds without Tessera: is the app running? And at once, when
+  Home Assistant (or anything else) tried to connect with a key that is not this screen's, which address that was and to
+  enter this screen's key in the ESPHome integration (ESPHome's own `on_client_disconnected`: a client that leaves
+  before it names itself never got through the encrypted handshake).
+- **A firmware update shows how far it is.** The screen wakes, closes the screensaver and says "Updating firmware 45%"
+  over everything, then "Update complete, restarting". Before, the screen looked frozen for a minute. ESPHome's own OTA
+  listener reports the progress, whatever OTA platform the screen's YAML has.
+- **New top bar items from the screen itself**: the Wi-Fi signal, the familiar icon with four bars down to one and
+  struck through without a network, as an icon alone or with a percentage or dBm beside it, always or only when weak; and
+  a connection warning that appears only while Home Assistant or Tessera is away. Both stay in the bar when Home
+  Assistant is gone, when every other item has left it. Tap either and "This screen" opens on the settings page. A
+  screen gets them once its firmware takes them (its hello says so); an older one shows the rest of its bar as before.
+- **"This screen" on the settings page** now also shows the Wi-Fi network with its signal and whether Tessera is
+  connected, and tells them again every two seconds while it is open. Thanks to @woozer, whose screenshots in #130
+  showed these rows first.
+- **A tap Home Assistant ignores explains itself.** Home Assistant ignores a screen's actions until "Allow the device to
+  perform Home Assistant actions" is on, and answers nothing. Such a tap now says "No answer" on its tile, and the first
+  one after a start opens a card: no answer from Home Assistant, and where to turn actions on. It is the screen's own
+  card, so it sends no `esphome.screen_alert` event when it closes. The editor shows the same fix on the screen's page
+  as soon as Home Assistant has raised its own repair issue for it.
+- **The progress bar of a new screen's build moves while it builds.** ninja writes its count over one line again and
+  again, and the app kept only the start of that line, so the bar stood near 0 % for the whole build and then jumped.
+  The app now keeps what a terminal shows, the bar follows the build itself (not the bootloader beside it, nor the size
+  report after it, which put it back to 0 % at the end), and getting ready moves too: reading the configuration,
+  generating the code, checking ESP-IDF and configuring CMake each take the bar a little further.
+- The fourth Wi-Fi bar, the struck-through one and the other three cost five glyphs in one small font of their own.
+  The CYD's firmware is at 86.9 % of its slot (1,764,544 bytes), up from 86.3 %.
+- Every screen is offered this firmware, 0.38.0.
+- Tested: the add-on, editor and firmware checks, new tests for the Wi-Fi diagnosis, the top bar items, the hotspot name
+  and its rename on older screens, and the editor preview rebuilt from this firmware. On the bench CYD, 4-inch Guition and
+  Waveshare 4.3: the Wi-Fi item and "This screen", an update from standby showing its progress on the Guition and the CYD,
+  a wrong Wi-Fi password saying "Password not accepted" on both and then the problem screen (USB on the CYD, the hotspot
+  with its QR code on the Guition), the Guition joined to the right network again through that QR code, a CYD with a key
+  Home Assistant does not have, and the Guition with actions turned off (the tile, the card, the repair issue read by the
+  app, and no event when the card closed).
+
 ## 0.4.62 (firmware 0.37.0)
 
 - **A tile on a Hue room no longer jumps back after a tap** ([#159](https://github.com/MaxGramser/homeassistant_espscreen/issues/159)).

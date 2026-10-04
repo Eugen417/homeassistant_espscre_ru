@@ -15,7 +15,8 @@ import unicodedata
 from datetime import datetime, time
 
 import tile_icons
-from core import HEADER_BUILTIN, HEADER_CONTENTS, HEADER_MAX_ITEMS, HEADER_MIN_FIRMWARE, HEADER_SHOWS, epoch, header_items, local_clock, one_mu, short, state_word
+from core import (BAR_STATUS_FEATURE, BAR_STATUS_MIN_FIRMWARE, HEADER_BUILTIN, HEADER_CONTENTS, HEADER_MAX_ITEMS, HEADER_MIN_FIRMWARE,
+                  HEADER_SHOWS, HEADER_STATUS, WIFI_CONTENTS, WIFI_SHOWS, epoch, header_items, local_clock, one_mu, short, state_word)
 import i18n
 from i18n import TRANSLATIONS, screen_number, screen_t, t
 
@@ -322,11 +323,29 @@ def entity_item(item, states, registry=None, units=None, tz=None, words=None):
         wire['c'] = color
     return wire, item['show'] == 'always' or active(entity, state)
 
-def message(layout, states, registry=None, units=None, tz=None, words=None):
+# What the Wi-Fi item's text says beside its bars on the screen (header_bar.h device_item): nothing, a percentage or dBm.
+WIFI_TEXT = {'icon': '', 'percent': '%', 'dbm': 'dBm'}
+
+def status_item(item):
+    """The screen's own item as the screen reads it: Wi-Fi with its text and `a` for only when weak, or the link."""
+    if item['type'] == 'link':
+        return {'k': 'link'}
+    wire = {'k': 'wifi', 't': WIFI_TEXT[item['content']]}
+    if item['show'] == 'weak':
+        wire['a'] = 1
+    return wire
+
+def message(layout, states, registry=None, units=None, tz=None, words=None, features=None):
+    """`features`: what the screen's hello said it takes; the screen's own items go only to one that named them, since an
+    older screen refuses a page with an item it does not know. None: the screen of this app's own firmware (the preview)."""
     items = []
     for item in header_items(layout):
         if item['type'] in HEADER_BUILTIN:
             items.append({'k': item['type']})
+            continue
+        if item['type'] in HEADER_STATUS:
+            if features is None or BAR_STATUS_FEATURE in features:
+                items.append(status_item(item))
             continue
         wire, shown = entity_item(item, states, registry, units, tz, words)
         if shown:
@@ -337,7 +356,7 @@ def preview(header, states, registry=None, units=None, tz=None, words=None):
     """What the editor's mockup shows per item, hidden ones included and marked."""
     result = []
     for item in header['items']:
-        if item['type'] in HEADER_BUILTIN:
+        if item['type'] in HEADER_BUILTIN or item['type'] in HEADER_STATUS:
             result.append({'k': item['type'], 'name': t(f"addon.labels.top_bar.builtin.{item['type']}"), 'shown': True})
             continue
         wire, shown = entity_item(item, states, registry, units, tz, words)
@@ -380,7 +399,11 @@ def suggestions(screen, entities, states, registry=None, limit=8):
 
 def catalogue():
     """Choices the editor offers; labels in the order the sheet shows them, in the editor's language (app 0.2.90)."""
-    return {'builtin': [{'type': key, 'label': t(f'addon.labels.top_bar.builtin.{key}')} for key in HEADER_BUILTIN],
+    return {'builtin': [{'type': key, 'label': t(f'addon.labels.top_bar.builtin.{key}')} for key in (*HEADER_BUILTIN, *HEADER_STATUS)],
             'contents': [{'key': key, 'label': t(f'addon.labels.top_bar.contents.{key}')} for key in HEADER_CONTENTS],
             'shows': [{'key': key, 'label': t(f'addon.labels.top_bar.shows.{key}')} for key in HEADER_SHOWS],
+            # The Wi-Fi item's choices, and the firmware that draws the screen's own items (0.38.0).
+            'wifi_contents': [{'key': key, 'label': t(f'addon.labels.top_bar.wifi_contents.{key}')} for key in WIFI_CONTENTS],
+            'wifi_shows': [{'key': key, 'label': t(f'addon.labels.top_bar.wifi_shows.{key}')} for key in WIFI_SHOWS],
+            'status_types': list(HEADER_STATUS), 'status_min_firmware': '.'.join(map(str, BAR_STATUS_MIN_FIRMWARE)),
             'max_items': HEADER_MAX_ITEMS, 'min_firmware': '.'.join(map(str, HEADER_MIN_FIRMWARE))}

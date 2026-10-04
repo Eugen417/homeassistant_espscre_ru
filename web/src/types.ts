@@ -138,6 +138,8 @@ export type Screen = {
   source_grid?: PageGrid | null;
   tile_sizes?: string[];
   page_capability?: "ready" | "update_screen" | "offline";
+  // Home Assistant ignores its taps: it may not perform actions (app 0.4.63, the ESPHome integration's own repair issue).
+  actions_blocked?: boolean;
   page_last_capability?: "ready" | "update_screen" | null;
   page_delivery?: string;
   page_saved_revision?: string | null;
@@ -214,6 +216,10 @@ export type Inventory = {
     builtin: { type: string; label: string }[];
     contents: { key: string; label: string }[];
     shows: { key: string; label: string }[];
+    // The screen's own Wi-Fi item's choices and the firmware that draws the screen's own items (app 0.4.63).
+    wifi_contents?: { key: string; label: string }[];
+    wifi_shows?: { key: string; label: string }[];
+    status_types?: string[]; status_min_firmware?: string;
     suggestions?: Record<string, { item: HeaderItem; label: string; name?: string; area?: string; icon?: string }[]>;
   };
   alerts?: any;

@@ -36,7 +36,10 @@ class PackageTests(unittest.TestCase):
         checker = load_checker()
         for board, profile in BOARDS.items():
             for name in (profile, f'packages/{board}.yaml'):
-                self.assertEqual(sorted(checker.included(ROOT / name)), sorted(['packages/core.yaml', str(profiles.BOARDS[board].relative_to(ROOT))]), name)
+                # And a board with a Wi-Fi fallback hotspot its QR code (firmware 0.38.0); a board with 4 MB of flash has none.
+                hotspot = ['packages/features/hotspot.yaml'] if profiles.hotspot(board) else []
+                self.assertEqual(sorted(checker.included(ROOT / name)),
+                                 sorted(['packages/core.yaml', str(profiles.BOARDS[board].relative_to(ROOT)), *hotspot]), name)
                 # The board brings the cards of its grid.
                 cells = profiles.cells_of(profiles.BOARDS[board])
                 self.assertEqual(len(cells), 1, board)

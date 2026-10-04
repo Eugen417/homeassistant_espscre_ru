@@ -20,6 +20,8 @@ struct Surface {
   // The home key's picture, the Tessera mark (an lv_image_dsc_t); without one the icon font's house stands there.
   const void *home_mark;
   const lv_font_t *back_font = nullptr;
+  // The Wi-Fi item's bars (firmware 0.38.0): a font of their own, so the tile icon fonts carry none of them.
+  const lv_font_t *status_font = nullptr;
 };
 struct View {
   const header_bar::Bar &bar;
@@ -28,9 +30,14 @@ struct View {
   int64_t epoch;
   Leading leading;
   bool live, clock_24h;
+  header_bar::Device device{};  // what the screen's own items read (firmware 0.38.0)
 };
 class Renderer {
   void (*leading_action)() = nullptr;
+  // A tap on the screen's own items (firmware 0.38.0) opens "This screen" on the settings page, which names the network
+  // and says what is connected; the runtime supplies it, guarded like the leading key.
+  void (*status_action)() = nullptr;
+  lv_obj_t *status_tap = nullptr;
   static void label(lv_obj_t *obj, const std::string &text) {
     if (text != lv_label_get_text(obj)) lv_label_set_text(obj, text.c_str());
   }
@@ -92,10 +99,12 @@ class Renderer {
   // `live`: Home Assistant's values may show; without its link or the manager's feed only clocks stay.
 public:
   lv_obj_t *leading_target() const { return header_home_tap; }
+  void on_status(void (*action)()) { status_action = action; }
   void restyle() { for (auto &slot : header_slots) { slot.own = true; slot.icon_color = UINT32_MAX; } }
   // Used only when a host renderer replaces its preview surface.
   void reset() {
     if (header_home_tap) lv_obj_delete(header_home_tap);
+    if (status_tap) lv_obj_delete(status_tap);
     if (header_root) lv_obj_delete(header_root);
     *this = Renderer{};
   }
@@ -149,6 +158,17 @@ public:
         auto *renderer = static_cast<Renderer *>(lv_event_get_user_data(event));
         if (renderer->leading_action) renderer->leading_action();
       }, LV_EVENT_CLICKED, this);
+      // The same kind of finger's area over the screen's own items, in the same place in the drawing order.
+      status_tap = lv_obj_create(page);
+      lv_obj_remove_style_all(status_tap);
+      lv_obj_remove_flag(status_tap, LV_OBJ_FLAG_SCROLLABLE);
+      lv_obj_add_flag(status_tap, LV_OBJ_FLAG_CLICKABLE);
+      lv_obj_add_flag(status_tap, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_move_to_index(status_tap, lv_obj_get_index(header_home_tap) + 1);
+      lv_obj_add_event_cb(status_tap, [](lv_event_t *event) {
+        auto *renderer = static_cast<Renderer *>(lv_event_get_user_data(event));
+        if (renderer->status_action) renderer->status_action();
+      }, LV_EVENT_CLICKED, this);
       header_ring = lv_obj_create(header_root);
       lv_obj_remove_style_all(header_ring);
       lv_obj_remove_flag(header_ring, LV_OBJ_FLAG_CLICKABLE);
@@ -201,7 +221,7 @@ public:
     // The dial is as large as a round icon (clock-outline) of the icon font.
     int dial = lv_font_get_glyph_dsc(header_icon_font, &dial_glyph, 0xF0150, 0) && dial_glyph.box_h ? dial_glyph.box_h : zero.box_h * 3 / 2;
 
-    struct Part { size_t item = 0; uint32_t icon = 0; int icon_left = 0, icon_w = 0, text_left = 0, text_w = 0, width = 0; bool dial = false; std::string text; };
+    struct Part { size_t item = 0; uint32_t icon = 0; const lv_font_t *font = nullptr; int icon_left = 0, icon_w = 0, text_left = 0, text_w = 0, width = 0; bool dial = false; std::string text; };
     std::array<Part, header_bar::MAX_ITEMS> parts;
     std::array<int, header_bar::MAX_ITEMS> widths{};
     size_t count = 0;
@@ -213,11 +233,21 @@ public:
       p.item = i;
       if (item.kind == Kind::analog) { p.dial = true; p.width = dial; }
       else {
-        p.text = item.kind == Kind::clock ? (now.is_valid() ? screen_text::clock_text(hhmm(now), view.clock_24h) : std::string("--:--"))
-               : item.kind == Kind::date ? (now.is_valid() ? header_bar::date_text(now.day_of_week, now.day_of_month, now.month) : std::string("—"))
-               : item.kind == Kind::ago ? header_bar::ago_text(item.epoch, view.epoch) : item.text;
+        uint32_t icon = item.icon;
+        const lv_font_t *font = header_icon_font;
+        if (item.kind == Kind::wifi || item.kind == Kind::link) {
+          const auto own = header_bar::device_item(item, view.device);
+          if (!own.shown) continue;
+          p.text = own.text;
+          icon = own.icon;
+          if (item.kind == Kind::wifi && surface.status_font) font = surface.status_font;
+        } else {
+          p.text = item.kind == Kind::clock ? (now.is_valid() ? screen_text::clock_text(hhmm(now), view.clock_24h) : std::string("--:--"))
+                 : item.kind == Kind::date ? (now.is_valid() ? header_bar::date_text(now.day_of_week, now.day_of_month, now.month) : std::string("—"))
+                 : item.kind == Kind::ago ? header_bar::ago_text(item.epoch, view.epoch) : item.text;
+        }
         lv_font_glyph_dsc_t g;
-        if (item.icon && lv_font_get_glyph_dsc(header_icon_font, &g, item.icon, 0) && g.box_w) { p.icon = item.icon; p.icon_left = g.ofs_x; p.icon_w = g.box_w; }
+        if (icon && lv_font_get_glyph_dsc(font, &g, icon, 0) && g.box_w) { p.icon = icon; p.font = font; p.icon_left = g.ofs_x; p.icon_w = g.box_w; }
         auto ink = text_ink(header_text_font, p.text);
         p.text_left = ink.left;
         p.text_w = std::max(0, ink.right - ink.left);
@@ -282,10 +312,17 @@ public:
 
     std::array<bool, header_bar::MAX_ITEMS> icon_on{}, text_on{};
     bool dial_on = false;
+    // The screen's own items on the bar, left edge to right edge, for the finger's area over them.
+    int status_left = -1, status_right = -1;
     for (size_t k = placement.first; k < count; ++k) {
       const auto &p = parts[k];
       auto &slot = header_slots[k];
       int x = left + placement.x[k];
+      const auto kind = bar.items[p.item].kind;
+      if (kind == header_bar::Kind::wifi || kind == header_bar::Kind::link) {
+        if (status_left < 0) status_left = x;
+        status_right = x + p.width;
+      }
       if (p.dial) {
         int top = (middle2 - dial) / 2, stroke = std::max(1, (dial + 5) / 10), hand = std::max(1, (dial * 75 + 500) / 1000);
         lv_obj_set_pos(header_ring, x, top);
@@ -310,11 +347,12 @@ public:
       }
       if (p.icon) {
         lv_font_glyph_dsc_t g;
-        lv_font_get_glyph_dsc(header_icon_font, &g, p.icon, 0);
+        lv_font_get_glyph_dsc(p.font, &g, p.icon, 0);
+        set_font(slot.icon, p.font);
         label(slot.icon, tile_icon::utf8(p.icon));
         // LVGL draws a glyph's ink from (line_height - base_line) - box_h - ofs_y below the label top.
         int ink_top = (middle2 - g.box_h) / 2;
-        lv_obj_set_pos(slot.icon, x - g.ofs_x, ink_top - ((header_icon_font->line_height - header_icon_font->base_line) - g.box_h - g.ofs_y));
+        lv_obj_set_pos(slot.icon, x - g.ofs_x, ink_top - ((p.font->line_height - p.font->base_line) - g.box_h - g.ofs_y));
         const auto &item = bar.items[p.item];
         // The words, icons and dial of the top bar take the slate paint; an item's own colour sits on top of it.
         const uint32_t color = item.has_color ? theme::foreground(item.color) : 0;
@@ -334,6 +372,17 @@ public:
       }
     }
     for (size_t k = 0; k < header_slots.size(); ++k) { set_visible(header_slots[k].icon, icon_on[k]); set_visible(header_slots[k].text, text_on[k]); }
+    if (status_tap) {
+      const bool on = status_left >= 0 && status_action;
+      if (on) {
+        // The whole height of the bar and half an item's gap either side, as the home key's area.
+        const int pad = gaps.item / 2;
+        const int band = tile_grid && lv_obj_get_y(tile_grid) > 0 ? lv_obj_get_y(tile_grid) : baseline + name_font->line_height;
+        lv_obj_set_pos(status_tap, std::max(0, status_left - pad), 0);
+        lv_obj_set_size(status_tap, status_right - status_left + 2 * pad, band);
+      }
+      set_visible(status_tap, on);
+    }
     set_visible(header_ring, dial_on);
     for (auto *hand : header_hands) set_visible(hand, dial_on);
   }

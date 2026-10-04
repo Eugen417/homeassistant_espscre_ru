@@ -2,7 +2,7 @@
 // Adding to the top bar: the screen's own items, Home Assistant's suggestions, or any entity.
 import { computed, ref } from "vue";
 import { t } from "../i18n";
-import { BUILTIN_ICONS, clockText, dateText, glyph, itemKey } from "../model/topbar";
+import { BUILTIN_ICONS, clockText, dateText, glyph, itemKey, STATUS_CODES } from "../model/topbar";
 import { addTopbarItem, automaticIcon, clock24, closeInspector, iconNamed, openBar, screenLanguage, state, topbarItems, topbarMax } from "../store";
 import type { HeaderItem } from "../types";
 import Icon from "./ui/Icon.vue";
@@ -15,7 +15,11 @@ const samples = computed(() => ({
   clock: clockText(clock24.value, new Date(state.now), screenLanguage.value),
   analog: t("editor.topbar.analog_sample"),
   date: dateText(new Date(state.now), screenLanguage.value),
+  wifi: t("editor.topbar.wifi_sample"),
+  link: t("editor.topbar.link_sample"),
 } as Record<string, string>));
+// What adding a built-in item puts in the bar: the Wi-Fi signal starts as its bars alone, always shown.
+const builtinItem = (type: string): HeaderItem => (type === "wifi" ? { type, content: "icon", show: "always" } : { type });
 const suggested = computed(() => state.inventory.header?.suggestions?.[state.selected || ""] || []);
 const matches = computed(() => {
   const q = query.value.trim().toLocaleLowerCase();
@@ -32,9 +36,9 @@ const entityItem = (id: string): HeaderItem => ({ type: "entity", entity: id, co
     <div class="f">
       <span class="f-label">{{ t("editor.topbar.add.builtin") }}</span>
       <div class="options">
-        <button v-for="b in state.inventory.header?.builtin || []" :key="b.type" type="button" class="option" :disabled="taken.has(itemKey({ type: b.type }))" @click="addTopbarItem({ type: b.type })">
-          <span class="mdi">{{ glyph(iconNamed(BUILTIN_ICONS[b.type])?.cp || "F0150") }}</span>
-          <span class="tx"><strong>{{ b.label }}</strong><small>{{ taken.has(itemKey({ type: b.type })) ? t("editor.topbar.add.added") : samples[b.type] }}</small></span>
+        <button v-for="b in state.inventory.header?.builtin || []" :key="b.type" type="button" class="option" :disabled="taken.has(itemKey(builtinItem(b.type)))" @click="addTopbarItem(builtinItem(b.type))">
+          <span class="mdi">{{ glyph(STATUS_CODES[b.type] || iconNamed(BUILTIN_ICONS[b.type])?.cp || "F0150") }}</span>
+          <span class="tx"><strong>{{ b.label }}</strong><small>{{ taken.has(itemKey(builtinItem(b.type))) ? t("editor.topbar.add.added") : samples[b.type] }}</small></span>
         </button>
       </div>
     </div>

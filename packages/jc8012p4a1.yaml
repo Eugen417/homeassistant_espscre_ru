@@ -11,6 +11,7 @@ substitutions:
 packages:
   core: !include core.yaml
   board: !include boards/guition-jc8012p4a1.yaml
+  hotspot: !include features/hotspot.yaml
 
 external_components:
   - source:

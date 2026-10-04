@@ -149,5 +149,54 @@ class OlderScreens(unittest.TestCase):
             self.assertTrue(any('hotspot' in line for line in firmware.logs))
 
 
+class HotspotName(unittest.TestCase):
+    """The hotspot of a screen made before app 0.4.63 gets the name with the screen in it at its next build."""
+
+    def write(self, tmp, name, text):
+        path = Path(tmp) / name
+        path.write_bytes(text.encode())
+        return path
+
+    def test_the_old_name_becomes_tessera_and_the_screen(self):
+        text = OLD.replace('BOARD', 'guition').replace('"Kitchen"\n  LANGUAGE', '"Kitchen downstairs"\n  LANGUAGE')
+        with tempfile.TemporaryDirectory() as tmp:
+            firmware = Firmware(tmp, tmp)
+            for index, variant in enumerate((text, text.replace('\n', '\r\n'),
+                                             text.replace('    ssid: "kitchen Setup"', '    ssid: kitchen Setup  # ours'))):
+                with self.subTest(index):
+                    path = self.write(tmp, f'k{index}.yaml', variant)
+                    before = load(variant)
+                    self.assertTrue(firmware.rename_hotspot(path.name))
+                    out = path.read_bytes().decode()
+                    self.assertEqual('\r\n' in out, '\r\n' in variant)
+                    after = load(out)
+                    self.assertEqual(after['wifi']['ap']['ssid'], 'Tessera Kitchen downstairs')
+                    before['wifi']['ap']['ssid'] = 'Tessera Kitchen downstairs'
+                    self.assertEqual(after, before, 'only the name changed')
+                    self.assertFalse(firmware.rename_hotspot(path.name), 'nothing to do the second time')
+
+    def test_a_name_someone_chose_stays(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            firmware = Firmware(tmp, tmp)
+            for index, text in enumerate((OLD.replace('BOARD', 'guition').replace('"kitchen Setup"', '"My own hotspot"'),
+                                          OLD.replace('BOARD', 'cyd').replace('  ap:\n    ssid: "kitchen Setup"\n    password: "kitchen-ap-pw"\ncaptive_portal:\n', ''))):
+                with self.subTest(index):
+                    path = self.write(tmp, f'o{index}.yaml', text)
+                    self.assertFalse(firmware.rename_hotspot(path.name))
+                    self.assertEqual(path.read_bytes().decode(), text)
+
+    def test_every_build_renames_it_first(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            firmware = Firmware(tmp, tmp)
+            path = self.write(tmp, 'kitchen.yaml', OLD.replace('BOARD', 'guition'))
+            firmware.run = lambda *args: asyncio.sleep(0)
+            with unittest.mock.patch('shutil.which', return_value='/usr/bin/esphome'):
+                async def start():
+                    firmware.start({'file': 'kitchen.yaml', 'action': 'build'})
+                    await firmware.task
+                asyncio.run(start())
+            self.assertEqual(load(path.read_text())['wifi']['ap']['ssid'], 'Tessera Kitchen')
+
+
 if __name__ == '__main__':
     unittest.main()

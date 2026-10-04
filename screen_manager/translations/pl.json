@@ -100,7 +100,7 @@
       "days_hours": "{d} d {h} godz."
     },
     "status": {
-      "connecting": "Łączenie z Home Assistant",
+      "connecting": "Czekam na Home Assistant",
       "waiting": "Czekam na Tessera",
       "loading_tiles": "Ładowanie kafelków...",
       "preparing_pages": "Przygotowywanie stron {n}/{total}",
@@ -113,7 +113,22 @@
       "configuration_version": "Błąd konfiguracji.\nSprawdź wersje ekranu i dodatku.",
       "wifi_problem": "Problem z połączeniem Wi-Fi",
       "wifi_hotspot": "Połącz się z hotspotem {name}, aby to naprawić.\nHasło: {password}",
-      "wifi_usb": "Sprawdź nazwę i hasło Wi-Fi, a potem zainstaluj ten ekran ponownie przez USB."
+      "wifi_usb": "Sprawdź nazwę i hasło Wi-Fi, a potem zainstaluj ten ekran ponownie przez USB.",
+      "wifi_connecting": "Łączenie z Wi-Fi",
+      "wifi_address": "Pobieranie adresu",
+      "wifi_not_found": "Nie znaleziono sieci",
+      "wifi_password": "Hasło nie zostało przyjęte",
+      "wifi_weak": "Sygnał zbyt słaby ({dbm} dBm)",
+      "wifi_failed": "Nie udało się połączyć, ponawiam",
+      "loading_tiles_count": "Ładowanie kafelków {n}/{total}",
+      "hint_home_assistant": "Home Assistant jeszcze się nie połączył. Czy ten ekran jest dodany w Ustawienia > Urządzenia oraz usługi > ESPHome?",
+      "hint_tessera": "Czy aplikacja Tessera Screen Manager działa w Home Assistant?",
+      "updating": "Aktualizacja firmware {percent}",
+      "update_restart": "Zaktualizowano, ponowne uruchamianie",
+      "update_failed": "Aktualizacja nie powiodła się",
+      "hint_key": "Odrzucono połączenie z {address}: jego klucz nie pasuje do tego ekranu. Wpisz klucz tego ekranu w integracji ESPHome w Home Assistant.",
+      "no_answer_title": "Brak odpowiedzi z Home Assistant",
+      "no_answer_text": "Często ten ekran nie może jeszcze wykonywać akcji. Włącz to w Home Assistant: ESPHome > ten ekran > Konfiguruj."
     },
     "preparing": {
       "default": "Układanie kafelków",
@@ -165,14 +180,17 @@
       "seconds": "{n} s",
       "minutes": "{n} min",
       "hours": "{n} godz.",
-      "hours_minutes": "{h} godz. {m}"
+      "hours_minutes": "{h} godz. {m}",
+      "wifi": "Wi-Fi",
+      "tessera": "Tessera"
     },
     "tile": {
       "tap_to_open": "Otwórz",
       "page": "Strona {n}",
       "refused": "Odrzucono",
       "command_sent": "Wysłano polecenie...",
-      "confirmed": "Potwierdzone przez Home Assistant"
+      "confirmed": "Potwierdzone przez Home Assistant",
+      "no_answer": "Brak odpowiedzi"
     },
     "alert": {
       "notification": "Powiadomienie",
@@ -862,7 +880,9 @@
         "builtin": {
           "clock": "Godzina",
           "analog": "Zegar analogowy",
-          "date": "Data"
+          "date": "Data",
+          "wifi": "Sygnał Wi-Fi",
+          "link": "Ostrzeżenie o połączeniu"
         },
         "contents": {
           "state": "Stan",
@@ -882,6 +902,15 @@
           "people_home": "Osoby w domu",
           "sun": "Wschód i zachód słońca",
           "co2": "CO₂"
+        },
+        "wifi_contents": {
+          "icon": "Tylko ikona",
+          "percent": "Procent",
+          "dbm": "dBm"
+        },
+        "wifi_shows": {
+          "always": "Zawsze",
+          "weak": "Tylko gdy słaby"
         }
       }
     },
@@ -1825,7 +1854,9 @@
       "detail": {
         "hidden": "Ukryty: teraz nieaktywny",
         "overflow": "Nie mieści się obok nazwy",
-        "dial": "Tarcza"
+        "dial": "Tarcza",
+        "hidden_signal": "Ukryty, dopóki sygnał jest dobry",
+        "hidden_link": "Ukryty, dopóki wszystko jest połączone"
       },
       "live": {
         "hidden": "Teraz ukryty: nieaktywny",
@@ -1860,7 +1891,13 @@
         "none_found": "Nie znaleziono encji."
       },
       "left": "Lewa strona",
-      "left_hint": "Tytuł i przycisk strony głównej: w ustawieniach strony"
+      "left_hint": "Tytuł i przycisk strony głównej: w ustawieniach strony",
+      "wifi_sample": "Sygnał tego ekranu",
+      "link_sample": "Tylko gdy brakuje Home Assistant lub Tessera",
+      "wifi_hint": "Ekran odczytuje własny sygnał, więc ten element zostaje na pasku, gdy Home Assistant jest niedostępny. Od czterech kresek do jednej, przekreślony bez sieci.",
+      "wifi_show_hint": "Tylko gdy słaby zostawia pasek pusty, dopóki sygnał nie spadnie do jednej kreski lub sieć nie zniknie.",
+      "link_hint": "Pojawia się tylko, gdy brakuje Home Assistant lub Tessera, żeby od razu było widać, dlaczego brakuje wartości.",
+      "status_firmware": "Ten element pojawia się od firmware {version}. Do tej aktualizacji ekran go pomija."
     },
     "screen_settings": {
       "groups": {
@@ -2514,7 +2551,8 @@
         "navigation": "Nawigacja"
       },
       "home_hint": "Przycisk strony głównej i przesunięcie w górę prowadzą tutaj.",
-      "bar_entities": "Także po prawej"
+      "bar_entities": "Także po prawej",
+      "actions_blocked": "Home Assistant nie pozwala temu ekranowi wykonywać akcji, więc dotknięcie kafelka nic nie robi. W Home Assistant otwórz Ustawienia → Urządzenia oraz usługi → ESPHome, wybierz ten ekran, potem Konfiguruj, i włącz „Zezwalaj urządzeniu na wykonywanie akcji Home Assistant”."
     },
     "feedback": {
       "question": "Czy ekran działa tak, jak oczekujesz?",

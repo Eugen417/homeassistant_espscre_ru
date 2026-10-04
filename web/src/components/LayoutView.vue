@@ -122,6 +122,8 @@ function onCanvasClick(e: MouseEvent) {
       </span>
       <button type="button" class="btn quiet mini" @click="dismissMigrationNote">{{ t('editor.pages.dismiss_migration') }}</button>
     </div>
+    <!-- Home Assistant ignores this screen's taps until it may perform actions (app 0.4.63, its own repair issue). -->
+    <div v-if="currentScreen?.actions_blocked" class="notice warn" role="status"><Icon name="alert-circle-outline" /><span class="notice-text">{{ t('editor.pages.actions_blocked') }}</span></div>
     <div v-if="currentScreen?.page_capability === 'offline'" class="notice" role="status"><Icon name="information-outline" /><span class="notice-text">{{ t('editor.pages.offline_notice') }}</span></div>
     <div v-if="currentScreen?.page_capability === 'update_screen'" class="notice" role="status">
       <Icon name="update" /><span class="notice-text">{{ t('editor.pages.update_notice') }}</span>

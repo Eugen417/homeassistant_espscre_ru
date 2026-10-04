@@ -106,7 +106,8 @@ class Profiles(unittest.TestCase):
             # page of tiles, the UI self test, an alarm panel that wakes the screen with its card, firmware 0.3.3+)
             # plus the one in the hook the shared touch handler calls; a board that kept its own three lambdas writes
             # the clock three more times.
-            expected = 6 + (0 if shared else 3)
+            # Plus one: a tap on the top bar's Wi-Fi item opens "This screen" (firmware 0.38.0).
+            expected = 7 + (0 if shared else 3)
             if 'preview_camera' in text:
                 expected += 1
             self.assertEqual(len(re.findall(r'id\(last_use_ms\) = millis\(\);', text)), expected, name)

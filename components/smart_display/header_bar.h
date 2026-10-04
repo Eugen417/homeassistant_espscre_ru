@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string>
 #include "screen_text.h"
+#include "wifi_status.h"
 
 namespace header_bar {
 // The top bar right of the screen name (firmware 0.2.32+). ESP Screen Manager decides what shows
@@ -19,7 +20,8 @@ static_assert(MAX_ITEMS >= 6 && MAX_ITEMS <= 16, "a page's bar holds 6 to 16 ite
 // The items the app numbered a bar_value's targets by when it says nothing (page * 6 + index): every app before 0.4.57.
 constexpr size_t WIRE_ITEMS = 6;
 constexpr size_t TEXT_BYTES = 48;
-enum class Kind : uint8_t { none, clock, analog, date, text, ago };
+// `wifi` and `link` (firmware 0.38.0) are the screen's own: it reads them itself, so they stay when Home Assistant goes.
+enum class Kind : uint8_t { none, clock, analog, date, text, ago, wifi, link };
 
 inline Kind kind(const std::string &name) {
   if (name == "clock") return Kind::clock;
@@ -27,6 +29,8 @@ inline Kind kind(const std::string &name) {
   if (name == "date") return Kind::date;
   if (name == "text") return Kind::text;
   if (name == "ago") return Kind::ago;
+  if (name == "wifi") return Kind::wifi;
+  if (name == "link") return Kind::link;
   return Kind::none;
 }
 
@@ -37,8 +41,10 @@ struct Item {
   int64_t epoch = 0;   // Kind::ago: the moment, past or future
   uint32_t color = 0;  // accent of the icon while `has_color`
   bool has_color = false;
+  bool only_weak = false;  // Kind::wifi: shown only while the signal is weak or gone (`a`)
   bool operator==(const Item &o) const {
-    return kind == o.kind && icon == o.icon && text == o.text && epoch == o.epoch && color == o.color && has_color == o.has_color;
+    return kind == o.kind && icon == o.icon && text == o.text && epoch == o.epoch && color == o.color && has_color == o.has_color &&
+           only_weak == o.only_weak;
   }
 };
 
@@ -105,6 +111,38 @@ inline std::string date_text(int day_of_week, int day_of_month, int month) {
   text = fill(text, "weekday_min", tr(txt::date_weekdays_min + day_of_week - 1));
   text = fill(text, "day", std::to_string(day_of_month));
   return fill(text, "month", tr(txt::date_months_short + month - 1));
+}
+
+// The screen's own items (firmware 0.38.0). Wi-Fi draws the signal as a phone does, four bars down to one, and the bars
+// struck through without a network; its text is "" (the icon alone), "%" or "dBm" as the app sends it. The link is a
+// mark that appears only while Home Assistant or Tessera is away. Both read the screen itself, so they also show, and
+// matter most, while Home Assistant is gone and every other item has left the bar.
+constexpr uint32_t WIFI_OFF_GLYPH = 0xF092E;  // wifi-strength-off-outline
+constexpr uint32_t WIFI_GLYPHS[5] = {WIFI_OFF_GLYPH, 0xF091F, 0xF0922, 0xF0925, 0xF0928};  // wifi-strength-1 .. 4
+constexpr uint32_t LINK_GLYPH = 0xF0319;  // lan-disconnect, one of the tile icons
+struct Device {
+  bool wifi = false;   // holds its network
+  int rssi = 0;        // dBm
+  bool linked = true;  // Home Assistant and Tessera both there
+};
+struct Shown {
+  bool shown = false;
+  uint32_t icon = 0;
+  std::string text;
+};
+inline Shown device_item(const Item &item, const Device &device) {
+  Shown s;
+  if (item.kind == Kind::link) {
+    s.shown = !device.linked;
+    s.icon = LINK_GLYPH;
+  } else if (item.kind == Kind::wifi) {
+    const int strength = device.wifi ? wifi_status::bars(device.rssi) : 0;
+    s.icon = WIFI_GLYPHS[strength];
+    s.shown = !item.only_weak || !strength || wifi_status::weak(device.rssi);
+    if (strength && item.text == "%") s.text = screen_text::percent(wifi_status::percent(device.rssi));
+    else if (strength && item.text == "dBm") s.text = std::to_string(device.rssi) + " dBm";
+  }
+  return s;
 }
 
 // What you see between icon and value, between two items and after the name, from the height of

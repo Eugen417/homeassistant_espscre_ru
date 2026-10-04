@@ -89,6 +89,10 @@ enum Role : uint8_t {
   CALIBRATION_PAGE,
   CALIBRATION_INK,
   CALIBRATION_MARK,
+  // ---- the hotspot's QR code on the Wi-Fi problem screen (firmware 0.38.0): black on white in both looks, as a phone's
+  // camera reads a QR code most surely, with a white quiet zone around it
+  QR_DARK,
+  QR_LIGHT,
   ROLE_COUNT
 };
 
@@ -161,6 +165,8 @@ inline constexpr Pair ROLES[ROLE_COUNT] = {
   /* CALIBRATION_PAGE */         {0x101820, 0x101820},
   /* CALIBRATION_INK */          {0xFFFFFF, 0xFFFFFF},
   /* CALIBRATION_MARK */         {0xFFD34D, 0xFFD34D},
+  /* QR_DARK */                  {0x000000, 0x000000},
+  /* QR_LIGHT */                 {0xFFFFFF, 0xFFFFFF},
 };
 
 // The look on screen. The board sets it through set_dark() (below) from the Dark mode setting; the table and the

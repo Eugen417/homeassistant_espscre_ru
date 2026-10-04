@@ -67,6 +67,24 @@ ALERTS = (
                                button2_color='gray')),
 )
 CHOICE_FIELDS = ('button_color', 'button2_text', 'button2_color')
+# The starting screen's steps (firmware 0.38.0, render_boot): a network, its address, Home Assistant, Tessera, a Wi-Fi
+# problem with and without a hotspot, and an update. `waited` is how long the step has taken, in ms.
+BOOT_DEFAULTS = dict(connected=False, joined=False, ssid='', rssi=0, address='', scanned=False, seen=False, seen_rssi=0,
+                     reason=0, failures=0, ha=0, waited=0, hotspot='', password='', ota=-1)
+NETWORK = dict(connected=True, ssid='Home network', rssi=-61, address='192.168.1.40')
+BOOT_STATES = (
+    ('starting-wifi', dict(ssid='Home network', waited=1000)),
+    ('starting-wifi-password', dict(ssid='Home network', scanned=True, seen=True, seen_rssi=-57, reason=15, failures=3, waited=24000)),
+    ('starting-wifi-missing', dict(ssid='Home network', scanned=True, failures=2, waited=41000)),
+    ('starting-address', dict(ssid='Home network', joined=True, waited=4000)),
+    ('starting-home-assistant', dict(NETWORK, waited=6000)),
+    ('starting-home-assistant-hint', dict(NETWORK, waited=95000)),
+    ('starting-tessera-hint', dict(NETWORK, ha=1, waited=48000)),
+    ('starting-wifi-problem', dict(ssid='Home network', scanned=True, seen=True, seen_rssi=-86, reason=15, failures=6,
+                                   hotspot='Kitchen Setup', password='a1b2c3d4')),
+    ('starting-wifi-problem-usb', dict(ssid='Home network', reason=202, failures=6, hotspot='-')),
+    ('updating', dict(NETWORK, ha=1, ota=45)),
+)
 PROBE = re.compile(r'probe page=(-?\d+) applied=(-?\d+) shown=(\d+) tiles=(\d+) alert=(\d) pages=(\d+)')
 HEADER = re.compile(r'state page=(-?\d+) name=\[(.*?)\] shown=\[(.*?)\] name_box=(-?\d+),(-?\d+),(-?\d+),(-?\d+)')
 NAVIGATION = re.compile(r'navigation page=(-?\d+) footer=(\d) back=(\d) grid_height=(\d+) tile=(-?\d+),(-?\d+) prev=(-?\d+),(-?\d+) header=(-?\d+),(-?\d+)')
@@ -1934,6 +1952,12 @@ class Run:
         await self.call('render_time', epoch=int(MOMENT.timestamp()))
         # The starting screen with its Tessera lockup, before any layout (firmware 0.3.8+).
         await self.render('starting')
+        # Each step of it as the screen says it (firmware 0.38.0), from Wi-Fi to an update, then back as it was.
+        if 'render_boot' in self.services:
+            for name, given in BOOT_STATES:
+                await self.call('render_boot', **{**BOOT_DEFAULTS, **given})
+                await self.render(name)
+            await self.call('render_boot', **{**BOOT_DEFAULTS, 'ha': -1})
         side = json.loads((REPO / 'screen_manager/app/boards.json').read_text())[self.item.board]['orientations']
         side = side['portrait' if self.item.rotation else 'landscape']
         grid = send_layout.Grid(side['columns'], side['rows'])

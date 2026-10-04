@@ -8,7 +8,7 @@ import { computed, ref } from "vue";
 import { t } from "../i18n";
 import { beginFieldEdit, endFieldEdit } from '../store';
 import { entriesOf } from "../model/layout";
-import { barLayout, BUILTIN_ICONS, clockText, dateText, glyph, itemKey } from "../model/topbar";
+import { barLayout, BUILTIN_ICONS, clockText, dateText, glyph, itemKey, STATUS_CODES } from "../model/topbar";
 import {
   automaticIcon, barMetrics, clock24, entityName, homeKeyShown, iconNamed, moveTopbarItem, openBar, openBarAdd, openPage,
   removeTopbarItem, screenLanguage, screenText, setTopbarItems, state, supports, topbarItems, topbarLabel, topbarMax, topbarView,
@@ -39,14 +39,21 @@ const supported = computed(() => { const [a, b, c] = needed.value.split(".").map
 const hint = computed(() => supported.value
   ? t(overflow.value.size ? "editor.topbar.hint.overflow" : "editor.topbar.hint.reorder")
   : t("editor.topbar.hint.needs_firmware", { version: needed.value }));
+// Why an item is hidden on the mockup: an entity that is off, a Wi-Fi item while the signal is good, the link mark while
+// everything is connected (the screen's own items, firmware 0.38.0).
+const hiddenText = (it: HeaderItem) => t(it.type === "wifi" ? "editor.topbar.detail.hidden_signal" : it.type === "link" ? "editor.topbar.detail.hidden_link" : "editor.topbar.detail.hidden");
 const detail = (it: HeaderItem, i: number) => {
   const view = topbarView(it);
-  return !view.shown ? t("editor.topbar.detail.hidden") : overflow.value.has(i) ? t("editor.topbar.detail.overflow") : view.analog ? t("editor.topbar.detail.dial") : view.text;
+  return !view.shown ? hiddenText(it) : overflow.value.has(i) ? t("editor.topbar.detail.overflow") : view.analog ? t("editor.topbar.detail.dial") : view.text || topbarLabel(it);
 };
 const iconOf = (it: HeaderItem) => {
   const view = topbarView(it);
+  if (STATUS_CODES[it.type]) return view.icon || STATUS_CODES[it.type];
   return view.analog || it.type !== "entity" ? iconNamed(BUILTIN_ICONS[it.type])?.cp : view.icon;
 };
+// The screen's own items need firmware 0.38.0; an older screen leaves them out of its bar.
+const statusNeeded = computed(() => state.inventory.header?.status_min_firmware || "0.38.0");
+const statusSupported = computed(() => { const [a, b, c] = statusNeeded.value.split(".").map(Number); return supports(a, b, c); });
 const justAdded = (it: HeaderItem) => state.topbarAdded?.key === itemKey(it) && Date.now() - state.topbarAdded.time < 1200;
 // The page whose bar you clicked (app 0.2.105). Its left side, the title and the Home key, belongs to the page and is
 // set in the page's own settings (app 0.3.19); this inspector is about what stands on the right.
@@ -66,7 +73,7 @@ function update(patch: Partial<HeaderItem>) {
 const liveNote = computed(() => {
   if (!item.value) return "";
   const view = topbarView(item.value);
-  return !view.shown ? t("editor.topbar.live.hidden") : overflow.value.has(props.index) ? t("editor.topbar.live.overflow") : t("editor.topbar.live.looks");
+  return !view.shown ? (item.value.type === "entity" ? t("editor.topbar.live.hidden") : hiddenText(item.value)) : overflow.value.has(props.index) ? t("editor.topbar.live.overflow") : t("editor.topbar.live.looks");
 });
 const samples = computed(() => ({
   clock: clockText(clock24.value, new Date(state.now), screenLanguage.value),
@@ -193,6 +200,23 @@ function onKey(e: KeyboardEvent, i: number) {
           <span class="f-label">{{ t("editor.topbar.show.label") }}<HelpTip :text="t('editor.topbar.show.hint')" /></span>
           <Segmented :choices="(state.inventory.header?.shows || []).map((s) => [s.key, s.label] as [string, string])" :value="item.show" @pick="(v) => update({ show: v })" />
         </div>
+      </template>
+      <!-- The screen's own Wi-Fi signal (firmware 0.38.0): what stands beside the bars, and when it shows. -->
+      <template v-else-if="item.type === 'wifi'">
+        <div class="f">
+          <span class="f-label">{{ t("editor.topbar.content.label") }}</span>
+          <Segmented :choices="(state.inventory.header?.wifi_contents || []).map((c) => [c.key, c.label] as [string, string])" :value="item.content || 'icon'" @pick="(v) => update({ content: v })" />
+        </div>
+        <div class="f">
+          <span class="f-label">{{ t("editor.topbar.show.label") }}<HelpTip :text="t('editor.topbar.wifi_show_hint')" /></span>
+          <Segmented :choices="(state.inventory.header?.wifi_shows || []).map((s) => [s.key, s.label] as [string, string])" :value="item.show || 'always'" @pick="(v) => update({ show: v })" />
+        </div>
+        <small class="help">{{ t("editor.topbar.wifi_hint") }}</small>
+        <small v-if="!statusSupported" class="help warn">{{ t("editor.topbar.status_firmware", { version: statusNeeded }) }}</small>
+      </template>
+      <template v-else-if="item.type === 'link'">
+        <small class="help">{{ t("editor.topbar.link_hint") }}</small>
+        <small v-if="!statusSupported" class="help warn">{{ t("editor.topbar.status_firmware", { version: statusNeeded }) }}</small>
       </template>
       <!-- The clock's format is one choice for every screen, under Settings → Language & region (app 0.2.90). -->
       <i18n-t v-else-if="item.type !== 'date'" :keypath="clock24 ? 'editor.topbar.clock_24' : 'editor.topbar.clock_12'" tag="small" id="topbar-clock" class="help" scope="global">

@@ -167,7 +167,7 @@ async def sync_pages(manager, inbox, record, screen, dirty=None, force=False, co
         if reuse and tile['entity'].startswith('weather.') and manager.forecast_due(tile['entity']): reuse = False
         values.append(cached['values'][i] if reuse else await manager.tile_message(i, tile, lamps=lamps, features=features))
     bars = [cached['bars'][i] if not full and dirty.isdisjoint(dependencies[i]) else
-            manager.header_message({'header': {'items': bar_items(page)}})['items'] for i, page in enumerate(record['layout']['pages'])]
+            manager.header_message({'header': {'items': bar_items(page)}}, features)['items'] for i, page in enumerate(record['layout']['pages'])]
     expected = record['revision']
     def current():
         saved = manager.store.get(inbox)

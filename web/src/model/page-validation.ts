@@ -38,8 +38,13 @@ export function validatePageShape(layout: PageLayout) {
     for (const item of bar.trailing) {
       fields(item, ['id', 'type', 'entity', 'content', 'icon', 'show'], ['id', 'type']);
       let key: string;
-      if (rules.headerBuiltin.includes(item.type)) {
+      if (rules.headerBuiltin.includes(item.type) || item.type === rules.headerLink) {
         fields(item, ['id', 'type']); key = item.type;
+      } else if (item.type === rules.headerWifi) {
+        // The screen's own Wi-Fi item (firmware 0.38.0): what it shows beside its bars, and when.
+        fields(item, ['id', 'type', 'content', 'show'], ['id', 'type']);
+        if (!rules.wifiContents.includes(item.content ?? 'icon') || !rules.wifiShows.includes(item.show ?? 'always')) fail();
+        key = JSON.stringify([item.type, item.content ?? 'icon', item.show ?? 'always']);
       } else {
         if (['content', 'show', 'icon'].some(key => key in item && typeof (item as any)[key] !== 'string')) fail();
         if (item.type !== 'entity' || !entity(item.entity, rules.headerDomains) ||

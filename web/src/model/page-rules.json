@@ -79,6 +79,17 @@
     "always",
     "active"
   ],
+  "headerLink": "link",
+  "headerWifi": "wifi",
+  "wifiContents": [
+    "icon",
+    "percent",
+    "dbm"
+  ],
+  "wifiShows": [
+    "always",
+    "weak"
+  ],
   "displays": {
     "camera": [
       "standard",

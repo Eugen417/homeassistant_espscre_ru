@@ -1,6 +1,7 @@
 """Serialised ESPHome CLI jobs. YAML/secrets stay local; no shell or arbitrary commands."""
 import asyncio
 from collections import deque
+from copy import deepcopy
 import glob
 import io
 import json
@@ -14,7 +15,7 @@ import time
 import yaml
 import zipfile
 import build_cache
-from core import BOARD_KEYS, ORIENTATIONS, REF, REPO, SHAPES, installation_yaml
+from core import BOARD_KEYS, ORIENTATIONS, REF, REPO, SHAPES, hotspot_name, installation_yaml, old_hotspot_name
 from i18n import t
 
 LOG = logging.getLogger('screen_manager')
@@ -82,6 +83,17 @@ def _board_choice(shape):
             'max_tiles': shape.get('max_tiles', 64), 'max_pages': shape.get('max_pages', 8), **shape.get('catalog', {})}
 
 BOARD_CHOICES = {board: _board_choice(SHAPES[board]) for board in BOARD_KEYS}
+
+# A terminal's colour and line codes (ninja's "erase to the end of the line", GCC's colours), which a log has no use for.
+ANSI = re.compile(r'\x1b\[[0-9;?]*[A-Za-z]')
+
+
+def terminal_line(text):
+    """A line of ESPHome's output as a terminal shows it (app 0.4.63): ninja writes its count again and again over one
+    line, each update after a carriage return, so only the last one stands; its colour codes go."""
+    parts = [part for part in ANSI.sub('', text.rstrip('\r\n')).split('\r') if part.strip()]
+    return parts[-1].rstrip() if parts else ''
+
 
 class Firmware:
     OVERRIDE_SUFFIX = '.local.yaml'
@@ -359,6 +371,47 @@ class Firmware:
             return data, rest_substitutions
         if not isinstance(after, dict) or (after.get('substitutions') or {}).get(key) != value or rest(after) != rest(before):
             LOG.warning('%s: its %s could not be written without changing more, so it stays as it is', profile.name, what)
+            return False
+        self._atomic_write(profile, updated.replace('\n', newline))
+        self._names.pop(profile.name, None)
+        return True
+
+    def rename_hotspot(self, name):
+        """Give the Wi-Fi fallback hotspot of a profile this app wrote before 0.4.63 its name with the screen in it
+        (core.hotspot_name): "Tessera Living room" instead of "living-room Setup", so a house full of screens that lost a
+        changed network shows which hotspot is which. Only the name this app wrote is replaced, on its own line, and the
+        result is written only when that is the one thing that changed. True when it changed."""
+        profile = self.profile(name)
+        raw = profile.read_bytes().decode('utf-8')
+        newline = '\r\n' if '\r\n' in raw else '\n'
+        text = raw.replace('\r\n', '\n')
+        before = yaml.load(text, Loader=LenientLoader)
+        if not isinstance(before, dict):
+            return False
+        wifi, subs = before.get('wifi'), before.get('substitutions')
+        ap = wifi.get('ap') if isinstance(wifi, dict) else None
+        if not isinstance(ap, dict) or not isinstance(subs, dict):
+            return False
+        device, friendly = subs.get('DEVICE_NAME'), subs.get('DEVICE_FRIENDLY_NAME')
+        if not isinstance(device, str) or not isinstance(friendly, str) or not friendly.strip():
+            return False
+        old, new = old_hotspot_name(device), hotspot_name(friendly)
+        if ap.get('ssid') != old or old == new:
+            return False
+        quote = lambda s: json.dumps(s, ensure_ascii=False)
+        line = re.compile(rf'(?m)^([ \t]+ssid:[ \t]*)(?:{re.escape(quote(old))}|{re.escape(old)}|\'{re.escape(old)}\')([ \t]*(?:#.*)?)$')
+        found = [m for m in line.finditer(text)]
+        updated = None
+        for match in found:
+            candidate = text[:match.start()] + match[1] + quote(new) + match[2] + text[match.end():]
+            after = yaml.load(candidate, Loader=LenientLoader)
+            expected = deepcopy(before)
+            expected['wifi']['ap']['ssid'] = new
+            if after == expected:
+                updated = candidate
+                break
+        if updated is None:
+            LOG.warning('%s: its Wi-Fi hotspot could not be renamed without changing more, so it keeps its name', profile.name)
             return False
         self._atomic_write(profile, updated.replace('\n', newline))
         self._names.pop(profile.name, None)
@@ -772,6 +825,12 @@ packages:
                 dropped = self.drop_hotspot(profile.name)
             except (OSError, ValueError, yaml.YAMLError) as error:
                 LOG.warning('Could not take the Wi-Fi hotspot out of %s (%s)', profile.name, error)
+            # A hotspot that says which screen it is, also on a screen made before (app 0.4.63).
+            if not dropped:
+                try:
+                    self.rename_hotspot(profile.name)
+                except (OSError, ValueError, yaml.YAMLError) as error:
+                    LOG.warning('Could not rename the Wi-Fi hotspot of %s (%s)', profile.name, error)
             # A board whose flash takes the wide table lets its table be replaced over Wi-Fi, also a screen made before
             # (app 0.4.56).
             try:
@@ -881,7 +940,7 @@ packages:
                 self.process=await asyncio.create_subprocess_exec(*cmd,cwd=self.root,env=env,stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.STDOUT,limit=1024*1024,start_new_session=True)
                 async with asyncio.timeout(7200):
                     async for line in self.process.stdout:
-                        self.logs.append(self.redact(line.decode(errors='replace').rstrip()))
+                        self.logs.append(self.redact(terminal_line(line.decode(errors='replace'))))
                     code=await self.process.wait()
                 if code: raise RuntimeError('ESPHome '+stage+' failed; see the log.')
             image = self.factory_image(profile) if action not in ('validate', 'widen') else None

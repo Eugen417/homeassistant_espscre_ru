@@ -72,7 +72,7 @@ The page is a menu of groups, each of which opens a page of its own:
 | Brightness | Brightness (dimmable backlight), Dark mode, Auto standby, Standby after, Standby brightness or Screen on in standby (boards that can go dark) |
 | Night (boards that can go dark) | Night mode, Starts, Ends, Night brightness or Screen on at night |
 | Screen | Back to Home, After, Also on standby (boards that can go dark), Swipe between pages, Page buttons, Show home button, Rotation |
-| This screen | Screen, Address, Firmware, Home Assistant, Calibrate touch (a resistive panel that has a wizard), Restart |
+| This screen | Screen, Address, Wi-Fi (network and signal), Firmware, Home Assistant, Tessera, Calibrate touch (a resistive panel that has a wizard), Restart; the rows say their values again every two seconds while the page is open |
 
 Every change is stored on the screen, applied at once and published on its entity, so Home Assistant and
 Tessera show it within a second. The editor's **Screen settings** panel has the first three groups as

@@ -100,7 +100,7 @@
       "days_hours": "{d} n {h} ó"
     },
     "status": {
-      "connecting": "Csatlakozás a Home Assistanthoz",
+      "connecting": "Várakozás a Home Assistantra",
       "waiting": "Várakozás a Tesserára",
       "loading_tiles": "Csempék betöltése...",
       "preparing_pages": "Oldalak előkészítése {n}/{total}",
@@ -113,7 +113,22 @@
       "configuration_version": "Konfigurációs hiba.\nEllenőrizd a kijelző és a bővítmény verzióját.",
       "wifi_problem": "Wi-Fi-kapcsolati hiba",
       "wifi_hotspot": "Csatlakozz a(z) {name} hotspothoz a javításhoz.\nJelszó: {password}",
-      "wifi_usb": "Ellenőrizd a Wi-Fi nevét és jelszavát, majd telepítsd újra ezt a kijelzőt USB-n."
+      "wifi_usb": "Ellenőrizd a Wi-Fi nevét és jelszavát, majd telepítsd újra ezt a kijelzőt USB-n.",
+      "wifi_connecting": "Csatlakozás a Wi-Fi-hez",
+      "wifi_address": "Cím lekérése",
+      "wifi_not_found": "A hálózat nem található",
+      "wifi_password": "A jelszót nem fogadta el",
+      "wifi_weak": "Túl gyenge jel ({dbm} dBm)",
+      "wifi_failed": "Nem sikerült csatlakozni, újrapróbálás",
+      "loading_tiles_count": "Csempék betöltése {n}/{total}",
+      "hint_home_assistant": "A Home Assistant még nem csatlakozott. Hozzá van adva ez a kijelző a Beállítások > Eszközök és szolgáltatások > ESPHome alatt?",
+      "hint_tessera": "Fut a Tessera Screen Manager alkalmazás a Home Assistantban?",
+      "updating": "Firmware frissítése {percent}",
+      "update_restart": "Frissítve, újraindítás",
+      "update_failed": "A frissítés nem sikerült",
+      "hint_key": "Egy kapcsolat elutasítva innen: {address}. A kulcsa nem ehhez a kijelzőhöz tartozik. Add meg a kijelző kulcsát a Home Assistant ESPHome-integrációjában.",
+      "no_answer_title": "Nincs válasz a Home Assistanttól",
+      "no_answer_text": "Gyakran ez a kijelző még nem hajthat végre műveleteket. Kapcsold be a Home Assistantban: ESPHome > ez a kijelző > Konfigurálás."
     },
     "preparing": {
       "default": "Csempék elrendezése",
@@ -165,14 +180,17 @@
       "seconds": "{n} mp",
       "minutes": "{n} perc",
       "hours": "{n} óra",
-      "hours_minutes": "{h} ó {m}"
+      "hours_minutes": "{h} ó {m}",
+      "wifi": "Wi-Fi",
+      "tessera": "Tessera"
     },
     "tile": {
       "tap_to_open": "Megnyitás",
       "page": "{n}. oldal",
       "refused": "Elutasítva",
       "command_sent": "Parancs elküldve...",
-      "confirmed": "A Home Assistant megerősítette"
+      "confirmed": "A Home Assistant megerősítette",
+      "no_answer": "Nincs válasz"
     },
     "alert": {
       "notification": "Értesítés",
@@ -862,7 +880,9 @@
         "builtin": {
           "clock": "Idő",
           "analog": "Analóg óra",
-          "date": "Dátum"
+          "date": "Dátum",
+          "wifi": "Wi-Fi-jel",
+          "link": "Kapcsolati figyelmeztetés"
         },
         "contents": {
           "state": "Állapot",
@@ -882,6 +902,15 @@
           "people_home": "Otthon lévők",
           "sun": "Napkelte és napnyugta",
           "co2": "CO₂"
+        },
+        "wifi_contents": {
+          "icon": "Csak ikon",
+          "percent": "Százalék",
+          "dbm": "dBm"
+        },
+        "wifi_shows": {
+          "always": "Mindig",
+          "weak": "Csak ha gyenge"
         }
       }
     },
@@ -1825,7 +1854,9 @@
       "detail": {
         "hidden": "Rejtve: most nem aktív",
         "overflow": "Nem fér el a név mellett",
-        "dial": "Számlap"
+        "dial": "Számlap",
+        "hidden_signal": "Rejtve, amíg a jel jó",
+        "hidden_link": "Rejtve, amíg minden csatlakoztatva van"
       },
       "live": {
         "hidden": "Most rejtve: nem aktív",
@@ -1860,7 +1891,13 @@
         "none_found": "Nincs találat."
       },
       "left": "Bal oldal",
-      "left_hint": "Cím és kezdőlap gomb: az oldal beállításaiban"
+      "left_hint": "Cím és kezdőlap gomb: az oldal beállításaiban",
+      "wifi_sample": "A kijelző saját jele",
+      "link_sample": "Csak ha a Home Assistant vagy a Tessera nem elérhető",
+      "wifi_hint": "A kijelző a saját jelét olvassa, így ez az elem a sávban marad, amikor a Home Assistant nem elérhető. Négy csíktól egyig, hálózat nélkül áthúzva.",
+      "wifi_show_hint": "A Csak ha gyenge üresen hagyja a sávot, amíg a jel egy csíkra nem esik vagy a hálózat el nem tűnik.",
+      "link_hint": "Csak akkor jelenik meg, amikor a Home Assistant vagy a Tessera nem elérhető, így egy pillantással látod, miért hiányoznak értékek.",
+      "status_firmware": "Ez az elem a(z) {version} firmware-től jelenik meg. A frissítésig a kijelző kihagyja."
     },
     "screen_settings": {
       "groups": {
@@ -2514,7 +2551,8 @@
         "navigation": "Navigáció"
       },
       "home_hint": "A kezdőlap gomb és a felfelé húzás ide vezet.",
-      "bar_entities": "Jobb oldalon is"
+      "bar_entities": "Jobb oldalon is",
+      "actions_blocked": "A Home Assistant nem engedi, hogy ez a kijelző műveleteket hajtson végre, így egy csempe megérintése nem csinál semmit. A Home Assistantban nyisd meg: Beállítások → Eszközök és szolgáltatások → ESPHome, válaszd ki ezt a kijelzőt, majd Konfigurálás, és kapcsold be „Az eszköz Home Assistant-műveleteket hajthat végre” opciót."
     },
     "feedback": {
       "question": "Úgy működik a kijelződ, ahogy várod?",

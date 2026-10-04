@@ -28,7 +28,8 @@ download it for claude.ai, and ask Claude for the alert automation.
 Tap the bar at the top of any page in the mockup to set the **Top bar** of a screen: the name on the left, up
 to six items on the right (time, analog clock, date, or an entity with an icon, such as
 temperature, a door, the alarm, or "last changed"). Drag to reorder, tap
-to configure; firmware 0.2.32 or newer renders them.
+to configure; firmware 0.2.32 or newer renders them. Firmware 0.38.0 adds two items the screen reads itself: its
+Wi-Fi signal and a warning that appears while Home Assistant or Tessera is away.
 
 After pairing via the HA ESPHome integration, choose the tiles in Tessera.
 Tap a tile and its settings open in a drawer on the right, with the mockup still in view: click behavior, larger values, mini-sliders, a wider tile or one over the whole page, backgrounds.

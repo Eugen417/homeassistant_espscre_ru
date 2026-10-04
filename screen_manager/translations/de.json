@@ -100,7 +100,7 @@
       "days_hours": "{d} T. {h} Std."
     },
     "status": {
-      "connecting": "Verbinde mit Home Assistant",
+      "connecting": "Warte auf Home Assistant",
       "waiting": "Warte auf Tessera",
       "loading_tiles": "Kacheln werden geladen...",
       "preparing_pages": "Seiten werden vorbereitet {n}/{total}",
@@ -113,7 +113,22 @@
       "configuration_version": "Konfigurationsproblem.\nBildschirm- und Add-on-Versionen prüfen.",
       "wifi_problem": "WLAN-Verbindungsproblem",
       "wifi_hotspot": "Verbinde dich mit dem Hotspot {name}, um das zu beheben.\nPasswort: {password}",
-      "wifi_usb": "Prüfe WLAN-Name und Passwort und installiere diesen Bildschirm erneut über USB."
+      "wifi_usb": "Prüfe WLAN-Name und Passwort und installiere diesen Bildschirm erneut über USB.",
+      "wifi_connecting": "Verbinde mit WLAN",
+      "wifi_address": "Adresse wird bezogen",
+      "wifi_not_found": "Netzwerk nicht gefunden",
+      "wifi_password": "Passwort nicht akzeptiert",
+      "wifi_weak": "Signal zu schwach ({dbm} dBm)",
+      "wifi_failed": "Verbindung fehlgeschlagen, neuer Versuch",
+      "loading_tiles_count": "Kacheln werden geladen {n}/{total}",
+      "hint_home_assistant": "Home Assistant hat sich noch nicht verbunden. Ist dieser Bildschirm unter Einstellungen > Geräte & Dienste > ESPHome hinzugefügt?",
+      "hint_tessera": "Läuft die App Tessera Screen Manager in Home Assistant?",
+      "updating": "Firmware wird aktualisiert {percent}",
+      "update_restart": "Aktualisiert, Neustart",
+      "update_failed": "Aktualisierung fehlgeschlagen",
+      "hint_key": "Eine Verbindung von {address} wurde abgewiesen: ihr Schlüssel gehört nicht zu diesem Bildschirm. Gib den Schlüssel dieses Bildschirms in der ESPHome-Integration von Home Assistant ein.",
+      "no_answer_title": "Keine Antwort von Home Assistant",
+      "no_answer_text": "Oft darf dieser Bildschirm noch keine Aktionen ausführen. Erlaube es in Home Assistant: ESPHome > dieser Bildschirm > Konfigurieren."
     },
     "preparing": {
       "default": "Kacheln werden sortiert",
@@ -165,14 +180,17 @@
       "seconds": "{n} Sek.",
       "minutes": "{n} Min.",
       "hours": "{n} Std.",
-      "hours_minutes": "{h} Std. {m}"
+      "hours_minutes": "{h} Std. {m}",
+      "wifi": "WLAN",
+      "tessera": "Tessera"
     },
     "tile": {
       "tap_to_open": "Zum Öffnen",
       "page": "Seite {n}",
       "refused": "Abgelehnt",
       "command_sent": "Befehl gesendet...",
-      "confirmed": "Von Home Assistant bestätigt"
+      "confirmed": "Von Home Assistant bestätigt",
+      "no_answer": "Keine Antwort"
     },
     "alert": {
       "notification": "Benachrichtigung",
@@ -862,7 +880,9 @@
         "builtin": {
           "clock": "Uhrzeit",
           "analog": "Analoguhr",
-          "date": "Datum"
+          "date": "Datum",
+          "wifi": "WLAN-Signal",
+          "link": "Verbindungswarnung"
         },
         "contents": {
           "state": "Status",
@@ -882,6 +902,15 @@
           "people_home": "Personen zu Hause",
           "sun": "Sonnenauf- und -untergang",
           "co2": "CO₂"
+        },
+        "wifi_contents": {
+          "icon": "Nur Symbol",
+          "percent": "Prozent",
+          "dbm": "dBm"
+        },
+        "wifi_shows": {
+          "always": "Immer",
+          "weak": "Nur wenn schwach"
         }
       }
     },
@@ -1825,7 +1854,9 @@
       "detail": {
         "hidden": "Ausgeblendet: gerade nicht aktiv",
         "overflow": "Passt nicht neben den Namen",
-        "dial": "Zifferblatt"
+        "dial": "Zifferblatt",
+        "hidden_signal": "Ausgeblendet, solange das Signal gut ist",
+        "hidden_link": "Ausgeblendet, solange alles verbunden ist"
       },
       "live": {
         "hidden": "Gerade ausgeblendet: nicht aktiv",
@@ -1860,7 +1891,13 @@
         "none_found": "Keine Entitäten gefunden."
       },
       "left": "Links",
-      "left_hint": "Titel und Startseiten-Schaltfläche: in den Seiteneinstellungen"
+      "left_hint": "Titel und Startseiten-Schaltfläche: in den Seiteneinstellungen",
+      "wifi_sample": "Das Signal dieses Bildschirms",
+      "link_sample": "Nur wenn Home Assistant oder Tessera fehlt",
+      "wifi_hint": "Der Bildschirm liest sein eigenes Signal, daher bleibt dieses Element in der Leiste, wenn Home Assistant weg ist. Vier Balken bis einer, durchgestrichen ohne Netzwerk.",
+      "wifi_show_hint": "Nur wenn schwach hält die Leiste frei, bis das Signal auf einen Balken fällt oder das Netzwerk weg ist.",
+      "link_hint": "Erscheint nur, solange Home Assistant oder Tessera fehlt, damit du auf einen Blick siehst, warum Werte fehlen.",
+      "status_firmware": "Dieses Element erscheint ab Firmware {version}. Bis zu diesem Update lässt der Bildschirm es weg."
     },
     "screen_settings": {
       "groups": {
@@ -2514,7 +2551,8 @@
         "navigation": "Navigation"
       },
       "home_hint": "Die Startseiten-Schaltfläche und Wischen nach oben führen hierher.",
-      "bar_entities": "Außerdem rechts"
+      "bar_entities": "Außerdem rechts",
+      "actions_blocked": "Home Assistant lässt diesen Bildschirm keine Aktionen ausführen, ein Tippen auf eine Kachel bewirkt also nichts. Öffne in Home Assistant Einstellungen → Geräte & Dienste → ESPHome, wähle diesen Bildschirm, dann Konfigurieren, und schalte „Dem Gerät erlauben, Home Assistant-Aktionen auszuführen“ ein."
     },
     "feedback": {
       "question": "Funktioniert dein Bildschirm wie erwartet?",

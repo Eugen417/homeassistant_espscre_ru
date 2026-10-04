@@ -659,6 +659,15 @@ to change their order; tap one to configure it:
   washing machine. Active items are colored like in Home Assistant (open door amber,
   alarm armed green, alarm triggered red).
 
+Two items come from the screen itself (firmware 0.38.0) and stay in the bar when Home Assistant is away, which is when
+you need them most:
+
+- **Wi-Fi signal:** the familiar Wi-Fi icon with four bars down to one, struck through without a network. Show the
+  icon alone, or the signal beside it as a percentage or in dBm. **Only when weak** keeps the bar clear until the
+  signal drops to one bar or the network is gone.
+- **Connection warning:** a small mark that appears only while Home Assistant or Tessera is away, so you can tell at a
+  glance why values are missing.
+
 <p align="center">
   <img src="docs/images/editor-top-bar.png" width="31%" alt="The top bar in the drawer: the outdoor temperature, people at home and the time, each with how it looks on the screen">
   <img src="docs/images/guition-home.png" width="49%" alt="The top bar on the screen: outdoor temperature, people at home and the time">
@@ -688,7 +697,7 @@ Home Assistant, `esphome.<screen>_open_settings` opens it too (`page` 0 menu, 1 
 | Brightness | Brightness, Dark mode, Auto standby, Standby after, Standby brightness |
 | Night | Night mode, Starts, Ends, Night brightness |
 | Screen | Back to page 1 by itself and after how long, also on standby, swiping between pages, page buttons, the home button, rotation (boards that turn) |
-| This screen | Name, IP address, firmware version, Home Assistant connected, Restart |
+| This screen | Name, IP address, the Wi-Fi network and its signal, firmware version, Home Assistant and Tessera connected, Restart |
 
 The language, the 12 or 24-hour clock and how numbers are written are the same on every screen: Settings → Language &
 region in Tessera (app 0.2.90, firmware 0.2.76). They follow Home Assistant's language unless you choose otherwise.

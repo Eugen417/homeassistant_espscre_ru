@@ -1,0 +1,18 @@
+# ESP Screens - the Wi-Fi fallback hotspot's QR code (firmware 0.38.0), for a board that has a hotspot.
+#
+# A screen that lost its network opens ESPHome's fallback hotspot (`wifi: ap:` in the screen's own YAML) and says so on
+# the glass with the hotspot's name and password (wifi_status.h). Under them stands the Wi-Fi QR code a phone's camera
+# joins in one tap, drawn by runtime_tiles::boot_status with LVGL's QR code. ESPHome compiles that part of LVGL only
+# when the YAML has a qrcode widget, so this file adds one that is never shown. tools/generate_entries.py includes it
+# on the boards with a hotspot (profiles.hotspot); a board with 4 MB of flash has no hotspot and builds no QR code.
+lvgl:
+  top_layer:
+    widgets:
+      - obj:
+          id: !extend alert_overlay
+          widgets:
+            - qrcode:
+                id: hotspot_qr_seed
+                hidden: true
+                size: 21
+                text: "0"

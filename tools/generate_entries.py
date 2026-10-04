@@ -58,7 +58,7 @@ substitutions:
 packages:
   core: !include core.yaml
   board: !include boards/{file}
-
+{hotspot_package(board, '')}
 external_components:
   - source:
       type: git
@@ -85,7 +85,7 @@ substitutions:
 packages:
   core: !include ../packages/core.yaml
   board: !include ../packages/boards/{file}
-
+{hotspot_package(board, '../packages/')}
 external_components:
   - source:
       type: local
@@ -115,13 +115,19 @@ def table_access_of(board):
     return '    allow_partition_access: true\n' if profiles.wide_slots(board) else ''
 
 
+def hotspot_package(board, base):
+    """The QR code of the hotspot on the Wi-Fi problem screen (features/hotspot.yaml, firmware 0.38.0), on the boards that
+    have a hotspot (profiles.hotspot); a board with 4 MB of flash has none and builds no QR code."""
+    return f'  hotspot: !include {base}features/hotspot.yaml\n' if profiles.hotspot(board) else ''
+
+
 def hotspot_of(board):
     """The Wi-Fi fallback hotspot and captive portal, as a screen's own YAML has them (core.installation_yaml): not on
     a board with 4 MB of flash (profiles.hotspot, app 0.4.5+), so tools/check.sh measures the image users get."""
     if not profiles.hotspot(board):
         return ''
     return '''  ap:
-    ssid: "Smartdisplay Fallback Hotspot"
+    ssid: "Tessera ${DEVICE_FRIENDLY_NAME}"
     password: !secret ap_password
 
 captive_portal:

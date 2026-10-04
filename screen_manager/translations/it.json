@@ -100,7 +100,7 @@
       "days_hours": "{d} g {h} h"
     },
     "status": {
-      "connecting": "Connessione a Home Assistant",
+      "connecting": "In attesa di Home Assistant",
       "waiting": "In attesa di Tessera",
       "loading_tiles": "Caricamento riquadri...",
       "preparing_pages": "Preparazione pagine {n}/{total}",
@@ -113,7 +113,22 @@
       "configuration_version": "Problema di configurazione.\nControlla le versioni dello schermo e del componente aggiuntivo.",
       "wifi_problem": "Problema di connessione Wi-Fi",
       "wifi_hotspot": "Collegati all’hotspot {name} per risolvere.\nPassword: {password}",
-      "wifi_usb": "Controlla nome e password del Wi-Fi, poi reinstalla questo schermo via USB."
+      "wifi_usb": "Controlla nome e password del Wi-Fi, poi reinstalla questo schermo via USB.",
+      "wifi_connecting": "Connessione al Wi-Fi",
+      "wifi_address": "Richiesta indirizzo",
+      "wifi_not_found": "Rete non trovata",
+      "wifi_password": "Password non accettata",
+      "wifi_weak": "Segnale troppo debole ({dbm} dBm)",
+      "wifi_failed": "Connessione non riuscita, nuovo tentativo",
+      "loading_tiles_count": "Caricamento riquadri {n}/{total}",
+      "hint_home_assistant": "Home Assistant non si è ancora connesso. Questo schermo è aggiunto in Impostazioni > Dispositivi e servizi > ESPHome?",
+      "hint_tessera": "L'app Tessera Screen Manager è in esecuzione in Home Assistant?",
+      "updating": "Aggiornamento firmware {percent}",
+      "update_restart": "Aggiornato, riavvio",
+      "update_failed": "Aggiornamento non riuscito",
+      "hint_key": "Una connessione da {address} è stata rifiutata: la sua chiave non è quella di questo schermo. Inserisci la chiave di questo schermo nell'integrazione ESPHome di Home Assistant.",
+      "no_answer_title": "Nessuna risposta da Home Assistant",
+      "no_answer_text": "Spesso questo schermo non può ancora eseguire azioni. Attivalo in Home Assistant: ESPHome > questo schermo > Configura."
     },
     "preparing": {
       "default": "Sistemando i riquadri",
@@ -165,14 +180,17 @@
       "seconds": "{n} s",
       "minutes": "{n} min",
       "hours": "{n} h",
-      "hours_minutes": "{h} h {m}"
+      "hours_minutes": "{h} h {m}",
+      "wifi": "Wi-Fi",
+      "tessera": "Tessera"
     },
     "tile": {
       "tap_to_open": "Tocca per aprire",
       "page": "Pagina {n}",
       "refused": "Rifiutato",
       "command_sent": "Comando inviato...",
-      "confirmed": "Confermato da Home Assistant"
+      "confirmed": "Confermato da Home Assistant",
+      "no_answer": "Nessuna risposta"
     },
     "alert": {
       "notification": "Notifica",
@@ -862,7 +880,9 @@
         "builtin": {
           "clock": "Ora",
           "analog": "Orologio analogico",
-          "date": "Data"
+          "date": "Data",
+          "wifi": "Segnale Wi-Fi",
+          "link": "Avviso di connessione"
         },
         "contents": {
           "state": "Stato",
@@ -882,6 +902,15 @@
           "people_home": "Persone in casa",
           "sun": "Alba e tramonto",
           "co2": "CO₂"
+        },
+        "wifi_contents": {
+          "icon": "Solo icona",
+          "percent": "Percentuale",
+          "dbm": "dBm"
+        },
+        "wifi_shows": {
+          "always": "Sempre",
+          "weak": "Solo se debole"
         }
       }
     },
@@ -1825,7 +1854,9 @@
       "detail": {
         "hidden": "Nascosto: non attivo al momento",
         "overflow": "Non sta accanto al nome",
-        "dial": "Quadrante"
+        "dial": "Quadrante",
+        "hidden_signal": "Nascosto finché il segnale è buono",
+        "hidden_link": "Nascosto finché tutto è connesso"
       },
       "live": {
         "hidden": "Nascosto al momento: non attivo",
@@ -1860,7 +1891,13 @@
         "none_found": "Nessuna entità trovata."
       },
       "left": "Sinistra",
-      "left_hint": "Titolo e pulsante Home: nelle impostazioni della pagina"
+      "left_hint": "Titolo e pulsante Home: nelle impostazioni della pagina",
+      "wifi_sample": "Il segnale di questo schermo",
+      "link_sample": "Solo quando Home Assistant o Tessera manca",
+      "wifi_hint": "Lo schermo legge il proprio segnale, quindi questo elemento resta nella barra quando Home Assistant non c'è. Da quattro tacche a una, barrato senza rete.",
+      "wifi_show_hint": "Solo se debole lascia la barra libera finché il segnale non scende a una tacca o la rete sparisce.",
+      "link_hint": "Compare solo mentre Home Assistant o Tessera manca, così vedi subito perché mancano dei valori.",
+      "status_firmware": "Questo elemento compare dal firmware {version}. Fino a quell'aggiornamento, lo schermo lo omette."
     },
     "screen_settings": {
       "groups": {
@@ -2514,7 +2551,8 @@
         "navigation": "Navigazione"
       },
       "home_hint": "Il pulsante Home e lo scorrimento verso l’alto portano qui.",
-      "bar_entities": "Anche a destra"
+      "bar_entities": "Anche a destra",
+      "actions_blocked": "Home Assistant non permette a questo schermo di eseguire azioni, quindi toccare un riquadro non fa nulla. In Home Assistant apri Impostazioni → Dispositivi e servizi → ESPHome, scegli questo schermo, poi Configura, e attiva «Consenti al dispositivo di eseguire azioni di Home Assistant»."
     },
     "feedback": {
       "question": "Il tuo schermo funziona come ti aspetti?",

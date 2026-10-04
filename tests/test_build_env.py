@@ -122,3 +122,15 @@ class BuildEnvironment(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TerminalLines(unittest.TestCase):
+    """Each line of a build log as a terminal shows it (app 0.4.63), so the editor's bar reads ninja's latest count."""
+
+    def test_only_the_last_update_of_a_rewritten_line_stands(self):
+        from firmware import terminal_line
+        raw = "[0/2] Re-checking globbed directories...\x1b[K\r[1/1702] Performing build step\x1b[K\r[851/1702] Building C object x.c.obj\x1b[K\n"
+        self.assertEqual(terminal_line(raw), '[851/1702] Building C object x.c.obj')
+        self.assertEqual(terminal_line('\x1b[01m\x1b[Kmain.cpp:3:\x1b[m\x1b[K warning: x\n'), 'main.cpp:3: warning: x')
+        self.assertEqual(terminal_line('INFO Compiling app...\r\n'), 'INFO Compiling app...')
+        self.assertEqual(terminal_line('\n'), '')

@@ -100,7 +100,7 @@
       "days_hours": "{d} d {h} u"
     },
     "status": {
-      "connecting": "Verbinden met Home Assistant",
+      "connecting": "Wachten op Home Assistant",
       "waiting": "Wachten op Tessera",
       "loading_tiles": "Tegels laden...",
       "preparing_pages": "Pagina's voorbereiden {n}/{total}",
@@ -113,7 +113,22 @@
       "configuration_version": "Configuratieprobleem.\nControleer de versies van scherm en add-on.",
       "wifi_problem": "Wifi-verbindingsprobleem",
       "wifi_hotspot": "Verbind met hotspot {name} om dit op te lossen.\nWachtwoord: {password}",
-      "wifi_usb": "Controleer de wifi-naam en het wachtwoord en installeer dit scherm opnieuw via USB."
+      "wifi_usb": "Controleer de wifi-naam en het wachtwoord en installeer dit scherm opnieuw via USB.",
+      "wifi_connecting": "Verbinden met wifi",
+      "wifi_address": "Adres ophalen",
+      "wifi_not_found": "Netwerk niet gevonden",
+      "wifi_password": "Wachtwoord niet geaccepteerd",
+      "wifi_weak": "Signaal te zwak ({dbm} dBm)",
+      "wifi_failed": "Verbinden mislukt, opnieuw proberen",
+      "loading_tiles_count": "Tegels laden {n}/{total}",
+      "hint_home_assistant": "Home Assistant heeft nog niet verbonden. Staat dit scherm onder Instellingen > Apparaten & diensten > ESPHome?",
+      "hint_tessera": "Draait de app Tessera Screen Manager in Home Assistant?",
+      "updating": "Firmware bijwerken {percent}",
+      "update_restart": "Bijgewerkt, opnieuw opstarten",
+      "update_failed": "Bijwerken mislukt",
+      "hint_key": "Een verbinding van {address} is geweigerd: de sleutel hoort niet bij dit scherm. Vul de sleutel van dit scherm in bij de ESPHome-integratie van Home Assistant.",
+      "no_answer_title": "Geen antwoord van Home Assistant",
+      "no_answer_text": "Vaak mag dit scherm nog geen acties uitvoeren. Zet dat aan in Home Assistant: ESPHome > dit scherm > Configureren."
     },
     "preparing": {
       "default": "Je tegels schikken",
@@ -165,14 +180,17 @@
       "seconds": "{n} sec",
       "minutes": "{n} min",
       "hours": "{n} u",
-      "hours_minutes": "{h} u {m}"
+      "hours_minutes": "{h} u {m}",
+      "wifi": "Wifi",
+      "tessera": "Tessera"
     },
     "tile": {
       "tap_to_open": "Tik om te openen",
       "page": "Pagina {n}",
       "refused": "Geweigerd",
       "command_sent": "Opdracht verstuurd...",
-      "confirmed": "Bevestigd door Home Assistant"
+      "confirmed": "Bevestigd door Home Assistant",
+      "no_answer": "Geen antwoord"
     },
     "alert": {
       "notification": "Melding",
@@ -862,7 +880,9 @@
         "builtin": {
           "clock": "Tijd",
           "analog": "Analoge klok",
-          "date": "Datum"
+          "date": "Datum",
+          "wifi": "Wifi-signaal",
+          "link": "Verbindingswaarschuwing"
         },
         "contents": {
           "state": "Status",
@@ -882,6 +902,15 @@
           "people_home": "Aantal thuis",
           "sun": "Zon op en onder",
           "co2": "CO₂"
+        },
+        "wifi_contents": {
+          "icon": "Alleen icoon",
+          "percent": "Percentage",
+          "dbm": "dBm"
+        },
+        "wifi_shows": {
+          "always": "Altijd",
+          "weak": "Alleen als zwak"
         }
       }
     },
@@ -1825,7 +1854,9 @@
       "detail": {
         "hidden": "Verborgen: nu niet actief",
         "overflow": "Past niet naast de naam",
-        "dial": "Wijzerplaat"
+        "dial": "Wijzerplaat",
+        "hidden_signal": "Verborgen zolang het signaal goed is",
+        "hidden_link": "Verborgen zolang alles verbonden is"
       },
       "live": {
         "hidden": "Nu verborgen: niet actief",
@@ -1860,7 +1891,13 @@
         "none_found": "Geen entiteiten gevonden."
       },
       "left": "Links",
-      "left_hint": "Titel en thuisknop: in de pagina-instellingen"
+      "left_hint": "Titel en thuisknop: in de pagina-instellingen",
+      "wifi_sample": "Het signaal van dit scherm zelf",
+      "link_sample": "Alleen als Home Assistant of Tessera weg is",
+      "wifi_hint": "Het scherm leest zijn eigen signaal, dus dit item blijft in de balk staan als Home Assistant weg is. Vier streepjes tot één, doorgestreept zonder netwerk.",
+      "wifi_show_hint": "Alleen als zwak houdt de balk leeg tot het signaal op één streepje staat of het netwerk weg is.",
+      "link_hint": "Verschijnt alleen als Home Assistant of Tessera weg is, zodat je in één oogopslag ziet waarom waarden ontbreken.",
+      "status_firmware": "Dit item verschijnt vanaf firmware {version}. Tot die update laat het scherm het weg."
     },
     "screen_settings": {
       "groups": {
@@ -2514,7 +2551,8 @@
         "navigation": "Navigatie"
       },
       "home_hint": "De thuisknop en omhoog vegen leiden hierheen.",
-      "bar_entities": "Ook rechts in de balk"
+      "bar_entities": "Ook rechts in de balk",
+      "actions_blocked": "Home Assistant laat dit scherm geen acties uitvoeren, dus een tik op een tegel doet niets. Open in Home Assistant Instellingen → Apparaten & diensten → ESPHome, kies dit scherm, dan Configureren, en zet “Sta het apparaat toe om Home Assistant-acties uit te voeren” aan."
     },
     "feedback": {
       "question": "Werkt je scherm zoals je verwacht?",

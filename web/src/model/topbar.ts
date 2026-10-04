@@ -9,12 +9,30 @@ import type { HeaderItem } from "../types";
 // The words are the screens' own (app 0.2.90): screen.date and screen.time of the translations, in the language the
 // screens have, which `locale` names; English where none is given.
 export const BUILTIN_ICONS: Record<string, string> = { clock: "clock-outline", analog: "clock-outline", date: "calendar" };
+// The screen's own items (firmware 0.38.0, header_bar.h): Wi-Fi in four bars down to one and struck through without a
+// network, and the link mark while Home Assistant or Tessera is away.
+export const WIFI_GLYPHS = ["F092E", "F091F", "F0922", "F0925", "F0928"];
+export const LINK_GLYPH = "F0319";
+export const STATUS_CODES: Record<string, string> = { wifi: WIFI_GLYPHS[4], link: LINK_GLYPH };
+// The signal the mockup draws: a good one, as most screens have.
+export const SAMPLE_RSSI = -58;
+// wifi_status::bars and ::percent: a phone's bars, ESPHome's documented percentage.
+export const wifiBars = (rssi: number) => (rssi >= 0 ? 0 : rssi >= -60 ? 4 : rssi >= -70 ? 3 : rssi >= -78 ? 2 : 1);
+export const wifiPercent = (rssi: number) => (rssi >= 0 ? 0 : Math.max(0, Math.min(100, 2 * (rssi + 100))));
+// header_bar::device_item for Wi-Fi: its icon and text at a signal, and whether "Only when weak" shows it.
+export function wifiView(item: HeaderItem, rssi: number, percent: (n: number) => string): ItemView {
+  const strength = wifiBars(rssi);
+  const content = item.content ?? "icon";
+  const text = !strength ? "" : content === "percent" ? percent(wifiPercent(rssi)) : content === "dbm" ? `${rssi} dBm` : "";
+  return { icon: WIFI_GLYPHS[strength], text, shown: (item.show ?? "always") !== "weak" || !strength || rssi < -78 };
+}
 // What makes an item that item, as the add-on compares them (core.validate_header): its kind, and for an entity what it
 // shows with the defaults filled in. Never its id: since app 0.3.1 every item on every page has an id of its own, and a
 // key with the id in it matched no other item, so "already in the bar", the preview of an entity on several pages and
 // the flash of a new item all stopped working (fixed in app 0.4.1).
 export const itemKey = (item: HeaderItem) => item.type === "entity"
   ? JSON.stringify(["entity", item.entity, item.content ?? "state", item.icon ?? "auto", item.show ?? "always"])
+  : item.type === "wifi" ? JSON.stringify(["wifi", item.content ?? "icon", item.show ?? "always"])
   : JSON.stringify([item.type]);
 export const glyph = (cp: string) => String.fromCodePoint(parseInt(cp, 16));
 

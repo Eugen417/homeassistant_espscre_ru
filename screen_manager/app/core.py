@@ -99,7 +99,7 @@ REF = 'main'
 # The shared firmware of this app release: packages/core.yaml's SCREEN_FIRMWARE_VERSION, what every board builds
 # unless its own board file went ahead with a fix for that board alone (firmware_target, docs/BOARD_RELEASES.md). The
 # middle number is the core: the feature gates below name a shared X.Y.0, so a feature always ships with a new core.
-FIRMWARE_VERSION = '0.37.0'
+FIRMWARE_VERSION = '0.38.0'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -976,6 +976,15 @@ HEADER_MAX_ITEMS = FIRMWARE_MAX_BAR_ITEMS
 # Items the screen draws on its own clock, without Home Assistant; their labels are in the translations (header_bar.catalogue,
 # app 0.2.90).
 HEADER_BUILTIN = ('clock', 'analog', 'date')
+# The screen's own items (firmware 0.38.0, GitHub #130): its Wi-Fi signal, and a mark while Home Assistant or Tessera is
+# away. The screen reads both itself, so they stay when Home Assistant goes; a screen gets them once its hello names
+# BAR_STATUS_FEATURE, and an older one simply goes without (header_bar.message).
+HEADER_STATUS = ('wifi', 'link')
+BAR_STATUS_FEATURE = 'bar_status'
+BAR_STATUS_MIN_FIRMWARE = (0, 38, 0)
+# What the Wi-Fi item shows beside its bars, and when it shows.
+WIFI_CONTENTS = ('icon', 'percent', 'dbm')
+WIFI_SHOWS = ('always', 'weak')
 # Only shown, never controlled: the top bar takes these besides every tile domain.
 HEADER_ONLY_DOMAINS = frozenset('device_tracker zone counter event input_datetime input_text water_heater humidifier'.split())
 # What an entity item shows: its status, when it last changed, or its icon alone (GitHub #144, any firmware with a top bar:
@@ -1002,10 +1011,16 @@ def validate_header(data, most=HEADER_MAX_ITEMS):
     items, seen = [], set()
     for item in data['items']:
         kind = item.get('type') if isinstance(item, dict) else None
-        if kind in HEADER_BUILTIN:
+        if kind in HEADER_BUILTIN or kind == 'link':
             if set(item) != {'type'}:
                 raise ValueError(t('addon.errors.top_bar.invalid_setting'))
             clean = {'type': kind}
+        elif kind == 'wifi':
+            if set(item) - {'type', 'content', 'show'}:
+                raise ValueError(t('addon.errors.top_bar.unknown_setting'))
+            clean = {'type': 'wifi', 'content': item.get('content', 'icon'), 'show': item.get('show', 'always')}
+            if clean['content'] not in WIFI_CONTENTS or clean['show'] not in WIFI_SHOWS:
+                raise ValueError(t('addon.errors.top_bar.invalid_setting'))
         elif kind == 'entity':
             if set(item) - {'type', 'entity', 'content', 'icon', 'show'}:
                 raise ValueError(t('addon.errors.top_bar.unknown_setting'))
@@ -2640,6 +2655,22 @@ def discover(registry, states, devices, areas):
                              'icon': tile_icons.ha_icon(state.get('attributes')), **({} if tile else {'tile': False})})
     return screens, sorted(entities, key=lambda e: e['name'].casefold())
 
+def hotspot_name(friendly):
+    """The Wi-Fi fallback hotspot's network name (app 0.4.63): "Tessera" and the screen's name as Tessera shows it, so ten
+    screens that lost a changed network each say which one they are. A network name holds at most 32 bytes (ESPHome counts
+    characters, the radio bytes), so a long name is cut after a whole word, or a whole character when one word is that long."""
+    full = f'Tessera {" ".join(friendly.split())}'
+    name = full
+    while len(name.encode('utf-8')) > 32:
+        name = name[:-1]
+    if name != full and full[len(name)] != ' ' and ' ' in name[len('Tessera '):]:
+        name = name[:name.rindex(' ')]
+    return name.rstrip()
+
+def old_hotspot_name(device):
+    """The hotspot name this app wrote from app 0.4.32 to 0.4.62: the device name, cut to leave room for " Setup"."""
+    return device[:26] + ' Setup'
+
 def installation_yaml(data):
     board, name, friendly = data.get('board'), data.get('name'), data.get('friendly_name')
     if board not in BOARD_KEYS or not isinstance(name, str) or not re.fullmatch(r'[a-z][a-z0-9-]{0,29}', name):
@@ -2674,10 +2705,10 @@ def installation_yaml(data):
     key, ota = base64.b64encode(secrets.token_bytes(32)).decode(), secrets.token_urlsafe(24)
     # The Wi-Fi fallback hotspot and its captive portal, where the board has room for them (boards.json `hotspot`,
     # app 0.4.5+): a board with 4 MB of flash leaves both out, some 90 KB of its 1.75 MB update slot. A screen whose
-    # Wi-Fi changed is then installed again over USB (docs/EASY_SETUP.md). A network name holds at most 32 characters,
-    # so a long device name is cut to leave room for " Setup" (app 0.4.32): ESPHome refuses the build otherwise.
+    # Wi-Fi changed is then installed again over USB (docs/EASY_SETUP.md). Its name says which screen it is (hotspot_name,
+    # app 0.4.63).
     hotspot = (f'''  ap:
-    ssid: {quote(name[:26] + ' Setup')}
+    ssid: {quote(hotspot_name(friendly))}
     password: {quote(secrets.token_urlsafe(12))}
 captive_portal:
 ''' if SHAPES[board].get('hotspot', True) else '')

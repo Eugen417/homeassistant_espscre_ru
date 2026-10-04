@@ -9,6 +9,7 @@ import logging
 
 import esphome.codegen as cg
 import esphome.config_validation as cv
+from esphome.core import CORE
 
 from . import screen_text_gen
 
@@ -36,3 +37,15 @@ async def to_code(config):
         # ESP Screens only writes languages it has; a hand-written one it lacks builds in the nearest it does have.
         _LOGGER.warning("No translation for %s yet; the screen's texts are in %s", wanted, language)
     cg.add_global(cg.RawStatement(code))
+    # What the glass says about its network and an update (firmware 0.38.0), from ESPHome's own listeners: after every
+    # Wi-Fi scan whether the network was there (wifi_status.h), and an update's progress from whichever OTA platform the
+    # screen's own YAML has (ota_status.h). Each asks ESPHome for its slot here; a build without Wi-Fi or OTA (the host
+    # renders) asks nothing.
+    if "wifi" in CORE.config:
+        from esphome.components import wifi
+
+        wifi.request_wifi_scan_results_listener()
+    if "ota" in CORE.config:
+        from esphome.components import ota
+
+        ota.request_ota_state_listeners()

@@ -14,7 +14,10 @@ from firmware_sources import runtime_source  # noqa: E402
 
 TEXT = {'sublabel', 'label', 'sublabel_big', 'headline', 'watch_value'}          # S, M, L, XL and the large value
 DIGITS = {'clock_digits', 'setpoint_digits', 'display_digits', 'bedside_digits'}  # the clock card, the setpoint, half a page, a page
-ICONS = {'materialdesign_icons_mini', 'materialdesign_icons', 'materialdesign_icons_big', 'watch_icon', 'materialdesign_icons_back'}
+# The status font (firmware 0.38.0) holds the top bar's five Wi-Fi bars at the bar's icon size: five glyphs in one font
+# cost less than the same five in the three fonts that carry every tile icon.
+ICONS = {'materialdesign_icons_mini', 'materialdesign_icons', 'materialdesign_icons_big', 'watch_icon', 'materialdesign_icons_back',
+         'materialdesign_icons_status'}
 MARK = {'brand_wordmark'}
 
 

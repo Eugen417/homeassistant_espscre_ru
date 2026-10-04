@@ -104,6 +104,9 @@ def main():
     for board in boards:
         entries = [name for name, b in profiles.ENTRIES.items() if b == board]
         wanted = {'packages/core.yaml', str(boards[board].relative_to(ROOT))}
+        # A board with a Wi-Fi fallback hotspot also takes its QR code (features/hotspot.yaml, firmware 0.38.0).
+        if profiles.hotspot(board):
+            wanted.add('packages/features/hotspot.yaml')
         for name in entries:
             if not (ROOT / name).exists():
                 fail(f'{name} does not exist, but tools/profiles.py lists it for {board}')

@@ -9,6 +9,10 @@ substitutions:
   APPLY_BACKLIGHT: |-
     // Standby dims slowly (ESPHome's transition); waking is quick.
     id(set_backlight).execute(level, id(display_dimmed) ? 1500 : 300);
+  # An update coming in (ota_status::wake, firmware 0.38.0): the glass at its brightness at once. ESPHome's update holds
+  # the loop that runs the light's transition, so the level goes straight to the output, with the light's own gamma.
+  OTA_BACKLIGHT: |-
+    id(gpio_backlight_pwm)->set_level(powf(screen_settings::current.brightness / 100.0f, id(back_light)->get_gamma_correct()));
 
 light:
   # The firmware owns the backlight: brightness, standby, night and alerts set it, and the minute tick

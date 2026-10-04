@@ -71,5 +71,10 @@
   "undo": "F054C",
   "update": "F06B0",
   "view-column-outline": "F1487",
-  "view-dashboard-outline": "F0A1D"
+  "view-dashboard-outline": "F0A1D",
+  "wifi-strength-off-outline": "F092E",
+  "wifi-strength-1": "F091F",
+  "wifi-strength-2": "F0922",
+  "wifi-strength-3": "F0925",
+  "wifi-strength-4": "F0928"
 }

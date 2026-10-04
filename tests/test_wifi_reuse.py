@@ -64,16 +64,21 @@ class WifiReuse(unittest.TestCase):
             self.assertEqual(yaml.safe_load((Path(tmp) / 'secrets.yaml').read_text()), {'wifi_ssid': 'net', 'wifi_password': 'pw'})
             self.assertEqual(f.wifi_status()['state'], 'ready')
 
-    def test_a_long_device_name_keeps_the_hotspot_name_within_32_characters(self):
-        # ESPHome refuses a network name over 32 characters; " Setup" needs six of them (app 0.4.32).
+    def test_the_hotspot_says_which_screen_it_is_within_32_bytes(self):
+        # "Tessera" and the screen's name as Tessera shows it (app 0.4.63); a network name holds at most 32 bytes.
         with tempfile.TemporaryDirectory() as tmp:
             f = Firmware(tmp, tmp)
             (Path(tmp) / 'secrets.yaml').write_text('wifi_ssid: net\nwifi_password: pw\n')
-            name = 'a' + 'b' * 29
-            f.create({'board': 'guition', 'name': name, 'friendly_name': 'Long'})
-            ssid = yaml.safe_load(f.profile(f'{name}.yaml').read_text().split('captive_portal:')[0].split('wifi:')[1].replace('!secret ', ''))['ap']['ssid']
-            self.assertLessEqual(len(ssid), 32)
-            self.assertTrue(ssid.endswith(' Setup'))
+            for name, friendly, expected in (('hall', 'Hall', 'Tessera Hall'),
+                                             ('long', 'The living room by the big window', 'Tessera The living room by the'),
+                                             ('keuken', 'Küche über dem Café Größe', None)):
+                f.create({'board': 'guition', 'name': name, 'friendly_name': friendly})
+                text = f.profile(f'{name}.yaml').read_text()
+                ssid = yaml.safe_load(text.split('captive_portal:')[0].split('wifi:')[1].replace('!secret ', ''))['ap']['ssid']
+                self.assertLessEqual(len(ssid.encode('utf-8')), 32, ssid)
+                self.assertTrue(ssid.startswith('Tessera '), ssid)
+                if expected:
+                    self.assertEqual(ssid, expected)
 
     def test_invalid_secrets_are_never_rewritten(self):
         with tempfile.TemporaryDirectory() as tmp:

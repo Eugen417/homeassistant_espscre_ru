@@ -369,6 +369,10 @@ inline std::string (*name_text)() = nullptr;
 inline std::string (*address_text)() = nullptr;
 inline std::string (*firmware_text)() = nullptr;
 inline std::string (*link_text)() = nullptr;
+// The network it holds with its signal, and whether Tessera is there (firmware 0.38.0, GitHub #130): what to look at
+// when a screen in a far room keeps waiting. The page tells them again every two seconds while it is open.
+inline std::string (*wifi_text)() = nullptr;
+inline std::string (*tessera_text)() = nullptr;
 inline void (*restart_device)() = nullptr;
 // Start the calibration wizard again (firmware 0.2.96+). A resistive panel reads a voltage off the film and has to
 // be told what that voltage means in pixels, so it has a wizard; a capacitive one reports the point it was touched
@@ -379,8 +383,10 @@ inline void (*calibrate_touch)() = nullptr;
 inline constexpr Row about_rows[] = {
   info(screen_text::txt::settings_screen, [] { return name_text ? name_text() : std::string(); }),
   info(screen_text::txt::settings_address, [] { return address_text ? address_text() : std::string(); }),
+  info(screen_text::txt::settings_wifi, [] { return wifi_text ? wifi_text() : std::string(); }),
   info(screen_text::txt::settings_firmware, [] { return firmware_text ? firmware_text() : std::string(); }),
   info(screen_text::txt::settings_home_assistant, [] { return link_text ? link_text() : std::string(); }),
+  info(screen_text::txt::settings_tessera, [] { return tessera_text ? tessera_text() : std::string(); }),
   action(screen_text::txt::settings_calibrate_touch, "\U000F01A3", [] { if (calibrate_touch) calibrate_touch(); },
          screen_text::txt::settings_tap_again_to_calibrate, [] { return calibrate_touch != nullptr; }),
   action(screen_text::txt::settings_restart, "\U000F0709", [] { if (restart_device) restart_device(); },

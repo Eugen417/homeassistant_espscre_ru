@@ -330,6 +330,60 @@ ACTIONS = '''    - action: render_live_reset
             lv_draw_buf_destroy(base);
             if (top) lv_draw_buf_destroy(top);
             ESP_LOGI("render", "saved %s", path.c_str());
+    - action: render_boot
+      variables:
+        connected: bool
+        joined: bool
+        ssid: string
+        rssi: int
+        address: string
+        scanned: bool
+        seen: bool
+        seen_rssi: int
+        reason: int
+        failures: int
+        ha: int
+        waited: int
+        hotspot: string
+        password: string
+        ota: int
+      then:
+        - lambda: |-
+            // The starting screen in one state (firmware 0.38.0): the network, Home Assistant, how long the step took,
+            // the Wi-Fi problem with its hotspot, or an update coming in. ha -1 and ota -1 put everything back.
+            auto &l = wifi_status::host_link;
+            l = wifi_status::Link{};
+            l.wifi = true;
+            l.connected = connected;
+            l.joined = joined || connected;
+            l.ssid = std::string(ssid.c_str(), ssid.size());
+            l.rssi = rssi;
+            l.address = std::string(address.c_str(), address.size());
+            l.scanned = scanned;
+            l.seen = seen;
+            l.seen_rssi = seen_rssi;
+            l.reason = (uint8_t) reason;
+            l.reason_rssi = seen ? seen_rssi : rssi;
+            l.failures = (uint16_t) failures;
+            runtime_tiles::host_ha = ha;
+            wifi_status::host_problem = wifi_status::Problem{};
+            const std::string spot(hotspot.c_str(), hotspot.size());
+            if (!spot.empty()) {
+              // "-": a board without a hotspot, which says to install the screen again over USB.
+              wifi_status::host_problem.shown = true;
+              wifi_status::host_problem.hotspot = spot != "-";
+              wifi_status::host_problem.ssid = spot == "-" ? std::string() : spot;
+              wifi_status::host_problem.password = std::string(password.c_str(), password.size());
+            }
+            ota_status::now = ota < 0 ? ota_status::Progress{} : ota > 101 ? ota_status::Progress{ota_status::Phase::failed, 40}
+                            : ota > 100 ? ota_status::Progress{ota_status::Phase::done, 100} : ota_status::Progress{ota_status::Phase::running, ota};
+            if (ha < 0) l = [] { wifi_status::Link d; d.wifi = d.connected = d.joined = true; d.rssi = -58; return d; }();
+            runtime_tiles::boot_forget();
+            runtime_tiles::boot_view(esphome::millis());
+            runtime_tiles::boot_step_since = esphome::millis() - (uint32_t) waited;
+            runtime_tiles::ota_draw();
+            runtime_tiles::render(runtime_tiles::room_label);
+            ESP_LOGI("render", "boot state set");
     - action: render_appearance_probe
       variables:
         control: int

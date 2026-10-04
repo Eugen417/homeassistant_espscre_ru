@@ -63,8 +63,9 @@ def glyph_list(anchor='tile_icons', names=None):
 
 def profile(text):
     # The Home and Back fonts each carry one handwritten glyph at their own
-    # optical size. Leave both alone and generate the four shared icon sets.
-    blocks = [block for block in FONT_BLOCK.finditer(text) if not re.search(r'id: \w+_(?:home|back)\n', block[1])]
+    # optical size, and the status font the top bar's Wi-Fi bars (firmware 0.38.0).
+    # Leave those alone and generate the four shared icon sets.
+    blocks = [block for block in FONT_BLOCK.finditer(text) if not re.search(r'id: \w+_(?:home|back|status)\n', block[1])]
     if len(blocks) != 4:
         raise SystemExit(f'Expected four generated icon fonts, found {len(blocks)}')
     out, last = [], 0

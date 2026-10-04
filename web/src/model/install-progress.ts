@@ -13,13 +13,46 @@ export type Progress = { steps: Step[]; percent: number; failed: boolean; done: 
 type Job = { state?: string; stage?: string; action?: string } | null | undefined;
 type Flash = { phase: string; percent: number } | null | undefined;
 
-/** The last "[n/m]" of ninja in the log, as a share of 1; null before the build counts. */
+/**
+ * How far the build is, as a share of 1; null before ninja counts. The build itself has the most steps of every count in
+ * the log ("[412/1702]"): the bootloader beside it counts its own few ("[1/123]"), and ESPHome's size report after it
+ * starts at "[0/2]", so the count of the largest total is the one to follow (app 0.4.63). A line from an older app can
+ * still hold ninja's whole run of updates, each after a carriage return, so every part of a line counts.
+ */
 export function buildShare(logs: readonly string[]): number | null {
-  for (let i = logs.length - 1; i >= 0; i--) {
-    const found = /^\s*\[(\d+)\/(\d+)\]/.exec(logs[i]);
-    if (found && Number(found[2]) > 0) return Math.min(1, Number(found[1]) / Number(found[2]));
+  let total = 0, done = 0;
+  for (const line of logs) {
+    for (const part of line.split("\r")) {
+      const found = /^\s*(?:\x1b\[[0-9;]*[A-Za-z])*\[(\d+)\/(\d+)\]/.exec(part);
+      if (!found || Number(found[2]) <= 0) continue;
+      if (Number(found[2]) >= total) { total = Number(found[2]); done = Number(found[1]); }
+    }
   }
-  return null;
+  if (!total) return null;
+  // The image is made and the factory file written: the build is done, whatever ninja counted last.
+  if (logs.some((line) => /Creating factory\.bin|Successfully compiled program/.test(line))) return 1;
+  return Math.min(1, done / total);
+}
+
+// What ESPHome says on its way to the build, before ninja counts anything (app 0.4.63): a first build on a Raspberry Pi
+// spends minutes here, setting ESP-IDF up and configuring CMake, and the bar should move while it does.
+const GETTING_READY: [RegExp, number][] = [
+  [/Reading configuration/, 0.1],
+  [/Generating C\+\+ source/, 0.25],
+  [/Compiling app/, 0.35],
+  [/(Checking|Installing|Downloading) ESP-IDF/i, 0.45],
+  [/^-- (The C compiler|Detecting C compiler)/, 0.6],
+  [/^-- Building ESP-IDF components/, 0.75],
+  [/^-- Configuring done/, 0.88],
+  [/^-- Build files have been written/, 0.95],
+];
+/** How far ESPHome got with getting the build ready, as a share of 1; null before it says anything we know. */
+export function readyShare(logs: readonly string[]): number | null {
+  let share: number | null = null;
+  for (const line of logs)
+    for (const [pattern, value] of GETTING_READY)
+      if (pattern.test(line) && (share === null || value > share)) share = value;
+  return share;
 }
 
 /** How much of the image an upload over USB has written, from esptool's or ESPHome's own line; null before it writes. */
@@ -69,6 +102,8 @@ export function installProgress(job: Job, logs: readonly string[], opts: { brows
   } else if (share !== null) {
     at = keys.indexOf("build");
     within = share;
+  } else if (state === "running") {
+    within = readyShare(logs);
   }
   const failedAt = buildFailed || flashFailed ? Math.min(at, keys.length - 1) : -1;
   const steps: Step[] = shares.map(([key], index) => ({

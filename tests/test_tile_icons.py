@@ -30,10 +30,15 @@ class IconSetTests(unittest.TestCase):
             # Back's font carries the chevron and nothing else, written out by hand in the shared core; every other icon
             # font carries the whole set. The home key is the Tessera mark (firmware 0.10.0+), a picture, not a glyph.
             self.assertEqual([font for font, _ in fonts], ['materialdesign_icons', 'materialdesign_icons_mini',
-                                                           'materialdesign_icons_back', 'materialdesign_icons_big', 'watch_icon'], name)
+                                                           'materialdesign_icons_back', 'materialdesign_icons_status',
+                                                           'materialdesign_icons_big', 'watch_icon'], name)
             self.assertEqual(dict(fonts)['materialdesign_icons_back'].strip(), '["\\U000F0141"]', name)
+            # The top bar's Wi-Fi bars (firmware 0.38.0): struck through, then one to four bars, the order header_bar.h counts.
+            self.assertEqual(dict(fonts)['materialdesign_icons_status'].strip(),
+                             '["\\U000F092E", "\\U000F091F", "\\U000F0922", "\\U000F0925", "\\U000F0928"]', name)
             self.assertTrue(fonts[0][1].startswith('&tile_icons ')
-                            and all(g == '*tile_icons' for font, g in fonts[1:] if font not in ('materialdesign_icons_big', 'materialdesign_icons_back')), name)
+                            and all(g == '*tile_icons' for font, g in fonts[1:]
+                                    if font not in ('materialdesign_icons_big', 'materialdesign_icons_back', 'materialdesign_icons_status')), name)
             block = text.split('glyphs: &tile_icons ', 1)[1].split('\n\n', 1)[0]
             self.assertEqual(re.findall(r'- "(\\U000F[0-9A-F]{4})"', block), wanted, name)
             # The big font of the full-page card (firmware 0.2.62+) carries the subset the screen draws on its own.

@@ -1,7 +1,7 @@
 // How far a new screen's installation is (app 0.4.32): counted from ESPHome's own log and the browser flasher's phase,
 // never guessed.
 import { describe, expect, it } from "vitest";
-import { buildShare, installProgress, writeShare } from "../src/model/install-progress";
+import { buildShare, installProgress, readyShare, writeShare } from "../src/model/install-progress";
 
 const states = (p: ReturnType<typeof installProgress>) => p.steps.map((step) => `${step.key}:${step.state}${step.percent !== null ? `:${step.percent}` : ""}`);
 
@@ -17,7 +17,7 @@ describe("the steps of an installation", () => {
 
   it("gets ready, builds and writes over USB on the Home Assistant machine, one bar for all of it", () => {
     const job = { state: "running", stage: "compile", action: "install" };
-    expect(states(installProgress(job, ["INFO Reading configuration"]))).toEqual(["prepare:running", "build:waiting", "write:waiting", "restart:waiting", "done:waiting"]);
+    expect(states(installProgress(job, ["INFO Reading configuration"]))).toEqual(["prepare:running:10", "build:waiting", "write:waiting", "restart:waiting", "done:waiting"]);
     const building = installProgress(job, ["[592/1184] Building"]);
     expect(states(building)).toEqual(["prepare:done:100", "build:running:50", "write:waiting", "restart:waiting", "done:waiting"]);
     expect(building.percent).toBe(39);
@@ -27,6 +27,24 @@ describe("the steps of an installation", () => {
     const done = installProgress({ state: "success", stage: "upload", action: "install" }, ["Wrote 1 bytes"]);
     expect(done.done).toBe(true);
     expect(done.percent).toBe(100);
+  });
+
+  it("follows the build itself, not the bootloader beside it or the size report after it (app 0.4.63)", () => {
+    // ninja rewrites one line in place; an older app kept the whole run of updates in one line of the log.
+    expect(buildShare(["[0/2] Re-checking\x1b[K\r[1/1702] Performing build step for 'bootloader'\x1b[K\r[851/1702] Building C object x.c.obj\x1b[K"])).toBe(0.5);
+    expect(buildShare(["[851/1702] Building C object x.c.obj", "[1/123] Building C object esp-idf/log/util.c.obj", "[60/123] b"])).toBe(0.5);
+    expect(buildShare(["[1701/1702] Linking", "Executing \"ninja -j 4 size\"...", "[0/2] Re-checking globbed directories...", "[4/5] Completed 'bootloader'"])).toBeCloseTo(1701 / 1702);
+    expect(buildShare(["[1701/1702] Linking", "[0/2] Re-checking", "INFO Creating factory.bin..."])).toBe(1);
+    const job = { state: "running", stage: "compile", action: "install" };
+    expect(states(installProgress(job, ["[1702/1702] done", "[0/2] Re-checking"]))[1]).toBe("build:running:100");
+  });
+
+  it("moves through getting ready before ninja counts anything (app 0.4.63)", () => {
+    expect(readyShare(["INFO ESPHome 2026.9.0"])).toBeNull();
+    expect(readyShare(["INFO Reading configuration x.yaml...", "INFO Generating C++ source...", "INFO Compiling app... Build path: /data"])).toBe(0.35);
+    expect(readyShare(["INFO Checking ESP-IDF 5.5.5 framework ...", "-- Configuring done (13.4s)"])).toBe(0.88);
+    const job = { state: "running", stage: "compile", action: "install" };
+    expect(states(installProgress(job, ["INFO Compiling app...", "-- Build files have been written to: /data/build"]))[0]).toBe("prepare:running:95");
   });
 
   it("marks the step it stopped in when it fails, and keeps the rest waiting", () => {

@@ -100,7 +100,7 @@
       "days_hours": "{d} d {h} h"
     },
     "status": {
-      "connecting": "Connecting to Home Assistant",
+      "connecting": "Waiting for Home Assistant",
       "waiting": "Waiting for Tessera",
       "loading_tiles": "Loading tiles...",
       "preparing_pages": "Preparing pages {n}/{total}",
@@ -113,7 +113,22 @@
       "configuration_version": "Configuration problem.\nCheck screen and add-on versions.",
       "wifi_problem": "Wi-Fi connection problem",
       "wifi_hotspot": "Connect to hotspot {name} to fix this.\nPassword: {password}",
-      "wifi_usb": "Check the Wi-Fi name and password, then install this screen again over USB."
+      "wifi_usb": "Check the Wi-Fi name and password, then install this screen again over USB.",
+      "wifi_connecting": "Connecting to Wi-Fi",
+      "wifi_address": "Getting an address",
+      "wifi_not_found": "Network not found",
+      "wifi_password": "Password not accepted",
+      "wifi_weak": "Signal too weak ({dbm} dBm)",
+      "wifi_failed": "Could not connect, trying again",
+      "loading_tiles_count": "Loading tiles {n}/{total}",
+      "hint_home_assistant": "Home Assistant has not connected yet. Is this screen added under Settings > Devices & services > ESPHome?",
+      "hint_tessera": "Is the Tessera Screen Manager app running in Home Assistant?",
+      "updating": "Updating firmware {percent}",
+      "update_restart": "Update complete, restarting",
+      "update_failed": "Update failed",
+      "hint_key": "A connection from {address} was turned away: its key is not this screen's. Enter this screen's key in Home Assistant's ESPHome integration.",
+      "no_answer_title": "No answer from Home Assistant",
+      "no_answer_text": "Often this screen may not perform actions yet. Turn that on in Home Assistant: ESPHome > this screen > Configure."
     },
     "preparing": {
       "default": "Arranging your tiles",
@@ -165,14 +180,17 @@
       "seconds": "{n} sec",
       "minutes": "{n} min",
       "hours": "{n} h",
-      "hours_minutes": "{h} h {m}"
+      "hours_minutes": "{h} h {m}",
+      "wifi": "Wi-Fi",
+      "tessera": "Tessera"
     },
     "tile": {
       "tap_to_open": "Tap to open",
       "page": "Page {n}",
       "refused": "Refused",
       "command_sent": "Command sent...",
-      "confirmed": "Confirmed by Home Assistant"
+      "confirmed": "Confirmed by Home Assistant",
+      "no_answer": "No answer"
     },
     "alert": {
       "notification": "Notification",
@@ -862,7 +880,9 @@
         "builtin": {
           "clock": "Time",
           "analog": "Analog clock",
-          "date": "Date"
+          "date": "Date",
+          "wifi": "Wi-Fi signal",
+          "link": "Connection warning"
         },
         "contents": {
           "state": "Status",
@@ -882,6 +902,15 @@
           "people_home": "People home",
           "sun": "Sunrise and sunset",
           "co2": "CO₂"
+        },
+        "wifi_contents": {
+          "icon": "Icon only",
+          "percent": "Percentage",
+          "dbm": "dBm"
+        },
+        "wifi_shows": {
+          "always": "Always",
+          "weak": "Only when weak"
         }
       }
     },
@@ -1825,7 +1854,9 @@
       "detail": {
         "hidden": "Hidden: not active right now",
         "overflow": "Doesn't fit next to the name",
-        "dial": "Dial"
+        "dial": "Dial",
+        "hidden_signal": "Hidden while the signal is good",
+        "hidden_link": "Hidden while everything is connected"
       },
       "live": {
         "hidden": "Hidden right now: not active",
@@ -1860,7 +1891,13 @@
         "none_found": "No entities found."
       },
       "left": "Left",
-      "left_hint": "Title and home button: in the page settings"
+      "left_hint": "Title and home button: in the page settings",
+      "wifi_sample": "This screen's own signal",
+      "link_sample": "Only when Home Assistant or Tessera is away",
+      "wifi_hint": "The screen reads its own signal, so this item stays in the bar when Home Assistant is away. Four bars down to one, struck through without a network.",
+      "wifi_show_hint": "Only when weak keeps the bar clear until the signal drops to one bar or the network is gone.",
+      "link_hint": "Appears only while Home Assistant or Tessera is away, so you can tell at a glance why values are missing.",
+      "status_firmware": "This item shows from firmware {version}. Until that update, the screen leaves it out."
     },
     "screen_settings": {
       "groups": {
@@ -2514,7 +2551,8 @@
         "navigation": "Navigation"
       },
       "home_hint": "The home button and a swipe up lead here.",
-      "bar_entities": "Also on the right"
+      "bar_entities": "Also on the right",
+      "actions_blocked": "Home Assistant doesn't let this screen perform actions, so a tap on a tile does nothing. In Home Assistant open Settings → Devices & services → ESPHome, choose this screen, then Configure, and turn on “Allow the device to perform Home Assistant actions”."
     },
     "feedback": {
       "question": "Does your screen work as you expect?",

@@ -100,7 +100,7 @@
       "days_hours": "{d} d {h} h"
     },
     "status": {
-      "connecting": "A ligar ao Home Assistant",
+      "connecting": "À espera do Home Assistant",
       "waiting": "À espera do Tessera",
       "loading_tiles": "A carregar mosaicos...",
       "preparing_pages": "A preparar páginas {n}/{total}",
@@ -113,7 +113,22 @@
       "configuration_version": "Problema de configuração.\nVerifique as versões do ecrã e do complemento.",
       "wifi_problem": "Problema na ligação Wi-Fi",
       "wifi_hotspot": "Liga-te ao hotspot {name} para resolver.\nPalavra-passe: {password}",
-      "wifi_usb": "Verifica o nome e a palavra-passe do Wi-Fi e volta a instalar este ecrã por USB."
+      "wifi_usb": "Verifica o nome e a palavra-passe do Wi-Fi e volta a instalar este ecrã por USB.",
+      "wifi_connecting": "A ligar ao Wi-Fi",
+      "wifi_address": "A obter um endereço",
+      "wifi_not_found": "Rede não encontrada",
+      "wifi_password": "Palavra-passe não aceite",
+      "wifi_weak": "Sinal demasiado fraco ({dbm} dBm)",
+      "wifi_failed": "Não foi possível ligar, a tentar de novo",
+      "loading_tiles_count": "A carregar mosaicos {n}/{total}",
+      "hint_home_assistant": "O Home Assistant ainda não se ligou. Este ecrã foi adicionado em Definições > Dispositivos e serviços > ESPHome?",
+      "hint_tessera": "A app Tessera Screen Manager está a correr no Home Assistant?",
+      "updating": "A atualizar firmware {percent}",
+      "update_restart": "Atualizado, a reiniciar",
+      "update_failed": "A atualização falhou",
+      "hint_key": "Uma ligação de {address} foi recusada: a chave não é a deste ecrã. Introduza a chave deste ecrã na integração ESPHome do Home Assistant.",
+      "no_answer_title": "Sem resposta do Home Assistant",
+      "no_answer_text": "Muitas vezes este ecrã ainda não pode executar ações. Ative-o no Home Assistant: ESPHome > este ecrã > Configurar."
     },
     "preparing": {
       "default": "A arrumar os mosaicos",
@@ -165,14 +180,17 @@
       "seconds": "{n} s",
       "minutes": "{n} min",
       "hours": "{n} h",
-      "hours_minutes": "{h} h {m}"
+      "hours_minutes": "{h} h {m}",
+      "wifi": "Wi-Fi",
+      "tessera": "Tessera"
     },
     "tile": {
       "tap_to_open": "Toque para abrir",
       "page": "Página {n}",
       "refused": "Recusado",
       "command_sent": "Comando enviado...",
-      "confirmed": "Confirmado pelo Home Assistant"
+      "confirmed": "Confirmado pelo Home Assistant",
+      "no_answer": "Sem resposta"
     },
     "alert": {
       "notification": "Notificação",
@@ -862,7 +880,9 @@
         "builtin": {
           "clock": "Hora",
           "analog": "Relógio analógico",
-          "date": "Data"
+          "date": "Data",
+          "wifi": "Sinal Wi-Fi",
+          "link": "Aviso de ligação"
         },
         "contents": {
           "state": "Estado",
@@ -882,6 +902,15 @@
           "people_home": "Pessoas em casa",
           "sun": "Nascer e pôr do sol",
           "co2": "CO₂"
+        },
+        "wifi_contents": {
+          "icon": "Só ícone",
+          "percent": "Percentagem",
+          "dbm": "dBm"
+        },
+        "wifi_shows": {
+          "always": "Sempre",
+          "weak": "Apenas quando fraco"
         }
       }
     },
@@ -1825,7 +1854,9 @@
       "detail": {
         "hidden": "Oculto: agora não está ativo",
         "overflow": "Não cabe ao lado do nome",
-        "dial": "Mostrador"
+        "dial": "Mostrador",
+        "hidden_signal": "Oculto enquanto o sinal é bom",
+        "hidden_link": "Oculto enquanto tudo está ligado"
       },
       "live": {
         "hidden": "Oculto neste momento: não está ativo",
@@ -1860,7 +1891,13 @@
         "none_found": "Nenhuma entidade encontrada."
       },
       "left": "Esquerda",
-      "left_hint": "Título e botão de início: nas definições da página"
+      "left_hint": "Título e botão de início: nas definições da página",
+      "wifi_sample": "O sinal deste ecrã",
+      "link_sample": "Apenas quando falta o Home Assistant ou o Tessera",
+      "wifi_hint": "O ecrã lê o seu próprio sinal, por isso este item fica na barra quando o Home Assistant não está. De quatro barras a uma, riscado sem rede.",
+      "wifi_show_hint": "Apenas quando fraco deixa a barra livre até o sinal descer a uma barra ou a rede desaparecer.",
+      "link_hint": "Só aparece enquanto falta o Home Assistant ou o Tessera, para perceber de relance porque faltam valores.",
+      "status_firmware": "Este item aparece a partir do firmware {version}. Até essa atualização, o ecrã omite-o."
     },
     "screen_settings": {
       "groups": {
@@ -2514,7 +2551,8 @@
         "navigation": "Navegação"
       },
       "home_hint": "O botão de início e deslizar para cima levam aqui.",
-      "bar_entities": "Também à direita"
+      "bar_entities": "Também à direita",
+      "actions_blocked": "O Home Assistant não deixa este ecrã executar ações, por isso tocar num mosaico não faz nada. No Home Assistant abra Definições → Dispositivos e serviços → ESPHome, escolha este ecrã, depois Configurar, e ative “Permitir que o dispositivo execute ações do Home Assistant”."
     },
     "feedback": {
       "question": "O seu ecrã funciona como espera?",

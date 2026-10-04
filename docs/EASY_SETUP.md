@@ -413,6 +413,14 @@ should stay away.
 
 ## If something doesn't work
 
+The screen says what it is doing while it starts (firmware 0.38.0): the Wi-Fi network it connects to, its address once
+it has one, whether Home Assistant came and how many tiles have arrived, each with how long it has waited. When the
+Wi-Fi doesn't work it says why, as far as it can tell: the network isn't found, the password isn't accepted, or the
+signal is too weak. A step that takes more than 30 seconds adds what usually fixes it, and when Home Assistant tried to
+connect with a key that is not this screen's, the screen says so at once. Once the screen runs, **This screen** on its
+settings page shows the network and its signal, and the **Wi-Fi signal** item can stand in the top bar. A tap that Home
+Assistant ignores says "No answer" and, the first time, shows where to allow the screen's actions.
+
 - **No screen in the list:** check that the new Easy Setup firmware is running,
   the ESPHome integration is connected, and the **Tile settings** text entity
   isn't disabled. The old manual firmware doesn't publish that by default.
@@ -423,9 +431,10 @@ should stay away.
   use the same own YAML over USB. Don't generate a new identity.
 - **New Wi-Fi network or password:** change `wifi_ssid` and `wifi_password` in ESPHome's
   `secrets.yaml`. A screen that can't reach the old network can't be updated over Wi-Fi, so:
-  - Most boards open a fallback hotspot, `<screen name> Setup`, about 90 seconds after they lose
-    their network. Its password is under `wifi:` → `ap:` in the screen's own YAML. Join it with a
-    phone and pick the new network on the page that opens.
+  - Most boards open a fallback hotspot about 90 seconds after they lose their network, named `Tessera` and the
+    screen's name (`<screen name> Setup` on a screen made before app 0.4.63, until its next update). The screen shows
+    the hotspot's name, its password and a QR code: point a phone's camera at the code to join, or use the password
+    under `wifi:` → `ap:` in the screen's own YAML. Pick the new network on the page that opens.
   - A CYD and the other boards with 4 MB of flash have no hotspot (app 0.4.5+): it would take
     some 90 KB of their update slot. Connect the screen to a computer over USB and install its own
     profile again under **Firmware & USB**. The name, the keys and the calibration stay.

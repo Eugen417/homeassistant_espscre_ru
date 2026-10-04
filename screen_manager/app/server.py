@@ -324,6 +324,22 @@ class HomeAssistant:
         self.registry, self.devices, self.areas = await asyncio.gather(
             self.request('config/entity_registry/list'), self.request('config/device_registry/list'), self.request('config/area_registry/list'))
 
+    async def actions_blocked(self):
+        """The devices that may not perform Home Assistant actions (app 0.4.63): the ESPHome integration keeps that off
+        until someone turns on "Allow the device to perform Home Assistant actions", ignores the screen's taps meanwhile,
+        and raises its own repair issue, service_calls_not_enabled-<the device's MAC>, at the first one it ignores. The
+        editor shows the fix for those screens. Empty when Home Assistant does not say (an older one, no admin)."""
+        try:
+            data = await self.request('repairs/list_issues')
+        except Exception:  # noqa: BLE001 - a missing answer only hides a hint
+            return set()
+        macs = {str(issue.get('issue_id', ''))[len('service_calls_not_enabled-'):].lower()
+                for issue in (data or {}).get('issues', []) if isinstance(issue, dict) and issue.get('domain') == 'esphome'
+                and str(issue.get('issue_id', '')).startswith('service_calls_not_enabled-')}
+        return {device.get('id') for device in self.devices or [] if isinstance(device, dict)
+                and any(isinstance(link, (list, tuple)) and len(link) == 2 and link[0] == 'mac' and str(link[1]).lower() in macs
+                        for link in device.get('connections') or [])}
+
     async def fetch_services(self):
         """Every action Home Assistant describes: which ESPHome actions answer (Home Assistant lists `response` for an
         action that can return one), and the descriptions the editor's choices per entity follow (app 0.2.67)."""
@@ -2018,9 +2034,10 @@ class Manager:
                 return item.get('name_by_user') or item.get('name')
         return None
 
-    def header_message(self, layout):
+    def header_message(self, layout, features=None):
+        """`features`: the screen's hello (page_delivery.Sender.features); None for this app's own firmware (the preview)."""
         return header_bar.message(layout, self.ha.states, self.registry_index(), getattr(self.ha, 'units', {}), getattr(self.ha, 'time_zone', None),
-                                  getattr(self.ha, 'state_words', None))
+                                  getattr(self.ha, 'state_words', None), features)
 
     def needs_firmware(self, inbox, layout, screen=None):
         """Version string the screen must run first, or None when the layout can be sent."""
@@ -2451,7 +2468,8 @@ class Manager:
         if self.supports_header(inbox, screen):
             bar = {item['entity'] for item in header_items(layout) if item['type'] == 'entity'}
             if full or previous['header'] is None or bar & dirty:
-                header_msg = self.header_message(layout)
+                # This route has no hello, so none of the screen's own items (firmware 0.38.0) either.
+                header_msg = self.header_message(layout, frozenset())
             else:
                 header_msg = previous['header']
         states = []
@@ -3468,6 +3486,12 @@ def create_app(manager, development=False):
             return web.json_response(await seen_pending(light_payload()))
         screens, entities = manager.inventory()
         payload = await seen_pending(light_payload(screens))
+        # A screen whose taps Home Assistant ignores because it may not perform actions (app 0.4.63): the editor says how
+        # to allow them.
+        blocked = await manager.ha.actions_blocked() if hasattr(manager.ha, 'actions_blocked') else set()
+        for screen in payload['screens']:
+            if screen.get('device_id') in blocked:
+                screen['actions_blocked'] = True
         payload['entities'] = entities
         # The device trackers a map card can show beside its person (app 0.4.35): no tiles of their own.
         payload['trackers'] = map_card.trackers(manager.ha.states)

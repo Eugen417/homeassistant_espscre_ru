@@ -100,8 +100,8 @@
       "days_hours": "{d} j {h} h"
     },
     "status": {
-      "connecting": "Connexion à Home Assistant",
-      "waiting": "En attente d'Tessera",
+      "connecting": "En attente de Home Assistant",
+      "waiting": "En attente de Tessera",
       "loading_tiles": "Chargement des tuiles...",
       "preparing_pages": "Préparation des pages {n}/{total}",
       "ha_not_connected": "HA non connecté",
@@ -113,7 +113,22 @@
       "configuration_version": "Problème de configuration.\nVérifiez les versions de l’écran et du module.",
       "wifi_problem": "Problème de connexion Wi-Fi",
       "wifi_hotspot": "Connecte-toi au point d’accès {name} pour corriger cela.\nMot de passe : {password}",
-      "wifi_usb": "Vérifie le nom et le mot de passe du Wi-Fi, puis réinstalle cet écran par USB."
+      "wifi_usb": "Vérifie le nom et le mot de passe du Wi-Fi, puis réinstalle cet écran par USB.",
+      "wifi_connecting": "Connexion au Wi-Fi",
+      "wifi_address": "Obtention d'une adresse",
+      "wifi_not_found": "Réseau introuvable",
+      "wifi_password": "Mot de passe refusé",
+      "wifi_weak": "Signal trop faible ({dbm} dBm)",
+      "wifi_failed": "Échec de connexion, nouvel essai",
+      "loading_tiles_count": "Chargement des tuiles {n}/{total}",
+      "hint_home_assistant": "Home Assistant ne s'est pas encore connecté. Cet écran est-il ajouté dans Paramètres > Appareils et services > ESPHome ?",
+      "hint_tessera": "L'app Tessera Screen Manager tourne-t-elle dans Home Assistant ?",
+      "updating": "Mise à jour du firmware {percent}",
+      "update_restart": "Mise à jour terminée, redémarrage",
+      "update_failed": "Échec de la mise à jour",
+      "hint_key": "Une connexion depuis {address} a été refusée : sa clé n'est pas celle de cet écran. Saisissez la clé de cet écran dans l'intégration ESPHome de Home Assistant.",
+      "no_answer_title": "Pas de réponse de Home Assistant",
+      "no_answer_text": "Souvent, cet écran ne peut pas encore effectuer d'actions. Activez-le dans Home Assistant : ESPHome > cet écran > Configurer."
     },
     "preparing": {
       "default": "On range vos tuiles",
@@ -165,14 +180,17 @@
       "seconds": "{n} s",
       "minutes": "{n} min",
       "hours": "{n} h",
-      "hours_minutes": "{h} h {m}"
+      "hours_minutes": "{h} h {m}",
+      "wifi": "Wi-Fi",
+      "tessera": "Tessera"
     },
     "tile": {
       "tap_to_open": "Ouvrir",
       "page": "Page {n}",
       "refused": "Refusé",
       "command_sent": "Commande envoyée...",
-      "confirmed": "Confirmé par Home Assistant"
+      "confirmed": "Confirmé par Home Assistant",
+      "no_answer": "Pas de réponse"
     },
     "alert": {
       "notification": "Notification",
@@ -862,7 +880,9 @@
         "builtin": {
           "clock": "Heure",
           "analog": "Horloge analogique",
-          "date": "Date"
+          "date": "Date",
+          "wifi": "Signal Wi-Fi",
+          "link": "Alerte de connexion"
         },
         "contents": {
           "state": "État",
@@ -882,6 +902,15 @@
           "people_home": "Personnes à la maison",
           "sun": "Lever et coucher du soleil",
           "co2": "CO₂"
+        },
+        "wifi_contents": {
+          "icon": "Icône seule",
+          "percent": "Pourcentage",
+          "dbm": "dBm"
+        },
+        "wifi_shows": {
+          "always": "Toujours",
+          "weak": "Seulement si faible"
         }
       }
     },
@@ -1825,7 +1854,9 @@
       "detail": {
         "hidden": "Masqué : pas actif en ce moment",
         "overflow": "Ne tient pas à côté du nom",
-        "dial": "Cadran"
+        "dial": "Cadran",
+        "hidden_signal": "Masqué tant que le signal est bon",
+        "hidden_link": "Masqué tant que tout est connecté"
       },
       "live": {
         "hidden": "Masqué en ce moment : pas actif",
@@ -1860,7 +1891,13 @@
         "none_found": "Aucune entité trouvée."
       },
       "left": "Gauche",
-      "left_hint": "Titre et bouton d’accueil : dans les réglages de la page"
+      "left_hint": "Titre et bouton d’accueil : dans les réglages de la page",
+      "wifi_sample": "Le signal de cet écran",
+      "link_sample": "Seulement si Home Assistant ou Tessera est absent",
+      "wifi_hint": "L'écran lit son propre signal, cet élément reste donc dans la barre quand Home Assistant est absent. De quatre barres à une, barré sans réseau.",
+      "wifi_show_hint": "Seulement si faible garde la barre libre jusqu'à ce que le signal tombe à une barre ou que le réseau disparaisse.",
+      "link_hint": "N'apparaît que si Home Assistant ou Tessera est absent, pour voir d'un coup d'œil pourquoi des valeurs manquent.",
+      "status_firmware": "Cet élément apparaît à partir du firmware {version}. D'ici là, l'écran l'omet."
     },
     "screen_settings": {
       "groups": {
@@ -2514,7 +2551,8 @@
         "navigation": "Navigation"
       },
       "home_hint": "Le bouton d’accueil et un glissement vers le haut mènent ici.",
-      "bar_entities": "Aussi à droite"
+      "bar_entities": "Aussi à droite",
+      "actions_blocked": "Home Assistant ne laisse pas cet écran effectuer d'actions, un appui sur une tuile ne fait donc rien. Dans Home Assistant, ouvrez Paramètres → Appareils et services → ESPHome, choisissez cet écran, puis Configurer, et activez « Autoriser l'appareil à effectuer des actions Home Assistant »."
     },
     "feedback": {
       "question": "Votre écran fonctionne-t-il comme prévu ?",

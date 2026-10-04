@@ -18,6 +18,8 @@ static bool parse_bar_item(JsonVariant value, header_bar::Item &item) {
     item.text = string(value["t"], header_bar::TEXT_BYTES);
     item.epoch = value["e"].is<unsigned>() ? value["e"].as<uint32_t>() : 0;
     item.has_color = header_bar::color(string(value["c"], 8), item.color);
+    // The Wi-Fi item that shows only while the signal is weak or gone (firmware 0.38.0).
+    item.only_weak = item.kind == header_bar::Kind::wifi && value["a"].is<unsigned>() && value["a"].as<unsigned>() == 1;
     if (item.kind == header_bar::Kind::ago && item.epoch == 0) return false;
     return true;
 }

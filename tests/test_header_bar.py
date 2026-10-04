@@ -201,6 +201,47 @@ class MessageTests(unittest.TestCase):
         self.assertEqual([p['shown'] for p in preview], [False, True, True, True, True])
         self.assertEqual(preview[0]['name'], 'binary_sensor.door')
 
+    def test_the_screens_own_items_go_only_to_a_screen_that_takes_them(self):
+        # Firmware 0.38.0 (GitHub #130): the Wi-Fi signal and the link mark, read by the screen itself. An older screen
+        # refuses a page with an item it does not know, so it gets the rest of the bar without them.
+        header = validate_header({'items': [{'type': 'wifi'}, {'type': 'link'}, {'type': 'wifi', 'content': 'dbm', 'show': 'weak'},
+                                            {'type': 'clock'}]})
+        self.assertEqual(header['items'], [{'type': 'wifi', 'content': 'icon', 'show': 'always'}, {'type': 'link'},
+                                           {'type': 'wifi', 'content': 'dbm', 'show': 'weak'}, {'type': 'clock'}])
+        layout = {'title': 'Hall', 'tiles': [], 'header': header}
+        newer = [{'k': 'wifi', 't': ''}, {'k': 'link'}, {'k': 'wifi', 't': 'dBm', 'a': 1}, {'k': 'clock'}]
+        self.assertEqual(header_bar.message(layout, {}, features={'bar_status', 'climate_range'})['items'], newer)
+        self.assertEqual(header_bar.message(layout, {})['items'], newer, 'the preview runs this firmware')
+        self.assertEqual(header_bar.message(layout, {}, features={'climate_range'})['items'], [{'k': 'clock'}])
+        self.assertEqual(header_bar.message(layout, {}, features=frozenset())['items'], [{'k': 'clock'}])
+        self.assertEqual(header_bar.message({**layout, 'header': {'items': [{'type': 'wifi', 'content': 'percent', 'show': 'always'}]}},
+                                            {})['items'], [{'k': 'wifi', 't': '%'}])
+        for bad in ({'type': 'wifi', 'content': 'bars'}, {'type': 'wifi', 'show': 'active'}, {'type': 'wifi', 'entity': 'sensor.x'},
+                    {'type': 'link', 'show': 'weak'}):
+            with self.assertRaises(ValueError, msg=bad):
+                validate_header({'items': [bad]})
+        with self.assertRaises(ValueError):
+            validate_header({'items': [{'type': 'wifi'}, {'type': 'wifi', 'content': 'icon'}]})
+        # The editor offers them with the screen's own items, and the firmware that draws them.
+        catalogue = header_bar.catalogue()
+        self.assertEqual([b['type'] for b in catalogue['builtin']], ['clock', 'analog', 'date', 'wifi', 'link'])
+        self.assertEqual([c['key'] for c in catalogue['wifi_contents']], ['icon', 'percent', 'dbm'])
+        self.assertEqual(catalogue['status_min_firmware'], '0.38.0')
+        # The firmware reads the same words: the kinds, `a` and the three texts.
+        for word in ('if (name == "wifi") return Kind::wifi;', 'if (name == "link") return Kind::link;',
+                     'item.text == "%"', 'item.text == "dBm"'):
+            self.assertIn(word, FIRMWARE)
+        self.assertIn('features.add("bar_status");', (ROOT / 'packages/core.yaml').read_text())
+        # The editor's mockup draws the bars by the firmware's thresholds and glyphs (model/topbar.ts, wifi_status.h).
+        wifi = (ROOT / 'components/smart_display/wifi_status.h').read_text()
+        self.assertIn('return rssi >= -60 ? 4 : rssi >= -70 ? 3 : rssi >= WEAK_DBM ? 2 : 1;', wifi)
+        self.assertIn('constexpr int WEAK_DBM = -78;', wifi)
+        self.assertIn('rssi >= -60 ? 4 : rssi >= -70 ? 3 : rssi >= -78 ? 2 : 1', EDITOR)
+        self.assertIn('2 * (rssi + 100)', EDITOR)
+        glyphs = re.search(r'WIFI_GLYPHS\[5\] = \{WIFI_OFF_GLYPH, (0x\w+), (0x\w+), (0x\w+), (0x\w+)\}', FIRMWARE).groups()
+        self.assertIn('export const WIFI_GLYPHS = ["F092E", ' + ', '.join(f'"{g[2:].upper()}"' for g in glyphs) + ']', EDITOR)
+        self.assertIn('constexpr uint32_t WIFI_OFF_GLYPH = 0xF092E;', FIRMWARE)
+
     def test_old_layout_sends_the_clock_of_show_clock(self):
         self.assertEqual(header_bar.message({'title': 'Home', 'tiles': []}, {})['items'], [{'k': 'clock'}])
         self.assertEqual(header_bar.message({'title': 'Home', 'tiles': [], 'settings': {'show_clock': False}}, {})['items'], [])
@@ -281,9 +322,17 @@ class ParityTests(unittest.TestCase):
         # Firmware 0.2.73+: until the first layout the text and a spinner stand in the middle and the name stays empty;
         # the first layout deletes them, so no spinner turns behind the tiles.
         render = TILES.split('inline void render(lv_obj_t *room) {', 1)[1].split('\n}', 1)[0]
-        self.assertIn('if (!model.configured) boot_status(lv_obj_get_parent(room), tr(!ha_connected() ? '
-                      'txt::status_connecting : transfer.begun ? txt::status_loading_tiles : txt::status_waiting));', render)
-        self.assertIn('else if (boot_panel) { lv_obj_delete(boot_panel);', render)
+        # Firmware 0.38.0: step by step, with what the screen knows of each step (boot_view).
+        self.assertIn('const auto view = boot_view(esphome::millis());', render)
+        self.assertIn('boot_status(lv_obj_get_parent(room), view.title.c_str(), true, false, view.facts, view.hint);', render)
+        self.assertIn('else if (boot_panel) boot_forget();', render)
+        view = TILES.split('inline BootView boot_view(uint32_t now) {', 1)[1].split('\n}', 1)[0]
+        for step in ('txt::status_wifi_connecting', 'txt::status_wifi_address', 'txt::status_connecting',
+                     'txt::status_waiting', 'txt::status_loading_tiles_count', 'txt::status_hint_home_assistant',
+                     'txt::status_hint_tessera'):
+            self.assertIn(step, view)
+        # tick() draws it again whenever what it says changes, so a step shows the moment it happens.
+        self.assertIn('const auto view=boot_view(esphome::millis());', TILES.split('inline void tick() {', 1)[1])
         self.assertIn('label(room, !model.configured ? std::string() :', render)
         boot = TILES.split('inline void boot_status(', 1)[1].split('\n}', 1)[0]
         self.assertIn('boot_spinner = spinner_create(boot_panel,', boot)
