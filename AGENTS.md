@@ -22,6 +22,7 @@ Home Assistant entity belongs in a board file. docs/README.md lists every doc an
 | add a board | docs/ADDING_A_BOARD.md, then docs/BOARD_RELEASES.md | `boards.yaml`, `packages/boards/<file>.yaml` |
 | change sizes, fonts or the grid | docs/RESPONSIVE.md | `ui_scale.h`, `packages/looks/`, `packages/cells/` |
 | give a board a battery in the top bar | docs/BATTERY.md | the board's `battery` sensors, `battery_status.h` |
+| change how a screen joins Home Assistant | docs/EASY_SETUP.md, chapter 3 | `screen_manager/app/ha_pairing.py`, Home Assistant's esphome config flow |
 | change a colour | docs/THEME.md | `components/smart_display/theme.h` |
 | change how pages are kept or prepared | docs/KEPT_PAGES.md, docs/PAGES.md | `kept_pages.h`, `page_protocol.h` |
 | touch the flash of a board with 4 MB | docs/FLASH_LAYOUT.md | `components/flash_layout/`, `packages/hardware/flash-4mb.yaml` |
@@ -127,8 +128,10 @@ blueprint. Tiles live in the add-on's data; Wi-Fi, API and OTA stay in the scree
    `tools/calibrate.py` with docs/CALIBRATING.md is the USB route. Capacitive boards report pixels and need none
    (GT911: `tools/verify_gt911.py`). Only a person can tap the glass; an agent cannot replace that with software
    coordinates, and a successful build is not a flash.
-3. Pair with Home Assistant through the ESPHome integration. Read real entity ids and attributes; don't make up
-   entities, and don't run real device actions without the owner's permission.
+3. Home Assistant: the add-on adds a screen whose YAML is in its ESPHome folder to the ESPHome integration by itself
+   and allows its actions (`screen_manager/app/ha_pairing.py`, docs/EASY_SETUP.md chapter 3); a screen built elsewhere
+   is added by hand. Read real entity ids and attributes; don't make up entities, and don't run real device actions
+   without the owner's permission.
 4. Per board, docs/<BOARD>.md has the hardware notes. Display support never configures relays or other peripherals
    on the board.
 
