@@ -372,7 +372,10 @@ def problems(report):
             if parent and parent['id'] != box['id'] and parent['clips'] and o['type'] != 'image' and not inside(o, parent):
                 what = f"text '{o['text'][:30]}'" if o['type'] == 'label' else o['type']
                 found.append(f"{what} is cut by its {parent['type']}")
-        texts = [o for o in members if o['type'] == 'label' and o['text'].strip() and not o['icon']]
+        # In reading order (top, then left), not in the order the objects were made: a card drawn after another face of
+        # the same card keeps parts made before, so the same two texts came in either order and KNOWN missed one of them.
+        texts = sorted((o for o in members if o['type'] == 'label' and o['text'].strip() and not o['icon']),
+                       key=lambda o: (o['y1'], o['x1'], o['id']))
         for o in texts:
             edge = min(o['x1'] - box['x1'], box['x2'] - o['x2'], o['y1'] - box['y1'], box['y2'] - o['y2'])
             if edge < MARGIN:
@@ -630,14 +633,19 @@ def stale_reason(wasm=WASM, manifest=MANIFEST, sources=True):
     return None
 
 
+PIECES = 16  # the pieces a screen's layouts are cut into at most, on every machine (audit)
+
+
 def audit(screens):
     """Every screen's layouts through layout_audit.mjs, a few screens to a Node process, side by side."""
     jobs = max(1, int(os.environ.get('LAYOUT_AUDIT_JOBS') or os.cpu_count() or 2))
     # Each screen's layouts in pieces, the pieces dealt round the processes heaviest first (a ten-inch glass takes
-    # longer a layout than a CYD's), so they finish close together.
+    # longer a layout than a CYD's), so they finish close together. A piece is one firmware, laid out one layout after
+    # another as a screen is, so where the pieces start must not depend on the machine: a fixed count, never the
+    # number of processors, or one computer sees a layout follow another that a second computer never does.
     pieces = []
     for screen in screens:
-        step = max(50, -(-len(screen['layouts']) // (2 * jobs)))
+        step = max(50, -(-len(screen['layouts']) // PIECES))
         pieces += [{**screen, 'layouts': screen['layouts'][i:i + step]} for i in range(0, len(screen['layouts']), step)]
     pieces.sort(key=lambda s: -len(s['layouts']) * s['width'] * s['height'])
     groups = [[] for _ in range(jobs)]

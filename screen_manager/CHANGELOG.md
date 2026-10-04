@@ -1,3 +1,26 @@
+## 0.4.71 (firmware 0.44.0)
+
+- **The simple dial stays inside its card.** The clock's Simple dial face reached into the card's padding on a card
+  of one row, so its black disc stood against the card's edge, and on larger cards it filled the card to the padding.
+  Now the dial always stays inside the padding, like the content of every other card, and on a card of more rows or a
+  whole page it keeps an eighth of its size as air too. A card of more rows also puts the dial beside or above the time,
+  whichever draws the time larger: a near-square card (two columns by three rows on the 10.1-inch) drew a dial as tall
+  as the card with a small time squeezed beside it, and now shows the dial over a time in full size.
+- **The layout audit gives the same answer on every computer.** It cut each screen's layouts into pieces by the
+  number of processors and named two overlapping texts in the order the firmware made them, so the flip clock's date
+  under its digits, which is how the card is drawn, failed on one computer and passed on another. The pieces are now
+  the same everywhere and the texts are named in reading order. Nothing changed on the screen: the 0.4.70 notes called
+  this a case 0.4.69 already failed, but the picture was the same all along.
+- The touch calibration of the CYD and the other resistive boards is now compiled on its own. With this release the
+  CYD's firmware had grown past what an Xtensa instruction can reach back for its constants, by about 0.6 KB; it now
+  has 35 KB to spare. Nothing changes in how the calibration works.
+- Every screen is offered this firmware, 0.44.0.
+- Tested: the Simple dial rendered from the real firmware (the WASM preview) in every size on the CYD, the 4-inch
+  Guition and the 10.1-inch Guition, before and after. Every Python, C++, editor and WASM preview check, the layout
+  audit included, which now passes on the computer where it failed. Firmware builds on ESPHome 2026.9.0 for the CYD
+  (87.8 % of its slot), the 4-inch Guition, the 10.1-inch Guition and the Waveshare 7-inch, and on 2026.6.2 for the
+  CYD (89.6 %). Not tested on glass.
+
 ## 0.4.70 (firmware 0.43.0)
 
 - **The weather card's full view keeps its own text sizes**

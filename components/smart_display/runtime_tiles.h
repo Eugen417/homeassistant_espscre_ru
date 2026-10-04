@@ -5040,31 +5040,46 @@ inline void render_calm_dial(Widgets &w,const Tile &t,bool large,int width,int h
   const int gap=ui::px(large?16:8);
   // The disc goes first, so everything else is drawn over it.
   part_dot(w,19,0,0,1);
-  // Where the dial goes: beside the time on a card wider than tall (reaching into the padding, so a one-row card
-  // gets a dial nearly as tall as the card), above the time on a tall card or a page, alone when neither leaves room.
+  // Where the dial goes, always inside the card's padding like the content of every other card (firmware 0.44.0;
+  // before, a one-row card's dial reached into the padding and stood against the card's edge): beside the time on a
+  // card wider than tall, above the time on a tall card or a page, alone when neither leaves room. A card of more rows
+  // takes whichever of the two draws the time larger, and of two equal times the larger dial: a near-square card
+  // (2x3 on the 10.1-inch) put a dial as tall as the card beside a time in the smallest step. On a card of more rows or
+  // a page the padding is small beside the dial, so the dial keeps an eighth of its size as air as well; a one-row
+  // card's padding is air enough.
   const int side=std::min(width,height);
-  int dial=side,cx=width/2,cy=height/2,tx=0,ty=0,room=0;ClockText text;bool centred=false;
-  const bool upright=w.full || height>width*9/10;
-  if(!upright){
-    const int reach=face_reach(w,t),big=height+2*reach;
-    text=face_text(w,now,large,width-(big-reach)-gap,height+reach);
-    if(text.font){
-      dial=big;cx=dial/2-reach;tx=dial-reach+gap;ty=(height-text.height)/2;room=width-tx;
-      // What is left beside the time is shared: the dial and the text move in together as one group.
-      const int spare=std::min(std::max(0,room-text.width)/2,gap);cx+=spare;tx+=2*spare;room-=2*spare;
-    }
+  const bool big=w.full || t.row_span()>1;
+  auto airy=[&](int d){return big?d*7/8:d;};
+  struct Plan{ClockText text;int dial=0,cx=0,cy=0,tx=0,ty=0,room=0;bool centred=false;};
+  auto beside=[&]{
+    Plan p;const int d=airy(height);p.text=face_text(w,now,large,width-d-gap,height);
+    if(!p.text.font)return p;
+    p.dial=d;p.cx=d/2;p.cy=height/2;p.tx=d+gap;p.ty=(height-p.text.height)/2;p.room=width-p.tx;
+    // What is left beside the time is shared: the dial and the text move in together as one group.
+    const int spare=std::min(std::max(0,p.room-p.text.width)/2,gap);p.cx+=spare;p.tx+=2*spare;p.room-=2*spare;
+    return p;
+  };
+  auto above=[&]{
+    Plan p;p.text=face_text(w,now,large,width,height-side*60/100-gap);
+    if(!p.text.font)return p;
+    // Under the dial the date's letters below the line count too, or they touch the card's edge.
+    const int below=p.text.date.empty()?0:w.value_font->base_line;
+    p.dial=airy(std::min(width,height-p.text.height-below-gap));
+    const int top=(height-p.dial-gap-p.text.height-below)/2;
+    p.cx=width/2;p.cy=top+p.dial/2;p.ty=top+p.dial+gap;p.room=width;p.centred=true;
+    return p;
+  };
+  Plan plan;
+  if(w.full || height>width*9/10)plan=above();
+  else if(t.row_span()<=1){plan=beside();if(!plan.text.font)plan=above();}
+  else{
+    const Plan a=beside(),b=above();
+    const bool first=a.text.font && (!b.text.font || a.text.digits>b.text.digits || (a.text.digits==b.text.digits && a.dial>=b.dial));
+    plan=first?a:b;
   }
-  if(!text.font){
-    text=face_text(w,now,large,width,height-side*60/100-gap);
-    if(text.font){
-      // Under the dial the date's letters below the line count too, or they touch the card's edge.
-      const int below=text.date.empty()?0:w.value_font->base_line;
-      dial=std::min(width,height-text.height-below-gap);
-      const int top=(height-dial-gap-text.height-below)/2;cx=width/2;cy=top+dial/2;ty=top+dial+gap;tx=0;room=width;centred=true;
-    }
-  }
-  if(!text.font){dial=side;cx=width/2;cy=height/2;hide_face_text(w);}
-  else place_face_text(w,text,now,tx,ty,room,centred);
+  int dial=plan.dial,cx=plan.cx,cy=plan.cy;
+  if(!plan.text.font){dial=airy(side);cx=width/2;cy=height/2;hide_face_text(w);}
+  else place_face_text(w,plan.text,now,plan.tx,plan.ty,plan.room,plan.centred);
   const float R=dial/2.0f-1;
   lv_obj_set_pos(w.parts[19],cx-int(R),cy-int(R));lv_obj_set_size(w.parts[19],int(R)*2,int(R)*2);
   // Four strokes at 12, 3, 6 and 9 and a dot at every other hour, all inside the disc.
