@@ -1248,10 +1248,13 @@ inline weather_card::Layout weather_layout;
 inline lv_obj_t *weather_days_card=nullptr,*weather_dots=nullptr,*weather_chevron[2]={};
 inline int weather_page=0;
 // The metrics the board's fonts give this card. Every number is a line height the look decides; the one string
-// that is measured is an hour's time, which says how many hours a strip of this width holds.
+// that is measured is an hour's time, which says how many hours a strip of this width holds. The muted lines are
+// the sublabel (small_font), never the font a tile's value label happens to wear: a big value in the first cell
+// wears the watch or setpoint digits, and the card took those for its hours, rain and lows (GitHub #52, firmware
+// 0.43.0).
 inline weather_card::Metrics weather_metrics(bool large){
   const lv_font_t *icon=widgets[0].icon_font?widgets[0].icon_font:detail_font;
-  const lv_font_t *small=widgets[0].value?lv_obj_get_style_text_font(widgets[0].value,LV_PART_MAIN):detail_font;
+  const lv_font_t *small=small_font?small_font:detail_font;
   weather_card::Metrics m;
   m.large=large;
   m.text_h=lv_font_get_line_height(detail_font);
@@ -1279,7 +1282,7 @@ inline void weather_draw_days(const Tile &t){
   const auto &l=weather_layout;const auto &days=t.extra().forecast;
   const lv_font_t *icon=widgets[0].icon_font?widgets[0].icon_font:detail_font;
   const lv_font_t *mini=mini_icon_font?mini_icon_font:icon,*tiny=watch_icon_font?watch_icon_font:mini;
-  const lv_font_t *small=widgets[0].value?lv_obj_get_style_text_font(widgets[0].value,LV_PART_MAIN):detail_font;
+  const lv_font_t *small=small_font?small_font:detail_font;
   const uint32_t ink=theme::hex(theme::INK),muted=theme::hex(theme::SUBTLE),rain=theme::foreground(theme::ha::RAIN);
   const int text_h=lv_font_get_line_height(detail_font),small_h=lv_font_get_line_height(small),mini_h=lv_font_get_line_height(mini),tiny_h=lv_font_get_line_height(tiny);
   const int first=l.first_day(weather_page);
@@ -1319,7 +1322,7 @@ inline void render_weather_detail(const Tile &t,bool large,int width,int height,
   const lv_font_t *big=watch_value_font?watch_value_font:detail_font;
   const lv_font_t *icon_font=widgets[0].icon_font?widgets[0].icon_font:detail_font;
   const lv_font_t *mini=mini_icon_font?mini_icon_font:icon_font;
-  const lv_font_t *small=widgets[0].value?lv_obj_get_style_text_font(widgets[0].value,LV_PART_MAIN):detail_font;
+  const lv_font_t *small=small_font?small_font:detail_font;
   const uint32_t ink=theme::hex(theme::INK),muted=theme::hex(theme::SUBTLE);
   const auto m=weather_metrics(large);
   weather_layout=weather_card::layout(m,width,height,(int)weather.hours.size(),(int)weather.forecast.size(),columns);
@@ -4233,7 +4236,9 @@ inline void show_detail(unsigned index){
     history_hours=model.tiles[index].history_hours==1?1:24;history_asked_entity.clear();weather_page=0;select_page=0;
   }
   detail_index=index;auto &t=model.tiles[index];
-  if(!detail_font)detail_font=lv_obj_get_style_text_font(widgets[0].title,LV_PART_MAIN);
+  // The card's own font is the tile title's as the look gave it (style_title), not the one the first cell wears right
+  // now: a wide name there switches to another step, and this is kept for every card that opens after it.
+  if(!detail_font)detail_font=widgets[0].title_font?widgets[0].title_font:lv_obj_get_style_text_font(widgets[0].title,LV_PART_MAIN);
   if(!detail_root){
     // The backdrop covers the page; the card itself is only as wide as a hand spans (overlay_card).
     detail_backdrop=lv_obj_create(lv_screen_active());lv_obj_remove_style_all(detail_backdrop);

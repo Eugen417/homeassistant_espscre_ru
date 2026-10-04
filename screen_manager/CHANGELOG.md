@@ -1,3 +1,22 @@
+## 0.4.70 (firmware 0.43.0)
+
+- **The weather card's full view keeps its own text sizes**
+  ([#52](https://github.com/MaxGramser/homeassistant_espscreen/issues/52)). The card borrowed its small text from the
+  first tile on the page, in whatever size that tile showed at the moment. With a large value there (a sensor shown as
+  Large value), the hours, the conditions, the rain and the low temperatures came out twice as large as the rest of
+  the card, the rain amounts ended in dots, and the lows stood larger than the highs. Where a large number had grown
+  into the largest digits (on a large screen with tall cells), it was worse: those digits carry no letters, so the
+  words turned into empty boxes. The card now always uses the screen's own small text, so it looks the same whatever
+  the first tile shows. Every board had this.
+- Every screen is offered this firmware, 0.43.0.
+- Tested: the full view rendered from the real firmware (the WASM preview) on the 10.1-inch Guition with a light, a
+  large number and a large word in the first tile now gives the same picture three times, and the picture with a light
+  and every tile page are unchanged pixel for pixel. A new preview test checks this on the CYD, the 4-inch Guition and
+  the 10.1-inch, and fails on the firmware before this one. Every Python, C++, editor and WASM preview check passes
+  but one layout audit case that 0.4.69 already fails (the flip clock's date on the 10.1-inch with eight rows), which
+  this change does not touch. Firmware builds on ESPHome 2026.9.0 for the CYD (87.6 % of its slot), the 4-inch
+  Guition, the 10.1-inch Guition and the Waveshare 7-inch, and on 2026.6.2 for the CYD. Not tested on glass.
+
 ## 0.4.69 (firmware 0.42.0)
 
 - **Humidifiers and dehumidifiers as tiles** ([#128](https://github.com/MaxGramser/homeassistant_espscreen/issues/128)).
