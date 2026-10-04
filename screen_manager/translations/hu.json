@@ -2761,8 +2761,8 @@
       "simple_editor": "Egyszerű nézet"
     },
     "donate": {
-      "title": "Egyetlen ember készíti",
-      "body": "A Tessera ingyenes, és az is marad. A szabadidőmben fejlesztem. Ha szeretnéd, hogy továbbra is új kártyákat és kijelzőket adjak hozzá, egy kis havi támogatás ezt lehetővé teszi. Egy egyszeri kávé is ugyanolyan szívesen fogadott.",
+      "title": "Támogasd a Tesserát",
+      "body": "A Tessera ingyenes, és az is marad. Én vezetem a fejlesztést és a karbantartást, a közösség hozzájárulásaival. A támogatásod több időt ad a fejlesztésre, a módosítások átnézésére és tesztelésére. Egy havi hozzájárulást vagy egy egyszeri kávét is szívesen fogadok.",
       "monthly": "Havi támogatás",
       "once": "vagy hívj meg egyszer egy kávéra",
       "later": "Talán később",

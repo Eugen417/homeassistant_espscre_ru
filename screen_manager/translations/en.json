@@ -2761,8 +2761,8 @@
       "simple_editor": "Simple view"
     },
     "donate": {
-      "title": "Made by one person",
-      "body": "Tessera is free and stays free. I build it in my spare time. If you'd like me to keep adding new cards and boards, a small monthly contribution makes that possible. A one-time coffee is just as welcome.",
+      "title": "Support Tessera",
+      "body": "Tessera is free and stays free. I lead development and maintenance, with contributions from the community. Your support gives me more time to build, review and test improvements. A monthly contribution or a one-time coffee is welcome.",
       "monthly": "Support monthly",
       "once": "or buy me a coffee once",
       "later": "Maybe later",

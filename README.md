@@ -30,7 +30,7 @@
 
 Thank you! I work on this project with a lot of love, and every bit of support helps. I truly love the Home Assistant community.
 
-If you'd like me to keep building new cards and boards, consider a small monthly contribution. A one-time coffee is just as welcome.
+I lead Tessera's development and maintenance, with contributions from the community. Your support gives me more time to build, review and test improvements. A small monthly contribution or a one-time coffee is welcome.
 
 <a href="https://buymeacoffee.com/f5j9jnkmhpv/membership"><img src="https://img.buymeacoffee.com/button-api/?text=Support%20monthly&emoji=&slug=f5j9jnkmhpv&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Support monthly" height="42"></a>
 &nbsp; or <a href="https://buymeacoffee.com/f5j9jnkmhpv">buy me a coffee once</a>

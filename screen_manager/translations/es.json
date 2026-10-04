@@ -2761,8 +2761,8 @@
       "simple_editor": "Vista sencilla"
     },
     "donate": {
-      "title": "Hecho por una sola persona",
-      "body": "Tessera es gratis y seguirá siéndolo. Lo desarrollo en mi tiempo libre. Si quieres que siga añadiendo tarjetas y pantallas nuevas, una pequeña aportación mensual lo hace posible. Un café puntual es igual de bienvenido.",
+      "title": "Apoya a Tessera",
+      "body": "Tessera es gratis y seguirá siéndolo. Dirijo el desarrollo y el mantenimiento, con aportaciones de la comunidad. Tu apoyo me da más tiempo para desarrollar, revisar y probar mejoras. Una aportación mensual o un café puntual son bienvenidos.",
       "monthly": "Apoyar cada mes",
       "once": "o invítame a un café una vez",
       "later": "Quizás más tarde",
