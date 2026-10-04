@@ -43,11 +43,17 @@ export function memoryUse(tiles: readonly PricedTile[], memory: ScreenMemory, pa
   return { need, room, share, level: over ? "over" : share > 0.98 ? "full" : share >= 0.8 ? "close" : "fine" };
 }
 
-/** Whether one more tile still fits. */
-export const fitsOneMore = (tiles: readonly PricedTile[], tile: PricedTile, memory: ScreenMemory, pages: readonly PricedPage[] = []) => {
-  const need = layoutCost(tiles, memory, pages) + tileCost(tile, memory);
-  return need <= memory.room || need <= memory.used;
-};
+/** The share of the room past which the editor calls the screen nearly full and asks before one more tile. */
+export const NEARLY_FULL = 0.9;
+
+/** The line one more tile takes the layout past, if it was not past it yet: "close" for nine tenths of the room, "over"
+ * for all of it. The budget is a warning since app 0.4.61, not a rule: the editor asks once at each line, and yes may be
+ * the answer (GitHub #157). */
+export function memoryCrossing(tiles: readonly PricedTile[], tile: PricedTile, memory: ScreenMemory, pages: readonly PricedPage[] = []) {
+  const before = memoryUse(tiles, memory, pages), after = memoryUse([...tiles, tile], memory, pages);
+  if (after.level === "over") return before.level === "over" ? null : { line: "over" as const, share: after.share };
+  return after.share >= NEARLY_FULL && before.share < NEARLY_FULL ? { line: "close" as const, share: after.share } : null;
+}
 
 /** Kilobytes as the editor shows them: whole numbers, rounded up for what is needed, down for what there is. */
 export const kilobytes = (bytes: number, up = false) => (up ? Math.ceil(bytes / 1024) : Math.floor(bytes / 1024));

@@ -533,7 +533,6 @@
         "page_title": "Dai a una pagina un titolo di al massimo 96 byte.",
         "page_titles": "Uno schermo ha al massimo 1 pagina. | Uno schermo ha al massimo {n} pagine.",
         "tiles_max": "Scegli al massimo 1 riquadro. | Scegli al massimo {n} riquadri.",
-        "memory_full": "Questi riquadri richiedono {need} KB della memoria dello schermo, che ne ha {room} KB per i riquadri. Togline alcuni o scegline di più leggeri: una previsione o un lettore multimediale occupa più di una luce.",
         "unsupported": "Questa entità non è supportata.",
         "once": "L'orologio da comodino può stare una sola volta su uno schermo.",
         "tile_name": "Il nome di un riquadro può contenere al massimo 80 byte.",
@@ -1488,11 +1487,12 @@
       "label": "Memoria per i riquadri",
       "share": "{n} %",
       "title": "Questi riquadri occupano {need} dei {room} KB che questo schermo ha per i riquadri. Una previsione, un termostato o un lettore multimediale occupa più di una luce o di un interruttore.",
-      "over": "È più di quanto lo schermo possa contenere: togli qualche riquadro prima di salvare.",
+      "over": "È più di quanto lo schermo abbia misurato per i riquadri. Puoi comunque salvare: se lo schermo resta senza memoria, alcuni riquadri mostrano meno, oppure rifiuta il layout.",
       "short": "Alcuni riquadri ora mostrano meno: lo schermo è rimasto a corto di memoria.",
       "last_known": "Come l’ha indicato lo schermo l’ultima volta che era online.",
-      "full_tile": "Questo riquadro non entra più nella memoria dello schermo. Uno più leggero forse sì.",
-      "full_library": "La memoria dello schermo è quasi piena: alcuni riquadri non entrano più, quelli più leggeri forse sì."
+      "full_library": "La memoria dello schermo per i riquadri è quasi piena. Puoi comunque aggiungere riquadri.",
+      "confirm_close": "Con questo riquadro la memoria dello schermo per i riquadri è piena al {n} %. Aggiungerlo comunque?",
+      "confirm_over": "Con questo riquadro il layout richiede più memoria di quanta lo schermo ne abbia misurata per i riquadri ({n} %). Se lo schermo resta senza memoria, alcuni riquadri mostrano meno, oppure rifiuta il layout. Aggiungerlo comunque?"
     },
     "domains": {
       "light": "Luce",

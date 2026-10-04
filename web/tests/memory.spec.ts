@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import fixture from "../../tests/fixtures/memory-conformance.json";
 import { TILE, TYPES } from "../src/model/catalogue";
-import { fitsOneMore, kilobytes, layoutCost, memoryUse, tileCost } from "../src/model/memory";
+import { kilobytes, layoutCost, memoryCrossing, memoryUse, NEARLY_FULL, tileCost } from "../src/model/memory";
 import type { ScreenMemory } from "../src/types";
 
 // A screen's memory for tiles (firmware 0.34.0+): priced by the tile catalogue as the screen and the add-on price it
@@ -31,18 +31,26 @@ describe("the memory a layout takes", () => {
     expect(memoryUse(Array(25).fill({ entity: "switch.a" }), memory).level).toBe("full");
     expect(memoryUse(Array(26).fill({ entity: "switch.a" }), memory).level).toBe("over");
   });
-  it("lets a layout through that takes no more than the tiles on the screen now, as the add-on does", () => {
+  it("counts a layout that takes no more than the tiles on the screen now as not over", () => {
     const each = price("switch"), shrunk = { ...said, room: 2 * each, used: 3 * each };
     expect(memoryUse(Array(3).fill({ entity: "switch.a" }), shrunk).level).not.toBe("over");
     expect(memoryUse(Array(4).fill({ entity: "switch.a" }), shrunk).level).toBe("over");
-    expect(fitsOneMore(Array(2).fill({ entity: "switch.a" }), { entity: "switch.b" }, shrunk)).toBe(true);
-    expect(fitsOneMore(Array(3).fill({ entity: "switch.a" }), { entity: "switch.b" }, shrunk)).toBe(false);
+    expect(memoryCrossing(Array(2).fill({ entity: "switch.a" }), { entity: "switch.b" }, shrunk)).toBeNull();
+    expect(memoryCrossing(Array(3).fill({ entity: "switch.a" }), { entity: "switch.b" }, shrunk)?.line).toBe("over");
   });
-  it("tells whether one more tile fits, which depends on what it is", () => {
-    const memory = { ...said, room: 10 * price("switch") + price("weather") - 1, used: 0 };
-    const nearly = Array(10).fill({ entity: "switch.a" });
-    expect(fitsOneMore(nearly, { entity: "switch.b" }, memory)).toBe(true);
-    expect(fitsOneMore(nearly, { entity: "weather.c" }, memory)).toBe(false);
+  it("asks once when one more tile takes the layout past nine tenths, and once past all of it (GitHub #157)", () => {
+    const each = price("switch"), memory = { ...said, room: 10 * each, used: 0 };
+    const tiles = (n: number) => Array(n).fill({ entity: "switch.a" });
+    expect(NEARLY_FULL).toBe(0.9);
+    expect(memoryCrossing(tiles(7), { entity: "switch.b" }, memory)).toBeNull();
+    expect(memoryCrossing(tiles(8), { entity: "switch.b" }, memory)?.line).toBe("close");
+    expect(memoryCrossing(tiles(9), { entity: "switch.b" }, memory)).toBeNull();
+    expect(memoryCrossing(tiles(10), { entity: "switch.b" }, memory)?.line).toBe("over");
+    expect(memoryCrossing(tiles(11), { entity: "switch.b" }, memory)).toBeNull();
+    // What it is decides: a forecast takes a nearly full screen past all of it where a switch stays under.
+    const nearly = { ...said, room: 10 * each + price("weather") - 1, used: 0 };
+    expect(memoryCrossing(tiles(10), { entity: "switch.b" }, nearly)).toBeNull();
+    expect(memoryCrossing(tiles(10), { entity: "weather.c" }, nearly)?.line).toBe("over");
   });
   it("shows kilobytes, what is needed rounded up and what there is rounded down", () => {
     expect([kilobytes(2049, true), kilobytes(2049)]).toEqual([3, 2]);

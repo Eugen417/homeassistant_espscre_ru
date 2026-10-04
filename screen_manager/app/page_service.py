@@ -7,7 +7,7 @@ it does not import the server or keep another copy of a page document.
 import time
 import camera_feed
 import page_delivery
-from core import BUILTIN, CAMERA_DOMAINS, FREE_PAGES_MIN_FIRMWARE, board_of, firmware_features, layout_cost, page_target, state_message, version_text
+from core import BUILTIN, CAMERA_DOMAINS, FREE_PAGES_MIN_FIRMWARE, board_of, firmware_features, page_target, state_message, version_text
 from i18n import t, shown, english
 from page_layout import (FORMAT as PAGE_FORMAT, LayoutError, bar_items, compile_tiles,
                          grid_of_record, grown, legacy_projection, screen_grid_of_record, validate_document)
@@ -85,14 +85,10 @@ def save_pages(manager, inbox, data):
     features = firmware_features(manager.firmware_version(inbox, screen), grid)
     if len(flat['tiles']) > features['tile_limit']:
         raise LayoutError(t('addon.errors.layout.tiles_max', n=features['tile_limit']))
-    # The memory the screen has for its tiles (firmware 0.34.0+, its hello): a layout that would not fit is refused here
-    # with the figures, before a screen turns its tiles plain or stops answering. A save that takes no more than the tiles
-    # on the screen now always goes through, and a screen that never said is not asked.
-    memory = manager.memory(inbox)
-    if memory:
-        cost = layout_cost(flat['tiles'], memory, document['pages'])
-        if cost > memory['room'] and cost > memory['used']:
-            raise LayoutError(t('addon.errors.layout.memory_full', need=-(-cost // 1024), room=memory['room'] // 1024))
+    # The memory the screen has for its tiles (firmware 0.34.0+, its hello) is a warning, not a rule (app 0.4.61): the
+    # editor asks before a tile takes a layout past it, and a save always goes through. A screen measured far less room
+    # than the bench screens it was priced on (GitHub #157), and a screen protects itself anyway: its tiles turn plainer
+    # when it runs short, and a layout it can't take whole it turns down (docs/TILE_MEMORY.md).
     # More pages than 64 tiles fill needs firmware 0.18.0, and a screen that said so in its hello has it.
     if len(document['pages']) > features['page_limit'] and not (sender and sender.free_pages):
         raise LayoutError(t('addon.errors.layout.firmware_first', version=version_text(FREE_PAGES_MIN_FIRMWARE)))

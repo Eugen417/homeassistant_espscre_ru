@@ -71,10 +71,12 @@ The screen sends, in the reply to a hello and a ping (`memory`):
   and of a page's record (which holds its top bar). A board without PSRAM keeps all three inside the chip.
 
 The add-on and the editor count a layout as the screen does, the keys of a bedside clock included. The editor shows the
-share of the room in a thin bar beside the tile count, amber from 80 % and red when it is full, and a tile that no longer
-fits can't be added from the library. The add-on refuses a save that needs more than the room with the figures in its
-message, unless the layout takes no more than the tiles on the screen now. A screen that says nothing about its memory
-(older firmware) is not asked: it keeps its old tile limit.
+share of the room in a thin bar beside the tile count, amber from 80 % and red when it is full. The budget is a warning,
+not a rule (app 0.4.61): a tile that takes the layout past nine tenths of the room, or past all of it, asks first in a
+pop-up, and whoever answers yes gets it, from a click or a drag in the library alike. The add-on saves whatever the
+editor sends, an automation's tile event included. A screen measured far less room than the bench screens the prices
+come from (GitHub #157), and a screen protects itself when it runs short (below), so trying is safe. A screen that says
+nothing about its memory (older firmware) is not asked: it keeps its old tile limit.
 
 The reserve (`RESERVE`, 40 KB) covers what the screen needs beyond its tiles at its busiest: a layout switch dips about
 20 KB below where it settles, a picture that loads takes 20 to 25 KB for a moment, and the Wi-Fi link and the API need
@@ -88,8 +90,8 @@ for a quarter of an hour without a restart.
 
 ## When memory runs short anyway
 
-A layout that does not fit is refused before it is saved. Should one reach the screen anyway (an app that does not ask the
-screen's memory), the screen stops taking it as soon as the memory inside the chip falls below `LOW_WATER` halfway
+A layout past the room is saved and sent when someone chose to (above). Should the screen not have the room after all,
+it stops taking it as soon as the memory inside the chip falls below `LOW_WATER` halfway
 through: it lets go of the tiles it took, answers "insufficient layout memory" and stays reachable. Before, it ran on
 without a working Wi-Fi link until someone reset it.
 
@@ -161,8 +163,9 @@ room the editor is told.
   `memory_room`, `spare_tiles`), `runtime_model.h` (the extras in PSRAM, `heap_room`), `page_receiver.cpp` (the lean
   state), `packages/core.yaml` (build flags, the hello reply, the health line), the board files (`SCREEN_MAX_*`).
 - The add-on: `page_delivery.py` (`memory_of`, the Sender's ceilings), `core.py` (`Grid`, `STORE_MAX_*`), `server.py`
-  (`ceilings`, `memory`), `page_service.py` (the save check), `page_capabilities.py` (kept for offline editing).
-- The editor: `web/src/components/MemoryMeter.vue`, `web/src/store.ts` (`memory`, `fitsMemory`), `Library.vue`.
+  (`ceilings`, `memory`), `page_capabilities.py` (kept for offline editing).
+- The editor: `web/src/components/MemoryMeter.vue`, `web/src/store.ts` (`memory`, `confirmMemory`), `web/src/drag.ts`,
+  `web/src/model/memory.ts` (`memoryCrossing`), `Library.vue`.
 - `tools/generate_board_shapes.py` (`max_tiles`, `max_pages` in `boards.json`), and the tests:
   `tests/test_tile_memory.cpp`, `tests/test_tile_memory.py`, `tests/test_screen_ceilings.cpp`,
   `tests/test_screen_ceilings.py`, `web/tests/memory.spec.ts`.

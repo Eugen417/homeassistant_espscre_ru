@@ -98,24 +98,18 @@ class PageApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status, 400)
         self.assertIn('20', (await response.json())['error'])
 
-    async def test_a_layout_past_the_screens_memory_is_refused_with_the_figures(self):
-        # Firmware 0.34.0+ says how much memory it has for tiles; a save that needs more is refused before delivery,
-        # one that takes no more than the tiles on the screen now always goes through.
-        raw = {'title': 'Forecasts', 'tiles': [{'entity': f'weather.test_{i}', 'slot': i} for i in range(10)]}
+    async def test_a_layout_past_the_screens_memory_still_saves(self):
+        # Firmware 0.34.0+ says how much memory it has for tiles. Since app 0.4.61 that is a warning in the editor, not a
+        # rule: a save that needs more goes through (GitHub #157), and the screen protects itself.
+        raw = {'title': 'Lights', 'tiles': [{'entity': 'light.a', 'slot': 0}, {'entity': 'screen.clock', 'slot': 1}]}
         document = migrate_legacy(raw, Grid())['layout']
         request = {'format': 'pages-v2', 'revision': self.record()['revision'], 'layout': document}
-        weather = catalogue.MEMORY['weather']['bytes']
-        pages = catalogue.CHOICE_MEMORY['page'] * len(document['pages'])  # its pages, with bars of builtins only
-        memory = {'room': 8 * weather, 'used': 2048, 'psram': True, 'tile': 524, 'extra': 1056, 'page': 336, 'short': False, 'live': True}
-        with patch.object(self.manager, 'memory', return_value=memory):
+        memory = {'room': 64, 'used': 0, 'psram': False, 'tile': 524, 'extra': 1056, 'page': 336, 'short': True, 'live': True}
+        with patch.object(self.manager, 'memory', return_value=memory), \
+                patch.object(self.manager, 'firmware_version', return_value=(0, 36, 0)):
             response = await self.client.put('/api/screens/text.screen', headers=self.headers, json=request)
-        self.assertEqual(response.status, 400)
-        error = (await response.json())['error']
-        self.assertIn(f'{-(-(10 * weather + pages) // 1024)} KB', error)
-        self.assertIn(f'{8 * weather // 1024} KB', error)
-        with patch.object(self.manager, 'memory', return_value={**memory, 'used': 10 * weather + pages}):
-            response = await self.client.put('/api/screens/text.screen', headers=self.headers, json=request)
-        self.assertNotIn('KB', await response.text())
+        self.assertEqual(response.status, 200, await response.text())
+        self.assertEqual(self.record()['layout']['title'], 'Lights')
 
     async def test_unreadable_screen_can_start_fresh_without_losing_backup(self):
         original = json.dumps({'version': 1, 'screens': {'text.screen': []}})

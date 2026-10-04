@@ -1,3 +1,17 @@
+## 0.4.61 (firmware 0.36.0)
+
+- **The memory budget is a warning, no longer a rule** ([#157](https://github.com/MaxGramser/homeassistant_espscreen/issues/157)).
+  Since 0.4.58 the app refused a layout that needed more memory than the screen said it had for tiles. One CYD measured
+  far less room than the screens the budget was worked out on, so even a working layout of 23 tiles, and in the end any
+  tile at all, was refused. Now a save always goes through. The meter beside the tile count stays, and adding a tile that
+  takes the layout past nine tenths of the room, or past all of it, asks first in a pop-up: answer yes and the tile goes
+  on, from a click or a drag in the library alike. The library no longer greys out tiles for their memory.
+- A screen still protects itself when it runs short, as since firmware 0.34.0: tiles off the glass show less until there
+  is room again, and a layout the screen can't take whole it turns down, staying reachable, so you can go back.
+- No new firmware: screens keep 0.36.0.
+- Tested: the add-on and editor checks, with new tests for the pop-up (no adds nothing, yes adds the tile, and it asks
+  once per line) and for a save past the budget going through.
+
 ## 0.4.60 (firmware 0.36.0)
 
 - **Every character on your keyboard shows on the screen** ([#147](https://github.com/MaxGramser/homeassistant_espscreen/issues/147)).

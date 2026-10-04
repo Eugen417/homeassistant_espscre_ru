@@ -533,7 +533,6 @@
         "page_title": "Adj az oldalnak legfeljebb 96 bájtos címet.",
         "page_titles": "Egy kijelzőn legfeljebb 1 oldal lehet. | Egy kijelzőn legfeljebb {n} oldal lehet.",
         "tiles_max": "Legfeljebb 1 csempét válassz. | Legfeljebb {n} csempét válassz.",
-        "memory_full": "Ezeknek a csempéknek {need} KB kell a kijelző memóriájából, és {room} KB jut csempékre. Vegyél ki néhányat, vagy válassz könnyebbeket: egy előrejelzés vagy egy médialejátszó többet foglal, mint egy lámpa.",
         "unsupported": "Ez az entitás nem támogatott.",
         "once": "Az éjjeliszekrény-óra csak egyszer lehet egy kijelzőn.",
         "tile_name": "A csempe neve legfeljebb 80 bájt lehet.",
@@ -1488,11 +1487,12 @@
       "label": "Memória a csempéknek",
       "share": "{n} %",
       "title": "Ezek a csempék {need} KB-ot foglalnak abból a {room} KB-ból, ami ezen a kijelzőn a csempéknek jut. Egy előrejelzés, egy termosztát vagy egy médialejátszó többet foglal, mint egy lámpa vagy egy kapcsoló.",
-      "over": "Ez több, mint amennyi a kijelzőre fér: mentés előtt vegyél ki néhány csempét.",
+      "over": "Ez több, mint amennyit a kijelző a csempéknek mért. Menteni így is lehet: ha a kijelzőnek kevés a memóriája, egyes csempék kevesebbet mutatnak, vagy elutasítja az elrendezést.",
       "short": "Néhány csempe most kevesebbet mutat: a kijelzőnek elfogyott a memóriája.",
       "last_known": "Ahogy a kijelző legutóbb, még online állapotban jelentette.",
-      "full_tile": "Ez a csempe már nem fér el a kijelző memóriájában. Egy könnyebb talán még elfér.",
-      "full_library": "A kijelző memóriája majdnem megtelt: néhány csempe már nem fér el, a könnyebbek talán még igen."
+      "full_library": "A kijelző csempékre szánt memóriája majdnem megtelt. Továbbra is hozzáadhatsz csempéket.",
+      "confirm_close": "Ezzel a csempével a kijelző csempékre szánt memóriája {n} %-ig telik meg. Mégis hozzáadod?",
+      "confirm_over": "Ezzel a csempével az elrendezésnek több memória kell, mint amennyit a kijelző a csempéknek mért ({n} %). Ha kevés a memória, egyes csempék kevesebbet mutatnak, vagy a kijelző elutasítja az elrendezést. Mégis hozzáadod?"
     },
     "domains": {
       "light": "Lámpa",

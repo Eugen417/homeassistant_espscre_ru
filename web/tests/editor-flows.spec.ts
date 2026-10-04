@@ -6,8 +6,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import DevicePage from "../src/components/DevicePage.vue";
 import TileCard from "../src/components/TileCard.vue";
 import PageInspector from "../src/components/PageInspector.vue";
-import { addPage, beginFieldEdit, endFieldEdit, goHome, liveEntries, placeTile, retargetPageTile, select, setTileOption, state } from "../src/store";
+import { addPage, addTile, beginFieldEdit, endFieldEdit, goHome, liveEntries, placeTile, retargetPageTile, select, setTileOption, state } from "../src/store";
 import { validatePages } from "../src/model/pages";
+import { tileCost } from "../src/model/memory";
 
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ states: {}, capabilities: {} }))));
@@ -154,5 +155,26 @@ describe("the editor", () => {
     expect(state.document!.pages[1].tiles[0].content).toEqual({ kind: "navigation", target: { kind: "home" } });
     retargetPageTile(state.layout!.tiles[0], 2);
     expect((state.document!.pages[1].tiles[0].content as any).target.kind).toBe("page");
+  });
+
+  it("asks before a tile takes the screen past its memory, and adds it when told to (GitHub #157)", () => {
+    // A screen without PSRAM that measured room for about two and a half lights, as one CYD did.
+    const memory = { room: 0, used: 0, psram: false, tile: 524, extra: 1056, page: 336, short: false, live: true };
+    memory.room = Math.round(2.5 * tileCost({ entity: "light.x" }, memory));
+    (state.inventory.screens[0] as any).memory = memory;
+    const ask = vi.fn(() => false);
+    vi.stubGlobal("confirm", ask);
+    addTile("light.c");
+    expect(ask).toHaveBeenCalledTimes(1);
+    expect(ask.mock.calls[0][0]).toMatch(/Add it anyway\?/);
+    expect(state.layout!.tiles.some((tile) => tile.entity === "light.c")).toBe(false);
+    ask.mockReturnValue(true);
+    addTile("light.c");
+    expect(state.layout!.tiles.some((tile) => tile.entity === "light.c")).toBe(true);
+    // Past the line once, the next tile goes on without asking again.
+    ask.mockClear();
+    addTile("light.d");
+    expect(ask).not.toHaveBeenCalled();
+    expect(state.layout!.tiles.some((tile) => tile.entity === "light.d")).toBe(true);
   });
 });

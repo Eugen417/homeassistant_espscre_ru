@@ -11,7 +11,7 @@ import { t } from "../i18n";
 import { domainInfo, pageTarget } from "../model/layout";
 import { glyph } from "../model/topbar";
 import { tilePalette } from "../model/tile-palette";
-import { addTile, automaticIcon, editorLayout, fitsMemory, liveOf, loadLibraryStates, memory, pageTitleShown, phone, pictures, repeatable, state, tileLimit } from "../store";
+import { addTile, automaticIcon, editorLayout, liveOf, loadLibraryStates, memory, pageTitleShown, phone, pictures, repeatable, state, tileLimit } from "../store";
 import Icon from "./ui/Icon.vue";
 import UiSwitch from "./ui/UiSwitch.vue";
 
@@ -116,8 +116,6 @@ const rooms = computed(() => {
   return [...counts.entries()].sort(([a], [b]) => a.localeCompare(b));
 });
 const full = computed(() => (state.layout?.tiles.length || 0) >= tileLimit.value);
-// Room left by count but not by memory for this one (firmware 0.34.0+): a forecast may no longer fit where a light does.
-const heavy = (id: string) => !full.value && !fitsMemory(id);
 const memoryFull = computed(() => memory.value?.level === "full" || memory.value?.level === "over");
 const count = computed(() => state.inventory.entities.length);
 // The avatar shows the state at a glance: lit for on, grey for an entity Home Assistant can't reach.
@@ -288,7 +286,7 @@ onBeforeUnmount(release);
             <button v-for="entity in group.entities" :id="`lib-${entity.id}`" :key="entity.id" type="button" class="ent" role="option"
               :class="{ active: state.search && flat[active]?.id === entity.id }" :aria-selected="state.search && flat[active]?.id === entity.id ? 'true' : 'false'"
               :title="onScreen(entity.id) && !placed(entity.id) ? `${entity.id} · ${t('editor.library.again')}` : entity.id"
-              :disabled="placed(entity.id) || full || heavy(entity.id)" v-drag="{ kind: 'entity', id: entity.id }" @click="addTile(entity.id)">
+              :disabled="placed(entity.id) || full" v-drag="{ kind: 'entity', id: entity.id }" @click="addTile(entity.id)">
               <span class="av mdi" :class="tone(entity)" :style="{ color: tilePalette(entity.id, liveOf(entity.id)).icon, background: tilePalette(entity.id, liveOf(entity.id)).circle }">{{ glyph(automaticIcon(entity.id)) }}</span>
               <span class="tx">
                 <b>{{ short(entity) }}</b>

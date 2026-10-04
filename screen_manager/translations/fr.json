@@ -533,7 +533,6 @@
         "page_title": "Donnez à une page un titre de 96 octets au maximum.",
         "page_titles": "Un écran a au maximum {n} page. | Un écran a au maximum {n} pages.",
         "tiles_max": "Choisissez au plus {n} tuile. | Choisissez au plus {n} tuiles.",
-        "memory_full": "Ces tuiles demandent {need} Ko de la mémoire de l’écran, et il dispose de {room} Ko pour les tuiles. Retirez-en quelques-unes ou choisissez-en de plus légères : une prévision ou un lecteur multimédia prend plus qu’une lumière.",
         "unsupported": "Cette entité n'est pas prise en charge.",
         "once": "L'horloge de chevet ne peut être qu'une seule fois sur un écran.",
         "tile_name": "Un nom de tuile peut contenir au plus 80 octets.",
@@ -1488,11 +1487,12 @@
       "label": "Mémoire pour les tuiles",
       "share": "{n} %",
       "title": "Ces tuiles occupent {need} des {room} Ko dont cet écran dispose pour les tuiles. Une prévision, un thermostat ou un lecteur multimédia prend plus qu’une lumière ou un interrupteur.",
-      "over": "C’est plus que ce que l’écran peut contenir : retirez quelques tuiles avant d’enregistrer.",
+      "over": "C'est plus que ce que l'écran a mesuré pour les tuiles. L'enregistrement reste possible : si l'écran manque de mémoire, certaines tuiles affichent moins, ou il refuse la disposition.",
       "short": "Certaines tuiles affichent moins en ce moment : l’écran a manqué de mémoire.",
       "last_known": "Tel que l’écran l’a indiqué la dernière fois qu’il était en ligne.",
-      "full_tile": "Cette tuile ne tient plus dans la mémoire de l’écran. Une tuile plus légère tiendra peut-être encore.",
-      "full_library": "La mémoire de l’écran est presque pleine : certaines tuiles ne tiennent plus, des plus légères peut-être encore."
+      "full_library": "La mémoire de l'écran pour les tuiles est presque pleine. Vous pouvez quand même ajouter des tuiles.",
+      "confirm_close": "Avec cette tuile, la mémoire de l'écran pour les tuiles est pleine à {n} %. L'ajouter quand même ?",
+      "confirm_over": "Avec cette tuile, la disposition demande plus de mémoire que ce que l'écran a mesuré pour les tuiles ({n} %). Si l'écran en manque, certaines tuiles affichent moins, ou il refuse la disposition. L'ajouter quand même ?"
     },
     "domains": {
       "light": "Lumière",

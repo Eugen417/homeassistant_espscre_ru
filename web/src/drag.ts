@@ -7,7 +7,7 @@ const { grid, arrange, pageOf, reorderPages } = editorLayout;
 // drop off the grid changes nothing. A finished drag never doubles as a click.
 import type { Directive } from "vue";
 import { entriesOf, newTile, pageOrder } from "./model/layout";
-import { commitArrangement, coversByDefault, keyToCell, loadCapabilities, movePage, pagesShown, placeKey, placeTile, state, toast } from "./store";
+import { commitArrangement, confirmMemory, coversByDefault, keyToCell, loadCapabilities, movePage, pagesShown, placeKey, placeTile, state, toast } from "./store";
 import type { Tile } from "./types";
 import rules from "./model/page-rules.json";
 import { t } from "./i18n";
@@ -207,6 +207,8 @@ function setTarget(slot: number) {
 }
 function endDrag(drop: boolean) {
   const preview = state.drag.preview, moving = state.drag.moving, page = state.drag.page, key = state.drag.key, refused = state.drag.refused;
+  // A tile from the library, not one moved on the grid: past the screen's memory it asks first, as a click does.
+  const fresh = drag.source?.kind === "entity";
   state.drag.key = null;
   state.drag.refused = null;
   document.removeEventListener("pointermove", moveDrag);
@@ -227,6 +229,7 @@ function endDrag(drop: boolean) {
     if (drop) movePage(page.from, page.to);
     return;
   }
+  if (drop && fresh && moving && (key || preview) && !confirmMemory(moving.entity)) return;
   if (drop && key && moving && state.layout) {
     const clock = state.layout.tiles.find((tile) => tile.id === key.holder);
     if (clock && moving.entity !== clock.entity && placeKey(moving, clock, key.key)) loadCapabilities([moving.entity]);

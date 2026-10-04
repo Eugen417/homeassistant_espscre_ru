@@ -533,7 +533,6 @@
         "page_title": "Geef een pagina een titel van maximaal 96 bytes.",
         "page_titles": "Een scherm heeft maximaal 1 pagina. | Een scherm heeft maximaal {n} pagina's.",
         "tiles_max": "Kies maximaal 1 tegel. | Kies maximaal {n} tegels.",
-        "memory_full": "Deze tegels hebben {need} KB van het geheugen van het scherm nodig, en het heeft {room} KB voor tegels. Haal er een paar weg of kies lichtere: een verwachting of een mediaspeler neemt meer dan een lamp.",
         "unsupported": "Deze entiteit wordt niet ondersteund.",
         "once": "De nachtkastjesklok kan maar één keer op een scherm staan.",
         "tile_name": "Een tegelnaam mag maximaal 80 bytes bevatten.",
@@ -1488,11 +1487,12 @@
       "label": "Geheugen voor tegels",
       "share": "{n} %",
       "title": "Deze tegels nemen {need} van de {room} KB die dit scherm voor tegels heeft. Een verwachting, een thermostaat of een mediaspeler neemt meer dan een lamp of een schakelaar.",
-      "over": "Dat is meer dan het scherm aankan: haal een paar tegels weg voor je opslaat.",
+      "over": "Dat is meer dan het scherm voor tegels heeft gemeten. Opslaan kan nog steeds: komt het scherm tekort, dan tonen sommige tegels minder, of weigert het de indeling.",
       "short": "Sommige tegels laten nu minder zien: het scherm kwam geheugen tekort.",
       "last_known": "Zoals het scherm het zei toen het voor het laatst online was.",
-      "full_tile": "Deze tegel past niet meer in het geheugen van het scherm. Een lichtere past misschien nog.",
-      "full_library": "Het geheugen van het scherm is bijna vol: sommige tegels passen niet meer, lichtere misschien nog wel."
+      "full_library": "Het geheugen van het scherm voor tegels is bijna vol. Je kunt nog steeds tegels toevoegen.",
+      "confirm_close": "Met deze tegel is het geheugen van het scherm voor tegels voor {n} % vol. Toch toevoegen?",
+      "confirm_over": "Met deze tegel heeft de indeling meer geheugen nodig dan het scherm voor tegels heeft gemeten ({n} %). Komt het scherm tekort, dan tonen sommige tegels minder, of weigert het de indeling. Toch toevoegen?"
     },
     "domains": {
       "light": "Licht",
