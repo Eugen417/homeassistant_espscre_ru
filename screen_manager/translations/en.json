@@ -782,6 +782,8 @@
       "offline": "Screen was offline; will retry next time.",
       "unknown_target": "Profile or IP address unknown; update this screen manually.",
       "build_failed": "Build or install failed; see the log under Firmware & USB.",
+      "build_memory": "Not enough memory to build the firmware: about {need} must be free and {free} is. Stop a few add-ons for a while or give the machine more memory; see Firmware & USB.",
+      "build_memory_limit": "Not enough memory to build the firmware, also with one compiler at a time. Stop a few add-ons for a while or give the machine more memory; see Firmware & USB.",
       "no_report": "Screen didn't report back with firmware {version}; check the screen.",
       "dropped_off": "Screen dropped off after the update; check the screen.",
       "updated": "Updated to firmware {version}."
@@ -2261,6 +2263,18 @@
       },
       "choice_first": {
         "GRID_ROWS": "the usual size"
+      },
+      "memory": {
+        "low_title": "Little memory free on the Home Assistant machine",
+        "low": "{free} of memory is free, so the firmware builds with fewer compilers at a time ({jobs} instead of {cores}). That takes longer, but it fits.",
+        "tight_title": "The Home Assistant machine may be short of memory",
+        "tight": "Building the firmware needs about {need} of free memory and {free} is free. It tries with one compiler at a time. If the build stops, stop a few add-ons for a while or give the machine more memory and try again.",
+        "retry_title": "The build ran out of memory and goes on with one compiler",
+        "retry": "The system stopped the compiler because the memory ran out ({free} was free when the build began). The build goes on with one compiler at a time, from where it stopped. That takes longer, but it fits.",
+        "out_title": "Not enough memory to build the firmware",
+        "out": "Building the firmware needs about {need} of free memory and this Home Assistant machine has {free}. Stop a few add-ons for a while or give the machine more memory, then try again.",
+        "limit_title": "Not enough memory to build the firmware",
+        "limit": "The build ran out of memory, also with one compiler at a time. Stop a few add-ons for a while or give the machine more memory, then try again."
       }
     },
     "alerts": {

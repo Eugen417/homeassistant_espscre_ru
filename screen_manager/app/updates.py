@@ -309,7 +309,16 @@ class Updater:
             self.record(inbox, 'failed', error.args[0] if len(error.args) == 1 else str(error))
             return 'failed'
         if not installed:
-            self.record(inbox, 'failed', english('addon.updates.build_failed'))
+            # A build the machine had no memory for says so (build_memory, app 0.4.65), the rest points at the log.
+            memory = (firmware.job or {}).get('memory') or {}
+            if memory.get('reason') == 'out':
+                free = f'{memory["free_mb"] / 1024:.1f} GB' if memory.get('free_mb') is not None else '?'
+                self.record(inbox, 'failed', english('addon.updates.build_memory', free=free,
+                                                     need=f'{memory.get("need_mb", 0) / 1024:.1f} GB'))
+            elif memory.get('reason') == 'limit':
+                self.record(inbox, 'failed', english('addon.updates.build_memory_limit'))
+            else:
+                self.record(inbox, 'failed', english('addon.updates.build_failed'))
             return 'failed'
         self.phase = 'verify'
         if not await self.wait_for_target(inbox, target):

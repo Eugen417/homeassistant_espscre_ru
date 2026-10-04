@@ -1,3 +1,22 @@
+## 0.4.65 (firmware 0.39.0)
+
+- **A build on a machine with little memory finishes instead of being killed**
+  ([#162](https://github.com/MaxGramser/homeassistant_espscreen/issues/162)). Compiling a screen's firmware takes well
+  over a gigabyte for its largest file, and on a Raspberry Pi or a small virtual machine with Home Assistant beside it
+  that is more than is free: Linux stopped a compiler ("Killed signal terminated program cc1plus") and the build failed
+  with nothing wrong in the code. Now the app reads how much memory is free before a build and runs only as many
+  compilers at once as fit. When a compiler is stopped all the same, the build runs again with one compiler at a time,
+  from where it stopped, and the progress bar goes on from there. The installer shows a card that says what is
+  happening and why it takes longer; Firmware & USB says the same under its status line. When even one compiler is
+  more than the machine has, the card says how much is free and how much is needed, and what to do about it, instead
+  of the compiler's own words; a nightly update that fails for the same reason says so in its result.
+- **What counts as free memory** is Linux's own count (`MemAvailable`), and less when the app's container has a memory
+  limit of its own (Docker's `--memory`, some NAS systems), which that count leaves out. A build counts as out of memory
+  when a compiler says so and also when Linux stops ESPHome itself, which leaves no line in the log.
+- Tested on a Home Assistant Yellow (4 cores, 8 GB): with all four compilers a build of the Guition peaks at 2.0 GB, with
+  one at 1.6 GB, and a compiler that really runs out of memory is followed by a build with one compiler that finishes.
+- No firmware change: every screen stays on 0.39.0. Update the app.
+
 ## 0.4.64 (firmware 0.39.0)
 
 - **New board: the M5Stack Tab5** ([#79](https://github.com/MaxGramser/homeassistant_espscreen/issues/79), PR

@@ -782,6 +782,8 @@
       "offline": "Scherm was offline; volgende keer opnieuw.",
       "unknown_target": "Profiel of IP-adres onbekend; werk dit scherm handmatig bij.",
       "build_failed": "Bouwen of installeren mislukt; bekijk het log onder Firmware & USB.",
+      "build_memory": "Te weinig geheugen om de firmware te bouwen: er moet ongeveer {need} vrij zijn en dat is {free}. Stop een paar add-ons tijdelijk of geef de machine meer geheugen; zie Firmware & USB.",
+      "build_memory_limit": "Te weinig geheugen om de firmware te bouwen, ook met één compiler tegelijk. Stop een paar add-ons tijdelijk of geef de machine meer geheugen; zie Firmware & USB.",
       "no_report": "Scherm meldde zich niet met firmware {version}; controleer het scherm.",
       "dropped_off": "Scherm viel weg na de update; controleer het scherm.",
       "updated": "Bijgewerkt naar firmware {version}."
@@ -2261,6 +2263,18 @@
       },
       "choice_first": {
         "GRID_ROWS": "het gewone formaat"
+      },
+      "memory": {
+        "low_title": "Weinig geheugen vrij op de Home Assistant-machine",
+        "low": "Er is {free} geheugen vrij, dus de firmware bouwt met minder compilers tegelijk ({jobs} in plaats van {cores}). Dat duurt langer, maar het past.",
+        "tight_title": "De Home Assistant-machine heeft mogelijk te weinig geheugen",
+        "tight": "Het bouwen van de firmware heeft ongeveer {need} vrij geheugen nodig en er is {free} vrij. Het probeert het met één compiler tegelijk. Stopt het bouwen, stop dan een paar add-ons tijdelijk of geef de machine meer geheugen en probeer opnieuw.",
+        "retry_title": "Het geheugen was op; het bouwen gaat verder met één compiler",
+        "retry": "Het systeem heeft de compiler gestopt omdat het geheugen op was (er was {free} vrij toen het bouwen begon). Het bouwen gaat verder met één compiler tegelijk, vanaf waar het stopte. Dat duurt langer, maar het past.",
+        "out_title": "Te weinig geheugen om de firmware te bouwen",
+        "out": "Het bouwen van de firmware heeft ongeveer {need} vrij geheugen nodig en deze Home Assistant-machine heeft {free}. Stop een paar add-ons tijdelijk of geef de machine meer geheugen en probeer het dan opnieuw.",
+        "limit_title": "Te weinig geheugen om de firmware te bouwen",
+        "limit": "Het geheugen was op, ook met één compiler tegelijk. Stop een paar add-ons tijdelijk of geef de machine meer geheugen en probeer het dan opnieuw."
       }
     },
     "alerts": {

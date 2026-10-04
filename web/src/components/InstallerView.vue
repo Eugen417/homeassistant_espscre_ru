@@ -5,7 +5,7 @@
 // form, what it sends and when, is the one it always was.
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { getJson, send } from "../api";
-import { t, te } from "../i18n";
+import { editorLanguage, languageMarks, numberText, t, te } from "../i18n";
 import { copyText, createVirtualScreen, go, openIntegrations, refresh, state, toast } from "../store";
 import { customPreview, previewProfiles } from "../model/preview";
 import { boardAbilities, boardDetail, boardList, boardTitle } from "../model/boards";
@@ -13,7 +13,7 @@ import type { BoardChoice, BoardOrientation, Orientation } from "../types";
 import BrowserFlash from "./BrowserFlash.vue";
 import DeviceArt from "./DeviceArt.vue";
 import Icon from "./ui/Icon.vue";
-import { installProgress } from "../model/install-progress";
+import { installProgress, memoryNote } from "../model/install-progress";
 import { flashSupport } from "../flasher/logic";
 import { useBrowserFlash } from "../flasher/session";
 
@@ -205,9 +205,19 @@ const progressDetail = computed(() => installer.view === "done"
       ? download.value
         ? t("editor.installer.detail.downloaded")
         : t(installer.calibrate ? "editor.installer.detail.booted_calibrate" : "editor.installer.detail.booted")
-      : installer.browser && job.value?.state === "success"
-        ? ""
+      : (installer.browser && job.value?.state === "success") || memory.value?.reason === "out" || memory.value?.reason === "limit"
+        ? ""  // the card under it says what happened
         : logs.value.filter((l) => /error/i.test(l)).pop() || logs.value.filter((l) => /failed/i.test(l)).pop() || t("editor.installer.detail.see_log"));
+// The memory the build has (build_memory.py, app 0.4.65): a card that says why it runs with fewer compilers than the
+// machine has cores, that it started again with one after the memory ran out, or why it stopped. The numbers are GB in
+// the editor's own language.
+const memory = computed(() => {
+  const note = memoryNote(job.value);
+  if (!note) return null;
+  const marks = languageMarks(editorLanguage());
+  const params = { free: `${numberText(note.free, marks)} GB`, need: `${numberText(note.need, marks)} GB`, jobs: note.jobs, cores: note.cores };
+  return { reason: note.reason, title: t(`editor.installer.memory.${note.reason}_title`, params), text: t(`editor.installer.memory.${note.reason}`, params) };
+});
 const image = computed(() => ({ href: `api/firmware/profiles/${encodeURIComponent(installer.file || "")}/download`, name: (installer.file || "").replace(/\.yaml$/, "") + ".factory.bin" }));
 async function submit(event: Event) {
   const element = event.target as HTMLFormElement;
@@ -622,6 +632,11 @@ onBeforeUnmount(() => { clearInterval(poll); clearInterval(clock); clearInterval
       <div class="follow-words">
         <h1 id="progress-title">{{ progressTitle }}</h1>
         <p id="progress-detail">{{ progressDetail }}</p>
+      </div>
+      <!-- The memory the build has (app 0.4.65): a slower build the person understands, or why it stopped. -->
+      <div v-if="memory && !ok" class="memory-note" :class="[memory.reason, { stopped: memory.reason === 'out' || memory.reason === 'limit' }]" id="memory-note" role="status">
+        <h2><Icon name="alert-circle-outline" />{{ memory.title }}</h2>
+        <p>{{ memory.text }}</p>
       </div>
       <!-- Did it reach the Wi-Fi: waiting, seen by Home Assistant, paired, or after three minutes the way to fix it. -->
       <div v-if="arrival" class="arrive" :class="arrival" id="arrive" role="status">

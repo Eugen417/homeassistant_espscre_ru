@@ -782,6 +782,8 @@
       "offline": "Bildschirm war offline; neuer Versuch beim nächsten Mal.",
       "unknown_target": "Profil oder IP-Adresse unbekannt; aktualisiere diesen Bildschirm von Hand.",
       "build_failed": "Erstellen oder Installieren fehlgeschlagen; siehe Protokoll unter Firmware & USB.",
+      "build_memory": "Zu wenig Speicher, um die Firmware zu erstellen: etwa {need} müssen frei sein, frei sind {free}. Halte ein paar Add-ons vorübergehend an oder gib der Maschine mehr Speicher; siehe Firmware & USB.",
+      "build_memory_limit": "Zu wenig Speicher, um die Firmware zu erstellen, auch mit einem Compiler gleichzeitig. Halte ein paar Add-ons vorübergehend an oder gib der Maschine mehr Speicher; siehe Firmware & USB.",
       "no_report": "Bildschirm hat sich nicht mit Firmware {version} zurückgemeldet; prüfe den Bildschirm.",
       "dropped_off": "Bildschirm war nach dem Update nicht mehr erreichbar; prüfe den Bildschirm.",
       "updated": "Auf Firmware {version} aktualisiert."
@@ -2261,6 +2263,18 @@
       },
       "choice_first": {
         "GRID_ROWS": "die übliche Größe"
+      },
+      "memory": {
+        "low_title": "Wenig freier Speicher auf der Home-Assistant-Maschine",
+        "low": "{free} Speicher sind frei, darum erstellt die Firmware mit weniger Compilern gleichzeitig ({jobs} statt {cores}). Das dauert länger, passt aber.",
+        "tight_title": "Der Home-Assistant-Maschine fehlt möglicherweise Speicher",
+        "tight": "Das Erstellen der Firmware braucht etwa {need} freien Speicher, frei sind {free}. Es versucht es mit einem Compiler gleichzeitig. Bricht das Erstellen ab, halte ein paar Add-ons vorübergehend an oder gib der Maschine mehr Speicher und versuche es erneut.",
+        "retry_title": "Der Speicher ging aus; das Erstellen geht mit einem Compiler weiter",
+        "retry": "Das System hat den Compiler angehalten, weil der Speicher ausging (frei waren {free}, als das Erstellen begann). Das Erstellen geht mit einem Compiler gleichzeitig weiter, dort, wo es stehen blieb. Das dauert länger, passt aber.",
+        "out_title": "Zu wenig Speicher, um die Firmware zu erstellen",
+        "out": "Das Erstellen der Firmware braucht etwa {need} freien Speicher, diese Home-Assistant-Maschine hat {free}. Halte ein paar Add-ons vorübergehend an oder gib der Maschine mehr Speicher, und versuche es dann erneut.",
+        "limit_title": "Zu wenig Speicher, um die Firmware zu erstellen",
+        "limit": "Der Speicher ging aus, auch mit einem Compiler gleichzeitig. Halte ein paar Add-ons vorübergehend an oder gib der Maschine mehr Speicher, und versuche es dann erneut."
       }
     },
     "alerts": {

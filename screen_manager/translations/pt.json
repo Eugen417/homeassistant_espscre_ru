@@ -782,6 +782,8 @@
       "offline": "O ecrã estava offline; vai tentar novamente da próxima vez.",
       "unknown_target": "Perfil ou endereço IP desconhecido; atualize este ecrã manualmente.",
       "build_failed": "A compilação ou a instalação falhou; consulte o registo em Firmware e USB.",
+      "build_memory": "Memória insuficiente para compilar o firmware: têm de estar livres cerca de {need} e estão {free}. Para alguns complementos por um tempo ou dá mais memória à máquina; consulta Firmware e USB.",
+      "build_memory_limit": "Memória insuficiente para compilar o firmware, também com um compilador de cada vez. Para alguns complementos por um tempo ou dá mais memória à máquina; consulta Firmware e USB.",
       "no_report": "O ecrã não voltou a comunicar com o firmware {version}; verifique o ecrã.",
       "dropped_off": "O ecrã desligou-se depois da atualização; verifique o ecrã.",
       "updated": "Atualizado para o firmware {version}."
@@ -2261,6 +2263,18 @@
       },
       "choice_first": {
         "GRID_ROWS": "o tamanho habitual"
+      },
+      "memory": {
+        "low_title": "Pouca memória livre na máquina do Home Assistant",
+        "low": "Estão livres {free} de memória, por isso o firmware compila com menos compiladores ao mesmo tempo ({jobs} em vez de {cores}). Demora mais, mas cabe.",
+        "tight_title": "A máquina do Home Assistant pode ter pouca memória",
+        "tight": "Compilar o firmware precisa de cerca de {need} de memória livre e estão livres {free}. Tenta com um compilador de cada vez. Se a compilação parar, para alguns complementos por um tempo ou dá mais memória à máquina e tenta de novo.",
+        "retry_title": "A memória esgotou-se; a compilação continua com um compilador",
+        "retry": "O sistema parou o compilador porque a memória se esgotou (estavam livres {free} quando a compilação começou). A compilação continua com um compilador de cada vez, a partir de onde parou. Demora mais, mas cabe.",
+        "out_title": "Memória insuficiente para compilar o firmware",
+        "out": "Compilar o firmware precisa de cerca de {need} de memória livre e esta máquina do Home Assistant tem {free}. Para alguns complementos por um tempo ou dá mais memória à máquina, depois tenta de novo.",
+        "limit_title": "Memória insuficiente para compilar o firmware",
+        "limit": "A memória esgotou-se, também com um compilador de cada vez. Para alguns complementos por um tempo ou dá mais memória à máquina, depois tenta de novo."
       }
     },
     "alerts": {

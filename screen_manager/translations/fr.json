@@ -782,6 +782,8 @@
       "offline": "L'écran était hors ligne ; nouvel essai la prochaine fois.",
       "unknown_target": "Profil ou adresse IP inconnus ; mettez à jour cet écran manuellement.",
       "build_failed": "Échec de la compilation ou de l'installation ; voir le journal sous Firmware et USB.",
+      "build_memory": "Pas assez de mémoire pour compiler le firmware : il faut environ {need} de libre et il y a {free}. Arrête quelques modules un moment ou donne plus de mémoire à la machine ; voir Firmware et USB.",
+      "build_memory_limit": "Pas assez de mémoire pour compiler le firmware, même avec un compilateur à la fois. Arrête quelques modules un moment ou donne plus de mémoire à la machine ; voir Firmware et USB.",
       "no_report": "L'écran n'est pas revenu avec le firmware {version} ; vérifiez l'écran.",
       "dropped_off": "L'écran s'est déconnecté après la mise à jour ; vérifiez l'écran.",
       "updated": "Mis à jour vers le firmware {version}."
@@ -2261,6 +2263,18 @@
       },
       "choice_first": {
         "GRID_ROWS": "la taille habituelle"
+      },
+      "memory": {
+        "low_title": "Peu de mémoire libre sur la machine Home Assistant",
+        "low": "Il y a {free} de mémoire libre, donc le firmware se compile avec moins de compilateurs à la fois ({jobs} au lieu de {cores}). C’est plus long, mais ça tient.",
+        "tight_title": "La machine Home Assistant manque peut-être de mémoire",
+        "tight": "Compiler le firmware demande environ {need} de mémoire libre et il y a {free}. Il essaie avec un compilateur à la fois. Si la compilation s’arrête, arrête quelques modules un moment ou donne plus de mémoire à la machine, puis réessaie.",
+        "retry_title": "La mémoire a manqué ; la compilation continue avec un compilateur",
+        "retry": "Le système a arrêté le compilateur parce que la mémoire a manqué (il y avait {free} de libre au début de la compilation). La compilation continue avec un compilateur à la fois, là où elle s’est arrêtée. C’est plus long, mais ça tient.",
+        "out_title": "Pas assez de mémoire pour compiler le firmware",
+        "out": "Compiler le firmware demande environ {need} de mémoire libre et cette machine Home Assistant en a {free}. Arrête quelques modules un moment ou donne plus de mémoire à la machine, puis réessaie.",
+        "limit_title": "Pas assez de mémoire pour compiler le firmware",
+        "limit": "La mémoire a manqué, même avec un compilateur à la fois. Arrête quelques modules un moment ou donne plus de mémoire à la machine, puis réessaie."
       }
     },
     "alerts": {

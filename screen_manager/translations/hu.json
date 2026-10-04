@@ -782,6 +782,8 @@
       "offline": "A kijelző offline volt; legközelebb újrapróbáljuk.",
       "unknown_target": "A profil vagy az IP-cím ismeretlen; frissítsd ezt a kijelzőt kézzel.",
       "build_failed": "A fordítás vagy a telepítés sikertelen; nézd meg a naplót a Firmware és USB alatt.",
+      "build_memory": "Nincs elég memória a firmware fordításához: körülbelül {need} kell szabadon, és {free} van. Állíts le néhány kiegészítőt egy időre, vagy adj több memóriát a gépnek; lásd Firmware és USB.",
+      "build_memory_limit": "Nincs elég memória a firmware fordításához, egy fordítóval sem. Állíts le néhány kiegészítőt egy időre, vagy adj több memóriát a gépnek; lásd Firmware és USB.",
       "no_report": "A kijelző nem jelentkezett vissza a(z) {version} firmware-rel; ellenőrizd a kijelzőt.",
       "dropped_off": "A kijelző a frissítés után eltűnt; ellenőrizd a kijelzőt.",
       "updated": "Frissítve a(z) {version} firmware-re."
@@ -2261,6 +2263,18 @@
       },
       "choice_first": {
         "GRID_ROWS": "a szokásos méret"
+      },
+      "memory": {
+        "low_title": "Kevés a szabad memória a Home Assistant gépen",
+        "low": "{free} memória szabad, ezért a firmware kevesebb fordítóval készül egyszerre ({jobs} a {cores} helyett). Ez tovább tart, de így elfér.",
+        "tight_title": "A Home Assistant gépnek talán kevés a memóriája",
+        "tight": "A firmware fordításához körülbelül {need} szabad memória kell, és {free} van. Egy fordítóval próbálkozik egyszerre. Ha a fordítás leáll, állíts le néhány kiegészítőt egy időre, vagy adj több memóriát a gépnek, és próbáld újra.",
+        "retry_title": "Elfogyott a memória; a fordítás egy fordítóval folytatódik",
+        "retry": "A rendszer leállította a fordítót, mert elfogyott a memória ({free} volt szabad, amikor a fordítás elkezdődött). A fordítás egy fordítóval folytatódik egyszerre, onnan, ahol megállt. Ez tovább tart, de így elfér.",
+        "out_title": "Nincs elég memória a firmware fordításához",
+        "out": "A firmware fordításához körülbelül {need} szabad memória kell, és ennek a Home Assistant gépnek {free} van. Állíts le néhány kiegészítőt egy időre, vagy adj több memóriát a gépnek, majd próbáld újra.",
+        "limit_title": "Nincs elég memória a firmware fordításához",
+        "limit": "Elfogyott a memória, egy fordítóval is. Állíts le néhány kiegészítőt egy időre, vagy adj több memóriát a gépnek, majd próbáld újra."
       }
     },
     "alerts": {

@@ -1155,6 +1155,13 @@ section.advanced code { font-size: 11.5px; }
 .arrive.missing h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; }
 .arrive.missing h2 .ui-icon { color: var(--warn); font-size: 18px; }
 .arrive.missing p { margin: 0; color: var(--ink-2); font-size: 13px; line-height: 1.5; }
+/* The memory a build has (app 0.4.65): the same card as a Wi-Fi that does not come, red once the build stopped for it (out, limit). */
+.memory-note { display: grid; gap: 10px; padding: 18px 20px; border-radius: 14px; background: var(--warn-soft); text-align: left; }
+.memory-note h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; }
+.memory-note h2 .ui-icon { color: var(--warn); font-size: 18px; }
+.memory-note p { margin: 0; color: var(--ink-2); font-size: 13px; line-height: 1.5; }
+.memory-note.stopped { background: var(--danger-soft); }
+.memory-note.stopped h2 .ui-icon { color: var(--danger); }
 .arrive-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; }
 .arrive-form input { background: var(--surface); height: 36px; }
 .arrive-form .btn { height: 36px; }

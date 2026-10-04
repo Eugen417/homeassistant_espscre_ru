@@ -782,6 +782,8 @@
       "offline": "Ekran był offline; kolejna próba następnym razem.",
       "unknown_target": "Nieznany profil lub adres IP; zaktualizuj ten ekran ręcznie.",
       "build_failed": "Kompilacja lub instalacja nieudana; zobacz log w sekcji „Firmware i USB”.",
+      "build_memory": "Za mało pamięci, aby skompilować firmware: wolne musi być około {need}, a jest {free}. Zatrzymaj na chwilę kilka dodatków albo daj maszynie więcej pamięci; zobacz „Firmware i USB”.",
+      "build_memory_limit": "Za mało pamięci, aby skompilować firmware, także z jednym kompilatorem naraz. Zatrzymaj na chwilę kilka dodatków albo daj maszynie więcej pamięci; zobacz „Firmware i USB”.",
       "no_report": "Ekran nie zgłosił się z firmware {version}; sprawdź ekran.",
       "dropped_off": "Ekran rozłączył się po aktualizacji; sprawdź ekran.",
       "updated": "Zaktualizowano do firmware {version}."
@@ -2261,6 +2263,18 @@
       },
       "choice_first": {
         "GRID_ROWS": "zwykły rozmiar"
+      },
+      "memory": {
+        "low_title": "Mało wolnej pamięci na maszynie Home Assistant",
+        "low": "Wolne jest {free} pamięci, więc firmware kompiluje się mniejszą liczbą kompilatorów naraz ({jobs} zamiast {cores}). Trwa to dłużej, ale się mieści.",
+        "tight_title": "Maszynie Home Assistant może brakować pamięci",
+        "tight": "Kompilacja firmware wymaga około {need} wolnej pamięci, a wolne jest {free}. Próbuje z jednym kompilatorem naraz. Jeśli kompilacja się zatrzyma, zatrzymaj na chwilę kilka dodatków albo daj maszynie więcej pamięci i spróbuj ponownie.",
+        "retry_title": "Skończyła się pamięć; kompilacja trwa dalej z jednym kompilatorem",
+        "retry": "System zatrzymał kompilator, bo skończyła się pamięć (na początku kompilacji wolne było {free}). Kompilacja trwa dalej z jednym kompilatorem naraz, od miejsca, w którym stanęła. Trwa to dłużej, ale się mieści.",
+        "out_title": "Za mało pamięci, aby skompilować firmware",
+        "out": "Kompilacja firmware wymaga około {need} wolnej pamięci, a ta maszyna Home Assistant ma {free}. Zatrzymaj na chwilę kilka dodatków albo daj maszynie więcej pamięci, potem spróbuj ponownie.",
+        "limit_title": "Za mało pamięci, aby skompilować firmware",
+        "limit": "Skończyła się pamięć, także z jednym kompilatorem naraz. Zatrzymaj na chwilę kilka dodatków albo daj maszynie więcej pamięci, potem spróbuj ponownie."
       }
     },
     "alerts": {
