@@ -1,3 +1,19 @@
+## 0.4.62 (firmware 0.37.0)
+
+- **A tile on a Hue room no longer jumps back after a tap** ([#159](https://github.com/MaxGramser/homeassistant_espscreen/issues/159)).
+  Tap a Hue room off and its tile went off, on and off again within a second. The Hue bridge reports the room's lamps
+  at once and the room itself about a second later. Each lamp made the app send the room's tile again, still saying
+  "on", and the screen took that as the answer to the tap. Now the tile works like the switch on Home Assistant's own
+  tile card: it stays where the tap put it until the on or off really changes. A state that still says what the tile
+  said before the tap no longer counts as the answer.
+- If Home Assistant said the action worked but no new state follows, the old stand comes back two seconds later, as
+  Home Assistant's own toggle does. A refused action still shows the old stand at once.
+- Every screen is offered this firmware, 0.37.0.
+- Tested: the add-on and editor checks, a new test in the firmware's own tap path (the editor's preview, rebuilt from this
+  firmware) with a room whose old state arrives first and the new one later, and the firmware built for the CYD, the
+  4-inch Guition, the 10.1-inch Guition and the 7-inch Waveshare, and for the CYD on the oldest ESPHome the packages
+  support. Not yet seen on a Hue room on a real screen.
+
 ## 0.4.61 (firmware 0.36.0)
 
 - **The memory budget is a warning, no longer a rule** ([#157](https://github.com/MaxGramser/homeassistant_espscreen/issues/157)).

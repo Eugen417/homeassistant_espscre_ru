@@ -102,5 +102,32 @@ if (!process.env.PREVIEW_MESSAGES) {
   tick();
   assert.equal(info().tiles[0].state, 'off', 'a refusal uses the firmware rollback');
   assert.equal(info().tiles[0].pending, false);
+  // A Hue room (#159): its lamps report at once and the room itself a second later, and each lamp sends the room's tile
+  // again with its old word. The tap's stand stays until the word changes, as on Home Assistant's tile card.
+  touch();
+  const room = nextAction();
+  assert.equal(info().tiles[0].state, 'on');
+  m.ccall('preview_action_response', null, ['number', 'number', 'string'], [room.call_id, 1, '']);
+  receive({ ...confirmation, state: 'off', a: { brightness: 120 }, icon: o?.icon ?? '' });
+  tick(500);
+  assert.equal(info().tiles[0].state, 'on', 'a state with the old word keeps the tap');
+  assert.equal(info().tiles[0].pending, true, 'a state with the old word is no answer');
+  tick(500);
+  assert.equal(info().tiles[0].state, 'on', 'the tap holds past the wait after "it worked"');
+  receive({ ...confirmation, state: 'on', a: { brightness: 120 }, icon: o?.icon ?? '' });
+  tick();
+  assert.equal(info().tiles[0].state, 'on');
+  assert.equal(info().tiles[0].pending, false, 'the new word is the answer');
+  // No new word within two seconds of "it worked": the old stand comes back, as Home Assistant's toggle does.
+  touch();
+  const quiet = nextAction();
+  assert.equal(info().tiles[0].state, 'off');
+  m.ccall('preview_action_response', null, ['number', 'number', 'string'], [quiet.call_id, 1, '']);
+  receive({ ...confirmation, state: 'on', a: { brightness: 90 }, icon: o?.icon ?? '' });
+  tick(1500);
+  assert.equal(info().tiles[0].state, 'off');
+  tick(1000);
+  assert.equal(info().tiles[0].state, 'on', 'the old stand comes back two seconds after "it worked"');
+  assert.equal(info().tiles[0].pending, false);
 }
 console.log(`PASS ${width}x${height} ${columns}x${rows}: firmware forecast, two tiles, backgrounds, navigation, edge swipe and command responses`);

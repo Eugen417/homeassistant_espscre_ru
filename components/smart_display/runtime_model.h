@@ -513,12 +513,28 @@ struct Tile {
   // to be worth showing.
   bool loading(uint32_t now) const { return waiting(now) && now - pending_since >= BUSY_GRACE; }
   void begin(uint32_t now, bool local=false) { pending=true; pending_since=now; confirmed=false; local_feedback=local; pending_revision=revision; answered_at=0; }
-  void observe(uint32_t next) { revision=next; optimistic_tap=false; if (pending && revision!=pending_revision) confirmed=true; }
+  // `keep_tap`: the message is stale (below), so it neither ends the tap's stand nor answers the command.
+  void observe(uint32_t next, bool keep_tap=false) {
+    revision=next;
+    if (keep_tap) return;
+    optimistic_tap=false;
+    if (pending && revision!=pending_revision) confirmed=true;
+  }
   // Switching shows the new stand at once, as Home Assistant's own switch does (its ha-control-switch flips before the
-  // command goes out). `undo_optimistic` puts the old stand back when Home Assistant refuses or never answers; a state
-  // message always wins, because it clears the flag in `observe`.
+  // command goes out). `undo_optimistic` puts the old stand back when Home Assistant refuses or never answers.
   void optimistic(bool on) { optimistic_prev_on = state == "on"; optimistic_on = on; optimistic_tap = true; state = on ? "on" : "off"; }
   void undo_optimistic() { if (optimistic_tap) { state = optimistic_prev_on ? "on" : "off"; optimistic_tap = false; } }
+  // A state that still says what the tile said before the tap (firmware 0.37.0+). Home Assistant's tile card leaves its
+  // switch where the tap put it until the entity's on or off really changes, and so does the tile: a Hue room reports
+  // its lamps at once and itself about a second later, and every lamp sends the room's tile again with the old word.
+  bool stale(const std::string &word) const {
+    return optimistic_tap && pending && (word == "on" || word == "off") && (word == "on") == optimistic_prev_on;
+  }
+  // After Home Assistant's "it worked" the tap's stand waits TAP_HOLD for the new state before the old one comes back,
+  // as Home Assistant's ha-entity-toggle does (two seconds after the action returned); without an answer the wait
+  // itself (BUSY_CAP) decides.
+  static constexpr uint32_t TAP_HOLD = 2000;
+  bool tap_held(uint32_t now) const { return optimistic_tap && pending && answered_at && now - answered_at < TAP_HOLD; }
   // The attribute a small slider sets: nothing for a cover, whose position slider follows the blind as it moves.
   float *slider_field() {
     auto d = domain();

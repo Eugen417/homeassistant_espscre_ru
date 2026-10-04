@@ -568,7 +568,7 @@ inline void busy_watch(lv_timer_t *) {
     if (!w.tile || w.index >= model.count) continue;
     auto &t = model.tiles[w.index];
     if (!t.pending) continue;
-    if (!t.waiting(now) && !t.confirmed) end_wait(w.index);
+    if (!t.waiting(now) && !t.tap_held(now) && !t.confirmed) end_wait(w.index);
     any = any || t.pending;
     if (t.loading(now) != w.busy_drawn) refresh_tile(w.index);
   }
@@ -8141,7 +8141,7 @@ inline void tick() {
     if(t.refused_at && esphome::millis()-t.refused_at>=4000){t.refused_at=0;card(i);}
     // A held slider whose light never got there shows what Home Assistant last reported again.
     if(std::isfinite(t.slider_sent) && !t.slider_holding(esphome::millis())){t.release_slider();card(i);}
-    if(!t.pending || t.waiting(esphome::millis()))continue;
+    if(!t.pending || t.waiting(esphome::millis()) || t.tap_held(esphome::millis()))continue;
     // A vacuum chip Home Assistant never confirmed goes back to what the robot reports.
     bool sent=false;if(auto *x=t.extra_ptr())for(auto &c:x->choices)sent=sent||!c.sent.empty();
     end_wait(i);card(i);

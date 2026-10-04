@@ -567,13 +567,17 @@ std::string receive(const std::string &payload) {
     auto a = root["a"].as<JsonObject>();
     // The fingerprint of state, attributes and extras (a vacuum's mode or water select changes only
     // there), hashed while serializing so no copy of the message stays behind.
+    const std::string word = string(root["state"]);
     Fingerprint state_hash;
-    state_hash.add(string(root["state"]));
+    state_hash.add(word);
     state_hash.write('\n');
     serializeJson(a, state_hash);
     if (!root["x"].isNull()) serializeJson(root["x"], state_hash);
     bool was_confirmed=tile.confirmed;
-    tile.observe(state_hash.value);
+    // A message that still carries the word from before a tap keeps the tap's stand (Tile::stale); its attributes and
+    // extras (a group's lamps) still count.
+    const bool stale = tile.stale(word);
+    tile.observe(state_hash.value, stale);
     if(tile.pending && !tile.local_feedback && !was_confirmed && tile.confirmed)
       ESP_LOGI("runtime_action","HA state received entity=%s elapsed=%u ms",entity.c_str(),(unsigned)(esphome::millis()-tile.pending_since));
     if (initial) {
@@ -744,7 +748,7 @@ std::string receive(const std::string &payload) {
     if (!initial && tile.is_key() && name != tile.name) refresh_tile(tile.parent);
     tile.name = name;
     const std::string before = tile.state;
-    tile.state = string(root["state"], 160);
+    if (!stale) tile.state = word;
     if (!initial && tile.received && before != tile.state) tile.changed_at = std::max<uint32_t>(1, esphome::millis());
     tile.unit = string(a["unit_of_measurement"], 20);
     tile.brightness = number(a["brightness"]);

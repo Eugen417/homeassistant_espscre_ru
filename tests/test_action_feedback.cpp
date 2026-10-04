@@ -59,11 +59,31 @@ int main() {
   lamp.undo_optimistic();
   assert(lamp.state=="off"); assert(!lamp.optimistic_tap);
   lamp.undo_optimistic(); assert(lamp.state=="off");
-  // A state message always wins: it clears the flag, so a later wait that runs out changes nothing.
+  // A new word wins: it clears the flag, so a later wait that runs out changes nothing.
   lamp.optimistic(true); lamp.begin(200);
-  lamp.state="off"; lamp.observe(rev("off"));
-  assert(!lamp.optimistic_tap);
-  lamp.undo_optimistic(); assert(lamp.state=="off");
+  assert(!lamp.stale("unavailable"));
+  lamp.state="unavailable"; lamp.observe(rev("unavailable"));
+  assert(!lamp.optimistic_tap); assert(lamp.confirmed);
+  lamp.undo_optimistic(); assert(lamp.state=="unavailable");
+
+  // A Hue room (#159): tapped off, its lamps report at once and the manager sends the room again with its old "on" and
+  // the lamps off. As on Home Assistant's tile card the tap's stand stays, and the message is no answer.
+  runtime_tiles::Tile room;
+  room.entity="light.room"; room.state="on"; room.revision=rev("on");
+  room.optimistic(false); room.begin(1000);
+  assert(room.stale("on")); assert(!room.stale("off"));
+  room.observe(runtime_tiles::state_revision("on","{\"lamps\":\"off\"}"), true);
+  assert(room.optimistic_tap); assert(!room.confirmed); assert(room.state=="off");
+  // Home Assistant said "it worked" at 1060: the stand holds two seconds from there, past the wait itself.
+  room.answered_at=1060;
+  assert(!room.waiting(1900)); assert(room.tap_held(1900)); assert(room.tap_held(3059)); assert(!room.tap_held(3060));
+  // The room reports itself a second later: that is the answer.
+  assert(!room.stale("off"));
+  room.observe(rev("off"));
+  assert(room.confirmed); assert(!room.optimistic_tap);
+  // Without an answer the tap holds only as long as the wait; a tile no command waits for is never stale.
+  room.state="on"; room.optimistic(false); room.begin(5000);
+  assert(!room.tap_held(5500)); room.pending=false; assert(!room.stale("on"));
 
   // A slider the finger let go stays put while the light fades towards it (firmware 0.2.60+).
   runtime_tiles::Tile group;
