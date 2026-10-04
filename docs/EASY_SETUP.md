@@ -84,9 +84,8 @@ Use the GitHub version for updates; a local test add-on is a separate app.
    starting up), each with how far it is, while the drawing of your screen fills in. **Show details** opens
    ESPHome's own log. A first build takes a few minutes on a Raspberry Pi. You can close the
    page: the installation keeps running and picks back up when you reopen it.
-5. When it is done, the page shows what comes next: the pairing steps from chapter 3, with the API key behind
-   **Show the API key**. If the build fails, the step it stopped in turns red, the log opens and
-   you can **Retry**.
+5. When it is done, the page follows the screen onto your Wi-Fi and into Home Assistant (chapter 3). If the build
+   fails, the step it stopped in turns red, the log opens and you can **Retry**.
 
 Every screen gets its own profile: four screens means going through **New
 screen** four times, with four different names. The shared board package is the
@@ -129,8 +128,9 @@ port, until the installation starts.
    computer (other browsers can't reach USB), click **Connect** and choose the screen's port.
 4. Click **Install** and select the downloaded file. The screen restarts and joins your Wi-Fi.
 
-The file holds your Wi-Fi password and the screen's keys: keep it to yourself. Pairing works
-as in chapter 3, and every later update goes over Wi-Fi, so the cable is only needed once.
+The file holds your Wi-Fi password and the screen's keys: keep it to yourself. Once the screen is on your Wi-Fi,
+Tessera adds it to Home Assistant as in chapter 3, and every later update goes over Wi-Fi, so the cable is only
+needed once.
 For an existing profile, both routes are under **Firmware & USB** (in the sidebar): choose the
 profile and **This computer · install from this browser** or **Download · flash from your own
 computer**. From the browser, Firmware & USB writes the firmware without erasing the board first,
@@ -139,7 +139,7 @@ restarting and so never comes online for an update over Wi-Fi.
 
 **Build it yourself.** To build a screen with ESPHome on your own computer instead, choose the screen
 in the sidebar, open its details with the arrow at its right and use **Download screen files** (a
-screen that isn't in Home Assistant yet has it under its API key). The zip holds the screen's own
+screen that isn't in Home Assistant yet has it on its card under Screens). The zip holds the screen's own
 YAML, its Override YAML and a `secrets.yaml` with only the secrets the two use, normally the Wi-Fi.
 Unpack it and run `esphome run <name>.yaml` in that folder. Like the firmware file, it holds your
 Wi-Fi password and the screen's keys. A CYD or a Hosyond you build yourself needs one more step once, for the
@@ -157,26 +157,36 @@ USB, see [CALIBRATING.md](CALIBRATING.md).
 
 **Every other board:** its capacitive touch reports pixels and its mapping is baked into the board profile; there's no ADC calibration.
 
-## 3. Pair the screen with Home Assistant
+## 3. The screen joins Home Assistant
 
-This happens in Home Assistant itself, outside Tessera. As long as a profile
-hasn't been added to Home Assistant yet, it appears in the sidebar under **Screens**
-as a *not yet in Home Assistant* card, with an **Open Devices & services**
-button and **Copy API key**; the done screen of **New screen** has the same
-button. The card disappears once the screen is in the list.
+There is nothing to do here. As soon as the screen is on your Wi-Fi, Tessera adds it to Home Assistant's ESPHome
+integration with the key it wrote into the screen's profile, and allows it to perform Home Assistant actions, which a
+tile needs to control anything (Home Assistant leaves that off for every new ESPHome device). The screen then shows up
+in Tessera's sidebar, ready for its tiles; until then it waits there under its name.
 
-1. Open **Settings → Devices & services**. Add the discovered ESPHome device.
-   Not discovered? Manually add the **ESPHome** integration with the screen's
-   IP address, port 6053.
-2. Does HA ask for an encryption key? Paste the API key the window shows after
-   installation (also found as **api → encryption → key** in the
-   profile). Don't use the OTA password. Once the screen is paired, choose it in
-   the sidebar, open its details with the arrow at its right, and use **Copy API key**
-   there whenever HA asks for it again.
-3. On the ESPHome integration, open **Configure** and enable **Allow the device to
-   perform Home Assistant actions**. Without this permission, values still show up,
-   but the screen can't control lights and devices.
-4. Open Tessera. The screen appears within about 30 seconds.
+Tessera keeps at it until that holds. It answers Home Assistant's discovery of the screen, finds the screen by its name
+on the network when Home Assistant didn't discover it (or the discovery was dismissed or ignored), gives Home Assistant
+the new key when **New screen** made new ones for a screen it already had, and turns the actions back on when Home
+Assistant ignored a tap. Should it still not work out, the screen's card in the sidebar says so.
+
+Tessera adds a screen by itself when it knows the screen's key: when the screen's YAML is in the ESPHome folder Tessera
+reads. That is every screen made with **New screen**, and a screen of your own whose YAML sits in Home Assistant's
+ESPHome folder (`/config/esphome`, the folder ESPHome Device Builder uses too; with [Docker](DOCKER.md), the folder
+you mounted as the ESPHome folder).
+
+### Adding a screen by hand
+
+A screen whose YAML lives somewhere else (built with the ESPHome CLI on your own computer, with an ESPHome Device
+Builder on another machine, or by a build system of your own) is added in Home Assistant itself. Doing it by hand never
+hurts, for any screen:
+
+1. Open **Settings → Devices & services**. Add the discovered ESPHome device. Not discovered? Choose **Add integration
+   → ESPHome** and enter the screen's IP address (from its USB log or your router) and port 6053.
+2. When Home Assistant asks for an encryption key, paste the screen's API key: **api → encryption → key** in its YAML,
+   or **Copy API key** in Tessera for a screen Tessera knows. Not the OTA password.
+3. Actions: Tessera turns **Allow the device to perform Home Assistant actions** on for a screen added this way too,
+   right after it is added or as soon as Home Assistant ignores one of its taps. In Home Assistant it is the ESPHome
+   integration's **Configure**.
 
 ## 4. Choose and edit your tiles
 

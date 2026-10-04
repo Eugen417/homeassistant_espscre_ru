@@ -1044,6 +1044,17 @@ describe("New screen and the Wi-Fi", () => {
       state.inventory.pending = [{ ...inventory.pending[0], seen: true }];
       await flush();
       expect(view.find("#arrive").classes()).toContain("seen");
+      // Tessera adds it itself (app 0.4.73): nothing about Home Assistant on the page, only the tiles that come next.
+      expect(view.find("#install-steps").text()).toContain(t("editor.installer.pairing.tiles_bold"));
+      expect(view.find("#install-steps").text()).not.toContain("Home Assistant →");
+      expect(view.find("#key-more").exists()).toBe(false);
+      // Home Assistant asked something only the person can answer: the page says so and opens those steps.
+      state.inventory.pending = [{ ...inventory.pending[0], seen: true, pairing: "failed" }];
+      await flush();
+      expect(view.find("#arrive").classes()).toContain("failed");
+      expect((view.find("#key-more").element as HTMLDetailsElement).open).toBe(true);
+      state.inventory.pending = [{ ...inventory.pending[0], seen: true }];
+      await flush();
       // Not found for three minutes: what fixes it, with the right network and the installation again.
       state.inventory.pending = [{ ...inventory.pending[0], seen: false }];
       await vi.advanceTimersByTimeAsync(181000);

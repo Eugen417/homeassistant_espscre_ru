@@ -774,6 +774,11 @@
       },
       "media": {
         "browse": "{name} gaf zijn bibliotheek niet."
+      },
+      "allow_actions": {
+        "not_allowed": "Home Assistant laat deze app zijn integraties niet wijzigen. Doe het in Home Assistant zelf, onder Instellingen → Apparaten & diensten.",
+        "no_entry": "Home Assistant heeft dit scherm niet als ESPHome-apparaat.",
+        "failed": "Home Assistant nam het niet over. Open in Home Assistant Instellingen → Apparaten & diensten → ESPHome, kies dit scherm, dan Configureren, en zet “Sta het apparaat toe om Home Assistant-acties uit te voeren” aan."
       }
     },
     "status": {
@@ -1354,9 +1359,11 @@
         "start": "Starten"
       },
       "pending": {
-        "installed": "Geïnstalleerd, maar nog niet in Home Assistant. Voeg het ontdekte ESPHome-apparaat toe onder Instellingen → Apparaten & diensten, plak daar de API-sleutel en zet bij Configureren “Allow the device to perform Home Assistant actions” aan.",
-        "downloaded": "Firmware gedownload, nog niet in Home Assistant. Zet die met ESPHome Web op het scherm, voeg daarna het ontdekte ESPHome-apparaat toe onder Instellingen → Apparaten & diensten, plak daar de API-sleutel en sta bij Configureren de Home Assistant-acties toe.",
-        "not_flashed": "Nog niet in Home Assistant. Al geflasht? Voeg het ESPHome-apparaat toe onder Instellingen → Apparaten & diensten en sta daarna bij Configureren de Home Assistant-acties toe. Nog niet geflasht? Firmware & USB → {file}."
+        "installed": "Geïnstalleerd. Wachten tot hij op je wifi komt...",
+        "downloaded": "Firmware gedownload. Zet die met ESPHome Web op het scherm.",
+        "not_flashed": "Nog niet geïnstalleerd: Firmware & USB → {file}.",
+        "adding": "Op je wifi. Wordt klaargezet...",
+        "failed": "Tessera kan hem niet zelf aan Home Assistant toevoegen. Voeg hem toe onder Instellingen → Apparaten & diensten, met de API-sleutel hieronder."
       },
       "copy_api_key": "API-sleutel kopiëren",
       "files": "Schermbestanden downloaden",
@@ -2208,9 +2215,9 @@
         "uploading": "Haal de USB-kabel nog niet los.",
         "building": "Bouwen kan op een Home Assistant-machine zoals een Raspberry Pi 20 minuten of langer duren, zeker de eerste keer. Dat is normaal. Je kunt deze pagina verlaten: de installatie loopt door en je vindt hem terug onder Nieuw scherm.",
         "building_download": "Bouwen kan op een Home Assistant-machine zoals een Raspberry Pi 20 minuten of langer duren, zeker de eerste keer. Dat is normaal. Je kunt deze pagina verlaten: het bouwen loopt door en je vindt het terug onder Nieuw scherm.",
-        "downloaded": "Zet de firmware vanaf je eigen computer op het scherm en koppel het scherm daarna aan Home Assistant.",
-        "booted": "Het scherm start op en verbindt met je Wi-Fi. Koppel het nu aan Home Assistant:",
-        "booted_calibrate": "Het scherm start op en verbindt met je Wi-Fi. Het vraagt eerst om een touch-kalibratie: tik op de kruisjes. Koppel het nu aan Home Assistant:",
+        "downloaded": "Zet hem vanaf je eigen computer op het scherm. Hij verschijnt hier zodra hij op je wifi is.",
+        "booted": "Het scherm start op, maakt verbinding met je wifi en komt vanzelf in Home Assistant.",
+        "booted_calibrate": "Het scherm start op en maakt verbinding met je wifi. Eerst vraagt het om een aanraakkalibratie: tik op de kruisjes. Daarna komt het vanzelf in Home Assistant.",
         "see_log": "Bekijk het log hieronder."
       },
       "download_steps": {
@@ -2225,9 +2232,9 @@
       "download_keep": "Het bestand bevat je Wi-Fi-wachtwoord en de sleutels van het scherm: houd het voor jezelf.",
       "api_key": "API-sleutel",
       "pairing": {
-        "ha": "{bold} Dit gebeurt buiten Tessera. Home Assistant ontdekt {name} als ESPHome-apparaat; klik op Toevoegen. Niet ontdekt? Voeg ESPHome handmatig toe met het IP-adres van het scherm.",
+        "ha": "{bold} Home Assistant toont {name} als ontdekt ESPHome-apparaat; klik op Toevoegen. Niet ontdekt? Voeg ESPHome handmatig toe met het IP-adres van het scherm.",
         "ha_bold": "Ga naar Home Assistant → Instellingen → Apparaten & diensten.",
-        "key": "{bold} (onder ‘Toon de API-sleutel’ hieronder) als Home Assistant om een versleutelingssleutel vraagt. Met de ESPHome Device Builder-app geïnstalleerd vult Home Assistant hem vaak zelf in.",
+        "key": "{bold} hieronder als Home Assistant om een versleutelingssleutel vraagt.",
         "key_bold": "Plak de API-sleutel",
         "actions": "{bold} ESPHome-integratie → Configureren → “Allow the device to perform Home Assistant actions”. Zonder dit ziet het scherm alles, maar bedient het niets.",
         "actions_bold": "Sta HA-acties toe:",
@@ -2287,12 +2294,13 @@
       "models": "{n} model | {n} modellen",
       "arrive": {
         "waiting": "Wachten tot {name} op je wifi verschijnt...",
-        "seen": "{name} is op je wifi. Koppel hem nu in Home Assistant.",
+        "seen": "{name} is op je wifi. Wordt klaargezet...",
         "paired": "{name} is gekoppeld met Home Assistant.",
         "missing": "{name} is nog niet op je wifi",
         "hotspot": "Kijk op het scherm: het noemt een hotspot met wachtwoord. Verbind je telefoon ermee en kies daar het juiste wifi-netwerk. Of zet hier de juiste wifi en installeer opnieuw.",
         "no_hotspot": "Waarschijnlijk klopt de wifi-naam of het wachtwoord niet. Zet hier de juiste wifi en installeer opnieuw, met het scherm nog aan de kabel.",
-        "change": "Wifi wijzigen en opnieuw installeren"
+        "change": "Wifi wijzigen en opnieuw installeren",
+        "failed": "Tessera kan {name} niet zelf aan Home Assistant toevoegen. Voeg hem hieronder zelf toe."
       },
       "choice_option": {
         "GRID_ROWS": {
@@ -2314,7 +2322,8 @@
         "out": "Het bouwen van de firmware heeft ongeveer {need} vrij geheugen nodig en deze Home Assistant-machine heeft {free}. Stop een paar add-ons tijdelijk of geef de machine meer geheugen en probeer het dan opnieuw.",
         "limit_title": "Te weinig geheugen om de firmware te bouwen",
         "limit": "Het geheugen was op, ook met één compiler tegelijk. Stop een paar add-ons tijdelijk of geef de machine meer geheugen en probeer het dan opnieuw."
-      }
+      },
+      "pair_yourself": "Zelf toevoegen in Home Assistant"
     },
     "alerts": {
       "eyebrow": "Alerts · cheatsheet",
@@ -2606,7 +2615,9 @@
       },
       "home_hint": "De thuisknop en omhoog vegen leiden hierheen.",
       "bar_entities": "Ook rechts in de balk",
-      "actions_blocked": "Home Assistant laat dit scherm geen acties uitvoeren, dus een tik op een tegel doet niets. Open in Home Assistant Instellingen → Apparaten & diensten → ESPHome, kies dit scherm, dan Configureren, en zet “Sta het apparaat toe om Home Assistant-acties uit te voeren” aan."
+      "actions_blocked": "Home Assistant laat dit scherm nog geen acties uitvoeren, dus een tik op een tegel doet niets.",
+      "allow_actions": "Acties toestaan",
+      "actions_allowed": "{name} mag je apparaten nu bedienen."
     },
     "feedback": {
       "question": "Werkt je scherm zoals je verwacht?",

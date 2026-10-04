@@ -380,7 +380,8 @@ async function saveWifi() {
 
 // ---- After the firmware is on it: did the screen reach the Wi-Fi? (app 0.4.32) ----
 // Home Assistant finds a screen on the network before anyone pairs it (the inventory's `seen`), so the page can say it
-// arrived, or after three minutes without it, that the Wi-Fi is the likely cause and what fixes it.
+// arrived, or after three minutes without it, that the Wi-Fi is the likely cause and what fixes it. Tessera then adds it
+// to Home Assistant itself (app 0.4.73): `failed` when Home Assistant asked something only the person can answer.
 const ARRIVE_MS = 3 * 60 * 1000;
 const doneAt = ref(0);
 const nodeName = computed(() => (installer.file || "").replace(/\.yaml$/, ""));
@@ -389,7 +390,8 @@ watch(waitsForWifi, (waits) => { if (waits && !doneAt.value) doneAt.value = Date
 const arrival = computed(() => {
   if (!waitsForWifi.value) return null;
   if (state.inventory.screens.some((screen: any) => screen.node === nodeName.value)) return "paired";
-  if (state.inventory.pending?.some((entry) => entry.file === installer.file && entry.seen)) return "seen";
+  const found = state.inventory.pending?.find((entry) => entry.file === installer.file && entry.seen);
+  if (found) return found.pairing === "failed" ? "failed" : "seen";
   return now.value - doneAt.value > ARRIVE_MS ? "missing" : "waiting";
 });
 let arrivalPoll = 0;
@@ -641,7 +643,7 @@ onBeforeUnmount(() => { clearInterval(poll); clearInterval(clock); clearInterval
       <!-- Did it reach the Wi-Fi: waiting, seen by Home Assistant, paired, or after three minutes the way to fix it. -->
       <div v-if="arrival" class="arrive" :class="arrival" id="arrive" role="status">
         <p v-if="arrival !== 'missing'" class="arrive-line">
-          <span v-if="arrival === 'waiting'" class="spin small"></span><Icon v-else name="check-circle" />
+          <span v-if="arrival === 'waiting' || arrival === 'seen'" class="spin small"></span><Icon v-else :name="arrival === 'failed' ? 'alert-circle-outline' : 'check-circle'" />
           {{ t(`editor.installer.arrive.${arrival}`, { name: installer.friendly }) }}
         </p>
         <template v-else>
@@ -688,13 +690,17 @@ onBeforeUnmount(() => { clearInterval(poll); clearInterval(clock); clearInterval
       <div v-if="ok" id="install-result" class="follow-card">
         <h2>{{ t("editor.installer.next_title") }}</h2>
         <ol class="steps" id="install-steps">
-          <li><i18n-t keypath="editor.installer.pairing.ha" scope="global"><template #bold><b>{{ t("editor.installer.pairing.ha_bold") }}</b></template><template #name>{{ installer.friendly }}</template></i18n-t> <button type="button" class="btn quiet mini" @click="openIntegrations">{{ t("editor.common.open_integrations") }}</button></li>
-          <li><i18n-t keypath="editor.installer.pairing.key" scope="global"><template #bold><b>{{ t("editor.installer.pairing.key_bold") }}</b></template></i18n-t></li>
-          <li><i18n-t keypath="editor.installer.pairing.actions" scope="global"><template #bold><b>{{ t("editor.installer.pairing.actions_bold") }}</b></template></i18n-t></li>
           <li><i18n-t keypath="editor.installer.pairing.tiles" scope="global"><template #bold><b>{{ t("editor.installer.pairing.tiles_bold") }}</b></template></i18n-t></li>
         </ol>
-        <details class="key-more" id="key-more">
-          <summary>{{ t("editor.installer.key_more") }}</summary>
+        <!-- Tessera adds the screen to Home Assistant and allows its actions by itself (app 0.4.73, ha_pairing.py), so
+             the way by hand only shows when that did not work out. -->
+        <details v-if="arrival === 'failed'" class="key-more" id="key-more" open>
+          <summary>{{ t("editor.installer.pair_yourself") }}</summary>
+          <ol class="steps" id="pair-steps">
+            <li><i18n-t keypath="editor.installer.pairing.ha" scope="global"><template #bold><b>{{ t("editor.installer.pairing.ha_bold") }}</b></template><template #name>{{ installer.friendly }}</template></i18n-t> <button type="button" class="btn quiet mini" @click="openIntegrations">{{ t("editor.common.open_integrations") }}</button></li>
+            <li><i18n-t keypath="editor.installer.pairing.key" scope="global"><template #bold><b>{{ t("editor.installer.pairing.key_bold") }}</b></template></i18n-t></li>
+            <li><i18n-t keypath="editor.installer.pairing.actions" scope="global"><template #bold><b>{{ t("editor.installer.pairing.actions_bold") }}</b></template></i18n-t></li>
+          </ol>
           <div class="key-box">
             <span>{{ t("editor.installer.api_key") }}</span><code id="api-key" ref="keyBox">{{ installer.apiKey || "" }}</code>
             <button type="button" class="btn quiet mini" id="copy-key" @click="copyText(installer.apiKey || '', keyBox)">{{ t("editor.common.copy") }}</button>

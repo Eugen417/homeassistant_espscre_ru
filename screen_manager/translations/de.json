@@ -774,6 +774,11 @@
       },
       "media": {
         "browse": "{name} hat seine Mediathek nicht geliefert."
+      },
+      "allow_actions": {
+        "not_allowed": "Home Assistant lässt diese App seine Integrationen nicht ändern. Erledige es in Home Assistant selbst, unter Einstellungen → Geräte & Dienste.",
+        "no_entry": "Home Assistant hat diesen Bildschirm nicht als ESPHome-Gerät.",
+        "failed": "Home Assistant hat es nicht übernommen. Öffne in Home Assistant Einstellungen → Geräte & Dienste → ESPHome, wähle diesen Bildschirm, dann Konfigurieren, und schalte „Dem Gerät erlauben, Home Assistant-Aktionen auszuführen“ ein."
       }
     },
     "status": {
@@ -1354,9 +1359,11 @@
         "start": "Starten"
       },
       "pending": {
-        "installed": "Installiert, aber noch nicht in Home Assistant. Füge das entdeckte ESPHome-Gerät unter Einstellungen → Geräte & Dienste hinzu, gib dort den API-Schlüssel ein und aktiviere unter „Konfigurieren“ die Option „Dem Gerät erlauben, Home Assistant-Aktionen auszuführen“.",
-        "downloaded": "Firmware heruntergeladen, noch nicht in Home Assistant. Spiele sie mit ESPHome Web auf den Bildschirm, füge dann das entdeckte ESPHome-Gerät unter Einstellungen → Geräte & Dienste hinzu, gib dort den API-Schlüssel ein und erlaube unter „Konfigurieren“ die Home Assistant-Aktionen.",
-        "not_flashed": "Noch nicht in Home Assistant. Schon geflasht? Füge das ESPHome-Gerät unter Einstellungen → Geräte & Dienste hinzu und erlaube dann unter „Konfigurieren“ die Home Assistant-Aktionen. Noch nicht geflasht? Firmware & USB → {file}."
+        "installed": "Installiert. Warte, bis er im WLAN ist...",
+        "downloaded": "Firmware heruntergeladen. Spiele sie mit ESPHome Web auf den Bildschirm.",
+        "not_flashed": "Noch nicht installiert: Firmware & USB → {file}.",
+        "adding": "Im WLAN. Wird eingerichtet...",
+        "failed": "Tessera kann ihn nicht selbst zu Home Assistant hinzufügen. Füge ihn unter Einstellungen → Geräte & Dienste hinzu, mit dem API-Schlüssel unten."
       },
       "copy_api_key": "API-Schlüssel kopieren",
       "files": "Bildschirmdateien herunterladen",
@@ -2208,9 +2215,9 @@
         "uploading": "Zieh das USB-Kabel noch nicht ab.",
         "building": "Das Bauen kann auf einem Home-Assistant-Rechner wie einem Raspberry Pi 20 Minuten oder länger dauern, besonders beim ersten Mal. Das ist normal. Du kannst diese Seite verlassen: Die Installation läuft weiter, und du findest sie unter „Neuer Bildschirm“ wieder.",
         "building_download": "Das Bauen kann auf einem Home-Assistant-Rechner wie einem Raspberry Pi 20 Minuten oder länger dauern, besonders beim ersten Mal. Das ist normal. Du kannst diese Seite verlassen: Die Firmware wird weiter erstellt, und du findest sie unter „Neuer Bildschirm“ wieder.",
-        "downloaded": "Spiele sie von deinem eigenen Computer aus auf den Bildschirm und kopple den Bildschirm dann mit Home Assistant.",
-        "booted": "Der Bildschirm startet und verbindet sich mit deinem Wi-Fi. Kopple ihn jetzt mit Home Assistant:",
-        "booted_calibrate": "Der Bildschirm startet und verbindet sich mit deinem Wi-Fi. Er fragt zuerst nach einer Touch-Kalibrierung: Tippe auf die Kreuze. Kopple ihn jetzt mit Home Assistant:",
+        "downloaded": "Spiele sie von deinem eigenen Computer auf den Bildschirm. Er erscheint hier, sobald er im WLAN ist.",
+        "booted": "Der Bildschirm startet, verbindet sich mit deinem WLAN und kommt von selbst in Home Assistant.",
+        "booted_calibrate": "Der Bildschirm startet und verbindet sich mit deinem WLAN. Zuerst fragt er nach einer Touch-Kalibrierung: tippe auf die Kreuze. Danach kommt er von selbst in Home Assistant.",
         "see_log": "Siehe das Protokoll unten."
       },
       "download_steps": {
@@ -2225,9 +2232,9 @@
       "download_keep": "Die Datei enthält dein Wi-Fi-Passwort und die Schlüssel des Bildschirms: Behalte sie für dich.",
       "api_key": "API-Schlüssel",
       "pairing": {
-        "ha": "{bold} Das passiert außerhalb von Tessera. Home Assistant entdeckt {name} als ESPHome-Gerät; klicke auf „Hinzufügen“. Nicht entdeckt? Füge ESPHome manuell mit der IP-Adresse des Bildschirms hinzu.",
+        "ha": "{bold} Home Assistant zeigt {name} als entdecktes ESPHome-Gerät; klicke auf „Hinzufügen“. Nicht entdeckt? Füge ESPHome manuell mit der IP-Adresse des Bildschirms hinzu.",
         "ha_bold": "Öffne in Home Assistant Einstellungen → Geräte & Dienste.",
-        "key": "{bold} (unter „API-Schlüssel anzeigen“ unten), falls Home Assistant nach einem Verschlüsselungsschlüssel fragt. Mit der ESPHome Device Builder App trägt Home Assistant ihn oft selbst ein.",
+        "key": "{bold} unten, falls Home Assistant nach einem Verschlüsselungsschlüssel fragt.",
         "key_bold": "Füge den API-Schlüssel von oben ein",
         "actions": "{bold} ESPHome-Integration → Konfigurieren → „Dem Gerät erlauben, Home Assistant-Aktionen auszuführen“. Ohne das sieht der Bildschirm alles, steuert aber nichts.",
         "actions_bold": "HA-Aktionen erlauben:",
@@ -2287,12 +2294,13 @@
       "models": "{n} Modell | {n} Modelle",
       "arrive": {
         "waiting": "Warte, bis {name} im WLAN erscheint...",
-        "seen": "{name} ist im WLAN. Kopple ihn jetzt in Home Assistant.",
+        "seen": "{name} ist im WLAN. Wird eingerichtet...",
         "paired": "{name} ist mit Home Assistant gekoppelt.",
         "missing": "{name} ist noch nicht im WLAN",
         "hotspot": "Schau auf den Bildschirm: Er nennt einen Hotspot mit Passwort. Verbinde dein Handy damit und wähle dort das richtige WLAN. Oder trage hier das richtige WLAN ein und installiere erneut.",
         "no_hotspot": "Wahrscheinlich stimmen WLAN-Name oder Passwort nicht. Trage hier das richtige WLAN ein und installiere erneut, mit dem Bildschirm noch am Kabel.",
-        "change": "WLAN ändern und neu installieren"
+        "change": "WLAN ändern und neu installieren",
+        "failed": "Tessera kann {name} nicht selbst zu Home Assistant hinzufügen. Füge ihn unten selbst hinzu."
       },
       "choice_option": {
         "GRID_ROWS": {
@@ -2314,7 +2322,8 @@
         "out": "Das Erstellen der Firmware braucht etwa {need} freien Speicher, diese Home-Assistant-Maschine hat {free}. Halte ein paar Add-ons vorübergehend an oder gib der Maschine mehr Speicher, und versuche es dann erneut.",
         "limit_title": "Zu wenig Speicher, um die Firmware zu erstellen",
         "limit": "Der Speicher ging aus, auch mit einem Compiler gleichzeitig. Halte ein paar Add-ons vorübergehend an oder gib der Maschine mehr Speicher, und versuche es dann erneut."
-      }
+      },
+      "pair_yourself": "Selbst in Home Assistant hinzufügen"
     },
     "alerts": {
       "eyebrow": "Meldungen · Spickzettel",
@@ -2606,7 +2615,9 @@
       },
       "home_hint": "Die Startseiten-Schaltfläche und Wischen nach oben führen hierher.",
       "bar_entities": "Außerdem rechts",
-      "actions_blocked": "Home Assistant lässt diesen Bildschirm keine Aktionen ausführen, ein Tippen auf eine Kachel bewirkt also nichts. Öffne in Home Assistant Einstellungen → Geräte & Dienste → ESPHome, wähle diesen Bildschirm, dann Konfigurieren, und schalte „Dem Gerät erlauben, Home Assistant-Aktionen auszuführen“ ein."
+      "actions_blocked": "Home Assistant lässt diesen Bildschirm noch keine Aktionen ausführen, ein Tippen auf eine Kachel bewirkt also nichts.",
+      "allow_actions": "Aktionen erlauben",
+      "actions_allowed": "{name} darf deine Geräte jetzt steuern."
     },
     "feedback": {
       "question": "Funktioniert dein Bildschirm wie erwartet?",

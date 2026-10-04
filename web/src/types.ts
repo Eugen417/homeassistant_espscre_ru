@@ -200,8 +200,9 @@ export type Inventory = {
   builtin?: Entity[];
   // Device trackers with a place, for a map card's "Also on the map" (app 0.4.35).
   trackers?: Entity[];
-  // `seen`: Home Assistant found it on the network, waiting to be paired (app 0.4.32).
-  pending?: { friendly: string; file: string; node?: string; installed?: boolean; downloaded?: boolean; api_key?: string; seen?: boolean }[];
+  // `seen`: Home Assistant found it on the network, waiting to be paired (app 0.4.32). `pairing`: the app adds it itself
+  // (app 0.4.73), `failed` when Home Assistant asked something only the person can answer.
+  pending?: { friendly: string; file: string; node?: string; installed?: boolean; downloaded?: boolean; api_key?: string; seen?: boolean; pairing?: "adding" | "failed" | null }[];
   updates?: { target: string; busy?: boolean; pending?: number; auto?: boolean };
   // The CHANGELOG by release, newest first: only in the full inventory, not in the live payload (app 0.2.78).
   changelog?: ChangelogSection[];

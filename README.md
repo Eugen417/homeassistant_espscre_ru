@@ -394,18 +394,15 @@ install it via USB, put it on a screen plugged into your own computer from the b
 you the file,
 and later update it wirelessly over OTA.
 
-**You do need to pair the flashed screen via the ESPHome integration in HA.**
-That pairing lives under **Settings → Devices & services**, not in the
-App store. Add the discovered device there. If it doesn't appear automatically,
-choose **Add integration → ESPHome** and enter the screen's IP address.
-If asked for a key, use the `api.encryption.key` from your own device YAML,
-and grant the device permission to perform Home Assistant actions.
+**Nothing to set up in Home Assistant.** As soon as a flashed screen is on your Wi-Fi, Tessera adds it
+to Home Assistant's ESPHome integration with the screen's own key and allows it to perform Home Assistant
+actions, which a tile needs to control anything.
 
 | Component | Needed? | What for? |
 | --- | --- | --- |
 | Tessera Screen Manager app | Yes, for this installation route | Installing firmware, managing tiles, and sending current data to the screen |
 | ESPHome Device Builder app | No, optional | Alternative editor and firmware installer; the same CLI is already in Tessera |
-| ESPHome integration in HA | Yes, pair every screen | The connection between Home Assistant and the physical screen |
+| ESPHome integration in HA | Yes, Tessera adds every screen to it by itself | The connection between Home Assistant and the physical screen |
 
 So a fresh installation without ESPHome Device Builder also works. If there's
 no ESPHome `secrets.yaml` yet, our wizard asks for Wi-Fi once and
@@ -440,10 +437,7 @@ For Home Assistant OS with Apps/Add-ons on **aarch64 or amd64**:
    Home Assistant opened over https. Or choose **Download the file** and put it on the screen with
    [ESPHome Web](https://web.esphome.io). After that, updates go over Wi-Fi as usual.
 4. **CYD:** go through the calibration on the screen. **Guition:** uses GT911
-   without resistive calibration. Then pair the discovered ESPHome device in
-   **Settings → Devices & services** using the API key the window
-   shows after installation (copy button). Grant the device permission to
-   perform Home Assistant actions.
+   without resistive calibration. The screen joins your Wi-Fi and shows up in Tessera by itself.
 5. Select the screen in Tessera, choose your tiles, and click
    **Save & send**. Then test the physical controls.
 

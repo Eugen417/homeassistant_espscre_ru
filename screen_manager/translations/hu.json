@@ -774,6 +774,11 @@
       },
       "media": {
         "browse": "{name} nem adta meg a könyvtárát."
+      },
+      "allow_actions": {
+        "not_allowed": "A Home Assistant nem engedi, hogy ez az alkalmazás módosítsa az integrációit. Tedd meg magában a Home Assistantban: Beállítások → Eszközök és szolgáltatások.",
+        "no_entry": "A Home Assistantban ez a kijelző nem ESPHome-eszközként szerepel.",
+        "failed": "A Home Assistant nem fogadta el. A Home Assistantban nyisd meg: Beállítások → Eszközök és szolgáltatások → ESPHome, válaszd ki ezt a kijelzőt, majd Konfigurálás, és kapcsold be „Az eszköz Home Assistant-műveleteket hajthat végre” opciót."
       }
     },
     "status": {
@@ -1354,9 +1359,11 @@
         "start": "Indítás"
       },
       "pending": {
-        "installed": "Telepítve, de még nincs a Home Assistantban. Add hozzá a felfedezett ESPHome-eszközt a Beállítások → Eszközök és szolgáltatások alatt, illeszd be ott az API-kulcsot, majd a Konfigurálás alatt kapcsold be, hogy az eszköz Home Assistant-műveleteket hajthasson végre.",
-        "downloaded": "A firmware letöltve, de még nincs a Home Assistantban. Töltsd fel a kijelzőre az ESPHome Webbel, majd add hozzá a felfedezett ESPHome-eszközt a Beállítások → Eszközök és szolgáltatások alatt, illeszd be ott az API-kulcsot, és a Konfigurálás alatt engedélyezd a Home Assistant-műveleteket.",
-        "not_flashed": "Még nincs a Home Assistantban. Már flashelted? Add hozzá az ESPHome-eszközt a Beállítások → Eszközök és szolgáltatások alatt, majd a Konfigurálás alatt engedélyezd a Home Assistant-műveleteket. Még nem flashelted? Firmware és USB → {file}."
+        "installed": "Telepítve. Várakozás, amíg csatlakozik a Wi-Fi-hez...",
+        "downloaded": "Firmware letöltve. Tedd fel a kijelzőre az ESPHome Webbel.",
+        "not_flashed": "Még nincs telepítve: Firmware és USB → {file}.",
+        "adding": "A Wi-Fi-n van. Előkészítés...",
+        "failed": "A Tessera nem tudja magától hozzáadni a Home Assistanthez. Add hozzá a Beállítások → Eszközök és szolgáltatások alatt, a lenti API-kulccsal."
       },
       "copy_api_key": "API-kulcs másolása",
       "files": "Képernyőfájlok letöltése",
@@ -2208,9 +2215,9 @@
         "uploading": "Még ne húzd ki az USB-kábelt.",
         "building": "A fordítás egy Home Assistant-gépen, például Raspberry Pi-n, 20 percig vagy tovább is tarthat, főleg elsőre. Ez normális. Elhagyhatod ezt az oldalt: a telepítés tovább fut, és az Új kijelző alatt újra megtalálod.",
         "building_download": "A fordítás egy Home Assistant-gépen, például Raspberry Pi-n, 20 percig vagy tovább is tarthat, főleg elsőre. Ez normális. Elhagyhatod ezt az oldalt: a fordítás tovább fut, és az Új kijelző alatt újra megtalálod.",
-        "downloaded": "Töltsd fel a kijelzőre a saját számítógépedről, majd párosítsd a kijelzőt a Home Assistanttal.",
-        "booted": "A kijelző elindul, és csatlakozik a Wi-Fi-hez. Most párosítsd a Home Assistanttal:",
-        "booted_calibrate": "A kijelző elindul, és csatlakozik a Wi-Fi-hez. Előbb érintéskalibrálást kér: koppints a célkeresztekre. Most párosítsd a Home Assistanttal:",
+        "downloaded": "Tedd fel a kijelzőre a saját számítógépedről. Itt jelenik meg, amint a Wi-Fi-n van.",
+        "booted": "A kijelző elindul, csatlakozik a Wi-Fi-hez, és magától bekerül a Home Assistantbe.",
+        "booted_calibrate": "A kijelző elindul és csatlakozik a Wi-Fi-hez. Először érintéskalibrálást kér: koppints a keresztekre. Utána magától bekerül a Home Assistantbe.",
         "see_log": "Lásd a lenti naplót."
       },
       "download_steps": {
@@ -2225,9 +2232,9 @@
       "download_keep": "A fájl tartalmazza a Wi-Fi-jelszavadat és a kijelző kulcsait: ne add ki másnak.",
       "api_key": "API-kulcs",
       "pairing": {
-        "ha": "{bold} Ez a Tesserán kívül történik. A Home Assistant ESPHome-eszközként felfedezi ezt: {name}; kattints a Hozzáadás gombra. Nem találja? Add hozzá az ESPHome-ot kézzel a kijelző IP-címével.",
+        "ha": "{bold} A Home Assistant felfedezett ESPHome-eszközként mutatja ezt: {name}; kattints a Hozzáadás gombra. Nem találja? Add hozzá az ESPHome-ot kézzel a kijelző IP-címével.",
         "ha_bold": "Nyisd meg: Home Assistant → Beállítások → Eszközök és szolgáltatások.",
-        "key": "{bold} (lent, az „API-kulcs megjelenítése” alatt), ha a Home Assistant titkosítási kulcsot kér. Ha telepítve van az ESPHome Device Builder alkalmazás, a Home Assistant gyakran magától kitölti.",
+        "key": "{bold} lent, ha a Home Assistant titkosítási kulcsot kér.",
         "key_bold": "Illeszd be az API-kulcsot",
         "actions": "{bold} ESPHome integráció → Konfigurálás → kapcsold be, hogy az eszköz Home Assistant-műveleteket hajthasson végre. Enélkül a kijelző mindent lát, de semmit sem vezérel.",
         "actions_bold": "Engedélyezd a HA-műveleteket:",
@@ -2287,12 +2294,13 @@
       "models": "{n} modell | {n} modell",
       "arrive": {
         "waiting": "Várakozás, amíg {name} megjelenik a Wi-Fi-n...",
-        "seen": "{name} a Wi-Fi-n van. Párosítsd most a Home Assistantben.",
+        "seen": "{name} a Wi-Fi-n van. Előkészítés...",
         "paired": "{name} párosítva a Home Assistanttel.",
         "missing": "{name} még nincs a Wi-Fi-n",
         "hotspot": "Nézd meg a kijelzőt: kiír egy hotspotot és a jelszavát. Csatlakozz hozzá a telefonoddal, és ott válaszd ki a helyes Wi-Fi-t. Vagy add meg itt a helyes Wi-Fi-t, és telepítsd újra.",
         "no_hotspot": "Valószínűleg rossz a Wi-Fi neve vagy jelszava. Add meg itt a helyes Wi-Fi-t, és telepítsd újra, a kijelző még a kábelen legyen.",
-        "change": "Wi-Fi módosítása és újratelepítés"
+        "change": "Wi-Fi módosítása és újratelepítés",
+        "failed": "A Tessera nem tudja magától hozzáadni ezt a Home Assistanthez: {name}. Add hozzá magad lent."
       },
       "choice_option": {
         "GRID_ROWS": {
@@ -2314,7 +2322,8 @@
         "out": "A firmware fordításához körülbelül {need} szabad memória kell, és ennek a Home Assistant gépnek {free} van. Állíts le néhány kiegészítőt egy időre, vagy adj több memóriát a gépnek, majd próbáld újra.",
         "limit_title": "Nincs elég memória a firmware fordításához",
         "limit": "Elfogyott a memória, egy fordítóval is. Állíts le néhány kiegészítőt egy időre, vagy adj több memóriát a gépnek, majd próbáld újra."
-      }
+      },
+      "pair_yourself": "Add hozzá magad a Home Assistanthez"
     },
     "alerts": {
       "eyebrow": "Figyelmeztetések · puska",
@@ -2606,7 +2615,9 @@
       },
       "home_hint": "A kezdőlap gomb és a felfelé húzás ide vezet.",
       "bar_entities": "Jobb oldalon is",
-      "actions_blocked": "A Home Assistant nem engedi, hogy ez a kijelző műveleteket hajtson végre, így egy csempe megérintése nem csinál semmit. A Home Assistantban nyisd meg: Beállítások → Eszközök és szolgáltatások → ESPHome, válaszd ki ezt a kijelzőt, majd Konfigurálás, és kapcsold be „Az eszköz Home Assistant-műveleteket hajthat végre” opciót."
+      "actions_blocked": "A Home Assistant még nem engedi, hogy ez a kijelző műveleteket hajtson végre, így egy csempe megérintése nem csinál semmit.",
+      "allow_actions": "Műveletek engedélyezése",
+      "actions_allowed": "{name} mostantól vezérelheti az eszközeidet."
     },
     "feedback": {
       "question": "Úgy működik a kijelződ, ahogy várod?",

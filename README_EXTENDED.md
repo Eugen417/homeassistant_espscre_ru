@@ -152,8 +152,9 @@ on the screen itself, and how updates work.
     Each wrong code fires the event `esphome.screen_lock_code_refused` with `entity_id`, `failures` and `locked`.
   - **Lock only.** Per tile, choose **Unlocking here: Never**. That screen can lock but never unlock or open. Use it
     for a screen in a porch, a garage or a child's room.
-  - **Locks and security.** A screen runs Home Assistant actions only when you allow it (**Allow the device to
-    perform Home Assistant actions** in the ESPHome integration's options). That switch is the real boundary: it
+  - **Locks and security.** A screen runs Home Assistant actions only when it is allowed to (**Allow the device to
+    perform Home Assistant actions** in the ESPHome integration's options, which Tessera turns on for the screens it
+    adds, because a tile needs it to control anything). That switch is the real boundary: it
     lets a screen call any action, so a lock tile does not add a new way in. It makes locking and unlocking easy and
     visible, and the screen adds its own care on top: a confirm to unlock, lock only per tile, and the keypad when
     the lock asks for a code. To require a code, set it on the lock in Home Assistant. Many integrations set a
@@ -808,7 +809,7 @@ Give a developer or LLM a clean copy of this repository and, for example:
 > Read AGENTS.md, README.md, and docs/EASY_SETUP.md. Help me install this CYD or
 > Guition screen via USB on my Home Assistant. Identify
 > the board and use my existing profile if one already exists. Guide me through
-> calibration, HA pairing, tile selection, and physical tests. Keep keys local,
+> calibration, tile selection, and physical tests. Keep keys local,
 > and state which checks were actually carried out.
 
 A successful build doesn't prove the physical touch or panel image is correct. The owner

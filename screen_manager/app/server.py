@@ -21,6 +21,7 @@ import screen_labels
 import screen_saver
 import feedback
 from firmware import Firmware
+import ha_pairing
 import catalogue
 import ha_catalogue
 import light_effects
@@ -183,6 +184,8 @@ class HomeAssistant:
         # Entity ids whose state changed since the manager last looked; it only rebuilds those tiles.
         self.dirty = set()
         self.registry_changed = asyncio.Event()
+        # A repair issue came or went (app 0.4.73): one may say Home Assistant ignored a screen's tap (ha_pairing.py).
+        self.issues_changed = asyncio.Event()
         self.setting_events = []
         self.time_zone = None
         # Home Assistant's unit system; a climate entity's temperature carries no unit of its own.
@@ -280,6 +283,8 @@ class HomeAssistant:
                         self.changed.set()
                 elif event.get('event_type') in REGISTRY_EVENTS:
                     self.registry_changed.set()
+                elif event.get('event_type') == 'repairs_issue_registry_updated':
+                    self.issues_changed.set()
                 elif event.get('event_type') == 'core_config_updated':
                     # Settings -> System -> General in Home Assistant, such as its language (app 0.2.90).
                     self.config_stale = True
@@ -484,6 +489,7 @@ class HomeAssistant:
                     await self.request('subscribe_events', event_type=media_library.BROWSE_EVENT)
                     await self.request('subscribe_events', event_type=media_library.PLAY_EVENT)
                     await self.request('subscribe_events', event_type=speakers.SPEAKER_EVENT)
+                    await self.request('subscribe_events', event_type='repairs_issue_registry_updated')
                     for event_type in (*REGISTRY_EVENTS, *BROADCAST_EVENTS, ALERT_EVENT, *TILE_EVENTS, *SERVICE_EVENTS):
                         await self.request('subscribe_events', event_type=event_type)
                     self.states = {s['entity_id']: s for s in await self.request('get_states')}
@@ -715,17 +721,29 @@ class HomeAssistant:
         entries = await self.request('config_entries/get', domain='esphome')
         return {entry['entry_id']: entry for entry in entries or [] if isinstance(entry, dict) and entry.get('entry_id')}
 
+    async def flows(self):
+        """The config flows Home Assistant has under way, the devices under "Discovered" among them."""
+        return [flow for flow in await self.request('config_entries/flow/progress') or [] if isinstance(flow, dict)]
+
     async def discovered_esphome(self):
-        """The ESPHome devices Home Assistant found on the network and has not paired yet (app 0.4.32): a screen that
-        was just flashed shows up here once it is on the Wi-Fi, so New screen can say it arrived, or that it did not."""
-        flows = await self.request('config_entries/flow/progress')
-        names = set()
-        for flow in flows or []:
-            if isinstance(flow, dict) and flow.get('handler') == 'esphome':
-                name = ((flow.get('context') or {}).get('title_placeholders') or {}).get('name')
-                if isinstance(name, str) and name:
-                    names.add(name.lower())
-        return names
+        """The nodes of the ESPHome devices Home Assistant found on the network and has not paired yet (app 0.4.32): a
+        screen that was just flashed shows up here once it is on the Wi-Fi, so New screen can say it arrived, or that it
+        did not. By node, not by the title Home Assistant gives the device (app 0.4.73, ha_pairing.discovered_node)."""
+        return {node for node in map(ha_pairing.discovered_node, await self.flows()) if node}
+
+    async def flow(self, method, path, data=None):
+        """One step of a config flow or an options flow, the way Home Assistant's own dialogs take it (app 0.4.73):
+        `flow/<id>` answers a step of a discovered device, `options/flow` opens an integration's Configure dialog and
+        `options/flow/<id>` answers it. Over REST with the same token; the websocket has no command for these, and
+        Home Assistant lets only an administrator take them."""
+        async with self.session.request(method.upper(), f'{self.base}/config/config_entries/{path}',
+                                        headers={'Authorization': 'Bearer ' + self.token}, json=data,
+                                        timeout=ClientTimeout(total=60)) as response:
+            if response.status in (401, 403):
+                raise Refused(t('addon.errors.allow_actions.not_allowed'))
+            response.raise_for_status()
+            answer = await response.json(content_type=None)
+        return answer if isinstance(answer, dict) else {}
 
     async def delete_config_entry(self, entry_id):
         """Remove one integration with its device and its entities, the way Home Assistant's own Delete does
@@ -838,6 +856,9 @@ class Manager:
         self.feedback = feedback.Feedback(self.path.parent / 'feedback.json')
         # The names the editor shows instead of Home Assistant's (app 0.4.2).
         self.labels = screen_labels.ScreenLabels(self.path.parent / 'screen-labels.json')
+        # Screens this app made, added to Home Assistant with their actions allowed once it finds them (app 0.4.73).
+        self.pairing = ha_pairing.Pairing()
+        self._pairing_trouble = None
         # What each screen shows in standby instead of its dimmed tiles (app 0.4.48, screen_saver.py), and the last message
         # each screen holds, by its session: a screen that starts a new session gets it again.
         self.savers = screen_saver.ScreenSavers(self.path.parent / 'screensavers.json')
@@ -1209,14 +1230,64 @@ class Manager:
         self._inbox_devices.pop(inbox, None)
         self._screens_key = None
 
-    async def entry_of(self, screen):
+    async def entry_of(self, screen, missing='addon.errors.remove.no_entry'):
         """The ESPHome integration behind a screen: the one entry of its Home Assistant device that ESPHome owns."""
         device = next((d for d in getattr(self.ha, 'devices', []) if d.get('id') == screen.get('device_id')), None)
         entries = await self.ha.esphome_entries()
         mine = [entry for entry in (device or {}).get('config_entries') or [] if entry in entries]
         if len(mine) != 1:
-            raise ValueError(t('addon.errors.remove.no_entry'))
+            raise ValueError(t(missing))
         return mine[0]
+
+    async def allow_actions(self, inbox):
+        """Let a screen perform Home Assistant actions (app 0.4.73): the switch in its ESPHome integration's Configure
+        dialog, which Home Assistant leaves off for a new device. The editor's notice offers it when Home Assistant
+        ignored a tap of this screen."""
+        inbox = self.aliases.get(inbox, inbox)
+        screen = self.screen(inbox)
+        if screen is None:
+            raise ValueError(t('addon.errors.not_paired'))
+        entry = await self.entry_of(screen, 'addon.errors.allow_actions.no_entry')
+        try:
+            allowed = await ha_pairing.allow_actions(self.ha, entry)
+        except Refused as error:
+            raise ValueError(error.detail or t('addon.errors.allow_actions.failed')) from error
+        except ClientError as error:
+            raise ValueError(t('addon.errors.allow_actions.failed')) from error
+        if not allowed:
+            raise ValueError(t('addon.errors.allow_actions.failed'))
+        LOG.info('%s may perform Home Assistant actions', screen['name'])
+        return {'allowed': True, 'name': self.labels.get(screen.get('device_id')) or screen['name']}
+
+    async def pair_screens(self):
+        """One look of pairing_loop: the screens this app made (their profiles with the key New screen wrote), against
+        what Home Assistant has and has found."""
+        ours = {meta['node']: {'api_key': meta['api_key'], 'friendly': meta.get('friendly') or meta['node']}
+                for meta in self.firmware.profile_names().values()
+                if meta.get('screen') and meta.get('node') and ha_pairing.usable_key(meta.get('api_key'))}
+        await self.pairing.run(self.ha, ours, self.screens())
+
+    async def pairing_loop(self):
+        """Adds the screens this app made to Home Assistant as soon as it finds them on the network, and lets them
+        perform actions (ha_pairing.py, app 0.4.73)."""
+        told = getattr(self.ha, 'issues_changed', None) or asyncio.Event()
+        while True:
+            # A look every few seconds, and at once when Home Assistant reports that it ignored a screen's tap.
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(told.wait(), ha_pairing.INTERVAL)
+            if told.is_set():
+                told.clear()
+                self.pairing.issues_due = True
+            if not self.ha.online or not self.ha.registry:
+                continue
+            try:
+                await self.pair_screens()
+                self._pairing_trouble = None
+            except (ClientError, ConnectionError, TimeoutError, OSError, ValueError) as error:
+                # Said once, not every five seconds while Home Assistant stays away.
+                if self._pairing_trouble != type(error).__name__:
+                    LOG.info('Adding new screens to Home Assistant waits (%s)', type(error).__name__)
+                self._pairing_trouble = type(error).__name__
 
     def layout_sensors(self, screen):
         """The layout sensors this app published for a screen (publish_layouts), so they go with it.
@@ -3487,6 +3558,9 @@ def create_app(manager, development=False):
             return payload
         for entry in payload['pending']:
             entry['seen'] = str(entry.get('node') or '').lower() in names
+            # This app adds it itself (app 0.4.73): `adding` while it does, `failed` when Home Assistant asked something
+            # only the person can answer.
+            entry['pairing'] = manager.pairing.state.get(entry.get('node'))
         return payload
     async def inventory(request):
         if request.query.get('light') == '1':
@@ -3616,6 +3690,10 @@ def create_app(manager, development=False):
         await manager.check_supported(request.match_info['inbox'], data)
         record = manager.save(request.match_info['inbox'], data)
         return web.json_response({'saved': True, **({'document': record} if record else {})})
+    async def allow_actions(request):
+        """Let a screen perform Home Assistant actions (app 0.4.73), the editor's notice for a screen whose taps Home
+        Assistant ignored."""
+        return web.json_response(await manager.allow_actions(request.match_info['inbox']))
     async def remove_screen(request):
         """Remove a screen for good (app 0.2.112): out of Home Assistant, out of the ESPHome folder and out of
         this app. Everything the sidebar's own warning names before it asks."""
@@ -4113,6 +4191,7 @@ def create_app(manager, development=False):
     app.router.add_post('/api/screens/{inbox}/migration/reset', start_fresh)
     app.router.add_put('/api/screens/{inbox}/workspace', save_workspace)
     app.router.add_delete('/api/screens/{inbox}', remove_screen)
+    app.router.add_post('/api/screens/{inbox}/allow-actions', allow_actions)
     app.router.add_put('/api/screens/{inbox}/name', rename_screen)
     app.router.add_put('/api/screens/{inbox}/settings', change_settings)
     app.router.add_put('/api/screens/{inbox}/screensaver', change_screensaver)
@@ -4146,7 +4225,7 @@ async def main():
         try:
             await asyncio.gather(ha.run(), manager.run(), manager.history_loop(), manager.updates.run(),
                                  manager.alert_loop(), manager.tile_loop(), manager.card_history_loop(), manager.camera_loop(), manager.card_options_loop(),
-                                 manager.media_loop())
+                                 manager.media_loop(), manager.pairing_loop())
         finally:
             await cameras.cleanup()
             await runner.cleanup()

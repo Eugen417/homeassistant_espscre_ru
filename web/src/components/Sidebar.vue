@@ -85,11 +85,17 @@ const lastLog = () => {
   const lines = state.firmwareJob?.logs || [];
   return lines.length ? lines[lines.length - 1] : "";
 };
-const pendingText = (p: { installed?: boolean; downloaded?: boolean; file: string }) => p.installed
-  ? t("editor.sidebar.pending.installed")
-  : p.downloaded
-    ? t("editor.sidebar.pending.downloaded")
-    : t("editor.sidebar.pending.not_flashed", { file: p.file });
+// Tessera adds a screen Home Assistant found by itself (app 0.4.73): it says so while it does, and that it is up to the
+// person when Home Assistant asks something only they can answer.
+const pendingText = (p: { installed?: boolean; downloaded?: boolean; file: string; seen?: boolean; pairing?: string | null }) => p.pairing === "failed"
+  ? t("editor.sidebar.pending.failed")
+  : p.seen
+    ? t("editor.sidebar.pending.adding")
+    : p.installed
+      ? t("editor.sidebar.pending.installed")
+      : p.downloaded
+        ? t("editor.sidebar.pending.downloaded")
+        : t("editor.sidebar.pending.not_flashed", { file: p.file });
 </script>
 
 <template>
@@ -196,7 +202,7 @@ const pendingText = (p: { installed?: boolean; downloaded?: boolean; file: strin
     <div id="pending">
       <div v-for="p in state.inventory.pending || []" :key="p.file" class="pending">
         <strong>{{ p.friendly }}</strong>
-        <small>{{ pendingText(p) }}</small>
+        <small><span v-if="p.seen && p.pairing !== 'failed'" class="spin small"></span>{{ pendingText(p) }}</small>
         <div v-if="removeFor === `pending:${p.file}`" class="screen-remove">
           <strong>{{ t("editor.sidebar.remove.title", { name: p.friendly }) }}</strong>
           <ul><li>{{ t("editor.sidebar.remove.profile", { file: p.file }) }}</li></ul>
@@ -208,10 +214,11 @@ const pendingText = (p: { installed?: boolean; downloaded?: boolean; file: strin
           </div>
         </div>
         <div v-else class="pending-actions">
-          <button type="button" class="btn mini quiet" @click="openIntegrations">{{ t("editor.common.open_integrations") }}</button>
+          <!-- Tessera adds it to Home Assistant by itself (app 0.4.73); the way by hand only when that did not work out. -->
+          <button v-if="p.pairing === 'failed'" type="button" class="btn mini quiet" @click="openIntegrations">{{ t("editor.common.open_integrations") }}</button>
           <button type="button" class="btn link mini danger remove-pending" @click="removeFor = `pending:${p.file}`">{{ t("editor.sidebar.remove.button") }}</button>
         </div>
-        <details v-if="p.api_key" class="key-more">
+        <details v-if="p.api_key && p.pairing === 'failed'" class="key-more">
           <summary>{{ t("editor.installer.key_more") }}</summary>
           <button type="button" class="btn link mini copy-key" @click="copyText(p.api_key!)">{{ t("editor.sidebar.copy_api_key") }}</button>
         </details>

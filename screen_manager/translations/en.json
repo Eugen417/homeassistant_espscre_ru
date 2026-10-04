@@ -774,6 +774,11 @@
       },
       "media": {
         "browse": "{name} did not answer with its library."
+      },
+      "allow_actions": {
+        "not_allowed": "Home Assistant doesn't let this app change its integrations. Do it in Home Assistant itself, under Settings → Devices & services.",
+        "no_entry": "Home Assistant doesn't have this screen as an ESPHome device.",
+        "failed": "Home Assistant didn't take it. In Home Assistant open Settings → Devices & services → ESPHome, choose this screen, then Configure, and turn on “Allow the device to perform Home Assistant actions”."
       }
     },
     "status": {
@@ -1354,9 +1359,11 @@
         "start": "Start"
       },
       "pending": {
-        "installed": "Installed, but not yet in Home Assistant. Add the discovered ESPHome device under Settings → Devices & services, paste the API key there, and turn on “Allow the device to perform Home Assistant actions” under Configure.",
-        "downloaded": "Firmware downloaded, not yet in Home Assistant. Put it on the screen with ESPHome Web, then add the discovered ESPHome device under Settings → Devices & services, paste the API key there, and allow the Home Assistant actions under Configure.",
-        "not_flashed": "Not yet in Home Assistant. Already flashed? Add the ESPHome device under Settings → Devices & services, then allow the Home Assistant actions under Configure. Not flashed yet? Firmware & USB → {file}."
+        "installed": "Installed. Waiting for it to join your Wi-Fi...",
+        "downloaded": "Firmware downloaded. Put it on the screen with ESPHome Web.",
+        "not_flashed": "Not installed yet: Firmware & USB → {file}.",
+        "adding": "On your Wi-Fi. Getting it ready...",
+        "failed": "Tessera can't add it to Home Assistant by itself. Add it under Settings → Devices & services, with the API key below."
       },
       "copy_api_key": "Copy API key",
       "files": "Download screen files",
@@ -2208,9 +2215,9 @@
         "uploading": "Don't disconnect the USB cable yet.",
         "building": "Building can take 20 minutes or more on a Home Assistant machine such as a Raspberry Pi, the first time especially. That's normal. You can leave this page: the installation keeps running and you'll find it again under New screen.",
         "building_download": "Building can take 20 minutes or more on a Home Assistant machine such as a Raspberry Pi, the first time especially. That's normal. You can leave this page: the build keeps running and you'll find it again under New screen.",
-        "downloaded": "Put it on the screen from your own computer, then pair the screen with Home Assistant.",
-        "booted": "The screen boots up and connects to your Wi-Fi. Pair it with Home Assistant now:",
-        "booted_calibrate": "The screen boots up and connects to your Wi-Fi. It first asks for a touch calibration: tap the crosshairs. Pair it with Home Assistant now:",
+        "downloaded": "Put it on the screen from your own computer. It shows up here once it is on your Wi-Fi.",
+        "booted": "The screen boots up, connects to your Wi-Fi and joins Home Assistant by itself.",
+        "booted_calibrate": "The screen boots up and connects to your Wi-Fi. It first asks for a touch calibration: tap the crosshairs. Then it joins Home Assistant by itself.",
         "see_log": "See the log below."
       },
       "download_steps": {
@@ -2225,9 +2232,9 @@
       "download_keep": "The file holds your Wi-Fi password and the screen's keys: keep it to yourself.",
       "api_key": "API key",
       "pairing": {
-        "ha": "{bold} This happens outside Tessera. Home Assistant discovers {name} as an ESPHome device; click Add. Not discovered? Add ESPHome manually with the screen's IP address.",
+        "ha": "{bold} Home Assistant lists {name} as a discovered ESPHome device; click Add. Not discovered? Add ESPHome manually with the screen's IP address.",
         "ha_bold": "Go to Home Assistant → Settings → Devices & services.",
-        "key": "{bold} (under “Show the API key” below) if Home Assistant asks for an encryption key. With the ESPHome Device Builder app installed, Home Assistant often fills it in by itself.",
+        "key": "{bold} below if Home Assistant asks for an encryption key.",
         "key_bold": "Paste the API key",
         "actions": "{bold} ESPHome integration → Configure → “Allow the device to perform Home Assistant actions”. Without this, the screen sees everything but controls nothing.",
         "actions_bold": "Allow HA actions:",
@@ -2287,12 +2294,13 @@
       "models": "{n} model | {n} models",
       "arrive": {
         "waiting": "Waiting for {name} to join your Wi-Fi...",
-        "seen": "{name} is on your Wi-Fi. Pair it in Home Assistant now.",
+        "seen": "{name} is on your Wi-Fi. Getting it ready...",
         "paired": "{name} is paired with Home Assistant.",
         "missing": "{name} is not on your Wi-Fi yet",
         "hotspot": "Look at the screen: it names a hotspot and its password. Join it with your phone and pick the right Wi-Fi there. Or set the right Wi-Fi here and install again.",
         "no_hotspot": "The Wi-Fi name or password is probably wrong. Set the right Wi-Fi here and install again, with the screen still on its cable.",
-        "change": "Change Wi-Fi and install again"
+        "change": "Change Wi-Fi and install again",
+        "failed": "Tessera can't add {name} to Home Assistant by itself. Add it yourself below."
       },
       "choice_option": {
         "GRID_ROWS": {
@@ -2314,7 +2322,8 @@
         "out": "Building the firmware needs about {need} of free memory and this Home Assistant machine has {free}. Stop a few add-ons for a while or give the machine more memory, then try again.",
         "limit_title": "Not enough memory to build the firmware",
         "limit": "The build ran out of memory, also with one compiler at a time. Stop a few add-ons for a while or give the machine more memory, then try again."
-      }
+      },
+      "pair_yourself": "Add it in Home Assistant yourself"
     },
     "alerts": {
       "eyebrow": "Alerts · cheatsheet",
@@ -2606,7 +2615,9 @@
       },
       "home_hint": "The home button and a swipe up lead here.",
       "bar_entities": "Also on the right",
-      "actions_blocked": "Home Assistant doesn't let this screen perform actions, so a tap on a tile does nothing. In Home Assistant open Settings → Devices & services → ESPHome, choose this screen, then Configure, and turn on “Allow the device to perform Home Assistant actions”."
+      "actions_blocked": "Home Assistant doesn't let this screen perform actions yet, so a tap on a tile does nothing.",
+      "allow_actions": "Allow actions",
+      "actions_allowed": "{name} may now control your devices."
     },
     "feedback": {
       "question": "Does your screen work as you expect?",

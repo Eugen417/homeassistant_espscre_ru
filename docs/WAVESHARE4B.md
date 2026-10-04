@@ -19,7 +19,7 @@ a screen to 0.6.1 or later.
 Update Tessera Screen Manager and choose **Waveshare · 4 inch** (ESP32-S3-Touch-LCD-4B, marked Experimental) in **New screen**.
 Follow [Easy setup](EASY_SETUP.md) to create a profile with its own name, Wi-Fi references and unique API/OTA keys.
 Choose the correct USB port, or download the firmware to flash with ESPHome Web from your own computer.
-Keep an existing working profile if the board is already installed. Pair it through the ESPHome integration before adding tiles.
+Keep an existing working profile if the board is already installed. Tessera adds it to Home Assistant by itself once it is on your Wi-Fi; then add its tiles.
 
 The remote package is `packages/waveshare4b.yaml`; the checkout entry is `checkout/waveshare4b.yaml`.
 Both combine `packages/core.yaml` with `packages/boards/waveshare-esp32s3-4b.yaml`.
@@ -57,7 +57,7 @@ The board has two USB-C ports. Logs go out over the one with the USB-to-UART chi
 
 ## What to report while testing
 
-1. Board revision, successful boot, pairing and appearance in Tessera.
+1. Board revision, successful boot and appearance in Tessera.
 2. Correct colours and a stable picture across several page changes and cold starts. Shifted, mirrored or inverted
    colours point at the display block.
 3. Physical taps near each corner, slider drags and edge swipes, and the quarter-turn setting. Touch that lands mirrored

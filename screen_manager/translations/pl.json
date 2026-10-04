@@ -774,6 +774,11 @@
       },
       "media": {
         "browse": "{name} nie udostępnił swojej biblioteki."
+      },
+      "allow_actions": {
+        "not_allowed": "Home Assistant nie pozwala tej aplikacji zmieniać swoich integracji. Zrób to w samym Home Assistant, w sekcji Ustawienia → Urządzenia oraz usługi.",
+        "no_entry": "Home Assistant nie ma tego ekranu jako urządzenia ESPHome.",
+        "failed": "Home Assistant tego nie przyjął. W Home Assistant otwórz Ustawienia → Urządzenia oraz usługi → ESPHome, wybierz ten ekran, potem Konfiguruj, i włącz „Zezwalaj urządzeniu na wykonywanie akcji Home Assistant”."
       }
     },
     "status": {
@@ -1354,9 +1359,11 @@
         "start": "Rozpocznij"
       },
       "pending": {
-        "installed": "Zainstalowany, ale jeszcze nie w Home Assistant. Dodaj wykryte urządzenie ESPHome w sekcji Ustawienia → Urządzenia oraz usługi, wklej tam klucz API, a potem kliknij „Konfiguruj” i włącz „Zezwól urządzeniu na wykonywanie akcji Home Assistant”.",
-        "downloaded": "Firmware pobrany, jeszcze nie w Home Assistant. Wgraj go na ekran przez ESPHome Web, potem dodaj wykryte urządzenie ESPHome w sekcji Ustawienia → Urządzenia oraz usługi, wklej tam klucz API, kliknij „Konfiguruj” i zezwól na akcje Home Assistant.",
-        "not_flashed": "Jeszcze nie w Home Assistant. Firmware już wgrany? Dodaj urządzenie ESPHome w sekcji Ustawienia → Urządzenia oraz usługi, potem kliknij „Konfiguruj” i zezwól na akcje Home Assistant. Jeszcze nie wgrany? Firmware i USB → {file}."
+        "installed": "Zainstalowany. Czekam, aż połączy się z Wi-Fi...",
+        "downloaded": "Firmware pobrany. Wgraj go na ekran przez ESPHome Web.",
+        "not_flashed": "Jeszcze nie zainstalowany: Firmware i USB → {file}.",
+        "adding": "W Wi-Fi. Przygotowuję...",
+        "failed": "Tessera nie może sama dodać go do Home Assistant. Dodaj go w sekcji Ustawienia → Urządzenia oraz usługi, z kluczem API poniżej."
       },
       "copy_api_key": "Kopiuj klucz API",
       "files": "Pobierz pliki ekranu",
@@ -2208,9 +2215,9 @@
         "uploading": "Nie odłączaj jeszcze kabla USB.",
         "building": "Budowanie na komputerze z Home Assistant, takim jak Raspberry Pi, może trwać 20 minut lub dłużej, zwłaszcza za pierwszym razem. To normalne. Możesz opuścić tę stronę: instalacja trwa dalej, a znajdziesz ją ponownie w sekcji „Nowy ekran”.",
         "building_download": "Budowanie na komputerze z Home Assistant, takim jak Raspberry Pi, może trwać 20 minut lub dłużej, zwłaszcza za pierwszym razem. To normalne. Możesz opuścić tę stronę: kompilacja trwa dalej, a znajdziesz ją ponownie w sekcji „Nowy ekran”.",
-        "downloaded": "Wgraj go na ekran z własnego komputera, a potem sparuj ekran z Home Assistant.",
-        "booted": "Ekran się uruchamia i łączy z Twoją siecią Wi-Fi. Teraz sparuj go z Home Assistant:",
-        "booted_calibrate": "Ekran się uruchamia i łączy z Twoją siecią Wi-Fi. Najpierw poprosi o kalibrację dotyku: dotykaj krzyżyków. Teraz sparuj go z Home Assistant:",
+        "downloaded": "Wgraj go na ekran z własnego komputera. Pojawi się tutaj, gdy tylko połączy się z Wi-Fi.",
+        "booted": "Ekran uruchamia się, łączy z Wi-Fi i sam dołącza do Home Assistant.",
+        "booted_calibrate": "Ekran uruchamia się i łączy z Wi-Fi. Najpierw prosi o kalibrację dotyku: dotknij krzyżyków. Potem sam dołącza do Home Assistant.",
         "see_log": "Zobacz log poniżej."
       },
       "download_steps": {
@@ -2225,9 +2232,9 @@
       "download_keep": "Plik zawiera Twoje hasło Wi-Fi i klucze ekranu: nie udostępniaj go nikomu.",
       "api_key": "Klucz API",
       "pairing": {
-        "ha": "{bold} To dzieje się poza Tessera. Home Assistant wykryje {name} jako urządzenie ESPHome; kliknij „Dodaj”. Nie wykryto? Dodaj ESPHome ręcznie, podając adres IP ekranu.",
+        "ha": "{bold} Home Assistant pokazuje {name} jako wykryte urządzenie ESPHome; kliknij „Dodaj”. Nie wykryto? Dodaj ESPHome ręcznie, podając adres IP ekranu.",
         "ha_bold": "Przejdź do Home Assistant → Ustawienia → Urządzenia oraz usługi.",
-        "key": "{bold} (pod „Pokaż klucz API” poniżej), jeśli Home Assistant poprosi o klucz szyfrowania. Z zainstalowaną aplikacją ESPHome Device Builder Home Assistant często wpisuje go sam.",
+        "key": "{bold} poniżej, jeśli Home Assistant poprosi o klucz szyfrowania.",
         "key_bold": "Wklej klucz API",
         "actions": "{bold} integracja ESPHome → Konfiguruj → „Zezwól urządzeniu na wykonywanie akcji Home Assistant”. Bez tego ekran widzi wszystko, ale niczym nie steruje.",
         "actions_bold": "Zezwól na akcje HA:",
@@ -2287,12 +2294,13 @@
       "models": "{n} model | {n} modele | {n} modeli",
       "arrive": {
         "waiting": "Czekam, aż {name} pojawi się w Wi-Fi...",
-        "seen": "{name} jest w Wi-Fi. Sparuj go teraz w Home Assistant.",
+        "seen": "{name} jest w Wi-Fi. Przygotowuję...",
         "paired": "{name} jest sparowany z Home Assistant.",
         "missing": "{name} nie ma jeszcze w Wi-Fi",
         "hotspot": "Spójrz na ekran: pokazuje hotspot i jego hasło. Połącz się z nim telefonem i wybierz tam właściwą sieć Wi-Fi. Albo ustaw tu właściwą sieć i zainstaluj ponownie.",
         "no_hotspot": "Prawdopodobnie nazwa lub hasło Wi-Fi są błędne. Ustaw tu właściwą sieć i zainstaluj ponownie, z ekranem wciąż podłączonym kablem.",
-        "change": "Zmień Wi-Fi i zainstaluj ponownie"
+        "change": "Zmień Wi-Fi i zainstaluj ponownie",
+        "failed": "Tessera nie może sama dodać {name} do Home Assistant. Dodaj go samodzielnie poniżej."
       },
       "choice_option": {
         "GRID_ROWS": {
@@ -2314,7 +2322,8 @@
         "out": "Kompilacja firmware wymaga około {need} wolnej pamięci, a ta maszyna Home Assistant ma {free}. Zatrzymaj na chwilę kilka dodatków albo daj maszynie więcej pamięci, potem spróbuj ponownie.",
         "limit_title": "Za mało pamięci, aby skompilować firmware",
         "limit": "Skończyła się pamięć, także z jednym kompilatorem naraz. Zatrzymaj na chwilę kilka dodatków albo daj maszynie więcej pamięci, potem spróbuj ponownie."
-      }
+      },
+      "pair_yourself": "Dodaj go samodzielnie w Home Assistant"
     },
     "alerts": {
       "eyebrow": "Alerty · ściąga",
@@ -2606,7 +2615,9 @@
       },
       "home_hint": "Przycisk strony głównej i przesunięcie w górę prowadzą tutaj.",
       "bar_entities": "Także po prawej",
-      "actions_blocked": "Home Assistant nie pozwala temu ekranowi wykonywać akcji, więc dotknięcie kafelka nic nie robi. W Home Assistant otwórz Ustawienia → Urządzenia oraz usługi → ESPHome, wybierz ten ekran, potem Konfiguruj, i włącz „Zezwalaj urządzeniu na wykonywanie akcji Home Assistant”."
+      "actions_blocked": "Home Assistant jeszcze nie pozwala temu ekranowi wykonywać akcji, więc dotknięcie kafelka nic nie robi.",
+      "allow_actions": "Zezwól na akcje",
+      "actions_allowed": "{name} może teraz sterować twoimi urządzeniami."
     },
     "feedback": {
       "question": "Czy ekran działa tak, jak oczekujesz?",

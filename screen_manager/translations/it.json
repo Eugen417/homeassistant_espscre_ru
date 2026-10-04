@@ -774,6 +774,11 @@
       },
       "media": {
         "browse": "{name} non ha risposto con la sua libreria."
+      },
+      "allow_actions": {
+        "not_allowed": "Home Assistant non permette a questa app di modificare le sue integrazioni. Fallo in Home Assistant, in Impostazioni → Dispositivi e servizi.",
+        "no_entry": "Home Assistant non ha questo schermo come dispositivo ESPHome.",
+        "failed": "Home Assistant non l'ha accettato. In Home Assistant apri Impostazioni → Dispositivi e servizi → ESPHome, scegli questo schermo, poi Configura, e attiva «Consenti al dispositivo di eseguire azioni di Home Assistant»."
       }
     },
     "status": {
@@ -1354,9 +1359,11 @@
         "start": "Avvia"
       },
       "pending": {
-        "installed": "Installato, ma non ancora in Home Assistant. Aggiungi il dispositivo ESPHome rilevato in Impostazioni → Dispositivi e servizi, incolla lì la chiave API e attiva «Allow the device to perform Home Assistant actions» in Configura.",
-        "downloaded": "Firmware scaricato, non ancora in Home Assistant. Mettilo sullo schermo con ESPHome Web, poi aggiungi il dispositivo ESPHome rilevato in Impostazioni → Dispositivi e servizi, incolla lì la chiave API e consenti le azioni di Home Assistant in Configura.",
-        "not_flashed": "Non ancora in Home Assistant. Firmware già installato? Aggiungi il dispositivo ESPHome in Impostazioni → Dispositivi e servizi, poi consenti le azioni di Home Assistant in Configura. Non ancora installato? Firmware e USB → {file}."
+        "installed": "Installato. In attesa che si colleghi alla tua Wi-Fi...",
+        "downloaded": "Firmware scaricato. Installalo sullo schermo con ESPHome Web.",
+        "not_flashed": "Non ancora installato: Firmware e USB → {file}.",
+        "adding": "Sulla tua Wi-Fi. Lo sto preparando...",
+        "failed": "Tessera non riesce ad aggiungerlo da solo a Home Assistant. Aggiungilo in Impostazioni → Dispositivi e servizi, con la chiave API qui sotto."
       },
       "copy_api_key": "Copia chiave API",
       "files": "Scarica i file dello schermo",
@@ -2208,9 +2215,9 @@
         "uploading": "Non scollegare ancora il cavo USB.",
         "building": "La compilazione può richiedere 20 minuti o più su un computer di Home Assistant come un Raspberry Pi, soprattutto la prima volta. È normale. Puoi lasciare questa pagina: l'installazione continua e la ritrovi in Nuovo schermo.",
         "building_download": "La compilazione può richiedere 20 minuti o più su un computer di Home Assistant come un Raspberry Pi, soprattutto la prima volta. È normale. Puoi lasciare questa pagina: la compilazione continua e la ritrovi in Nuovo schermo.",
-        "downloaded": "Mettilo sullo schermo dal tuo computer, poi associa lo schermo a Home Assistant.",
-        "booted": "Lo schermo si avvia e si collega al tuo Wi-Fi. Ora associalo a Home Assistant:",
-        "booted_calibrate": "Lo schermo si avvia e si collega al tuo Wi-Fi. Prima chiede una calibrazione del touch: tocca le croci. Ora associalo a Home Assistant:",
+        "downloaded": "Installalo sullo schermo dal tuo computer. Compare qui appena è sulla tua Wi-Fi.",
+        "booted": "Lo schermo si avvia, si collega alla tua Wi-Fi ed entra in Home Assistant da solo.",
+        "booted_calibrate": "Lo schermo si avvia e si collega alla tua Wi-Fi. Prima chiede una calibrazione del tocco: tocca le croci. Poi entra in Home Assistant da solo.",
         "see_log": "Vedi il registro qui sotto."
       },
       "download_steps": {
@@ -2225,9 +2232,9 @@
       "download_keep": "Il file contiene la tua password Wi-Fi e le chiavi dello schermo: tienilo per te.",
       "api_key": "Chiave API",
       "pairing": {
-        "ha": "{bold} Questo avviene fuori da Tessera. Home Assistant rileva {name} come dispositivo ESPHome; fai clic su Aggiungi. Non rilevato? Aggiungi ESPHome manualmente con l'indirizzo IP dello schermo.",
+        "ha": "{bold} Home Assistant mostra {name} come dispositivo ESPHome rilevato; fai clic su Aggiungi. Non rilevato? Aggiungi ESPHome manualmente con l'indirizzo IP dello schermo.",
         "ha_bold": "Vai in Home Assistant → Impostazioni → Dispositivi e servizi.",
-        "key": "{bold} (sotto «Mostra la chiave API» qui sotto) se Home Assistant chiede una chiave di crittografia. Con l’app ESPHome Device Builder installata, Home Assistant spesso la inserisce da solo.",
+        "key": "{bold} qui sotto se Home Assistant chiede una chiave di crittografia.",
         "key_bold": "Incolla la chiave API",
         "actions": "{bold} integrazione ESPHome → Configura → «Allow the device to perform Home Assistant actions». Senza questo, lo schermo vede tutto ma non controlla nulla.",
         "actions_bold": "Consenti le azioni di HA:",
@@ -2287,12 +2294,13 @@
       "models": "{n} modello | {n} modelli",
       "arrive": {
         "waiting": "In attesa che {name} compaia sulla tua Wi-Fi...",
-        "seen": "{name} è sulla tua Wi-Fi. Associalo ora in Home Assistant.",
+        "seen": "{name} è sulla tua Wi-Fi. Lo sto preparando...",
         "paired": "{name} è associato a Home Assistant.",
         "missing": "{name} non è ancora sulla tua Wi-Fi",
         "hotspot": "Guarda lo schermo: mostra un hotspot e la sua password. Collegati con il telefono e scegli lì la Wi-Fi giusta. Oppure imposta qui la Wi-Fi giusta e reinstalla.",
         "no_hotspot": "Probabilmente il nome o la password della Wi-Fi sono sbagliati. Imposta qui la Wi-Fi giusta e reinstalla, con lo schermo ancora collegato al cavo.",
-        "change": "Cambia Wi-Fi e reinstalla"
+        "change": "Cambia Wi-Fi e reinstalla",
+        "failed": "Tessera non riesce ad aggiungere {name} da solo a Home Assistant. Aggiungilo tu qui sotto."
       },
       "choice_option": {
         "GRID_ROWS": {
@@ -2314,7 +2322,8 @@
         "out": "Compilare il firmware richiede circa {need} di memoria libera e questa macchina Home Assistant ne ha {free}. Ferma qualche componente aggiuntivo per un po' o dai più memoria alla macchina, poi riprova.",
         "limit_title": "Memoria insufficiente per compilare il firmware",
         "limit": "La memoria è finita, anche con un compilatore alla volta. Ferma qualche componente aggiuntivo per un po' o dai più memoria alla macchina, poi riprova."
-      }
+      },
+      "pair_yourself": "Aggiungilo tu in Home Assistant"
     },
     "alerts": {
       "eyebrow": "Avvisi · guida rapida",
@@ -2606,7 +2615,9 @@
       },
       "home_hint": "Il pulsante Home e lo scorrimento verso l’alto portano qui.",
       "bar_entities": "Anche a destra",
-      "actions_blocked": "Home Assistant non permette a questo schermo di eseguire azioni, quindi toccare un riquadro non fa nulla. In Home Assistant apri Impostazioni → Dispositivi e servizi → ESPHome, scegli questo schermo, poi Configura, e attiva «Consenti al dispositivo di eseguire azioni di Home Assistant»."
+      "actions_blocked": "Home Assistant non permette ancora a questo schermo di eseguire azioni, quindi toccare un riquadro non fa nulla.",
+      "allow_actions": "Consenti azioni",
+      "actions_allowed": "{name} ora può comandare i tuoi dispositivi."
     },
     "feedback": {
       "question": "Il tuo schermo funziona come ti aspetti?",

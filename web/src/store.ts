@@ -97,6 +97,8 @@ export const state = reactive({
   updating: [] as string[],
   // The screen whose removal is running, so its button waits instead of being pressed twice (app 0.2.112).
   removing: null as string | null,
+  // The screen whose actions are being allowed (app 0.4.73).
+  allowing: null as string | null,
   toast: null as null | { message: string; action?: { label: string; run: () => void } },
   now: Date.now(),
   fontsVersion: 0,
@@ -1319,6 +1321,21 @@ export async function forgetPending(file: string, name: string) {
     return false;
   } finally {
     state.removing = null;
+  }
+}
+// Home Assistant ignored a tap of this screen (app 0.4.63): one click turns on the switch in its ESPHome integration's
+// Configure dialog that lets it perform actions (app 0.4.73).
+export async function allowActions(screen: Screen) {
+  if (state.allowing) return;
+  state.allowing = screen.id;
+  try {
+    const result = await send<{ name?: string }>(`screens/${encodeURIComponent(screen.id)}/allow-actions`, "POST");
+    screen.actions_blocked = false;
+    toast(t("editor.pages.actions_allowed", { name: result?.name || screen.name }));
+  } catch (e: any) {
+    toast(e.message);
+  } finally {
+    state.allowing = null;
   }
 }
 export async function removeScreen(screen: Screen) {

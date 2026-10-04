@@ -1,3 +1,34 @@
+## 0.4.73 (firmware 0.44.0)
+
+- **A new screen joins Home Assistant by itself.** After flashing, there were two steps left in Home Assistant: add
+  the discovered ESPHome device (pasting the screen's API key when asked) and turn on **Allow the device to perform
+  Home Assistant actions**, without which a tap on a tile does nothing. Tessera now takes both, through the same
+  config flow and options flow Home Assistant's own dialogs use, and keeps checking until they hold instead of
+  trying once. It answers Home Assistant's discovery of the screen with the key it wrote into the screen's YAML; finds
+  the screen by its name on the network when Home Assistant did not discover it, or the discovery was dismissed or
+  ignored; offers the key again a little later when the screen still ran older firmware; gives Home Assistant the new
+  key when New screen made new ones for a screen it already had; takes Home Assistant's own "migrate" when a new board
+  takes over a screen's name; and turns the actions on for a new screen, checks them once for every screen it made,
+  and turns them back on at once when Home Assistant reports that it ignored a tap. It only adds screens whose YAML,
+  with its key, is in the ESPHome folder it reads. New screen now goes from flashing straight to choosing tiles; the
+  way by hand only shows when Tessera could not do it, and the manual describes it for screens built elsewhere
+  ([docs/EASY_SETUP.md](../docs/EASY_SETUP.md#adding-a-screen-by-hand)).
+- **Allow actions** on a screen's page, for the rare case Tessera could not turn the switch on itself (a Docker install
+  whose token is not an administrator's): one click instead of Home Assistant's Configure dialog.
+- New screen said "on your Wi-Fi" only for a screen whose friendly name and device name were the same: Home Assistant
+  titles a discovered device "Friendly name (device-name)", and Tessera compared the whole title. It now reads the
+  device name inside it.
+- No firmware for a screen that exists: every screen stays on 0.44.0 and is offered nothing new.
+- The screen's own hint after half a minute without Home Assistant still asks whether it was added under Devices &
+  services: that text is part of the firmware, which this release leaves alone.
+- Tested: on a Home Assistant 2026.9.4 test install with a Waveshare 4.3-inch, the whole way a user goes. A screen made
+  with New screen and flashed over USB was discovered by Home Assistant and added by Tessera, actions allowed, 12
+  seconds later. Taken out of Home Assistant again with its discovery set to Ignore, Tessera added it back by its name
+  on the network within half a minute. Allow actions through the app's own address on a second screen. The answers Home
+  Assistant gave in that test and in its source drive the unit tests of the rest: an older key still on the screen,
+  new keys after New screen, a board that takes over a name, a refused tap, a Configure form without the switch.
+  Every Python, C++, editor and WASM preview check. Not tested: a tap Home Assistant refused on real glass.
+
 ## 0.4.72 (firmware 0.44.0)
 
 - **The Waveshare ESP32-S3-Touch-LCD-5 as a board of its own** ([docs/WAVESHARE5.md](../docs/WAVESHARE5.md)). The
