@@ -30,12 +30,12 @@ describe("the clock's entities", () => {
     expect(state.toast?.message).toBe(`The clock has room for ${SAVER_ITEMS_MAX} entities.`);
   });
 
-  it("change what they show, and leave when removed", () => {
+  it("change what they show, and leave when removed, back to the clock's drawer", () => {
     addSaverItem(item("sensor.power"));
     updateSaverItem(0, { content: "icon" });
     expect(saverItems()[0].content).toBe("icon");
     removeSaverItem(0);
     expect(saverItems()).toEqual([]);
-    expect(state.inspector).toBeNull();
+    expect(state.inspector).toEqual({ kind: "saver", step: "clock" });
   });
 });

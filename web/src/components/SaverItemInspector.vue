@@ -4,7 +4,8 @@
 import { computed } from "vue";
 import { t } from "../i18n";
 import { glyph, itemKey } from "../model/topbar";
-import { automaticIcon, closeInspector, entityName, moveSaverItem, openSaverItem, removeSaverItem, saverItems, state, topbarView, updateSaverItem } from "../store";
+import { automaticIcon, entityName, moveSaverItem, openSaverItem, removeSaverItem, saverItems, state, topbarView, updateSaverItem } from "../store";
+import { clockCrumb } from "../saver";
 import IconPicker from "./IconPicker.vue";
 import Segmented from "./Segmented.vue";
 import Icon from "./ui/Icon.vue";
@@ -23,7 +24,7 @@ function pick(value: string) {
   if (value === "text") updateSaverItem(props.index, { content: "state", icon: "none" });
   else updateSaverItem(props.index, { content: value === "icon" ? "icon" : "state", icon: kept.value });
 }
-const crumbs = computed(() => [{ text: t("editor.screen_settings.screensaver.items_title"), open: closeInspector }]);
+const crumbs = computed(() => [clockCrumb()]);
 </script>
 
 <template>

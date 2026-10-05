@@ -11,7 +11,7 @@ import { createLayout, dimensions, type Size, versionAtLeast } from "./model/lay
 import { measuring, memoryCrossing, memoryUse } from "./model/memory";
 import { validPreviewShape, type PreviewProfile } from "./model/preview";
 import renderer from "./wasm/renderer.json";
-import type { BoardChoice, Capability, ChildTile, FeedbackView, ChangelogSection, EntityAction, HeaderItem, Inventory, Layout, Screen, ScreensaverChoice, Tile, PageLayout, PageTile, PageDocument, PageGrid, PageWorkspace } from "./types";
+import type { BoardChoice, Capability, ChildTile, FeedbackView, ChangelogSection, EntityAction, HeaderItem, Inventory, Layout, SaverKind, Screen, ScreensaverChoice, Tile, PageLayout, PageTile, PageDocument, PageGrid, PageWorkspace } from "./types";
 
 import * as pages from "./model/pages";
 import { DraftHistory, type HistoryScope } from './model/draft-history';
@@ -28,6 +28,7 @@ export type Inspector =
   | { kind: "bar-add" }
   | { kind: "saver-item"; index: number }
   | { kind: "saver-add" }
+  | { kind: "saver"; step: SaverKind }
   | { kind: "page"; id: string }
   | { kind: "inspect"; entity?: string; slot?: number; key?: number };
 // A whole page on its way to another place in the row (app 0.2.121): where it came from, where it is heading, and
@@ -1195,6 +1196,12 @@ export function openSaverItem(index: number) {
   state.selectedTile = null;
   state.inspector = { kind: "saver-item", index };
 }
+// One step of the screensaver in the drawer: its players, its camera or its clock.
+export function openSaverStep(step: SaverKind) {
+  state.iconPickerOpen = false;
+  state.selectedTile = null;
+  state.inspector = { kind: "saver", step };
+}
 export function openSaverAdd() {
   state.selectedTile = null;
   state.inspector = { kind: "saver-add" };
@@ -1206,6 +1213,8 @@ const saverList = itemList({
   full: () => t("editor.screen_settings.screensaver.items_full", { n: SAVER_ITEMS_MAX }),
   already: () => t("editor.screen_settings.screensaver.items_already"),
   removed: (name) => t("editor.screen_settings.screensaver.items_removed", { name }),
+  // An entity taken off in its own drawer leads back to the clock it stood on.
+  back: () => openSaverStep("clock"),
 });
 export const { add: addSaverItem, update: updateSaverItem, move: moveSaverItem, remove: removeSaverItem } = saverList;
 export function closeInspector() {
@@ -1635,7 +1644,7 @@ export function topbarView(item: HeaderItem): ItemView {
 function itemList(o: {
   items: () => HeaderItem[]; set: (items: HeaderItem[]) => void; max: () => number; open: (index: number) => void;
   inspector: string; same: (a: HeaderItem, b: HeaderItem) => boolean;
-  full: () => string; already: () => string; removed: (name: string) => string; added?: (item: HeaderItem) => void;
+  full: () => string; already: () => string; removed: (name: string) => string; added?: (item: HeaderItem) => void; back?: () => void;
 }) {
   return {
     add(item: HeaderItem) {
@@ -1663,7 +1672,7 @@ function itemList(o: {
       const items = [...o.items()];
       const [item] = items.splice(index, 1);
       if (!item) return;
-      if (state.inspector?.kind === o.inspector) closeInspector();
+      if (state.inspector?.kind === o.inspector) (o.back || closeInspector)();
       o.set(items);
       toast(o.removed(topbarLabel(item)), {
         label: t("editor.common.undo"),
@@ -1887,6 +1896,8 @@ export async function installClaudeSkill() {
 // the add-on tells which one it is.
 export const screenLanguage = computed(() => pickLanguage(state.inventory.language?.effective));
 watch(screenLanguage, (code) => loadLanguage(code), { immediate: true });
+// The screensaver's drawers belong to the settings: they close when the layout comes back.
+watch(() => state.tab, (tab) => { if (tab !== "settings" && state.inspector?.kind.startsWith("saver")) closeInspector(); });
 watch(() => state.libraryOpen, (open) => { try { localStorage.setItem("esp-screens.library-open", open ? "1" : "0"); } catch {} });
 /** A text as the screens show it: in their language, not the editor's. */
 export const screenText = (key: string, named: Record<string, unknown> = {}) => t(key, named, { locale: screenLanguage.value });

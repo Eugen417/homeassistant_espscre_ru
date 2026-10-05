@@ -2,8 +2,9 @@
 // Adding an entity to the screensaver's clock (app 0.4.81): the top bar's own choice of entities (EntityItemPicker).
 import { t } from "../i18n";
 import { entityItem } from "../model/topbar";
-import { addSaverItem, closeInspector, SAVER_ITEMS_MAX, saverItems } from "../store";
+import { addSaverItem, SAVER_ITEMS_MAX, saverItems } from "../store";
 import type { HeaderItem } from "../types";
+import { clockCrumb } from "../saver";
 import EntityItemPicker from "./EntityItemPicker.vue";
 import InspectorHead from "./ui/InspectorHead.vue";
 
@@ -14,12 +15,12 @@ const taken = (item: HeaderItem) => saverItems().some((other) => other.entity ==
 
 <template>
   <InspectorHead kind="bar" :title="t('editor.screen_settings.screensaver.items_add_title')" icon="plus"
-    :crumbs="[{ text: t('editor.screen_settings.screensaver.items_title'), open: closeInspector }, { text: t('editor.screen_settings.screensaver.items_slots', { used: saverItems().length, n: SAVER_ITEMS_MAX }) }]" />
+    :crumbs="[clockCrumb(), { text: t('editor.screen_settings.screensaver.items_slots', { used: saverItems().length, n: SAVER_ITEMS_MAX }) }]" />
   <div class="dr-body">
     <EntityItemPicker id="saver-search" :taken="taken" :accepts="(item) => item.type === 'entity'" @pick="(item) => addSaverItem(plain(item))" />
   </div>
   <div class="dr-foot">
     <span class="spacer"></span>
-    <button type="button" class="btn quiet" @click="closeInspector">{{ t("editor.common.cancel") }}</button>
+    <button type="button" class="btn quiet" @click="clockCrumb().open()">{{ t("editor.common.cancel") }}</button>
   </div>
 </template>

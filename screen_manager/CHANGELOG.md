@@ -1,3 +1,23 @@
+## 0.4.83 (firmware 0.51.0)
+
+- **A calmer Screensaver card.** In a screen's settings the Screensaver card is now a short list of its three steps,
+  Music playing, Camera and Clock, in the order the screen tries them. Each has one line that says what it will show
+  ("Apple TV, Speaker", "No camera yet", "Outside temperature") and its switch. On a wide window the card stands in a
+  narrow column, where its player and weather fields pushed the rows wider than the card and the switches over the
+  next card. The card has no fields now, so nothing sticks out.
+- **A step opens in the drawer.** Click a step and it opens on the right, as a tile and the top bar do, or in a sheet
+  from the bottom on a phone. Music playing lists its players numbered in the order they are tried: drag them into
+  place, take one out with its cross, and add the next from a menu. Camera has its camera. Clock shows the clock as the
+  screen draws it, in the screen's own shape, with the temperature and the entities beside it; a line too wide for the
+  glass drops its last entities there as it does on the screen. An entity of the clock leads back to the clock.
+- Drag the steps into their order in the card, with the mouse or a finger, or move the open step with the arrows at
+  the bottom of its drawer. The temperature's first choice is now called Automatic.
+- No screen gets new firmware: this release is the editor alone, and what Tessera stores stays the same.
+- Tested: the editor's tests, with new ones for the card and the drawer, the type check, the build, the translations
+  check and every Python, C++ and WASM preview check. In the editor of the bench Home Assistant, at a desktop and a
+  phone width, light and dark: opened each step, added, dragged and removed players, dragged the steps, turned steps
+  off, removed an entity of the clock, and read back the choice the editor sent.
+
 ## 0.4.82 (firmware 0.51.0)
 
 - **No more "999 %" right after a screen starts** ([#169](https://github.com/MaxGramser/homeassistant_espscreen/issues/169)).
