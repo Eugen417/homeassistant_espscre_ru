@@ -483,10 +483,11 @@ The [manual](https://tessera-maxgramser.on-forge.com/docs/install) on the websit
 
 ## Credits and license
 
-The very first version started from Adrian Kuehlewind's
-[ESPHome-touch-display-mount](https://github.com/akuehlewind/ESPHome-touch-display-mount).
-Little of that code is left, but his repository has 3D-printable desk, under-desk, wall and flush
-mounts for the CYD.
+ESP Screens was inspired by Adrian Kuehlewind's
+[ESPHome-touch-display-mount](https://github.com/akuehlewind/ESPHome-touch-display-mount), and its
+very first version started from his code. The project has gone its own way since, but his repository
+is still the place to go to give a CYD a proper home. It has beautiful 3D-printable desk, under-desk,
+wall and flush mounts.
 
 Not to be confused with [Tesserae (tesserae.ink)](https://tesserae.ink), a separate open-source project that
 makes calm dashboards for e-ink panels in Home Assistant. Same word, different screens: Tessera is for colour LCD
