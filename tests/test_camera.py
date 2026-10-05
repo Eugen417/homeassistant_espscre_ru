@@ -1,5 +1,5 @@
 """Camera images on a Guition (app 0.2.66, firmware 0.2.57): the app fetches, sizes and serves the image on its own
-port; the screen asks with esphome.screen_camera and loads the link with ESPHome's online_image."""
+port; the screen asks with esphome.screen_camera and downloads the link in a task beside its main loop (picture_fetch)."""
 from firmware_sources import firmware_domains, runtime_source
 from manager_fixtures import with_screen_grid, seed_layout
 import asyncio
@@ -153,20 +153,23 @@ class Rules(unittest.TestCase):
         self.assertIn("event_type='esphome.screen_camera'", (ROOT / 'screen_manager/app/server.py').read_text())
         self.assertIn('if (op == "camera") {', TILES)
         self.assertLessEqual({'camera', 'image'}, firmware_domains())
-        # The profile loads both images and binds them; the CYD has none, so it never opens a camera.
-        for needle in ('online_image:\n  - id: camera_image', '  - id: alert_image', 'runtime_tiles::camera_loaded(false, cached);',
-                       'runtime_tiles::camera_loaded(true, cached);', 'runtime_tiles::camera_tick();', 'runtime_tiles::alert_prepare();',
+        # The profile binds the three pictures (firmware 0.49.0+: downloaded beside the main loop, picture_fetch) and hands
+        # finished ones to their cards on the main loop; the CYD has none, so it never opens a camera.
+        for needle in ('picture_fetch::bind(picture_fetch::full(),', 'picture_fetch::bind(picture_fetch::thumb(),',
+                       'picture_fetch::bind(picture_fetch::live(),', 'runtime_tiles::camera_loaded(false, cached);',
+                       'runtime_tiles::camera_loaded(true, cached);', 'runtime_tiles::live_loaded(cached);', 'runtime_tiles::live_failed();',
+                       'runtime_tiles::camera_full.load = ', 'runtime_tiles::camera_thumb.load = ', 'runtime_tiles::camera_live.load = ',
+                       "- lambda: 'picture_fetch::tick();'", 'runtime_tiles::camera_tick();', 'runtime_tiles::alert_prepare();',
                        'runtime_tiles::alert_clear();', 'runtime_tiles::camera_close();', 'id: alert_image_frame'):
             self.assertIn(needle, PROFILE, needle)
-        # A link only replaces the URL when it is new: set_url() forgets the ETag that makes an unchanged picture a 304.
-        # Three images: the camera full screen (and the cover), the alert's picture, the live tiles' strip (app 0.2.91).
-        self.assertEqual(PROFILE.count('if (url != current) {'), 3)
-        for needle in ('  - id: tile_image', 'runtime_tiles::live_loaded(cached);', 'runtime_tiles::live_failed();', 'runtime_tiles::camera_live.load'):
-            self.assertIn(needle, PROFILE, needle)
+        # Nothing of ESPHome's online_image is left: it downloaded in the main loop, a chunk a turn, each waiting for the
+        # network, and a page of covers held the glass still for seconds (0.4.80).
+        for gone in ('online_image:', 'http_request:', 'id(camera_image)', 'id(tile_image)', 'id(alert_image)', 'if (url != current) {'):
+            self.assertNotIn(gone, PROFILE, gone)
         # A busy camera port leaves the rest of the app running.
         self.assertIn("except OSError as error:\n            # Everything else still works; only camera images stay away.", (ROOT / 'screen_manager/app/server.py').read_text())
         cyd = profiles.text('checkout/cyd.yaml')
-        self.assertNotIn('online_image', cyd)
+        self.assertNotIn('picture_fetch::', cyd)
         self.assertNotIn('camera_full.load', cyd)
         # The add-on's port is published, and the Docker route passes it on with the host network.
         config = (ROOT / 'screen_manager/config.yaml').read_text()

@@ -22,6 +22,7 @@ Home Assistant entity belongs in a board file. docs/README.md lists every doc an
 | add a board | docs/ADDING_A_BOARD.md, then docs/BOARD_RELEASES.md | `boards.yaml`, `packages/boards/<file>.yaml` |
 | change sizes, fonts or the grid | docs/RESPONSIVE.md | `ui_scale.h`, `packages/looks/`, `packages/cells/` |
 | give a board a battery in the top bar | docs/BATTERY.md | the board's `battery` sensors, `battery_status.h` |
+| change how a picture reaches the screen | docs/CAMERA.md | `picture_fetch.h`, `camera_view.h`, `screen_manager/app/camera_feed.py` |
 | change how a screen joins Home Assistant | docs/EASY_SETUP.md, chapter 3 | `screen_manager/app/ha_pairing.py`, Home Assistant's esphome config flow |
 | change a colour | docs/THEME.md | `components/smart_display/theme.h` |
 | change how pages are kept or prepared | docs/KEPT_PAGES.md, docs/PAGES.md | `kept_pages.h`, `page_protocol.h` |

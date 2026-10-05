@@ -107,8 +107,9 @@ cut square with the tile's rounded corners, delivered as described below.
   the camera's pace with the cover reused, and a page of media tiles alone loads once. The screen asks
   for the page again the moment a player's picture mark in its state changes. A player without a
   picture keeps its icon; the tile over the whole page keeps the card's big cover.
-- The strip lives in a third `online_image` (`tile_image`, PSRAM) in `packages/features/camera.yaml`,
-  which every board with camera pictures includes; the CYD, the Waveshare 3.5 and the Hosyond have none.
+- The strip is the third of the screen's three pictures (`picture_fetch::live`, decoded into PSRAM), bound in
+  `packages/features/camera.yaml`, which every board with camera pictures includes; the CYD, the Waveshare 3.5 and the
+  Hosyond have none.
 
 ### A camera that fills its tile
 
@@ -142,9 +143,9 @@ its pictures at full size.
 A screen with firmware 0.3.3 or newer gets its live pictures in 8-bit colour: a palette of the picture's own
 256 colours, dithered so a shade stays smooth. That is a third of the bytes of a 24-bit BMP (a 2 × 2 card
 on the 4-inch Guition: about 100 KB instead of 300 KB), at about the quality of the screen's own 16-bit
-colour. ESPHome decodes a BMP while it downloads, in the screen's main loop, so fewer bytes means a picture
-that arrives sooner and a screen that answers a touch sooner. Preparing the palette costs Home Assistant a
-few milliseconds per picture, also on a Raspberry Pi. Older firmware keeps 24-bit pictures.
+colour. The screen decodes a BMP while it downloads, so fewer bytes means a picture that arrives sooner.
+Preparing the palette costs Home Assistant a few milliseconds per picture, also on a Raspberry Pi. Older
+firmware keeps 24-bit pictures.
 
 The camera's state ("Idle") is not written on the picture. Until the first picture arrives, the tile
 shows a spinner; a camera that has no picture for Home Assistant (a camera that only streams) keeps its
@@ -183,10 +184,15 @@ The screen never talks to Home Assistant about images, and it never holds a Home
    (`camera_feed.PICTURE_MAX_SIDE` and `PICTURE_MAX_BYTES`): the JC8012P4A1's 1280×800 canvas gets a
    full-screen picture of at most 1024×640, shown in the middle.
 3. It serves the result as an uncompressed BMP on **port 8098** under a random link, and sends the
-   link to the screen. ESPHome's `online_image` loads it. A screen on another network or VLAN than Home
-   Assistant needs to reach this port on Home Assistant's host; without it a camera tile shows its
-   name and state but no picture, and the screen's log says `HTTP Request failed` for the link. The full screen, the alert and the cover are
-   24-bit; live tile pictures go to firmware 0.3.3+ in 8-bit (see above).
+   link to the screen. The screen downloads it in a task of its own, beside its main loop
+   (`components/smart_display/picture_fetch.cpp`, firmware 0.49.0+), and decodes the rows as they arrive straight
+   into the pixels LVGL draws: touch, drawing and Home Assistant never wait for the network. Before, ESPHome's
+   `online_image` downloaded in the main loop, 16 KB a turn, each turn waiting for its chunk; a page of album
+   covers held the glass still for two to three seconds and a camera picture for the better part of one. A
+   screen on another network or VLAN than Home Assistant needs to reach this port on Home Assistant's host;
+   without it a camera tile shows its name and state but no picture, and the screen's log says
+   `no connection to` the link's address. The full screen, the alert and the cover are 24-bit; live tile
+   pictures go to firmware 0.3.3+ in 8-bit (see above).
 
 While a camera is open, the screen loads its link every four seconds, one image at a time. The app
 serves the last snapshot at once and starts fetching the next one, so each load gets a picture one
@@ -237,7 +243,10 @@ Guition it comes in about 1.8 s (2.8 s with 4 KB).
   (`tests/test_camera_view.cpp`).
 - `components/smart_display/runtime_tiles.h`: the full-screen view, the alert picture, the live tiles
   (`live_tick`, `live_place`) and the `camera` message.
-- `packages/features/camera.yaml` (included by every board with camera pictures): the three `online_image` components (the camera full screen and the
-  cover, the alert's picture, the live tiles' strip), the alert frame, and the diagnostic action `preview_camera`
-  (an entity opens it, an empty entity closes it).
+- `components/smart_display/picture_fetch.h` and `picture_fetch.cpp`: the download beside the main loop, one task per
+  picture, and the BMP decoder (`tests/test_picture_fetch.cpp` checks the link, the answer's head and the decoder).
+- `packages/features/camera.yaml` (included by every board with camera pictures): the three pictures bound to their
+  cards (the camera full screen and the cover, the alert's picture, the live tiles' strip), the 50 ms hand-off of a
+  finished download, the `LV_USE_IMAGE` flag, the alert frame, and the diagnostic action `preview_camera` (an entity
+  opens it, an empty entity closes it).
 - `tests/test_camera.py`: the app side and the words both sides share.

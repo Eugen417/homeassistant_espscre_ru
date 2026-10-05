@@ -61,8 +61,8 @@ from its size. Its cards ask for no pictures while it runs (`warming`).
 
 ## Kept pictures
 
-Every picture a card draws on a board with PSRAM is the store's own copy, never the `online_image` buffer that the next
-download overwrites: a strip of camera or cover squares under the tiles, colours, marks and frames it was asked for,
+Every picture a card draws on a board with PSRAM is the store's own copy, never the download's buffer
+(`picture_fetch`) that the next download overwrites: a strip of camera or cover squares under the tiles, colours, marks and frames it was asked for,
 and a media card's cover under its player, track, size and colour. A cover is fetched once per track; a camera page
 that comes back shows its last picture at once and loads the next one when that picture is as old as its pace
 (`camera_view::Feed::resume`). A picture that is still on some card, on the glass or kept, is never freed; the budget

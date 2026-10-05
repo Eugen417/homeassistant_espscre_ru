@@ -130,9 +130,9 @@ needs a step of its own rather than a line inside a shared one brings its own sc
 ## Widgets made only in C++
 
 ESPHome compiles only the LVGL widget types the YAML names. A widget the firmware makes only in C++ therefore needs a
-hidden seed of its type in the YAML (`busy_spinner_seed`, `brand_mark_seed` and `roller_seed` in `packages/core.yaml`,
-`camera_image_seed` in `features/camera.yaml`) or an `-DLV_USE_<X>=1` build flag in the core. A seed looks unused;
-don't remove it.
+hidden seed of its type in the YAML (`busy_spinner_seed`, `brand_mark_seed` and `roller_seed` in `packages/core.yaml`)
+or an `-DLV_USE_<X>=1` build flag (the core's, and `LV_USE_IMAGE` in `features/camera.yaml` for the pictures). A seed
+looks unused; don't remove it.
 
 ## What an override may rely on
 

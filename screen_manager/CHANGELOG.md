@@ -1,3 +1,12 @@
+## 0.4.80 (firmware 0.49.0)
+
+- **Pictures no longer hold the screen still.** Opening a folder of album covers in a speaker's library, a camera full
+  screen, an alert with a snapshot or a page of live camera tiles used to freeze the whole screen while the picture
+  downloaded: a tap landed late or not at all, and a page of covers took two to three seconds on a 4-inch screen. The
+  screen now downloads every picture in a task of its own beside its main loop, so you can tap Back, turn the page or
+  switch folders at once, also while the covers are still on their way. The pictures also arrive sooner: a full-screen
+  camera picture on the 4-inch Guition in one second instead of two. Every board with pictures gets the fix.
+
 ## 0.4.79 (firmware 0.48.0)
 
 - **What you tap changes at once.** Play and pause, mute, shuffle and repeat on a speaker, a mode of a thermostat or a

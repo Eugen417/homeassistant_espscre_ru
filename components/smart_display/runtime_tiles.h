@@ -42,6 +42,7 @@
 #include "tile_controls.h"
 #include "history_view.h"
 #include "camera_view.h"
+#include "picture_fetch.h"
 #include "kept_pages.h"
 #include "tile_memory.h"
 #include "wifi_status.h"
@@ -10636,7 +10637,7 @@ inline void camera_answer(const std::string &view, const std::string &entity, co
   camera_thumb.load(url);
 }
 
-// LVGL's image widget is only built for a board whose profile draws images (the Guition's hidden seed); the CYD's has none.
+// LVGL's image widget is only built for a board whose profile draws images (LV_USE_IMAGE, features/camera.yaml); the CYD's has none.
 // `radius` rounds the picture's corners (the alert's, firmware 0.2.73+): LVGL 9.5's software renderer clips an image
 // to its own radius row by row with a one-row mask (radius_only in lv_draw_sw_img.c), without a layer; clip_corner on
 // the frame would draw the frame into a layer of its size instead.
