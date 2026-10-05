@@ -193,6 +193,7 @@
       "page": "Pagina {n}",
       "refused": "Geweigerd",
       "command_sent": "Opdracht verstuurd...",
+      "updating": "Bezig...",
       "confirmed": "Bevestigd door Home Assistant",
       "no_answer": "Geen antwoord"
     },

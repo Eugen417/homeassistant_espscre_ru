@@ -193,6 +193,7 @@
       "page": "{n}. oldal",
       "refused": "Elutasítva",
       "command_sent": "Parancs elküldve...",
+      "updating": "Frissítés...",
       "confirmed": "A Home Assistant megerősítette",
       "no_answer": "Nincs válasz"
     },

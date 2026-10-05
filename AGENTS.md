@@ -25,6 +25,8 @@ Home Assistant entity belongs in a board file. docs/README.md lists every doc an
 | change how a screen joins Home Assistant | docs/EASY_SETUP.md, chapter 3 | `screen_manager/app/ha_pairing.py`, Home Assistant's esphome config flow |
 | change a colour | docs/THEME.md | `components/smart_display/theme.h` |
 | change how pages are kept or prepared | docs/KEPT_PAGES.md, docs/PAGES.md | `kept_pages.h`, `page_protocol.h` |
+| make a control show its change before Home Assistant confirms it | docs/OPTIMISTIC.md | `optimistic.h`, `wish()` in `runtime_tiles.h` |
+| make a card follow a change without being built again | docs/CARD_PARTS.md | `card_bind()`, `card_shaped()` in `runtime_tiles.h` |
 | touch the flash of a board with 4 MB | docs/FLASH_LAYOUT.md | `components/flash_layout/`, `packages/hardware/flash-4mb.yaml` |
 | add or change a text | docs/TRANSLATING.md | `screen_manager/translations/en.json` |
 | touch the YAML package layers | docs/PROFILES.md | `packages/`, `checkout/` |
@@ -77,6 +79,12 @@ Most of these are guarded by a test; the test names the doc to read when it fail
   against existing data (`tests/test_compat_0431.py` keeps every layout saved by 0.4.31). Don't publish an unknown
   storage version without a migration. Future protocol extensions are negotiated, as with `tile_sizes`, never another
   protocol break; legacy delivery stays in the add-on, never as a second decoder on the screen.
+- **A finger's change shows at once, one way** (docs/OPTIMISTIC.md). A control that changes a value of an entity calls
+  `wish()`: the value shows on every tile and card of the entity, the action goes out at once (taps while it is on
+  its way fold into one), and Home Assistant's reports, answers and silence square it, by the rules of its own
+  frontend. Never write a value into the model before an action, never add a hold or flag of a control's own, and
+  never show a value the screen cannot know (a lock's end state, the next track). A card binds the parts that show a
+  value and is painted in place, never built again for a change of value (docs/CARD_PARTS.md).
 - **Kept pages** (docs/KEPT_PAGES.md): a card is drawn only while it is on the glass, a card set is exchanged whole,
   and what a kept page lacks follows from change numbers (`kept_pages::Changes`), never from flags handed around.
 - **Memory.** Never walk the PSRAM heap (`heap_caps_get_largest_free_block`, `heap_caps_get_info`) while an RGB panel

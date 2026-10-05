@@ -580,10 +580,7 @@ std::string receive(const std::string &payload) {
     serializeJson(a, state_hash);
     if (!root["x"].isNull()) serializeJson(root["x"], state_hash);
     bool was_confirmed=tile.confirmed;
-    // A message that still carries the word from before a tap keeps the tap's stand (Tile::stale); its attributes and
-    // extras (a group's lamps) still count.
-    const bool stale = tile.stale(word);
-    tile.observe(state_hash.value, stale);
+    tile.observe(state_hash.value);
     if(tile.pending && !tile.local_feedback && !was_confirmed && tile.confirmed)
       ESP_LOGI("runtime_action","HA state received entity=%s elapsed=%u ms",entity.c_str(),(unsigned)(esphome::millis()-tile.pending_since));
     if (initial) {
@@ -754,12 +751,11 @@ std::string receive(const std::string &payload) {
     if (!initial && tile.is_key() && name != tile.name) refresh_tile(tile.parent);
     tile.name = name;
     const std::string before = tile.state;
-    if (!stale) tile.state = word;
+    tile.state = word;
     if (!initial && tile.received && before != tile.state) tile.changed_at = std::max<uint32_t>(1, esphome::millis());
     tile.unit = string(a["unit_of_measurement"], 20);
     tile.brightness = number(a["brightness"]);
     tile.percentage = number(a["percentage"]);
-    tile.slider_reported(esphome::millis());
     tile.position = number(a["current_position"]);
     next.tilt = number(a["current_tilt_position"]);
     tile.current = number(a["current_temperature"]);
@@ -806,8 +802,6 @@ std::string receive(const std::string &payload) {
     // suction speeds to offer, each at most six; the battery sensor when the vacuum has no attribute.
     // A chip just tapped keeps its choice while Home Assistant is still busy with it, so another update
     // of the robot (its battery, say) does not flip the row back for a moment.
-    std::vector<std::pair<char, std::string>> tapped;
-    if (tile.waiting(esphome::millis())) for (auto &c : tile.extra().choices) if (!c.sent.empty()) tapped.emplace_back(c.kind, c.sent);
     auto choice = [&](const char *key, char kind) {
       auto c = extra[key];
       if (!c["o"].is<JsonArray>()) return;
@@ -821,7 +815,6 @@ std::string receive(const std::string &payload) {
       if (!row.values.empty()) next.choices.push_back(std::move(row));
     };
     if (tile.domain() == "vacuum") { choice("mode", 'm'); choice("water", 'w'); choice("fan", 's'); tile_controls::settle_suction(next); }
-    for (auto &[kind, value] : tapped) if (auto *c = next.choice(kind)) if (c->current != value) c->sent = value;
     // A light's effects page (app 0.2.83+): the effect it runs, and the selects and numbers of its device.
     next.effect = string(a["effect"], 48);
     if (extra["rows"].is<JsonArray>()) for (JsonVariant r : extra["rows"].as<JsonArray>()) {
@@ -931,6 +924,11 @@ std::string receive(const std::string &payload) {
     const bool wanted = !next.empty();
     tile.set_extra(std::move(next), !lean);
     if (wanted && !tile.extra_ptr()) memory_short_at = std::max<uint32_t>(1, esphome::millis());
+    // What a finger changed stays in front of a message from before it, and ends with Home Assistant's own word
+    // (docs/OPTIMISTIC.md).
+    wish_reported(tile);
+    // A held slider keeps its value in front of the fade (after the wish: an off light a slider turned on stays on).
+    tile.slider_reported(esphome::millis());
     // Home Assistant reports the edited value: the -/+ pill follows its state again.
     if(tile_controls::climate_range(tile)){
       // A range: each end follows Home Assistant again once it reports what was sent.

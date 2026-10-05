@@ -9,6 +9,7 @@
 #include "screen_text.h"
 #include "ui_scale.h"
 #include "page_protocol.h"
+#include "optimistic.h"
 #include "energy_card.h"
 #include <cmath>
 #include <cstdint>
@@ -183,7 +184,7 @@ struct Hour { std::string time, condition; float temp = NAN, rain = NAN, mm = NA
 // a automatic: the robot or the app decides suction and water). `sent` is the value just tapped.
 struct Choice {
   char kind = 0;
-  std::string entity, current, roles, sent;
+  std::string entity, current, roles;
   std::vector<std::string> values, labels;
 };
 // What only some tiles carry: climate modes, a select's options, weather, sun and timer times, a media
@@ -448,15 +449,11 @@ struct Tile {
   // the end its -/+ move, on the tile and on its card alike (tile_controls::RANGE_LOW, the heat, or RANGE_HIGH, the cool).
   float edit_high = NAN;
   uint8_t range_end = 1;
-  // Knob position a toggle shows while its command is under way.
-  bool optimistic_on = false;
   // A slider the finger let go stays where it was put while the light fades towards it (firmware 0.2.60+): the value
   // sent, in the attribute's own unit (brightness 0-255, a fan's percent, a volume 0-1), the value Home Assistant
   // reported meanwhile, and when the last of those came.
   float slider_sent = NAN, slider_real = NAN;
   uint32_t slider_sent_at = 0, slider_state_at = 0;
-  // A tap that switched this tile is waiting; `optimistic_prev_on` is the stand to put back on a refusal.
-  bool optimistic_tap = false, optimistic_prev_on = false;
   // A sensor's graph: 24 samples over `history_hours`, empty without one.
   unsigned history_hours = 24;
   std::vector<float> history;
@@ -525,27 +522,10 @@ struct Tile {
   bool loading(uint32_t now) const { return waiting(now) && now - pending_since >= BUSY_GRACE; }
   void begin(uint32_t now, bool local=false) { pending=true; pending_since=now; confirmed=false; local_feedback=local; pending_revision=revision; answered_at=0; }
   // `keep_tap`: the message is stale (below), so it neither ends the tap's stand nor answers the command.
-  void observe(uint32_t next, bool keep_tap=false) {
+  void observe(uint32_t next) {
     revision=next;
-    if (keep_tap) return;
-    optimistic_tap=false;
     if (pending && revision!=pending_revision) confirmed=true;
   }
-  // Switching shows the new stand at once, as Home Assistant's own switch does (its ha-control-switch flips before the
-  // command goes out). `undo_optimistic` puts the old stand back when Home Assistant refuses or never answers.
-  void optimistic(bool on) { optimistic_prev_on = state == "on"; optimistic_on = on; optimistic_tap = true; state = on ? "on" : "off"; }
-  void undo_optimistic() { if (optimistic_tap) { state = optimistic_prev_on ? "on" : "off"; optimistic_tap = false; } }
-  // A state that still says what the tile said before the tap (firmware 0.37.0+). Home Assistant's tile card leaves its
-  // switch where the tap put it until the entity's on or off really changes, and so does the tile: a Hue room reports
-  // its lamps at once and itself about a second later, and every lamp sends the room's tile again with the old word.
-  bool stale(const std::string &word) const {
-    return optimistic_tap && pending && (word == "on" || word == "off") && (word == "on") == optimistic_prev_on;
-  }
-  // After Home Assistant's "it worked" the tap's stand waits TAP_HOLD for the new state before the old one comes back,
-  // as Home Assistant's ha-entity-toggle does (two seconds after the action returned); without an answer the wait
-  // itself (BUSY_CAP) decides.
-  static constexpr uint32_t TAP_HOLD = 2000;
-  bool tap_held(uint32_t now) const { return optimistic_tap && pending && answered_at && now - answered_at < TAP_HOLD; }
   // The attribute a small slider sets: nothing for a cover, whose position slider follows the blind as it moves.
   float *slider_field() {
     auto d = domain();
@@ -557,7 +537,8 @@ struct Tile {
   static constexpr uint32_t SLIDER_HOLD_CAP = 8000, SLIDER_SETTLE = 1500;
   bool slider_holding(uint32_t now) const {
     if (!std::isfinite(slider_sent) || refused_at || now - slider_sent_at >= SLIDER_HOLD_CAP) return false;
-    if (!slider_state_at) return waiting(now) || answered_at;
+    // A slider that switched its lamp on went out as a wish (docs/OPTIMISTIC.md), without a wait of the tile's own.
+    if (!slider_state_at) return pending ? waiting(now) || answered_at : now - slider_sent_at < BUSY_CAP;
     return now - slider_state_at < SLIDER_SETTLE;
   }
   float slider_span() const { return domain() == "light" ? 255 : domain() == "media_player" ? 1 : 100; }
@@ -566,8 +547,6 @@ struct Tile {
     float *field = slider_field();
     if (!field) return;
     slider_sent = value; slider_real = *field; slider_sent_at = now; slider_state_at = 0; *field = value;
-    // A slider on an off light or fan turns it on, so the tile lights up with it, as after a tap.
-    if (domain() != "media_player" && state == "off") optimistic(true);
   }
   // A state came in with `field` already parsed: keep the sent value in front while the hold goes on.
   void slider_reported(uint32_t now) {

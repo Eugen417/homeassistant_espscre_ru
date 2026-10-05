@@ -251,17 +251,29 @@ int main() {
   assert(key_action(make("light.lamp", "off"), TOGGLE).service == "light.turn_on");
   assert(!key_action(make("sensor.x", "1"), TOGGLE).valid());
   assert(!key_action(make("sensor.x", "1"), RUN).valid());
-  // A toggle key sends what its tap asks for and then shows the new stand; firmware 0.2.59 to 0.2.71 showed it first
-  // and so sent an off light light.turn_off.
+  // What a key wishes for (docs/OPTIMISTIC.md) follows the stand the tile shows, as its action does, and changes
+  // nothing itself: firmware 0.2.59 to 0.2.71 showed the new stand first and so sent an off light light.turn_off.
   Tile off_lamp = make("light.lamp", "off");
-  assert(press_key(off_lamp, TOGGLE).service == "light.turn_on" && off_lamp.state == "on" && off_lamp.optimistic_tap);
-  off_lamp.undo_optimistic(); assert(off_lamp.state == "off");
-  Tile on_fan = make("fan.ceiling", "on");
-  assert(press_key(on_fan, TOGGLE).service == "fan.turn_off" && on_fan.state == "off");
-  Tile odd = make("sensor.x", "1");
-  assert(!press_key(odd, TOGGLE).valid() && odd.state == "1" && !odd.optimistic_tap);
+  auto lamp_wish = wanted(off_lamp, TOGGLE);
+  assert(lamp_wish.valid && lamp_wish.field == optimistic::Field::ON_OFF && lamp_wish.value == "on" && off_lamp.state == "off");
+  assert(key_action(off_lamp, TOGGLE).service == "light.turn_on");
+  assert(wanted(make("fan.ceiling", "on"), TOGGLE).value == "off");
+  assert(!wanted(make("sensor.x", "1"), TOGGLE).valid);
+  // A mode, an option, play or pause wish too; a cover's keys and a timer's are plain actions.
+  Tile hall = make("climate.hall", "heat");
+  assert(wanted(hall, HVAC_MODE, "cool").field == optimistic::Field::HVAC_MODE && wanted(hall, HVAC_MODE, "cool").value == "cool");
+  assert(wanted(make("humidifier.bath", "on"), HVAC_MODE, "eco").field == optimistic::Field::HUMIDIFIER_MODE);
+  assert(!wanted(hall, HVAC_MODE).valid);
+  Tile playing = make("media_player.kitchen", "playing", feature::MEDIA_PLAY | feature::MEDIA_PAUSE);
+  assert(wanted(playing, MEDIA_PLAY_PAUSE).field == optimistic::Field::PLAYING && wanted(playing, MEDIA_PLAY_PAUSE).value == "0");
+  assert(key_action(playing, MEDIA_PLAY_PAUSE).service == "media_player.media_pause");
+  playing.state = "buffering";
+  assert(wanted(playing, MEDIA_PLAY_PAUSE).value == "0");
+  playing.state = "paused";
+  assert(wanted(playing, MEDIA_PLAY_PAUSE).value == "1" && key_action(playing, MEDIA_PLAY_PAUSE).service == "media_player.media_play");
+  assert(!wanted(make("cover.blind", "open"), COVER_CLOSE).valid && !wanted(make("timer.tea", "idle"), TIMER_START).valid);
   Tile shut = make("cover.shutter", "closed", 3);
-  assert(press_key(shut, COVER_OPEN).service == "cover.open_cover" && shut.state == "closed" && !shut.optimistic_tap);
+  assert(key_action(shut, COVER_OPEN).service == "cover.open_cover" && !wanted(shut, COVER_OPEN).valid);
 
   // Panel kinds.
   Tile lamp = make("light.lamp", "on"); lamp.controls = "brightness";
@@ -291,11 +303,9 @@ int main() {
   pippa.choice('m')->current = "custom"; rows = vacuum_rows(pippa, 0);
   assert(!rows.suction && !rows.water && vacuum_role(pippa, 0) == 'a');
   pippa.choice('m')->current = "something_new"; assert(vacuum_role(pippa, 0) == 'b');
-  // A tapped chip shows while Home Assistant is busy, and the old value once it gave up.
-  pippa.choice('m')->current = "vac_and_mop"; pippa.choice('m')->sent = "mop";
-  pippa.begin(1000);
+  // A tapped chip is a wish (docs/OPTIMISTIC.md): it writes the row's current, and the rows follow it at once.
+  pippa.choice('m')->current = "mop";
   assert(shown_value(pippa, *pippa.choice('m'), 1500) == "mop" && vacuum_rows(pippa, 1500).water && !vacuum_rows(pippa, 1500).suction);
-  assert(shown_value(pippa, *pippa.choice('m'), 9000) == "vac_and_mop");
   assert(choice_action(pippa, 'm', "mop").service == "select.select_option" && choice_action(pippa, 'm', "mop").key == "option");
   assert(choice_action(pippa, 's', "turbo").service == "vacuum.set_fan_speed" && choice_action(pippa, 's', "turbo").value == "turbo");
   // An older manager sends no suction row: the vacuum's own four speeds, with the card's names.

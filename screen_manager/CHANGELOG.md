@@ -1,3 +1,44 @@
+## 0.4.79 (firmware 0.48.0)
+
+- **What you tap changes at once.** Play and pause, mute, shuffle and repeat on a speaker, a mode of a thermostat or a
+  humidifier (on its card and on the mode bar of its tile), an option of a select (its card and the arrows of its tile),
+  a remote's activity and every on and off switch now show the new value the moment your finger touches them, also
+  while the speaker or the airco takes a few seconds. The progress bar stops the moment you pause.
+- **Tap as fast as you like.** The first tap goes to Home Assistant the moment you touch the screen. Taps that follow
+  while it is on its way only change what you want, and the last one goes out as soon as Home Assistant has taken the
+  first, so a fast Home Assistant gets every tap and a slow speaker a burst as one action, without any waiting time
+  built in. A second tap is no longer ignored while the first is on its way.
+- **The screen squares it with Home Assistant**, the way Home Assistant's own switches and mode buttons do: a message
+  that still carries the old value keeps your choice, Home Assistant's own word wins when it says something else (a
+  fan that took its nearest speed), a refused action springs back with "Refused", and an action that worked but
+  changed nothing springs back after two seconds. A device that takes more than a second says "Updating..." on its
+  tile and card, as Apple's Home app does, and no busy sheet covers the tile any more.
+- **Cards no longer rebuild themselves for every change.** A card is built once and then changes only what changed.
+  A new state from Home Assistant used to rebuild the whole card, which took about 400 ms on a 4-inch screen and made
+  the title of a song stutter and a tap wait; now a card follows in 2 to 11 ms, a tap reaches Home Assistant within
+  20 ms and the title keeps rolling. Every card works this way (docs/CARD_PARTS.md). The lock and alarm cards keep
+  being built anew on every change of their state, code or attempt, exactly as before, with their animations; only
+  their status line follows in place.
+- The - and + of a thermostat no longer grey out while the value is on its way, and a - or + at the end of the span
+  stays faded instead of lighting up again a moment later.
+- **The lamps of a light group, its effects and a vacuum's chips** work the same way: a lamp switched, dimmed or
+  coloured on the group's lamp page, an effect or a setting of the light's device, a cleaning mode or suction, all
+  show at once, spring back when Home Assistant refuses them, and no longer wait four seconds for a stale value.
+- Under the hood this is one mechanism for every control, with its rules in docs/OPTIMISTIC.md, and one way for a
+  card to follow a change, in docs/CARD_PARTS.md. A test in the editor's preview builds every card both ways, painted
+  and built anew, on three screen sizes and wants them pixel for pixel the same.
+- Every screen is offered this firmware, 0.48.0.
+- Tested: on the bench, the 4-inch Guition and the CYD against the bench Home Assistant, tapped by hand: switches that
+  work, refuse, do nothing and take four seconds, fast bursts on a lamp, a select, a thermostat's modes, fan and swing,
+  its -/+, a player's play, pause, shuffle, repeat, mute and volume, a blind, a fan, the alarm with a wrong code and
+  the right one, three locks (unlock asks a second tap), a timer, a vacuum, a remote's activity, a light group's lamp
+  page (on, off, dim, colour), a light's effects, a sensor's graph and the weather card; the screen's log shows every
+  tap leaving within 20 ms and Home Assistant's answer. A card follows a change in 2 to 11 ms where it took 430 ms on
+  the Guition. Every Python, C++, editor and WASM preview check, with a new one that builds every card both ways on the
+  CYD's, the Guition's and the 10.1-inch glass and wants the same pixels. Firmware builds on ESPHome 2026.9.0 for the
+  CYD (90.5 % of its slot, 12 KB more than 0.47.0), the CYD 9342 (90.5 %), the Hosyond 4-inch (93.2 %), the 4-inch and
+  10.1-inch Guition and the Waveshare 7-inch, and on 2026.6.2 for the CYD (92.3 %).
+
 ## 0.4.78 (firmware 0.47.0)
 
 - **"Not quite" leads to a GitHub issue that is already filled in.** When you tell Tessera a screen doesn't work as you

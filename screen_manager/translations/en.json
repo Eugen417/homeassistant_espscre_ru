@@ -193,6 +193,7 @@
       "page": "Page {n}",
       "refused": "Refused",
       "command_sent": "Command sent...",
+      "updating": "Updating...",
       "confirmed": "Confirmed by Home Assistant",
       "no_answer": "No answer"
     },

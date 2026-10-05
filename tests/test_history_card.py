@@ -392,7 +392,7 @@ class Firmware(unittest.TestCase):
         ranges = ranges[:ranges.index('\n}\n')]
         self.assertIn('if(detail_action_count&&detail_actions[detail_action_count-1]==segment)--detail_action_count;', ranges)
         self.assertIn('if(cmd>=160&&cmd<163){', RUNTIME)
-        self.assertLess(RUNTIME.index('if(cmd>=160&&cmd<163){'), RUNTIME.index('if(!fresh()||detail_index>=model.count || !allowed(esphome::millis(),300+cmd'))
+        self.assertLess(RUNTIME.index('if(cmd>=160&&cmd<163){'), RUNTIME.index('if(!(wish_command(cmd)?allowed_wish(esphome::millis(),300+cmd,what):allowed(esphome::millis(),300+cmd,what)))return;'))
 
     def test_the_scrub_area_keeps_the_finger_and_the_boards_carry_the_small_font(self):
         touch = RUNTIME[RUNTIME.index('inline void history_touch('):]

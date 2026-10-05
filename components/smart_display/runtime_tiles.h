@@ -225,12 +225,79 @@ inline void refresh_tile(size_t index);
 inline void set_color(lv_obj_t *obj, lv_style_prop_t prop, lv_color_t color, lv_style_selector_t selector = 0);
 inline void set_number(lv_obj_t *obj, lv_style_prop_t prop, int32_t number, lv_style_selector_t selector = 0);
 inline void set_font(lv_obj_t *obj, const lv_font_t *value);
+inline void set_hidden(lv_obj_t *obj, bool hidden);
 #ifdef SWIPE_PROFILE
 inline void swipe_test(unsigned count, unsigned interval_ms, unsigned back_ms);
 #endif
 inline void refresh_header_only();
 inline void refresh_all();
 inline void refresh_detail(unsigned index);
+// What a finger changed, shown at once (optimistic.h, docs/OPTIMISTIC.md): Home Assistant's answers reach it from
+// watch_call; defined with the wishes below.
+inline optimistic::Pool<6> wishes;
+inline lv_timer_t *wish_timer{};
+inline void wish_answered(const std::string &target, bool ok);
+// A wish of the entity went out a while ago and Home Assistant has not squared it: its tile says "Updating..."
+// (docs/OPTIMISTIC.md), the one sign of a wait a wish shows.
+// A wish of the entity is still under way (ready to go out, or sent and not yet squared).
+inline bool wish_live(const std::string &entity) {
+  for (const auto &w : wishes.wishes) if (w.entity == entity && w.live()) return true;
+  return false;
+}
+inline bool wish_slow(const std::string &entity, uint32_t now) {
+  for (const auto &w : wishes.wishes) if (w.entity == entity && optimistic::slow(w, now)) return true;
+  return false;
+}
+inline bool wish_unanswered(const std::string &target);
+inline void wish_revert(const optimistic::Wish &w, bool refused, bool unanswered, bool show = true);
+inline void wish_run(optimistic::Wish &w, uint32_t now);
+inline void wish_refresh(const std::string &entity, bool card = true);
+// ---- Cards that paint themselves (docs/CARD_PARTS.md) ----
+// A card is built once. Every part of it that shows a value (a mode key, the number, the play key, a title) binds a
+// paint function while the card is built, and the card names its shape: what decides which parts exist. A change of the
+// tile (a wish, a state from Home Assistant) with the same shape runs the paint functions, which touch only what
+// changed, so LVGL redraws a few pixels instead of the whole card (LVGL's own advice, and the idea of its observer
+// module). Another shape builds the card again. A card that binds nothing is built again on every change, as before.
+struct CardPart;
+using CardPaint = void (*)(lv_obj_t *, const Tile &, const CardPart &);
+struct CardPart {
+  lv_obj_t *obj = nullptr;
+  CardPaint paint = nullptr;
+  std::string value;  // what the part stands for (a mode key's mode), for its paint function
+  intptr_t arg = 0;
+};
+inline std::vector<CardPart> card_parts;               // cleared whenever a card is built
+inline uint32_t card_pass = 0;                         // counts the card's paints, for a part that works out once per paint
+// The open card's keys wait with a command of the tile, or for Home Assistant (tick() sets it). A part that fades for
+// a reason of its own (- at the end of the span) fades for this one too: paint_state(key, DISABLED, card_blocked || own).
+inline bool card_blocked = false;
+inline uint32_t (*card_shape_of)(const Tile &) = nullptr;  // null: the open card does not paint itself
+inline uint32_t card_builds = 0;                       // how often a card was built (the preview's test counts them)
+inline uint32_t card_shape = 0;
+// Binds a part and gives it its first look, so the card's first look and every later one come from one function.
+inline lv_obj_t *card_bind(lv_obj_t *obj, const Tile &t, CardPaint paint, const std::string &value = "", intptr_t arg = 0) {
+  if (!obj || !paint) return obj;
+  card_parts.push_back(CardPart{obj, paint, value, arg});
+  ++card_pass;
+  paint(obj, t, card_parts.back());
+  return obj;
+}
+// The shape of a card that is a picture of its values (the weather card's days, a sensor's graph): the whole message
+// from Home Assistant, the page and range it shows and the history it drew, so only a message that changes nothing
+// it draws is skipped (docs/CARD_PARTS.md, "Picture cards").
+inline uint32_t weather_page_shown();
+inline uint32_t history_shown();
+inline uint32_t picture_card_shape(const Tile &t) {
+  Fingerprint f; f.add(t.entity); f.write('|'); f.add(std::to_string(t.revision)); f.write('|');
+  f.add(std::to_string(weather_page_shown())); f.write('|'); f.add(std::to_string(history_shown()));
+  return f.value;
+}
+// The shape of a card whose parts do not change with any value: only another entity builds it again.
+inline uint32_t entity_shape(const Tile &t) { Fingerprint f; f.add(t.entity); return f.value; }
+// The card names its shape once it is built (card_shape_of: the same function on every later change).
+inline void card_shaped(const Tile &t, uint32_t (*shape)(const Tile &)) { card_shape_of = shape; card_shape = shape ? shape(t) : 0; }
+// The open card painted for the tile as it is now; false when it must be built again (defined with the card below).
+inline bool card_repaint(const Tile &t);
 inline const char *weather_icon(const std::string &condition);
 inline const char *weather_text(const std::string &condition);
 inline std::string timer_text(const Tile &t);
@@ -329,6 +396,8 @@ inline History history;
 inline uint32_t history_hours = 24, history_asked_at = 0, history_asked_hours = 0, history_received_at = 0;
 inline std::string history_asked_entity;
 inline bool history_answered = false;
+// What the history card drew from: the range, when its history came, and whether it still waited (picture_card_shape).
+inline uint32_t history_shown() { return history_hours * 31u + history_received_at + (history_answered ? 7u : 0u); }
 inline std::function<void()> layout_changed, refresh, dismiss, settings_changed;
 inline esphome::ESPPreferenceObject settings_preference;
 // The two extra values of 0.2.44+ in one record: going back to page 1 by itself, and after how long.
@@ -547,6 +616,13 @@ inline bool allowed(uint32_t now, int tile, const std::string &what) {
   ESP_LOGI("touch", "tap on %s ignored: %s", what.c_str(), screen_input::touch_guard.reason().c_str());
   return false;
 }
+// A control that wishes (docs/OPTIMISTIC.md) takes every clean tap, as the -/+ keys do: the wish folds a burst into
+// one action, so only a bounce of the same key is dropped, never a second tap of the finger.
+inline bool allowed_wish(uint32_t now, int tile, const std::string &what) {
+  if (screen_input::touch_guard.accept_repeat(now, tile)) return true;
+  ESP_LOGI("touch", "tap on %s ignored: %s", what.c_str(), screen_input::touch_guard.reason().c_str());
+  return false;
+}
 inline float number(JsonVariant value, float fallback = NAN) {
   if (!value.is<float>() && !value.is<int>()) return fallback;
   float n = value.as<float>();
@@ -587,8 +663,6 @@ inline lv_timer_t *busy_timer{};
 inline void end_wait(size_t index) {
   auto &t = model.tiles[index];
   t.pending = false;
-  t.undo_optimistic();
-  if (auto *x = t.extra_ptr()) for (auto &c : x->choices) c.sent.clear();
 }
 inline void busy_watch(lv_timer_t *) {
   const uint32_t now = esphome::millis();
@@ -597,7 +671,7 @@ inline void busy_watch(lv_timer_t *) {
     if (!w.tile || w.index >= model.count) continue;
     auto &t = model.tiles[w.index];
     if (!t.pending) continue;
-    if (!t.waiting(now) && !t.tap_held(now) && !t.confirmed) end_wait(w.index);
+    if (!t.waiting(now) && !t.confirmed) end_wait(w.index);
     any = any || t.pending;
     if (t.loading(now) != w.busy_drawn) refresh_tile(w.index);
   }
@@ -618,10 +692,11 @@ inline void (*hint_alert)(const std::string &title, const std::string &text) = n
 inline bool own_alert = false, own_alert_next = false, unanswered_told = false;
 inline std::array<WatchedCall, 4> watched_calls{};
 inline const char *const NO_ANSWER = "no answer";
-inline void watch_call(esphome::api::HomeassistantActionRequest &request, const std::string &entity) {
+// Returns whether Home Assistant will answer this one (a free place among the four).
+inline bool watch_call(esphome::api::HomeassistantActionRequest &request, const std::string &entity) {
   static uint32_t last_id = 0x5C000000u;  // apart from ESPHome's own counter for YAML actions, which starts at 1
   auto slot = std::find_if(watched_calls.begin(), watched_calls.end(), [](const WatchedCall &c) { return c.id == 0; });
-  if (slot == watched_calls.end()) return;
+  if (slot == watched_calls.end()) return false;
   const uint32_t id = ++last_id;
   *slot = {id, esphome::millis()};
   request.call_id = id;
@@ -643,12 +718,12 @@ inline void watch_call(esphome::api::HomeassistantActionRequest &request, const 
             now - t.pending_since > 12000) continue;
         silent = true;
         t.pending = false;
-        t.undo_optimistic();
         t.release_slider();
         t.refused_at = std::max<uint32_t>(1, esphome::millis());
         t.unanswered = true;
         refresh_tile(i);
       }
+      silent = wish_unanswered(entity) || silent;
       if (silent) ESP_LOGW("runtime_action", "Home Assistant neither answered nor acted on %s: may this screen perform actions?", entity.c_str());
       if (silent && !unanswered_told && hint_alert) {
         unanswered_told = true;
@@ -657,6 +732,7 @@ inline void watch_call(esphome::api::HomeassistantActionRequest &request, const 
       return;
     }
     if (answer.is_success()) {
+      wish_answered(entity, true);
       // "It worked" without a new state (a stop on a cover that already stands still) ends the wait in a moment
       // instead of running to the cap.
       if (answer.is_success())
@@ -668,15 +744,16 @@ inline void watch_call(esphome::api::HomeassistantActionRequest &request, const 
     ESP_LOGW("runtime_action", "Home Assistant refused the action for %s: %.*s", entity.c_str(),
              (int) answer.get_error_message().size(), answer.get_error_message().c_str());
     alarm_refused(entity);
+    wish_answered(entity, false);
     for (size_t i = 0; i < model.tiles.size(); ++i) if (model.tiles[i].entity == entity) {
       model.tiles[i].pending = false;
-      model.tiles[i].undo_optimistic();
       model.tiles[i].release_slider();
       model.tiles[i].refused_at = std::max<uint32_t>(1, esphome::millis());
       model.tiles[i].unanswered = false;
       refresh_tile(i);
     }
   });
+  return true;
 }
 inline void expire_calls(uint32_t now) {
   for (auto &c : watched_calls) {
@@ -688,21 +765,29 @@ inline void expire_calls(uint32_t now) {
 }
 #endif
 // Marks every tile of the entity busy and sends; `watch` asks Home Assistant for an answer (a tap).
-inline void send_action(esphome::api::HomeassistantActionRequest &request, const std::string &entity, bool watch) {
-  for(size_t i=0;i<model.tiles.size();++i) if(model.tiles[i].entity==entity){model.tiles[i].begin(esphome::millis());model.tiles[i].refused_at=0;refresh_tile(i);}
-  watch_busy();
+// `busy`: the tiles of the entity wait for the answer (the busy sheet, greyed keys); a wish (docs/OPTIMISTIC.md) shows
+// its value instead and waits for nothing.
+// Returns whether Home Assistant will answer it (watch_call).
+inline bool send_action(esphome::api::HomeassistantActionRequest &request, const std::string &entity, bool watch, bool busy = true) {
+  if (busy) {
+    for(size_t i=0;i<model.tiles.size();++i) if(model.tiles[i].entity==entity){model.tiles[i].begin(esphome::millis());model.tiles[i].refused_at=0;refresh_tile(i);}
+    watch_busy();
+  }
+  bool watched = false;
 #ifdef USE_API_HOMEASSISTANT_ACTION_RESPONSES
-  if (watch) watch_call(request, entity);
+  if (watch) watched = watch_call(request, entity);
 #endif
   esphome::api::global_api_server->send_homeassistant_action(request);
+  return watched;
 }
 // `key2` and `value2`: a second field, for a thermostat's range (both ends in one call, firmware 0.19.0).
 // The player a card's media keys act on (firmware 0.26.0+): the speaker it follows (the app's `ct`, a Spotify tile that
 // plays on a Sonos), or the tile's own.
 inline const std::string &media_entity(const Tile &t){return t.extra().media_target.empty()?t.entity:t.extra().media_target;}
-inline void action(const std::string &service, const std::string &entity, const std::string &key="", const std::string &value="", bool watch=true,
-                   const std::string &key2="", const std::string &value2="") {
-  if (!fresh() || !valid_entity(entity)) return;
+// Returns whether Home Assistant will answer it.
+inline bool action(const std::string &service, const std::string &entity, const std::string &key="", const std::string &value="", bool watch=true,
+                   const std::string &key2="", const std::string &value2="", bool busy=true) {
+  if (!fresh() || !valid_entity(entity)) return false;
   esphome::api::HomeassistantActionRequest request;
   request.service = esphome::StringRef(service);
   request.data.init(1 + !key.empty() + !key2.empty());
@@ -712,8 +797,31 @@ inline void action(const std::string &service, const std::string &entity, const 
   request.data.push_back(entry);
   if(!key.empty()) {esphome::api::HomeassistantServiceMap param;param.key=esphome::StringRef(key);param.value=esphome::StringRef(value);request.data.push_back(param);}
   if(!key2.empty()) {esphome::api::HomeassistantServiceMap param;param.key=esphome::StringRef(key2);param.value=esphome::StringRef(value2);request.data.push_back(param);}
-  send_action(request, entity, watch);
+  const bool watched = send_action(request, entity, watch, busy);
   ESP_LOGI("runtime_action","Sent service=%s entity=%s",service.c_str(),entity.c_str());
+  return watched;
+}
+inline bool action_template(const std::string &service, const std::string &entity, const std::string &key, const std::string &value,
+                            bool busy = true);
+// One wish's turn (docs/OPTIMISTIC.md): it goes out when it is ready, its old value comes back when Home Assistant
+// leaves it as it was, and a slow one says so. Run at a tap, at an answer, at a report and by the clock.
+inline void wish_run(optimistic::Wish &w, uint32_t now) {
+  switch (optimistic::tick(w, now)) {
+    case optimistic::Outcome::SEND:
+      optimistic::sent(w, w.rendered ? action_template(w.service, w.target, w.key, w.value, false)
+                                     : action(w.service, w.target, w.key, w.value, true, "", "", false));
+      break;
+    case optimistic::Outcome::REVERT: wish_revert(w, false, false); break;
+    default:
+      if (!w.slow_shown && optimistic::slow(w, now)) { w.slow_shown = true; wish_refresh(w.entity, false); }
+      break;
+  }
+}
+// The wishes' clock: every 50 ms while a wish is known, deleted after the last.
+inline void wish_watch(lv_timer_t *) {
+  const uint32_t now = esphome::millis();
+  for (auto &w : wishes.wishes) if (w.phase != optimistic::Phase::IDLE) wish_run(w, now);
+  if (!wishes.any() && wish_timer) { lv_timer_delete(wish_timer); wish_timer = nullptr; }
 }
 // An action that waits for nothing: no busy tile, no redraw, and the next one goes out at once. A remote's key and a
 // player's volume step, which a finger repeats faster than Home Assistant answers.
@@ -733,8 +841,10 @@ inline void step_action(const std::string &service, const std::string &entity, c
 inline void remote_key(const std::string &entity, const std::string &command) { step_action("remote.send_command", entity, "command", command); }
 // An action whose one value Home Assistant renders itself: a list such as a lamp's hs_color "[20, 100]" does not
 // travel as text (firmware 0.3.9+, the lamp page of a light group).
-inline void action_template(const std::string &service, const std::string &entity, const std::string &key, const std::string &value) {
-  if (!fresh() || !valid_entity(entity)) return;
+// Returns whether Home Assistant will answer it; `busy` as for action().
+inline bool action_template(const std::string &service, const std::string &entity, const std::string &key, const std::string &value,
+                            bool busy) {
+  if (!fresh() || !valid_entity(entity)) return false;
   esphome::api::HomeassistantActionRequest request;
   request.service = esphome::StringRef(service);
   request.data.init(1);
@@ -747,8 +857,9 @@ inline void action_template(const std::string &service, const std::string &entit
   entry.key = esphome::StringRef(key);
   entry.value = esphome::StringRef(value);
   request.data_template.push_back(entry);
-  send_action(request, entity, true);
+  const bool watched = send_action(request, entity, true, busy);
   ESP_LOGI("runtime_action", "Sent service=%s entity=%s %s", service.c_str(), entity.c_str(), key.c_str());
+  return watched;
 }
 // A tap's own action (firmware 0.2.58+): the tile's entity with the data the app sent, text as data and the values Home
 // Assistant renders itself (numbers, lists, true or false) as a data_template.
@@ -903,6 +1014,215 @@ inline unsigned detail_index=0;
 inline constexpr unsigned SENSOR_DETAIL=0xFFFFu;
 inline Tile detail_sensor;
 inline Tile *detail_tile(){return detail_index<model.count?&model.tiles[detail_index]:detail_index==SENSOR_DETAIL?&detail_sensor:nullptr;}
+// The open card painted for the tile as it is now; false when it must be built again (another shape, or none).
+inline bool card_repaint(const Tile &t) {
+  if (!card_shape_of || !detail_root || lv_obj_has_flag(detail_root, LV_OBJ_FLAG_HIDDEN)) return false;
+  if (card_shape_of(t) != card_shape) return false;
+  ++card_pass;
+  for (const auto &part : card_parts) part.paint(part.obj, t, part);
+  return true;
+}
+
+// ---- What a finger changed (docs/OPTIMISTIC.md) ----
+// Every control that changes a value of an entity calls wish(): the value shows at once on every tile and card of the
+// entity, the action goes out at once (one at a time: taps meanwhile fold into the next), and optimistic.h decides
+// what Home Assistant's reports, answers and silence do to it. A control never writes a value into the model itself.
+inline uint32_t media_elapsed(const Tile &t);
+inline void redraw_detail();
+// A field as the tile shows it, as text (optimistic::Field).
+// A lamp of a group, a row of a light's effects page: the part a wish names (`item`).
+inline const Lamp *wish_lamp(const Tile &t, const std::string &item) {
+  for (const auto &l : t.extra().lamps) if (l.entity == item) return &l;
+  return nullptr;
+}
+inline std::string wish_read(const Tile &t, optimistic::Field field, const std::string &item = "") {
+  using F = optimistic::Field;
+  const auto &x = t.extra();
+  const Lamp *lamp = wish_lamp(t, item);
+  switch (field) {
+    case F::LAMP_ON: return lamp ? (lamp->on ? "1" : "0") : std::string();
+    case F::LAMP_LEVEL: return lamp ? std::to_string(lamp->on ? lamp->level : 0) : std::string();
+    case F::LAMP_HUE: return lamp ? std::to_string(lamp->saturation ? lamp->hue : 0) : std::string();
+    case F::LAMP_KELVIN: return lamp ? std::to_string(lamp->kelvin) : std::string();
+    case F::EFFECT: return x.effect;
+    case F::ROW_OPTION: for (const auto &r : x.option_rows) if (r.entity == item) return r.current; return {};
+    case F::ROW_NUMBER: for (const auto &r : x.number_rows) if (r.entity == item) return effects_page::number_text(r.value); return {};
+    case F::VACUUM_ROW: { const Choice *c = item.empty() ? nullptr : t.choice(item[0]); return c ? c->current : std::string(); }
+    case F::ON_OFF: case F::OPTION: case F::HVAC_MODE: return t.state;
+    case F::HUMIDIFIER_MODE: return x.humidifier_mode;
+    case F::FAN_MODE: return x.fan_mode;
+    case F::SWING_MODE: return x.swing_mode;
+    case F::ACTIVITY: return t.state == "on" ? x.activity : std::string();  // empty: the remote is off
+    case F::PLAYING: return media_card::playing(t.state) ? "1" : "0";
+    case F::SHUFFLE: return x.media_shuffle < 0 ? std::string() : x.media_shuffle ? "1" : "0";
+    case F::REPEAT: return x.media_repeat;
+    case F::MUTED: return t.muted ? "1" : "0";
+  }
+  return {};
+}
+// The same field written, as Home Assistant would report it.
+inline void wish_write(Tile &t, optimistic::Field field, const std::string &value, const std::string &item = "") {
+  using F = optimistic::Field;
+  Lamp *lamp = nullptr;
+  if (auto *x = t.extra_ptr()) for (auto &l : x->lamps) if (l.entity == item) lamp = &l;
+  const int number = std::atoi(value.c_str());
+  switch (field) {
+    case F::LAMP_ON: if (lamp) lamp->on = value == "1"; break;
+    case F::LAMP_LEVEL: if (lamp) { lamp->on = number > 0; if (number > 0) lamp->level = (uint8_t) std::min(100, number); } break;
+    case F::LAMP_HUE: if (lamp) { lamp->hue = (uint16_t) number; lamp->saturation = 100; } break;
+    case F::LAMP_KELVIN: if (lamp) { lamp->kelvin = (uint16_t) number; lamp->saturation = 0; } break;
+    case F::EFFECT: t.edit_extra().effect = value; break;
+    case F::ROW_OPTION: for (auto &r : t.edit_extra().option_rows) if (r.entity == item) r.current = value; break;
+    case F::ROW_NUMBER: for (auto &r : t.edit_extra().number_rows) if (r.entity == item) r.value = std::strtof(value.c_str(), nullptr); break;
+    case F::VACUUM_ROW: if (!item.empty()) if (Choice *c = t.choice(item[0])) c->current = value; break;
+    case F::ON_OFF: case F::OPTION: case F::HVAC_MODE: t.state = value; break;
+    case F::HUMIDIFIER_MODE: t.edit_extra().humidifier_mode = value; break;
+    case F::FAN_MODE: t.edit_extra().fan_mode = value; break;
+    case F::SWING_MODE: t.edit_extra().swing_mode = value; break;
+    case F::ACTIVITY:
+      if (value.empty()) t.state = "off";
+      else { t.edit_extra().activity = value; t.state = "on"; }
+      break;
+    case F::PLAYING: {
+      const bool play = value == "1";
+      if (media_card::playing(t.state) == play) break;
+      // The bar stops where it is, or runs on from there, as the player's own next report will say.
+      const uint32_t at = media_elapsed(t), now = now_epoch();
+      auto &x = t.edit_extra();
+      if (now && (x.media_duration || x.media_position)) { x.media_position = at; x.media_position_at = now; }
+      t.state = play ? "playing" : "paused";
+      break;
+    }
+    case F::SHUFFLE: t.edit_extra().media_shuffle = value.empty() ? -1 : value == "1" ? 1 : 0; break;
+    case F::REPEAT: t.edit_extra().media_repeat = value; break;
+    case F::MUTED: t.muted = value == "1"; break;
+  }
+}
+// Every tile and the open card of the entity show `value`; drawn after the event that asked, whose key a redraw may delete.
+// The open card shows this entity.
+inline bool wish_card_open(const std::string &entity) {
+  return detail_root && !lv_obj_has_flag(detail_root, LV_OBJ_FLAG_HIDDEN) && detail_index < model.count &&
+         model.tiles[detail_index].entity == entity;
+}
+// Every tile of the entity drawn again, and its open card with `card` (its status line follows by itself, in tick()).
+inline void wish_refresh(const std::string &entity, bool card) {
+  bool told = false;
+  for (size_t i = 0; i < model.count; ++i) if (model.tiles[i].entity == entity) {
+    refresh_tile(i);
+    // The pages over a card (a group's lamps, a light's effects) paint themselves from the tile (detail_update).
+    if (!told && detail_update) { detail_update(model.tiles[i]); told = true; }
+  }
+  if (card && wish_card_open(entity)) redraw_detail();
+}
+// The value written and shown: the tiles drawn again, and the open card painted in place (card_repaint), or built again
+// where it cannot be.
+inline void wish_show(const std::string &entity, optimistic::Field field, const std::string &value, const std::string &item = "") {
+  for (size_t i = 0; i < model.count; ++i) if (model.tiles[i].entity == entity) wish_write(model.tiles[i], field, value, item);
+  const bool painted = wish_card_open(entity) && card_repaint(model.tiles[detail_index]);
+  wish_refresh(entity, !painted);
+}
+// The old value back: Home Assistant refused (the tile says so for a moment, as after any refused tap), never answered
+// (the tile says that, and the screen once why), or said "it worked" and nothing changed (quietly, as its toggle does).
+inline void wish_revert(const optimistic::Wish &w, bool refused, bool unanswered, bool show) {
+  const uint32_t now = esphome::millis();
+  if (refused) for (size_t i = 0; i < model.count; ++i) if (model.tiles[i].entity == w.entity) {
+    model.tiles[i].refused_at = std::max<uint32_t>(1, now);
+    model.tiles[i].unanswered = unanswered;
+    if (!show) refresh_tile(i);
+  }
+  if (show) wish_show(w.entity, w.field, w.before, w.item);
+  ESP_LOGI("wish", "%s back to '%s'%s", w.entity.c_str(), w.before.c_str(), refused ? (unanswered ? " (no answer)" : " (refused)") : "");
+}
+inline void wish_watch(lv_timer_t *);
+// The one way a control changes a value: `value` (in optimistic::Field's words) for `t`'s entity, and the action that
+// makes it so, sent to `target` (the tile's entity unless a player plays on another) at once, or after the one on its way.
+// `item` names the part of the entity a field of a part changes (a lamp, a row), and is the action's target then;
+// `rendered`: the action's value is one Home Assistant renders (a lamp's hs_color list).
+inline void wish(Tile &t, optimistic::Field field, const std::string &value, const std::string &service,
+                 const std::string &key = "", const std::string &data = "", const std::string &target = "",
+                 const std::string &item = "", bool rendered = false) {
+  if (!fresh() || !valid_entity(t.entity) || service.empty()) return;
+  auto &w = wishes.slot(t.entity, field, item);
+  optimistic::want(w, t.entity, !target.empty() ? target : !item.empty() ? item : t.entity, field, wish_read(t, field, item), value,
+                   esphome::millis(), 0, item);
+  w.service = service; w.key = key; w.value = data; w.rendered = rendered;
+  for (size_t i = 0; i < model.count; ++i) if (model.tiles[i].entity == t.entity) { model.tiles[i].refused_at = 0; model.tiles[i].unanswered = false; }
+  ESP_LOGI("wish", "%s%s%s: '%s' (was '%s')", t.entity.c_str(), item.empty() ? "" : " ", item.c_str(), value.c_str(), w.before.c_str());
+  wish_show(t.entity, field, value, item);
+  wish_run(w, esphome::millis());  // a choice goes out now, unless one is on its way
+  if (!wish_timer) wish_timer = lv_timer_create(wish_watch, 50, nullptr);
+}
+// A wish of a page over a card (the lamps of a group, a light's effects): the tile is the group or the light.
+inline void wish_part(const std::string &entity, optimistic::Field field, const std::string &item, const std::string &value,
+                      const std::string &service, const std::string &key, const std::string &data, bool rendered) {
+  for (size_t i = 0; i < model.count; ++i)
+    if (model.tiles[i].entity == entity) { wish(model.tiles[i], field, value, service, key, data, "", item, rendered); return; }
+}
+// A state message for `t` arrived (page_receiver.cpp): a wish keeps its value in front of a message from before it.
+inline void wish_reported(Tile &t) {
+  for (auto &w : wishes.wishes) {
+    if (!w.live() || w.entity != t.entity) continue;
+    const auto outcome = optimistic::report(w, wish_read(t, w.field, w.item));
+    if (outcome == optimistic::Outcome::KEEP) { wish_write(t, w.field, w.want, w.item); wish_run(w, esphome::millis()); }
+    else ESP_LOGI("wish", "%s: Home Assistant says '%s'%s", t.entity.c_str(), wish_read(t, w.field, w.item).c_str(),
+                  outcome == optimistic::Outcome::DONE ? "" : " (not the wish)");
+  }
+}
+inline void wish_answered(const std::string &target, bool ok) {
+  const uint32_t now = esphome::millis();
+  for (auto &w : wishes.wishes) {
+    if (w.target != target) continue;
+    if (optimistic::answer(w, ok, now) == optimistic::Outcome::REVERT) wish_revert(w, true, false);
+    else wish_run(w, now);  // a newer wish goes out now that this one is taken
+  }
+}
+// On / off by the stand the tile shows, as Home Assistant's toggle (getToggleAction: turn_on or turn_off, never the
+// toggle action itself, so a burst sends what the last tap shows).
+// A tap whose action is the tile's toggle, for a domain that is on or off: it switches through toggle_wish.
+inline bool toggle_tap(const Tile &t, const std::string &service) {
+  const auto d = t.domain();
+  return service == d + ".toggle" && (d == "light" || d == "switch" || d == "input_boolean" || d == "fan" || d == "automation" || d == "remote");
+}
+inline void toggle_wish(Tile &t) {
+  const bool on = t.state != "on";
+  wish(t, optimistic::Field::ON_OFF, on ? "on" : "off", t.domain() + (on ? ".turn_on" : ".turn_off"));
+}
+// A thermostat's mode; the line under it would still say what the mode before it did.
+inline void climate_mode_wish(Tile &t, const std::string &mode) {
+  if (auto *x = t.extra_ptr()) x->hvac_action.clear();
+  wish(t, optimistic::Field::HVAC_MODE, mode, "climate.set_hvac_mode", "hvac_mode", mode);
+}
+// A thermostat's or humidifier's power key: off shows at once; on restores the mode Home Assistant remembers, which the
+// screen cannot know, so that one waits for it.
+inline void climate_power(Tile &t) {
+  if (!tile_controls::climate_off(t)) {
+    wish(t, t.domain() == "humidifier" ? optimistic::Field::ON_OFF : optimistic::Field::HVAC_MODE, "off", t.domain() + ".turn_off");
+    return;
+  }
+  t.begin(esphome::millis());
+  action(t.domain() + ".turn_on", t.entity);
+}
+// A key of a tile (a wide tile's row, a thermostat's mode bar): a wish where the key changes a value it can show
+// (tile_controls::wanted), the plain action otherwise.
+inline void key_press(Tile &t, int command, const std::string &arg = "") {
+  const auto a = tile_controls::key_action(t, command, arg);
+  if (!a.valid()) return;
+  const auto w = tile_controls::wanted(t, command, arg);
+  if (!w.valid) { action(a.service, t.entity, a.key, a.value); return; }
+  if (w.field == optimistic::Field::HVAC_MODE) { climate_mode_wish(t, w.value); return; }
+  wish(t, w.field, w.value, a.service, a.key, a.value, w.field == optimistic::Field::PLAYING ? media_entity(t) : std::string());
+}
+inline bool wish_unanswered(const std::string &target) {
+  bool any = false;
+  for (auto &w : wishes.wishes) {
+    if (w.target != target) continue;
+    const auto outcome = optimistic::unanswered(w);
+    if (outcome == optimistic::Outcome::DONE) continue;
+    any = true;
+    wish_revert(w, true, true, outcome == optimistic::Outcome::REVERT);
+  }
+  return any;
+}
 inline const lv_font_t *detail_font=nullptr;
 inline lv_obj_t *detail_actions[32]{};
 inline unsigned detail_action_count=0;
@@ -971,8 +1291,15 @@ inline void commit_slider(unsigned i,int raw,bool tilt=false){
   if(tilt)return;
   // A light's slider stops at 1 %, as in Home Assistant; tapping the card turns it off.
   // The slider stays where the finger left it while the light fades towards it (Tile::hold_slider).
-  if(d=="light"){int sent=std::max(3,(int)std::lround(value*255));action("light.turn_on",t.entity,"brightness",std::to_string(sent));t.hold_slider(esphome::millis(),sent);}
-  if(d=="fan"){int sent=(int)std::lround(value*100);action("fan.set_percentage",t.entity,"percentage",std::to_string(sent));t.hold_slider(esphome::millis(),sent);}
+  // On an off light or fan the slider turns it on: that goes out as a wish (docs/OPTIMISTIC.md), so the tile lights up
+  // at once and goes dark again when Home Assistant does not follow.
+  auto slide=[&](const char *service,const char *key,int sent){
+    if(t.state=="off")wish(t,optimistic::Field::ON_OFF,"on",service,key,std::to_string(sent));
+    else action(service,t.entity,key,std::to_string(sent));
+    t.hold_slider(esphome::millis(),sent);
+  };
+  if(d=="light")slide("light.turn_on","brightness",std::max(3,(int)std::lround(value*255)));
+  if(d=="fan")slide("fan.set_percentage","percentage",(int)std::lround(value*100));
   if(d=="media_player"){action("media_player.volume_set",media_entity(t),"volume_level",std::to_string(value));t.hold_slider(esphome::millis(),value);}
   if(d=="number"||d=="input_number") {
     if(!std::isfinite(t.minimum)||!std::isfinite(t.maximum)||t.maximum<=t.minimum||t.step<=0)return;
@@ -1049,20 +1376,28 @@ inline void show_detail(unsigned index);
 // waits for Home Assistant like after its other buttons. The card is drawn again once this tap's event
 // has finished, because a chosen mode can add or remove the suction and water rows.
 inline void redraw_detail(){
+  // A card that paints itself follows at once and in place (docs/CARD_PARTS.md); another is built again after the event.
+  if(detail_root&&!lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN)&&detail_index<model.count&&card_repaint(model.tiles[detail_index]))return;
   lv_async_call([](void *){if(detail_root && !lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN))show_detail(detail_index);},nullptr);
 }
+// A chip of a vacuum's row, as a wish (docs/OPTIMISTIC.md): the suction is the vacuum's own, the mode and the water
+// selects of its device.
 inline void choose(Tile &t,Choice &row,const std::string &value){
   if(value==row.current)return;
   auto a=tile_controls::choice_action(t,row.kind,value);if(!a.valid())return;
-  action(a.service,row.kind=='s'?t.entity:row.entity,a.key,a.value);
-  row.sent=value;t.begin(esphome::millis());
-  redraw_detail();
+  wish(t,optimistic::Field::VACUUM_ROW,value,a.service,a.key,a.value,row.kind=='s'?t.entity:row.entity,std::string(1,row.kind));
 }
 // What a key on a card does; `cmd` is the key's command. Shared by the plain keys (detail_button) and the round
 // keys of the media card. -1 is Back.
 inline void alarm_command(int cmd);
 inline void lock_command(int cmd);
 inline bool alarm_pad_open();
+// The card keys whose change is a wish (docs/OPTIMISTIC.md): play or pause, mute, shuffle, repeat, an option, a mode,
+// a thermostat's rows and the power keys.
+inline bool wish_command(int cmd){
+  return cmd==20||cmd==23||cmd==25||cmd==26||(cmd>=30&&cmd<38)||(cmd>=SELECT_OPTION_FIRST&&cmd<SELECT_OPTION_FIRST+64)||
+         (cmd>=CLIMATE_MODE_FIRST&&cmd<CLIMATE_ROW_FIRST+12)||cmd==CLIMATE_POWER||cmd==LIGHT_POWER;
+}
 inline void detail_command(int cmd){
   // Back on the alarm's keypad goes back to its card; everywhere else it closes the card.
   if(cmd==-1&&alarm_pad_open()){alarm_close_pad();redraw_detail();return;}
@@ -1107,7 +1442,11 @@ inline void detail_command(int cmd){
     remote_key(t.entity,keys[i]);
     return;
   }
-  if(!fresh()||detail_index>=model.count || !allowed(esphome::millis(),300+cmd,"card button "+model.tiles[detail_index].entity))return;
+  if(!fresh()||detail_index>=model.count)return;
+  {
+    const std::string what="card button "+model.tiles[detail_index].entity;
+    if(!(wish_command(cmd)?allowed_wish(esphome::millis(),300+cmd,what):allowed(esphome::millis(),300+cmd,what)))return;
+  }
   auto &t=model.tiles[detail_index];
   // A player's library and its speakers (firmware 0.24.0+) open while a key of it is still on its way.
   if(cmd==27){media_library::open(t.entity);return;}
@@ -1121,7 +1460,10 @@ inline void detail_command(int cmd){
     if(cmd>=first && cmd<first+6){auto *row=t.choice(kind);if(row && cmd-first<(int)row->values.size())choose(t,*row,row->values[cmd-first]);}
   // The media card's keys (20-23); its volume slider goes through commit_slider.
   if(cmd>=20 && cmd<=26)media_action(t,cmd);
-  if(cmd>=30 && cmd<38 && cmd-30<(int)t.extra().options.size())action(t.domain()+".select_option",t.entity,"option",t.extra().options[cmd-30]);
+  if(cmd>=30 && cmd<38 && cmd-30<(int)t.extra().options.size()){
+    const std::string option=t.extra().options[cmd-30];
+    if(option!=t.state)wish(t,optimistic::Field::OPTION,option,t.domain()+".select_option","option",option);
+  }
   // A row of the select card: chosen at once on the card, confirmed by Home Assistant's next state.
   if(cmd>=SELECT_OPTION_FIRST&&cmd<SELECT_OPTION_FIRST+64&&cmd-SELECT_OPTION_FIRST<(int)t.extra().options.size()){
     const std::string option=t.extra().options[cmd-SELECT_OPTION_FIRST];
@@ -1129,16 +1471,11 @@ inline void detail_command(int cmd){
     // (more-info-remote.ts: remote.turn_on with `activity`). The row shows the choice at once.
     if(t.domain()=="remote"){
       if(option==t.extra().activity&&t.state=="on")return;
-      if(auto *x=t.extra_ptr())x->activity=option;
-      t.optimistic(true);t.begin(esphome::millis());
-      action("remote.turn_on",t.entity,"activity",option);
-      redraw_detail();
+      wish(t,optimistic::Field::ACTIVITY,option,"remote.turn_on","activity",option);
       return;
     }
     if(option==t.state)return;
-    t.state=option;t.begin(esphome::millis());
-    action(t.domain()+".select_option",t.entity,"option",option);
-    redraw_detail();
+    wish(t,optimistic::Field::OPTION,option,t.domain()+".select_option","option",option);
     return;
   }
   // Cover keys: 70 + tile_controls::Command (open, stop, close and the tilt keys).
@@ -1151,16 +1488,9 @@ inline void detail_command(int cmd){
     const auto modes=tile_controls::climate_modes(t);
     const unsigned i=cmd-CLIMATE_MODE_FIRST;
     if(i<modes.size()&&tile_controls::humidifier(t)&&modes[i]!=t.extra().humidifier_mode){
-      t.edit_extra().humidifier_mode=modes[i];
-      t.begin(esphome::millis());
-      action("humidifier.set_mode",t.entity,"mode",modes[i]);
-      redraw_detail();
+      wish(t,optimistic::Field::HUMIDIFIER_MODE,modes[i],"humidifier.set_mode","mode",modes[i]);
     }else if(i<modes.size()&&!tile_controls::humidifier(t)&&modes[i]!=tile_controls::lower_case(t.state)){
-      t.state=modes[i];
-      t.edit_extra().hvac_action.clear();   // the line would still say what the mode before it did
-      t.begin(esphome::millis());
-      action("climate.set_hvac_mode",t.entity,"hvac_mode",modes[i]);
-      redraw_detail();
+      climate_mode_wish(t,modes[i]);
     }
     return;
   }
@@ -1170,28 +1500,19 @@ inline void detail_command(int cmd){
     if(r<rows.size()&&i<rows[r].values.size()&&rows[r].values[i]!=rows[r].current){
       const char kind=rows[r].kind;
       const std::string value=rows[r].values[i];
-      (kind=='m'?t.edit_extra().humidifier_mode:kind=='f'?t.edit_extra().fan_mode:t.edit_extra().swing_mode)=value;
-      t.begin(esphome::millis());
       const auto a=tile_controls::climate_row_action(kind,value);
-      action(a.service,t.entity,a.key,a.value);
-      redraw_detail();
+      using F=optimistic::Field;
+      wish(t,kind=='m'?F::HUMIDIFIER_MODE:kind=='f'?F::FAN_MODE:F::SWING_MODE,value,a.service,a.key,a.value);
     }
     return;
   }
   if(cmd==LIGHT_POWER){
-    // The same toggle a tap on the tile does, and the card shows the new stand at once as that tap does.
-    const bool turning_on=t.state!="on";
-    t.optimistic(turning_on);
-    t.begin(esphome::millis());
-    action(t.domain()+(turning_on?".turn_on":".turn_off"),t.entity);
-    redraw_detail();
+    // The same toggle a tap on the tile does.
+    toggle_wish(t);
     return;
   }
   if(cmd==CLIMATE_POWER){
-    const bool off=tile_controls::climate_off(t);
-    t.begin(esphome::millis());
-    if(!off)t.state="off";   // turning on restores the mode Home Assistant remembers, so that one waits
-    action(t.domain()+(off?".turn_on":".turn_off"),t.entity);
+    climate_power(t);
     redraw_detail();
     return;
   }
@@ -1256,6 +1577,7 @@ inline lv_obj_t *detail_card(int x,int y,int w,int h){
 inline weather_card::Layout weather_layout;
 inline lv_obj_t *weather_days_card=nullptr,*weather_dots=nullptr,*weather_chevron[2]={};
 inline int weather_page=0;
+inline uint32_t weather_page_shown(){return (uint32_t)weather_page;}
 // The metrics the board's fonts give this card. Every number is a line height the look decides; the one string
 // that is measured is an hour's time, which says how many hours a strip of this width holds. The muted lines are
 // the sublabel (small_font), never the font a tile's value label happens to wear: a big value in the first cell
@@ -1391,6 +1713,7 @@ inline void render_weather_detail(const Tile &t,bool large,int width,int height,
   }
   if(weather_page>=l.pages)weather_page=0;
   weather_draw_days(t);
+  card_shaped(t,picture_card_shape);
 }
 // ---- Select card (firmware 0.3.3) ----
 // A select's options as rows of one white card, like a list in Home Assistant's more-info dialog: the option it is
@@ -1403,6 +1726,37 @@ inline void select_pager_event(lv_event_t *e){
   redraw_detail();
 }
 // What is chosen: a select's state, or the activity a remote runs (firmware 0.22.0+).
+// A power key in a card's top bar (light, fan, remote, switch): lit while the entity is on.
+inline void power_key_paint(lv_obj_t *key,const Tile &t,const CardPart &){
+  const bool on=t.state=="on";
+  set_color(key,LV_STYLE_BG_COLOR,theme::color(on?theme::ACCENT_TINT:theme::KEY));
+  if(auto *glyph=lv_obj_get_child(key,0))set_color(glyph,LV_STYLE_TEXT_COLOR,theme::color(on?theme::ACCENT_ICON:theme::ICON_OFF));
+}
+// ---- The select card's parts (docs/CARD_PARTS.md), also a remote's activities ----
+// The option the card shows as chosen: a select's state, a remote's activity while it is on.
+inline std::string select_current(const Tile &t){
+  if(t.domain()=="remote")return t.state=="on"?t.extra().activity:std::string();
+  return t.state;
+}
+// A row (value: its option): the tint and the tick while it is the chosen one; the name leaves the tick its room.
+inline void select_row_paint(lv_obj_t *row,const Tile &t,const CardPart &part){
+  const bool chosen=part.value==select_current(t);
+  set_number(row,LV_STYLE_BG_OPA,chosen?LV_OPA_COVER:LV_OPA_TRANSP);
+  set_color(row,LV_STYLE_BG_COLOR,theme::color(chosen?theme::ACCENT_TINT:theme::CARD_PRESSED),LV_STATE_PRESSED);
+  auto *name=lv_obj_get_child(row,0),*mark=lv_obj_get_child(row,1);
+  if(!name||!mark)return;
+  const int side=lv_obj_get_style_x(name,LV_PART_MAIN);
+  set_number(name,LV_STYLE_WIDTH,chosen?lv_obj_get_style_x(mark,LV_PART_MAIN)-side-side/2:lv_obj_get_style_width(row,LV_PART_MAIN)-2*side);
+  set_hidden(mark,!chosen);
+}
+// What decides the select card's parts: its options and the page of them it shows. The chosen one is painted.
+inline uint32_t select_card_shape(const Tile &t){
+  Fingerprint f;auto add=[&](const std::string &text){f.add(text);f.write('|');};
+  add(t.entity);add(std::to_string(select_page));
+  for(const auto &o:t.extra().options)add(o);
+  if(t.domain()=="remote")f.write(t.extra().keypad.empty());
+  return f.value;
+}
 inline void render_select_detail(const Tile &t,bool large,int width,int height,int pad,int top,const std::string &current){
   const auto &options=t.extra().options;
   const int n=(int)options.size();
@@ -1440,14 +1794,15 @@ inline void render_select_detail(const Tile &t,bool large,int width,int height,i
     auto *name=detail_text(row,options[i],side,(row_h-lv_font_get_line_height(text))/2,col_w-2*side-(chosen?check+side/2:0),text,
                            LV_TEXT_ALIGN_LEFT,theme::INK);
     lv_label_set_long_mode(name,LV_LABEL_LONG_DOT);lv_obj_remove_flag(name,LV_OBJ_FLAG_CLICKABLE);
-    if(chosen){
-      auto *mark=detail_text(row,"\U000F012C",col_w-side-check,(row_h-check)/2,check,glyphs,LV_TEXT_ALIGN_RIGHT,theme::ACCENT_ICON);
-      lv_obj_remove_flag(mark,LV_OBJ_FLAG_CLICKABLE);
-    }
+    // Every row has its tick, shown on the chosen one, so choosing another is a paint and not a new card.
+    auto *mark=detail_text(row,"\U000F012C",col_w-side-check,(row_h-check)/2,check,glyphs,LV_TEXT_ALIGN_RIGHT,theme::ACCENT_ICON);
+    lv_obj_remove_flag(mark,LV_OBJ_FLAG_CLICKABLE);
+    card_bind(row,t,select_row_paint,options[i]);
     lv_obj_add_event_cb(row,[](lv_event_t *e){detail_command((intptr_t)lv_event_get_user_data(e));},LV_EVENT_SHORT_CLICKED,
                         (void*)(intptr_t)(SELECT_OPTION_FIRST+i));
     if(detail_action_count<32)detail_actions[detail_action_count++]=row;
   }
+  card_shaped(t,select_card_shape);
   if(!paged)return;
   // The same pager as the tile pages and the settings page: a chevron in each half, the dots between them.
   const int py=top+card_h+gap,half=card_w/2-ui::px(10);
@@ -1590,8 +1945,27 @@ inline lv_obj_t *vacuum_command(const char *icon,const char *text,int x,int y,in
 // left, the chosen one filled in blue; `chosen` is the option's place in the list, -1 for none. The options
 // answer as first..first+5. However thin the row is drawn, each option keeps a finger's worth of touch area,
 // so a segmented row on a short panel is still hittable (overlay_card::touchable).
-inline void segments(int x,int y,int w,int h,const std::vector<std::string> &labels,int chosen,int first,uint32_t track,bool border,const lv_font_t *font,const lv_font_t *smaller=nullptr){
-  int n=std::min<int>((int)labels.size(),6);if(n<=0||w<=0||h<=0)return;
+// A segment's look, chosen or not.
+inline void segment_paint(lv_obj_t *segment,bool selected){
+  set_number(segment,LV_STYLE_BG_OPA,selected?LV_OPA_COVER:LV_OPA_TRANSP);
+  set_color(segment,LV_STYLE_BG_COLOR,theme::color(selected?theme::ACCENT:theme::ACCENT_TINT),LV_STATE_PRESSED);
+  if(auto *words=lv_obj_get_child(segment,0))set_color(words,LV_STYLE_TEXT_COLOR,theme::color(selected?theme::ON_ACCENT:theme::INK));
+}
+// A key's glyph set again only when it is another one: centring a glyph measures its ink (center_icon).
+inline void paint_glyph(lv_obj_t *key,const char *glyph){
+  auto *icon=lv_obj_get_child(key,0);
+  if(!icon||!strcmp(lv_label_get_text(icon),glyph))return;
+  lv_label_set_text(icon,glyph);center_icon(icon);
+}
+// A state on or off, set only when it changes.
+inline void paint_state(lv_obj_t *obj,lv_state_t state,bool on){
+  if(lv_obj_has_state(obj,state)==on)return;
+  if(on)lv_obj_add_state(obj,state);else lv_obj_remove_state(obj,state);
+}
+// A row of choices; returns its segments, for a card that binds them (card_bind).
+inline std::vector<lv_obj_t *> segments(int x,int y,int w,int h,const std::vector<std::string> &labels,int chosen,int first,uint32_t track,bool border,const lv_font_t *font,const lv_font_t *smaller=nullptr){
+  std::vector<lv_obj_t *> made;
+  int n=std::min<int>((int)labels.size(),6);if(n<=0||w<=0||h<=0)return made;
   auto *bar=detail_shape(detail_root,x,y,w,h,track,h/2);
   if(border){lv_obj_set_style_border_width(bar,1,0);lv_obj_set_style_border_color(bar,theme::color(theme::LINE),0);}
   int inset=std::max(3,h/12),room=w-2*inset,words=0;int widths[6];
@@ -1613,15 +1987,49 @@ inline void segments(int x,int y,int w,int h,const std::vector<std::string> &lab
     if(!selected)lv_obj_set_style_bg_color(segment,theme::color(theme::ACCENT_TINT),LV_STATE_PRESSED);
     button_words(segment,font,theme::hex(selected?theme::ON_ACCENT:theme::INK),sw-6);
     overlay_card::touchable(segment,h-2*inset);
+    made.push_back(segment);
     sx+=sw;
   }
+  return made;
 }
 // The vacuum's rows: the same control, showing the value just tapped while Home Assistant has not answered.
+// A chip of a vacuum row (arg: the row's kind, value: its choice): chosen while it is what the row shows, the value
+// just tapped while Home Assistant has not answered.
+inline void vacuum_chip_paint(lv_obj_t *segment,const Tile &t,const CardPart &part){
+  const Choice *row=t.choice((char)part.arg);
+  if(row)segment_paint(segment,tile_controls::shown_value(t,*row,esphome::millis())==part.value);
+}
 inline void vacuum_segments(const Tile &t,const Choice &row,int first,int x,int y,int w,int h,uint32_t track,bool border,const lv_font_t *font){
   const std::string &chosen=tile_controls::shown_value(t,row,esphome::millis());
   int index=-1;
   for(size_t i=0;i<row.values.size();++i)if(row.values[i]==chosen)index=(int)i;
-  segments(x,y,w,h,row.labels,index,first,track,border,font,small_font);
+  const auto made=segments(x,y,w,h,row.labels,index,first,track,border,font,small_font);
+  for(size_t i=0;i<made.size()&&i<row.values.size();++i)card_bind(made[i],t,vacuum_chip_paint,row.values[i],row.kind);
+}
+// What the vacuum card's state line says: the wait, a slow wish, or Home Assistant's word.
+inline std::string vacuum_badge_text(const Tile &t){
+  const uint32_t now=esphome::millis();
+  return t.loading(now)?tr(txt::tile_command_sent):wish_slow(t.entity,now)?tr(txt::tile_updating):detail_state(t);
+}
+inline void vacuum_badge_paint(lv_obj_t *line,const Tile &t,const CardPart &){label(line,vacuum_badge_text(t));}
+// What decides the vacuum card's parts: which rows it has (a mode that only mops has no suction), the state that
+// names its keys and its look, the room on the way and the battery. A chip just tapped is painted.
+inline bool vacuum_hero(const Tile &t){return ui::large()||(!t.choice('m')&&!t.choice('w'));}
+inline uint32_t vacuum_card_shape(const Tile &t){
+  Fingerprint f;auto add=[&](const std::string &text){f.add(text);f.write('|');};
+  const uint32_t now=esphome::millis();
+  const auto rows=tile_controls::vacuum_rows(t,now);
+  add(t.entity);add(std::to_string(t.supported));add(t.state);add(t.extra().room);
+  add(std::isfinite(t.battery)?std::to_string((int)std::lround(t.battery)):"");
+  f.write(rows.suction);f.write(rows.water);
+  for(char kind:{'m','s','w'})if(const Choice *c=t.choice(kind)){f.write(kind);for(const auto &v:c->values)add(v);for(const auto &l:c->labels)add(l);}
+  if(const Choice *mode=t.choice('m')){
+    f.write(tile_controls::vacuum_role(t,now));
+    f.write(tile_controls::shown_value(t,*mode,now).find("smart")!=std::string::npos);
+  }
+  // The state line of the small card is as wide as its words.
+  if(!vacuum_hero(t))add(vacuum_badge_text(t));
+  return f.value;
 }
 inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad){
   uint32_t now=esphome::millis();
@@ -1635,7 +2043,7 @@ inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad
   bool cleaning=t.state=="cleaning",paused=t.state=="paused";
   bool battery=std::isfinite(t.battery),on_the_way=cleaning||paused||t.state=="returning";
   int inner=width-2*pad,gap=ui::px(large?12:6),radius=lv_obj_get_style_radius(widgets[0].tile,LV_PART_MAIN);
-  std::string state=t.loading(now)?tr(txt::tile_command_sent):detail_state(t);
+  std::string state=vacuum_badge_text(t);
   // A robot with little to set gets a hero on the small screen too; one with mode and water rows uses a status row.
   bool small_hero=!large && !mode && !t.choice('w');
   int y=ui::px(large?92:52);
@@ -1677,7 +2085,7 @@ inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad
     int line=lv_font_get_line_height(big),text_h=lv_font_get_line_height(text),space=ui::px(large?6:3);
     bool room=on_the_way && !t.extra().room.empty();
     int block=line+(room?space+text_h:0)+(battery?space+text_h:0),ty=(hero_h-block)/2;
-    detail_badge_status=detail_text(hero,state,text_x,ty,text_w,big,LV_TEXT_ALIGN_LEFT,theme::INK);
+    detail_badge_status=card_bind(detail_text(hero,state,text_x,ty,text_w,big,LV_TEXT_ALIGN_LEFT,theme::INK),t,vacuum_badge_paint);
     ty+=line;
     if(room){ty+=space;detail_text(hero,t.extra().room,text_x,ty,text_w,text,LV_TEXT_ALIGN_LEFT,theme::MUTED);ty+=text_h;}
     if(battery){ty+=space;vacuum_power(hero,t,text_x,ty,text,large);}
@@ -1694,7 +2102,7 @@ inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad
     int line=lv_font_get_line_height(text),dot=8,power_w=battery?vacuum_power(nullptr,t,0,0,text,false):0;
     detail_shape(detail_root,pad+2,y+(line-dot)/2,dot,dot,look.accent,dot/2);
     int words=inner-dot-10-power_w-12,state_w=std::min(words,text_width(state,text)+2);
-    detail_badge_status=detail_text(detail_root,state,pad+dot+10,y,state_w,text,LV_TEXT_ALIGN_LEFT,theme::INK);
+    detail_badge_status=card_bind(detail_text(detail_root,state,pad+dot+10,y,state_w,text,LV_TEXT_ALIGN_LEFT,theme::INK),t,vacuum_badge_paint);
     if(on_the_way && !t.extra().room.empty() && words-state_w>24)
       detail_text(detail_root," · "+t.extra().room,pad+dot+10+state_w,y,words-state_w,text,LV_TEXT_ALIGN_LEFT,theme::MUTED);
     if(battery)vacuum_power(detail_root,t,pad+inner-power_w,y,text,false);
@@ -1706,6 +2114,7 @@ inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad
                  pad,y,start_w,action_h,cleaning?1:0,true,text,icons,large?radius:action_h/2);
   vacuum_command("\U000F05F8",tr(txt::vacuum_dock),pad+start_w+gap,y,inner-start_w-gap,action_h,2,false,text,icons,large?radius:action_h/2);
   y+=action_h+gap;
+  card_shaped(t,vacuum_card_shape);
   if(!mode && !suction && !water){
     auto *note=detail_text(detail_root,tr(txt::vacuum_auto_suction),pad,y+gap,inner,text,LV_TEXT_ALIGN_CENTER,theme::SUBTLE);(void)note;
     return;
@@ -1746,6 +2155,8 @@ inline std::string cover_status_line(const Tile &t){return t.available()?tile_co
 // The line under a card's name: the domain that writes its own says it here, so the card, its refresh and the
 // second-by-second tick all show the same words.
 inline std::string card_status(const Tile &t,bool brief=false){
+  // A wish Home Assistant takes long to square says so on every card, as on its tile (docs/OPTIMISTIC.md).
+  if(wish_slow(t.entity,esphome::millis()))return tr(txt::tile_updating);
   const auto d=t.domain();
   if(d=="cover")return cover_status_line(t);
   if(d=="climate"||d=="humidifier")return tile_controls::climate_card_status(t,brief);
@@ -1823,20 +2234,31 @@ inline lv_obj_t *cover_slider(lv_obj_t *parent,int x,int y,int w,int h,float val
 }
 // A row of pill keys with an icon each, as the climate card's modes. A key that cannot move the cover further
 // is drawn disabled and left out of the keys the card enables again once Home Assistant answers.
-inline void cover_key_row(const std::array<tile_controls::Key,3> &keys,unsigned count,int x,int y,int w,int h,int gap,const lv_font_t *icons){
+// A key of the cover card (arg: its command): the direction the cover moves in lit, a key at its end stop faded.
+inline void cover_key_paint(lv_obj_t *button,const Tile &t,const CardPart &part){
+  std::array<tile_controls::Key,3> keys;
+  unsigned n=tile_controls::cover_keys(t,keys);
+  const tile_controls::Key *key=nullptr;
+  for(unsigned i=0;i<n;++i)if(keys[i].command==part.arg)key=&keys[i];
+  if(!key){n=tile_controls::cover_tilt_keys(t,keys);for(unsigned i=0;i<n;++i)if(keys[i].command==part.arg)key=&keys[i];}
+  if(!key)return;
+  set_color(button,LV_STYLE_BG_COLOR,key->checked?lv_color_hex(COVER_ACCENT):theme::color(theme::CARD));
+  set_color(button,LV_STYLE_BG_COLOR,key->checked?lv_color_hex(theme::ha::PURPLE_PRESSED):theme::color(theme::KEY),LV_STATE_PRESSED);
+  set_number(button,LV_STYLE_BORDER_WIDTH,key->checked?0:1);
+  if(auto *glyph=lv_obj_get_child(button,0))set_color(glyph,LV_STYLE_TEXT_COLOR,theme::color(key->checked?theme::ON_ACCENT:theme::INK));
+  paint_state(button,LV_STATE_DISABLED,card_blocked||key->disabled);
+}
+inline void cover_key_row(const Tile &t,const std::array<tile_controls::Key,3> &keys,unsigned count,int x,int y,int w,int h,int gap,const lv_font_t *icons){
   int key_w=count?(w-gap*((int)count-1))/(int)count:0;
   for(unsigned i=0;i<count;++i){
     const auto &key=keys[i];
     auto *button=detail_button("",x+(int)i*(key_w+gap),y,key_w,h,70+key.command);
     lv_obj_set_style_radius(button,h/2,0);
-    lv_obj_set_style_bg_color(button,key.checked?lv_color_hex(COVER_ACCENT):theme::color(theme::CARD),0);
-    lv_obj_set_style_bg_color(button,key.checked?lv_color_hex(theme::ha::PURPLE_PRESSED):theme::color(theme::KEY),LV_STATE_PRESSED);
-    lv_obj_set_style_border_width(button,key.checked?0:1,0);lv_obj_set_style_border_color(button,theme::color(theme::LINE),0);
+    lv_obj_set_style_border_color(button,theme::color(theme::LINE),0);
     auto *glyph=lv_obj_get_child(button,0);
     lv_obj_set_style_text_font(glyph,icons,0);lv_label_set_text(glyph,key.icon);
-    lv_obj_set_style_text_color(glyph,theme::color(key.checked?theme::ON_ACCENT:theme::INK),0);
     lv_obj_set_size(glyph,LV_SIZE_CONTENT,LV_SIZE_CONTENT);lv_obj_center(glyph);
-    if(key.disabled){lv_obj_add_state(button,LV_STATE_DISABLED);if(detail_action_count && detail_actions[detail_action_count-1]==button)--detail_action_count;}
+    card_bind(button,t,cover_key_paint,"",key.command);
   }
 }
 // A battery-powered cover shows its level at the top right, across from the back key: the meter over the
@@ -1870,6 +2292,34 @@ inline int cover_columns(const Tile &t,bool large){
   const auto card=tile_controls::cover_card(t);
   if(!card.position&&!card.tilt)return 1;   // a garage door has no slider to make tall
   return overlay_card::columns(cover_need_height(t,large),ui::mm(30));
+}
+// ---- The cover card's parts (docs/CARD_PARTS.md) ----
+// A position (arg 0) or tilt (arg 1) slider follows the blind as it moves, unless a finger holds it.
+inline float cover_value(const Tile &t,bool tilt){return tilt?t.extra().tilt:t.position;}
+inline void cover_slider_paint(lv_obj_t *slider,const Tile &t,const CardPart &part){
+  if(lv_obj_has_state(slider,LV_STATE_PRESSED))return;
+  const float v=cover_value(t,part.arg);
+  const int raw=part.arg?(std::isfinite(v)?(int)std::lround(std::clamp(v,0.0f,100.0f)*10):500)
+                        :(std::isfinite(v)?(int)std::lround((100.0f-std::clamp(v,0.0f,100.0f))*10):0);
+  if(lv_slider_get_value(slider)!=raw)lv_slider_set_value(slider,raw,LV_ANIM_OFF);
+}
+inline void cover_value_paint(lv_obj_t *value,const Tile &t,const CardPart &part){
+  const float v=cover_value(t,part.arg);
+  label(value,std::isfinite(v)?screen_text::percent((int)std::lround(std::clamp(v,0.0f,100.0f))):std::string("--"));
+}
+// A door that only opens and closes: its icon in the field follows its state.
+inline void cover_icon_paint(lv_obj_t *icon,const Tile &t,const CardPart &){label(icon,icon_for(t));}
+// The line under the name, Home Assistant's words for the state (with the unit where there is one).
+inline void detail_status_paint(lv_obj_t *line,const Tile &t,const CardPart &){label(line,screen_text::with_unit(card_status(t),t.unit));}
+// What decides the cover card's parts: its sliders and keys, and the battery at the top. The position, the tilt,
+// the direction it moves in and its end stops are painted.
+inline uint32_t cover_card_shape(const Tile &t){
+  Fingerprint f;auto add=[&](const std::string &text){f.add(text);f.write('|');};
+  const auto card=tile_controls::cover_card(t);
+  add(t.entity);add(std::to_string(t.supported));add(t.device_class);
+  f.write(card.position);f.write(card.tilt);f.write(card.keys);f.write(card.tilt_keys);
+  add(std::isfinite(t.battery)?std::to_string((int)std::lround(t.battery)):"");
+  return f.value;
 }
 inline void render_cover_detail(Tile &t,bool large,int width,int height,int pad,int columns=1){
   auto card=tile_controls::cover_card(t);
@@ -1919,9 +2369,9 @@ inline void render_cover_detail(Tile &t,bool large,int width,int height,int pad,
       int slider_h=box_h-2*edge-value_h-caption_h+4;
       int x=pad+(box_w-(count*slider_w+(count-1)*slider_gap))/2;
       for(int i=0;i<count;++i,x+=slider_w+slider_gap){
-        cover_slider(detail_root,x,top+edge,slider_w,slider_h,parts[i].value,parts[i].tilt);
+        card_bind(cover_slider(detail_root,x,top+edge,slider_w,slider_h,parts[i].value,parts[i].tilt),t,cover_slider_paint,"",parts[i].tilt);
         int ty=top+edge+slider_h+2,room=slider_w+slider_gap-4;
-        cover_values[parts[i].tilt?1:0]=detail_text(detail_root,percent(parts[i].value),x-(room-slider_w)/2,ty,room,big,LV_TEXT_ALIGN_CENTER,theme::INK);
+        cover_values[parts[i].tilt?1:0]=card_bind(detail_text(detail_root,percent(parts[i].value),x-(room-slider_w)/2,ty,room,big,LV_TEXT_ALIGN_CENTER,theme::INK),t,cover_value_paint,"",parts[i].tilt);
         detail_text(detail_root,parts[i].caption,x-(room-slider_w)/2,ty+value_h,room,text,LV_TEXT_ALIGN_CENTER,theme::SUBTLE);
       }
     }else{
@@ -1929,9 +2379,9 @@ inline void render_cover_detail(Tile &t,bool large,int width,int height,int pad,
       int slider_h=box_h-2*edge,label_w=side_label;
       int column=slider_w+8+label_w,x=pad+(box_w-(count*column+(count-1)*slider_gap))/2;
       for(int i=0;i<count;++i,x+=column+slider_gap){
-        cover_slider(detail_root,x,top+edge,slider_w,slider_h,parts[i].value,parts[i].tilt);
+        card_bind(cover_slider(detail_root,x,top+edge,slider_w,slider_h,parts[i].value,parts[i].tilt),t,cover_slider_paint,"",parts[i].tilt);
         int ty=top+(box_h-value_h-caption_h)/2;
-        cover_values[parts[i].tilt?1:0]=detail_text(detail_root,percent(parts[i].value),x+slider_w+8,ty,label_w,big,LV_TEXT_ALIGN_LEFT,theme::INK);
+        cover_values[parts[i].tilt?1:0]=card_bind(detail_text(detail_root,percent(parts[i].value),x+slider_w+8,ty,label_w,big,LV_TEXT_ALIGN_LEFT,theme::INK),t,cover_value_paint,"",parts[i].tilt);
         detail_text(detail_root,parts[i].caption,x+slider_w+8,ty+value_h,label_w,text,LV_TEXT_ALIGN_LEFT,theme::SUBTLE);
       }
     }
@@ -1941,7 +2391,7 @@ inline void render_cover_detail(Tile &t,bool large,int width,int height,int pad,
     const lv_font_t *icon_font=widgets[0].icon_font?widgets[0].icon_font:mini_icon_font;
     int halo=std::min(box_h-24,ui::px(large?120:72));
     auto *ring=detail_shape(detail_root,pad+(box_w-halo)/2,top+(box_h-halo)/2,halo,halo,cover_track(),halo/2);
-    if(icon_font){auto *icon=detail_text(ring,icon_for(t),0,(halo-lv_font_get_line_height(icon_font))/2,halo,icon_font,LV_TEXT_ALIGN_CENTER,theme::foreground(COVER_ACCENT));(void)icon;}
+    if(icon_font)card_bind(detail_text(ring,icon_for(t),0,(halo-lv_font_get_line_height(icon_font))/2,halo,icon_font,LV_TEXT_ALIGN_CENTER,theme::foreground(COVER_ACCENT)),t,cover_icon_paint);
   }
   // Beside the sliders the keys stand under each other, like the switch on the wall next to a blind; under
   // them they keep their rows. A card with tilt keys as well falls back to rows when a stack would not fit.
@@ -1953,16 +2403,17 @@ inline void render_cover_detail(Tile &t,bool large,int width,int height,int pad,
     int y=top+(box_h-(stacked*key_h+(stacked-1)*gap))/2;
     auto one=[&](const tile_controls::Key &key){
       std::array<tile_controls::Key,3> single{key,{},{}};
-      cover_key_row(single,1,x,y,key_w,key_h,gap,key_icons);
+      cover_key_row(t,single,1,x,y,key_w,key_h,gap,key_icons);
       y+=key_h+gap;
     };
     for(unsigned i=0;i<key_count;++i)one(keys[i]);
     for(unsigned i=0;i<tilt_count;++i)one(tilt_keys[i]);
   }else{
     int y=split?top+(box_h-rows*key_h-(rows>1?gap:0))/2:keys_y;
-    if(key_count){cover_key_row(keys,key_count,keys_x,y,keys_w,key_h,gap,key_icons);y+=key_h+gap;}
-    if(tilt_count)cover_key_row(tilt_keys,tilt_count,keys_x,y,keys_w,key_h,gap,key_icons);
+    if(key_count){cover_key_row(t,keys,key_count,keys_x,y,keys_w,key_h,gap,key_icons);y+=key_h+gap;}
+    if(tilt_count)cover_key_row(t,tilt_keys,tilt_count,keys_x,y,keys_w,key_h,gap,key_icons);
   }
+  card_shaped(t,cover_card_shape);
 }
 // A round key of a card: the - and the + beside a thermostat's setpoint, and the power key in the top bar
 // of the thermostat and of a light or fan. It takes a climate_card::Rect because that card asked first;
@@ -2074,27 +2525,29 @@ inline void render_remote_detail(const Tile &t,bool large,int width,int height,i
   if(!t.extra().keypad.empty()){
     // A remote whose keys Home Assistant's integration names: its keypad, the power key in the top bar.
     if(detail_status){lv_obj_add_flag(detail_status,LV_OBJ_FLAG_HIDDEN);detail_status=nullptr;}
-    auto *power=climate_round_key({width-bar_x-bar,bar_y,bar,bar},tile_controls::glyph::POWER,
-                                  mini_icon_font?mini_icon_font:detail_font,fill,ink,LIGHT_POWER);
+    auto *power=card_bind(climate_round_key({width-bar_x-bar,bar_y,bar,bar},tile_controls::glyph::POWER,
+                                            mini_icon_font?mini_icon_font:detail_font,fill,ink,LIGHT_POWER),t,power_key_paint);
     lv_obj_move_to_index(power,2);
     render_remote_keypad(t,large,width,height,top);
     overlay_card::centre(detail_root,3);
     detail_placed=true;
+    card_shaped(t,select_card_shape);
     return;
   }
   if(t.extra().options.empty()){
     // Nothing but on and off (a Broadlink, an Apple TV): one big power key in the middle, its state under it.
     const lv_font_t *icons=tile_icon_font();
     const int side=ui::px(large?120:76);
-    climate_round_key({(width-side)/2,top,side,side},tile_controls::glyph::POWER,icons?icons:detail_font,fill,ink,LIGHT_POWER);
+    card_bind(climate_round_key({(width-side)/2,top,side,side},tile_controls::glyph::POWER,icons?icons:detail_font,fill,ink,LIGHT_POWER),t,power_key_paint);
     if(detail_status)lv_obj_set_y(detail_status,top+side+ui::px(large?12:6));
+    card_shaped(t,select_card_shape);
     return;
   }
   // The activities say what runs and the lit key that it is on, so the card draws no state line of its own. The key
   // stays in the top bar while the rows below it are centred.
   if(detail_status){lv_obj_add_flag(detail_status,LV_OBJ_FLAG_HIDDEN);detail_status=nullptr;}
-  auto *key=climate_round_key({width-bar_x-bar,bar_y,bar,bar},tile_controls::glyph::POWER,
-                              mini_icon_font?mini_icon_font:detail_font,fill,ink,LIGHT_POWER);
+  auto *key=card_bind(climate_round_key({width-bar_x-bar,bar_y,bar,bar},tile_controls::glyph::POWER,
+                                        mini_icon_font?mini_icon_font:detail_font,fill,ink,LIGHT_POWER),t,power_key_paint);
   lv_obj_move_to_index(key,2);
   render_select_detail(t,large,width,height,pad,top,on?t.extra().activity:std::string());
   overlay_card::centre(detail_root,3);
@@ -2186,6 +2639,35 @@ inline lv_obj_t *light_slider(int x,int y,int w,int h,int raw,uint32_t accent,bo
   lv_obj_add_event_cb(slider,light_slider_event,LV_EVENT_ALL,nullptr);
   return slider;
 }
+// ---- The light and fan card's parts (docs/CARD_PARTS.md) ----
+// The standing slider: where the tile's strip stands (slider_value), in the light's own colour, on the pale amber
+// track while a light is lit. A finger on it keeps it.
+inline void light_slider_paint(lv_obj_t *slider,const Tile &t,const CardPart &part){
+  const int raw=t.state=="on"?slider_value(t):0;
+  set_color(slider,LV_STYLE_BG_COLOR,theme::color(part.arg&&raw>0?theme::AMBER_TRACK:theme::TRACK),LV_PART_MAIN);
+  set_color(slider,LV_STYLE_BG_COLOR,lv_color_hex(tile_controls::accent(t)),LV_PART_INDICATOR);
+  paint_state(slider,LV_STATE_DISABLED,!t.available());
+  if(!lv_obj_has_state(slider,LV_STATE_PRESSED)&&lv_slider_get_value(slider)!=std::clamp(raw,0,1000))lv_slider_set_value(slider,std::clamp(raw,0,1000),LV_ANIM_OFF);
+}
+// The round field of a light that only switches: pale amber while it is on.
+inline void light_halo_paint(lv_obj_t *halo,const Tile &t,const CardPart &){
+  set_color(halo,LV_STYLE_BG_COLOR,theme::color(t.state=="on"?theme::AMBER_TRACK:theme::TRACK));
+}
+// The entity's icon on the foot of the slider (arg 1) or in the field: white on a lit fill, the light's colour on the
+// field while on, grey while off.
+inline void light_icon_paint(lv_obj_t *glyph,const Tile &t,const CardPart &part){
+  const bool on=t.state=="on";
+  const int raw=on?slider_value(t):0;
+  label(glyph,icon_for(t));
+  set_color(glyph,LV_STYLE_TEXT_COLOR,lv_color_hex(part.arg?(raw>0?theme::hex(theme::ON_ACCENT):theme::hex(theme::ICON_OFF))
+                                                          :(on?tile_controls::accent(t):theme::hex(theme::ICON_OFF))));
+}
+inline void light_value_paint(lv_obj_t *value,const Tile &t,const CardPart &){label(value,light_value_text(t));}
+// What decides the light card's parts: whether it dims. On and off, the level and the colour are painted.
+inline uint32_t light_card_shape(const Tile &t){
+  Fingerprint f;f.add(t.entity);f.write('|');f.write(tile_controls::light_dims(t)?'d':'s');
+  return f.value;
+}
 inline void render_light_detail(Tile &t,bool large,int width,int height,int columns) {
   const lv_font_t *big=watch_value_font?watch_value_font:(watch_font?watch_font:detail_font);
   const lv_font_t *text=large?detail_font:(control_font?control_font:detail_font);
@@ -2201,8 +2683,8 @@ inline void render_light_detail(Tile &t,bool large,int width,int height,int colu
   const bool on=t.state=="on";
   const uint32_t accent=tile_controls::accent(t);
   // The power key, across from the back key: lit while the light or the fan is on.
-  climate_round_key({l.power.x,l.power.y,l.power.w,l.power.h},tile_controls::glyph::POWER,mini,
-                    on?theme::ACCENT_TINT:theme::KEY,on?theme::ACCENT_ICON:theme::ICON_OFF,LIGHT_POWER);
+  card_bind(climate_round_key({l.power.x,l.power.y,l.power.w,l.power.h},tile_controls::glyph::POWER,mini,
+                              on?theme::ACCENT_TINT:theme::KEY,on?theme::ACCENT_ICON:theme::ICON_OFF,LIGHT_POWER),t,power_key_paint);
 
   detail_card(l.card.x,l.card.y,l.card.w,l.card.h);
   // Where the slider stands is the tile's own answer (slider_value), so the strip on the tile and the card it
@@ -2211,13 +2693,14 @@ inline void render_light_detail(Tile &t,bool large,int width,int height,int colu
   if(dims){
     auto *slider=light_slider(l.slider.x,l.slider.y,l.slider.w,l.slider.h,raw,accent,t.available(),t.domain()=="light");
     overlay_card::touchable(slider,l.slider.w);
+    card_bind(slider,t,light_slider_paint,"",t.domain()=="light");
   }else if(!l.halo.empty()){
     // A light that only switches: its icon on a round field where the slider would be, lit while it is on, the
     // way the blind's card shows a door that only opens and closes. The power key in the bar does the work.
     // The same two colours the slider's track has, so a light that dims and one that only switches are the
     // same card with the same palette: the light's own pale amber while it is on, the neutral track while off.
-    detail_shape(detail_root,l.halo.x,l.halo.y,l.halo.w,l.halo.h,
-                 theme::hex(on?theme::AMBER_TRACK:theme::TRACK),l.halo.w/2);
+    card_bind(detail_shape(detail_root,l.halo.x,l.halo.y,l.halo.w,l.halo.h,
+                           theme::hex(on?theme::AMBER_TRACK:theme::TRACK),l.halo.w/2),t,light_halo_paint);
   }
   // The entity's icon rides on the foot of the slider, or in the middle of the round field, where the fill is
   // and a finger is not, as it did on the overlay before it and as Home Assistant draws it.
@@ -2226,14 +2709,16 @@ inline void render_light_detail(Tile &t,bool large,int width,int height,int colu
                            :(on?accent:theme::hex(theme::ICON_OFF));
     auto *glyph=detail_text(detail_root,icon_for(t),l.icon.x,l.icon.y,l.icon.w,icons,LV_TEXT_ALIGN_CENTER,ink);
     lv_obj_remove_flag(glyph,LV_OBJ_FLAG_CLICKABLE);
+    card_bind(glyph,t,light_icon_paint,"",dims);
   }
-  light_value=detail_text(detail_root,light_value_text(t),l.value.x,l.value.y,l.value.w,big,
-                          l.columns==2?LV_TEXT_ALIGN_LEFT:LV_TEXT_ALIGN_CENTER,theme::hex(theme::INK));
+  light_value=card_bind(detail_text(detail_root,light_value_text(t),l.value.x,l.value.y,l.value.w,big,
+                                    l.columns==2?LV_TEXT_ALIGN_LEFT:LV_TEXT_ALIGN_CENTER,theme::hex(theme::INK)),t,light_value_paint);
   // The caption only where the words exist: a light says what the slider is, a fan's speed has no word of its
   // own in the screen's languages and does without (the name at the top says which fan it is).
   if(!l.caption.empty()&&dims&&t.domain()=="light")
     detail_text(detail_root,tr(txt::light_brightness),l.caption.x,l.caption.y,l.caption.w,text,
                 l.columns==2?LV_TEXT_ALIGN_LEFT:LV_TEXT_ALIGN_CENTER,theme::hex(theme::SUBTLE));
+  card_shaped(t,light_card_shape);
 }
 // ---- Climate card (firmware 0.2.80): one computed card on every board ----
 // Home Assistant's thermostat dialog in this look, worked out from the entity's own attributes: the state
@@ -2346,7 +2831,8 @@ inline void climate_step(Tile &t,int direction){
   const float current=std::isfinite(t.edit_value)?t.edit_value:tile_controls::edit_target(t);
   t.edit_value=tile_controls::step_value(current,tile_controls::edit_step(t),t.minimum,t.maximum,direction);
   t.edit_since=now;t.edit_sent=false;
-  if(climate_number)label(climate_number,climate_number_text(t));
+  // The number and the keys at the ends of the span follow in place (docs/CARD_PARTS.md).
+  if(!card_repaint(t)&&climate_number)label(climate_number,climate_number_text(t));
 }
 // Holding a key steps three times a second.
 inline void climate_hold(lv_event_t *e){
@@ -2398,6 +2884,68 @@ inline void humidity_ring(const Tile &t,const climate_card::Rect &card,const cli
   (void)t;(void)card;(void)minus;(void)plus;(void)large;
 #endif
 }
+// ---- The climate card's parts (docs/CARD_PARTS.md): each paints itself from the tile ----
+// The mode keys a card shows: the first `count` modes, and the mode in use in the last key when it lies beyond them,
+// so the card always says where it stands.
+inline std::vector<std::string> climate_shown_keys(const std::vector<std::string> &modes,int count,const std::string &mode){
+  std::vector<std::string> keys(modes.begin(),modes.begin()+std::min<int>(count,(int)modes.size()));
+  if((int)modes.size()>count&&count>0)for(int i=count;i<(int)modes.size();++i)if(modes[i]==mode)keys.back()=mode;
+  return keys;
+}
+inline int climate_card_mode_keys=0;  // how many mode keys the open card has
+// The power key: lit while the device runs in any mode.
+inline void climate_power_paint(lv_obj_t *key,const Tile &t,const CardPart &){
+  const bool off=tile_controls::climate_off(t);
+  set_color(key,LV_STYLE_BG_COLOR,theme::color(off?theme::KEY:theme::ACCENT_TINT));
+  if(auto *glyph=lv_obj_get_child(key,0))set_color(glyph,LV_STYLE_TEXT_COLOR,theme::color(off?theme::ICON_OFF:theme::ACCENT_ICON));
+}
+// The number between - and +: the value being set, grey while the device is off.
+inline void climate_number_paint(lv_obj_t *number,const Tile &t,const CardPart &){
+  label(number,climate_number_text(t));
+  set_color(number,LV_STYLE_TEXT_COLOR,theme::color(tile_controls::climate_off(t)?theme::OFF:theme::INK));
+}
+// - or + (arg -1 or 1): faded at the end of the device's span.
+inline void climate_limit_paint(lv_obj_t *key,const Tile &t,const CardPart &part){
+  const float shown=std::isfinite(t.edit_value)?t.edit_value:tile_controls::edit_target(t);
+  const bool known=std::isfinite(shown)&&!tile_controls::climate_range(t);
+  const bool end=known&&(part.arg<0?shown<=t.minimum:shown>=t.maximum);
+  paint_state(key,LV_STATE_DISABLED,card_blocked||end);
+}
+// A mode key (value: its mode), in Home Assistant's colour for its mode while it is the one in use.
+inline void climate_mode_paint(lv_obj_t *key,const Tile &t,const CardPart &part){
+  const bool selected=!tile_controls::climate_off(t)&&part.value==tile_controls::current_mode(t);
+  const uint32_t colour=tile_controls::humidifier(t)?tile_controls::accent(t):tile_controls::mode_color(part.value);
+  set_color(key,LV_STYLE_BG_COLOR,selected?lv_color_hex(colour):theme::color(theme::CARD));
+  set_number(key,LV_STYLE_BORDER_WIDTH,selected?0:1);
+  if(auto *glyph=lv_obj_get_child(key,0))set_color(glyph,LV_STYLE_TEXT_COLOR,theme::color(selected?theme::ON_ACCENT:theme::SLATE));
+}
+// A segment of the fan or swing row (arg: the row's kind, value: its choice).
+inline void climate_row_paint(lv_obj_t *segment,const Tile &t,const CardPart &part){
+  // The rows are worked out once per paint of the card, not once per segment.
+  static uint32_t pass=0;static std::vector<tile_controls::ClimateRow> rows;
+  if(pass!=card_pass){pass=card_pass;rows=tile_controls::climate_rows(t);}
+  for(const auto &row:rows)if(row.kind==(char)part.arg){segment_paint(segment,row.current==part.value);return;}
+}
+// The line that says what the device does (arg 1: the short words of the caption under the number).
+inline void card_status_paint(lv_obj_t *line,const Tile &t,const CardPart &part){ label(line,card_status(t,part.arg!=0)); }
+// What decides the climate card's parts: its modes and rows, a range's band and a humidifier's ring, which draw their
+// values into their shape. A mode, a fan speed, the number, on and off are painted.
+inline uint32_t climate_card_shape(const Tile &t){
+  Fingerprint f;
+  auto add=[&](const std::string &text){f.add(text);f.write('|');};
+  auto number=[&](float v){char b[24];snprintf(b,sizeof(b),"%.2f",v);add(b);};
+  add(t.entity);f.write(fresh()&&t.available());add(t.unit);add(t.device_class);
+  number(t.minimum);number(t.maximum);number(t.step);add(std::to_string(t.supported));
+  const auto modes=tile_controls::climate_modes(t);
+  for(const auto &m:modes)add(m);
+  f.write('|');for(const auto &k:climate_shown_keys(modes,climate_card_mode_keys,tile_controls::current_mode(t)))add(k);
+  for(const auto &row:tile_controls::climate_rows(t)){f.write(row.kind);add(row.icon);for(const auto &v:row.values)add(v);for(const auto &w:row.labels)add(w);}
+  const bool range=tile_controls::climate_range(t),wet=tile_controls::humidifier(t);
+  f.write(range);f.write(wet);
+  if(range){number(tile_controls::range_end(t,tile_controls::RANGE_LOW));number(tile_controls::range_end(t,tile_controls::RANGE_HIGH));number(t.current);number(t.edit_value);number(t.edit_high);f.write(t.range_end);}
+  if(wet){number(t.current);number(tile_controls::edit_target(t));number(t.edit_value);add(t.extra().hvac_action);f.write(tile_controls::climate_off(t));}
+  return f.value;
+}
 inline void render_climate_detail(Tile &t,bool large,int width,int height,int columns){
   const lv_font_t *text=large?detail_font:(control_font?control_font:detail_font);
   const lv_font_t *small=small_font?small_font:text;
@@ -2429,21 +2977,20 @@ inline void render_climate_detail(Tile &t,bool large,int width,int height,int co
   detail_placed=true;   // the layout has already put every block where the glass has room for it
 
   // The power key, across from the back key: lit while the device runs in any mode.
-  climate_round_key(l.power,tile_controls::glyph::POWER,mini,off?theme::KEY:theme::ACCENT_TINT,
-                    off?theme::ICON_OFF:theme::ACCENT_ICON,CLIMATE_POWER);
+  climate_card_mode_keys=0;
+  card_bind(climate_round_key(l.power,tile_controls::glyph::POWER,mini,off?theme::KEY:theme::ACCENT_TINT,
+                              off?theme::ICON_OFF:theme::ACCENT_ICON,CLIMATE_POWER),t,climate_power_paint);
   if(!l.status.empty()){
-    detail_status=detail_text(detail_root,card_status(t),l.status.x,l.status.y,l.status.w,text,LV_TEXT_ALIGN_CENTER,theme::MUTED);
+    detail_status=card_bind(detail_text(detail_root,"",l.status.x,l.status.y,l.status.w,text,LV_TEXT_ALIGN_CENTER,theme::MUTED),t,card_status_paint);
   }
   // The setpoint: the number between the two keys, the word under it while there is room.
   detail_card(l.setpoint.x,l.setpoint.y,l.setpoint.w,l.setpoint.h);
   const lv_font_t *key_icons=tile_icons&&lv_font_get_line_height(tile_icons)<=l.minus.h-ui::px(8)?tile_icons:mini;
   auto *down=climate_round_key(l.minus,tile_controls::glyph::MINUS,key_icons,theme::TRACK,theme::INK,CLIMATE_DOWN);
   auto *up=climate_round_key(l.plus,tile_controls::glyph::PLUS,key_icons,theme::TRACK,theme::INK,CLIMATE_UP);
-  const float shown=std::isfinite(t.edit_value)?t.edit_value:tile_controls::edit_target(t);
-  if(known&&std::isfinite(shown)&&!tile_controls::climate_range(t)){   // a range stops at the other end in climate_step
-    if(shown<=t.minimum)lv_obj_add_state(down,LV_STATE_DISABLED);
-    if(shown>=t.maximum)lv_obj_add_state(up,LV_STATE_DISABLED);
-  }
+  // A range stops at the other end in climate_step; a single setpoint fades the key at the end of the span.
+  card_bind(down,t,climate_limit_paint,"",-1);card_bind(up,t,climate_limit_paint,"",1);
+  (void)known;
   for(lv_obj_t *key:{down,up})lv_obj_add_event_cb(key,climate_hold,LV_EVENT_LONG_PRESSED_REPEAT,(void*)(intptr_t)(key==up?1:-1));
   const lv_font_t *face=l.small_number?(watch_font?watch_font:number_font):number_font;
   if(range){
@@ -2529,13 +3076,13 @@ inline void render_climate_detail(Tile &t,bool large,int width,int height,int co
     climate_paint_ends(t);
   }else{
     if(tile_controls::humidifier(t))humidity_ring(t,l.setpoint,l.minus,l.plus,large);
-    climate_number=detail_text(detail_root,climate_number_text(t),l.number.x,l.number.y,l.number.w,face,LV_TEXT_ALIGN_CENTER,off?theme::OFF:theme::INK);
+    climate_number=card_bind(detail_text(detail_root,"",l.number.x,l.number.y,l.number.w,face,LV_TEXT_ALIGN_CENTER,off?theme::OFF:theme::INK),t,climate_number_paint);
   }
   // The word under the number, or what the thermostat is doing when the glass had no room for a line of its own.
   if(!range&&!l.caption.empty()){
-    auto *caption=detail_text(detail_root,l.caption_is_status?card_status(t,true):std::string(tr(txt::climate_target)),
+    auto *caption=detail_text(detail_root,l.caption_is_status?std::string():std::string(tr(txt::climate_target)),
                               l.caption.x,l.caption.y,l.caption.w,small,LV_TEXT_ALIGN_CENTER,theme::SUBTLE);
-    if(l.caption_is_status){detail_status=caption;detail_status_brief=true;}
+    if(l.caption_is_status){detail_status=card_bind(caption,t,card_status_paint,"",1);detail_status_brief=true;}
   }
   // One key per mode, in Home Assistant's colour for the one in use. A device with one mode shows none: the
   // power key already turns it on and off.
@@ -2543,27 +3090,21 @@ inline void render_climate_detail(Tile &t,bool large,int width,int height,int co
     const int shown_modes=std::min<int>(l.mode_count,(int)modes.size());
     const int key_w=(l.modes.w-(shown_modes-1)*l.mode_gap)/std::max(1,shown_modes);
     // More modes than keys: the mode in use takes the last key, so the card always says where it stands.
-    std::vector<std::string> keys(modes.begin(),modes.begin()+shown_modes);
+    climate_card_mode_keys=shown_modes;
+    const std::vector<std::string> keys=climate_shown_keys(modes,shown_modes,mode);
     std::vector<int> commands(shown_modes);
-    for(int i=0;i<shown_modes;++i)commands[i]=CLIMATE_MODE_FIRST+i;
-    if((int)modes.size()>shown_modes)
-      for(int i=shown_modes;i<(int)modes.size();++i)
-        if(modes[i]==mode){keys[shown_modes-1]=modes[i];commands[shown_modes-1]=CLIMATE_MODE_FIRST+i;}
+    for(int i=0;i<shown_modes;++i)commands[i]=CLIMATE_MODE_FIRST+(int)(std::find(modes.begin(),modes.end(),keys[i])-modes.begin());
     const lv_font_t *mode_icons=tile_icons&&lv_font_get_line_height(tile_icons)<=l.modes.h-ui::px(6)?tile_icons:mini;
     for(int i=0;i<shown_modes;++i){
-      const bool selected=!off&&keys[i]==mode;
-      const uint32_t colour=tile_controls::humidifier(t)?tile_controls::accent(t):tile_controls::mode_color(keys[i]);
       auto *key=detail_button("",l.modes.x+i*(key_w+l.mode_gap),l.modes.y,key_w,l.modes.h,commands[i]);
       lv_obj_set_style_radius(key,l.modes.h/2,0);
-      lv_obj_set_style_bg_color(key,selected?lv_color_hex(colour):theme::color(theme::CARD),0);
       lv_obj_set_style_bg_color(key,theme::color(theme::KEY),LV_STATE_PRESSED);
-      lv_obj_set_style_border_width(key,selected?0:1,0);
       lv_obj_set_style_border_color(key,theme::color(theme::LINE),0);
       auto *glyph=lv_obj_get_child(key,0);
       if(mode_icons)lv_obj_set_style_text_font(glyph,mode_icons,0);
       lv_label_set_text(glyph,tile_controls::thermostat_mode_icon(t,keys[i]));
-      lv_obj_set_style_text_color(glyph,theme::color(selected?theme::ON_ACCENT:theme::SLATE),0);
       lv_obj_set_size(glyph,LV_SIZE_CONTENT,LV_SIZE_CONTENT);lv_obj_center(glyph);
+      card_bind(key,t,climate_mode_paint,keys[i]);
     }
   }
   // The fan and the swing, each a row of choices behind its icon, on one white card.
@@ -2575,10 +3116,13 @@ inline void render_climate_detail(Tile &t,bool large,int width,int height,int co
       detail_text(detail_root,row.icon,l.row_icons[i].x,l.row_icons[i].y+(l.row_icons[i].h-icon_h)/2,l.row_icons[i].w,mini,LV_TEXT_ALIGN_LEFT,theme::SUBTLE);
       int chosen=-1;
       for(size_t v=0;v<row.values.size();++v)if(row.values[v]==row.current)chosen=(int)v;
-      segments(l.row_tracks[i].x,l.row_tracks[i].y,l.row_tracks[i].w,l.row_tracks[i].h,row.labels,chosen,
-               CLIMATE_ROW_FIRST+i*6,theme::hex(theme::TRACK),false,text,small);
+      const auto made=segments(l.row_tracks[i].x,l.row_tracks[i].y,l.row_tracks[i].w,l.row_tracks[i].h,row.labels,chosen,
+                               CLIMATE_ROW_FIRST+i*6,theme::hex(theme::TRACK),false,text,small);
+      for(size_t v=0;v<made.size()&&v<row.values.size();++v)card_bind(made[v],t,climate_row_paint,row.values[v],row.kind);
     }
   }
+  // Everything that changes with a mode, a choice, the number or on and off paints itself from here on.
+  card_shaped(t,climate_card_shape);
 }
 // ---- Alarm panel (firmware 0.3.3+): Home Assistant's alarm dialog and its code dialog in this look ----
 // alarm_panel.h decides (the modes, when a code is asked for, the lock after wrong codes, where the parts go); this
@@ -2968,6 +3512,7 @@ inline void render_code_pad(const alarm_panel::Metrics &m,int width,int top,int 
   detail_action_count=before;
   alarm_keys_state();
 }
+inline uint32_t security_card_shape(const Tile &t);
 inline void render_alarm_detail(Tile &t,bool large,int width,int height,lv_obj_t *heading){
   using namespace alarm_panel;
   detail_placed=true;
@@ -2975,6 +3520,7 @@ inline void render_alarm_detail(Tile &t,bool large,int width,int height,lv_obj_t
   // A keypad to disarm closes when the panel is disarmed another way.
   if(alarm_pad.open&&(!t.available()||(alarm_pad.mode==DISARM&&t.state=="disarmed")))alarm_close_pad();
   alarm_forget_widgets();
+  card_shaped(t,security_card_shape);
   const lv_font_t *text=large?detail_font:(control_font?control_font:detail_font);
   const lv_font_t *icons=tile_icon_font();
   const lv_font_t *mini=mini_icon_font?mini_icon_font:detail_font;
@@ -3265,12 +3811,33 @@ inline void lock_card_ring(const Tile &t,int cx,int cy,int size,int width){
 #endif
 }
 inline void render_code_pad(const alarm_panel::Metrics &m,int width,int top,int bottom,const lv_font_t *text,const lv_font_t *icons,const lv_font_t *mini);
+// The lock and alarm cards (docs/CARD_PARTS.md, "Security cards"): every state, every step of a code, every attempt,
+// a second tap asked for and a lockout are their shape, so each of those builds the card as it always did, with its
+// animations. Only their status line paints itself (who locked it, a note that runs out).
+inline uint32_t security_card_shape(const Tile &t){
+  Fingerprint f;auto add=[&](const std::string &text){f.add(text);f.write('|');};
+  auto number=[&](uint32_t v){add(std::to_string(v));};
+  const uint32_t now=esphome::millis();
+  const auto &x=t.extra();
+  const auto codes=alarm_codes(t);
+  add(t.entity);add(t.state);add(t.icon);add(t.guard);number(t.supported);f.write(t.available());f.write(fresh());
+  add(codes.format);f.write(codes.arm_required);f.write(codes.saved);f.write(x.assumed);number(x.alarm_end);number(x.alarm_delay);
+  f.write(alarm_pad.open);number(alarm_pad.mode);number(alarm_pad.code.size());add(alarm_pad.entity);
+  number(alarm_pad.note);f.write(alarm_pad.note&&now-alarm_pad.note_at<4000);number(alarm_pad.shake_at);
+  f.write(alarm_attempt.active);add(alarm_attempt_entity);f.write(alarm_lock.locked(now));number(alarm_lock.remaining_s(now));
+  number(alarm_left(t));f.write(alarm_arrived(t));f.write(awake());
+  for(auto act:{lock_panel::LOCK,lock_panel::UNLOCK,lock_panel::OPEN})f.write(lock_asking(t,true,act));
+  f.write(lock_asking(t,false));f.write(lock_noting(t));number((uint32_t)(int32_t)t.ask_act);f.write(t.ask_card);number(t.ask_since);
+  f.write(t.loading(now));f.write(t.refused_at!=0);
+  return f.value;
+}
 inline void render_lock_detail(Tile &t,bool large,int width,int height,lv_obj_t *heading){
   using namespace alarm_panel;
   detail_placed=true;
   if(alarm_pad.entity!=t.entity){alarm_close_pad();alarm_pad.entity=t.entity;}
   if(alarm_pad.open&&!t.available())alarm_close_pad();
   alarm_forget_widgets();lock_ring=nullptr;
+  card_shaped(t,security_card_shape);
   const lv_font_t *text=large?detail_font:(control_font?control_font:detail_font);
   const lv_font_t *icons=tile_icon_font();
   const lv_font_t *mini=mini_icon_font?mini_icon_font:detail_font;
@@ -3731,9 +4298,9 @@ inline void render_history_detail(const Tile &t,bool large,int width,int height,
       bool allowed=fresh() && tile.available() && !tile.waiting(esphome::millis()) &&
         screen_input::touch_guard.accept(esphome::millis(),350);
       bool requested_on=lv_obj_has_state(control,LV_STATE_CHECKED);
-      // Only HA's reported state is authoritative, including a refused/failed command.
+      // A tap that may not act leaves the switch where the tile is; one that may is a wish (docs/OPTIMISTIC.md).
+      if(allowed && requested_on!=(tile.state=="on")){toggle_wish(tile);return;}
       if(tile.state=="on")lv_obj_add_state(control,LV_STATE_CHECKED);else lv_obj_remove_state(control,LV_STATE_CHECKED);
-      if(allowed){tile.optimistic(requested_on);action(tile.domain()+(requested_on?".turn_on":".turn_off"),tile.entity);}
     },LV_EVENT_VALUE_CHANGED,nullptr);
     if(detail_action_count<32)detail_actions[detail_action_count++]=detail_switch;
     right-=sw+(ui::px(large?14:8));
@@ -3772,6 +4339,7 @@ inline void render_history_detail(const Tile &t,bool large,int width,int height,
   // The graph took the glass; the keys under it keep a hand's width and stand in the middle of the card.
   const auto keys=overlay_card::reach(width,width-2*pad);
   history_ranges(keys.x,range_y,keys.w,range_h);
+  card_shaped(t,picture_card_shape);
 }
 // ---- The media card (firmware 0.2.64+) ----
 // "Now playing" as a phone shows it: the album cover (app 0.2.77+ serves it, a Guition draws it; the CYD keeps the
@@ -3800,16 +4368,24 @@ inline media_card::Metrics media_metrics(bool large,uint32_t duration=0){
 }
 // What the keys do, on the card and on a tile over the whole page: 20 play or pause, 21 previous, 22 next, 23 mute,
 // 24 turn on, 30 turn off.
+// Play or pause, mute, shuffle and repeat show at once (docs/OPTIMISTIC.md); the track keys and power wait for the
+// player, whose next track and state after power the screen cannot know.
 inline void media_action(Tile &t,int cmd){
-  if(cmd==20)action("media_player.media_play_pause",media_entity(t));
+  using F=optimistic::Field;
+  if(cmd==20){
+    const auto a=tile_controls::media_play_action(t);
+    const auto w=tile_controls::wanted(t,tile_controls::MEDIA_PLAY_PAUSE);
+    if(a.valid()&&w.valid)wish(t,F::PLAYING,w.value,a.service,"","",media_entity(t));
+    else action("media_player.media_play_pause",media_entity(t));
+  }
   if(cmd==21)action("media_player.media_previous_track",media_entity(t));
   if(cmd==22)action("media_player.media_next_track",media_entity(t));
-  if(cmd==23)action("media_player.volume_mute",media_entity(t),"is_volume_muted",t.muted?"false":"true");
+  if(cmd==23)wish(t,F::MUTED,t.muted?"0":"1","media_player.volume_mute","is_volume_muted",t.muted?"false":"true",media_entity(t));
   if(cmd==24)action("media_player.turn_on",media_entity(t));
   if(cmd==30)action("media_player.turn_off",media_entity(t));
   // Shuffle and repeat on the card (firmware 0.24.0+): the other way round, and repeat's next step.
-  if(cmd==25)action("media_player.shuffle_set",media_entity(t),"shuffle",t.extra().media_shuffle==1?"false":"true");
-  if(cmd==26)action("media_player.repeat_set",media_entity(t),"repeat",media_card::next_repeat(t.extra().media_repeat));
+  if(cmd==25)wish(t,F::SHUFFLE,t.extra().media_shuffle==1?"0":"1","media_player.shuffle_set","shuffle",t.extra().media_shuffle==1?"false":"true",media_entity(t));
+  if(cmd==26){const std::string next=media_card::next_repeat(t.extra().media_repeat);wish(t,F::REPEAT,next,"media_player.repeat_set","repeat",next,media_entity(t));}
 }
 // An off or standby player shows one key: power, when the player can be turned on from here.
 inline bool media_off(const Tile &t){return t.state=="off" || t.state=="standby";}
@@ -3950,16 +4526,10 @@ inline Tile *media_volume_tile(lv_obj_t *key,bool card){
   for(auto &w:widgets)if(w.extra_mode=="media"&&key&&(w.parts[11]==key||w.parts[13]==key))return w.index<model.count?&model.tiles[w.index]:nullptr;
   return nullptr;
 }
-inline std::string media_mute_entity;
+// Muted or not shows at once on the card and the tiles (docs/OPTIMISTIC.md).
 inline void media_mute(Tile &t,bool muted){
-  step_action("media_player.volume_mute",media_entity(t),"is_volume_muted",muted?"true":"false");
-  t.muted=muted;
-  // The card and the tiles show it at once; drawn after this event, which belongs to a key the redraw may delete.
-  media_mute_entity=t.entity;
-  lv_async_call([](void *){
-    for(size_t i=0;i<model.count;++i)if(model.tiles[i].entity==media_mute_entity)refresh_tile(i);
-    if(detail_root&&!lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN))redraw_detail();
-  },nullptr);
+  if(muted==t.muted)return;
+  wish(t,optimistic::Field::MUTED,muted?"1":"0","media_player.volume_mute","is_volume_muted",muted?"true":"false",media_entity(t));
 }
 inline void media_volume_event(lv_event_t *e){
   const intptr_t tag=(intptr_t)lv_event_get_user_data(e);
@@ -3981,6 +4551,15 @@ inline void media_volume_event(lv_event_t *e){
   if(!screen_input::touch_guard.accept_repeat(now,720+up))return;
   if(t->muted){media_mute(*t,false);return;}
   step_action(up?"media_player.volume_up":"media_player.volume_down",media_entity(*t));
+}
+// The card's volume row paints itself (docs/CARD_PARTS.md): volume down shows the muted speaker while muted, and the
+// slider's fill goes faint.
+inline void media_minus_paint(lv_obj_t *key,const Tile &t,const CardPart &){
+  paint_glyph(key,t.muted?tile_controls::glyph::MUTED:tile_controls::glyph::MINUS);
+}
+inline void media_volume_paint(lv_obj_t *slider,const Tile &t,const CardPart &){
+  set_color(slider,LV_STYLE_BG_COLOR,theme::rgb(t.muted?media_soft(media_ground(t)):media_ink()),LV_PART_INDICATOR);
+  if(!lv_obj_has_state(slider,LV_STATE_PRESSED)&&lv_slider_get_value(slider)!=slider_value(t))lv_slider_set_value(slider,slider_value(t),LV_ANIM_OFF);
 }
 // Volume down, the slider and volume up. `parts` keeps a tile's three across redraws (nullptr: the card makes them
 // anew), `g` the card's ground its keys are drawn on (a tile keeps the keys' own colours).
@@ -4006,6 +4585,7 @@ inline void media_volume_row(lv_obj_t *parent,lv_obj_t **parts,const media_card:
     set_color(made[1],LV_STYLE_BG_COLOR,theme::rgb(t.muted?soft:ink),LV_PART_INDICATOR);
     set_color(made[1],LV_STYLE_BG_COLOR,theme::rgb(ink),LV_PART_KNOB);
   }
+  if(card){card_bind(made[0],t,media_minus_paint);card_bind(made[1],t,media_volume_paint);}
   if(parts)for(int i=0;i<3;++i)parts[i]=made[i];
 }
 // The media card's seek (firmware 0.24.0+): a finger on the bar moves its knob, and the place it lets go of is sent.
@@ -4122,6 +4702,63 @@ inline void media_top_bar(const Tile &t,lv_obj_t *back,lv_obj_t *heading,int wid
   lv_obj_remove_flag(words,LV_OBJ_FLAG_CLICKABLE);
 }
 // The card: everything under the top bar, from `top` down.
+// ---- The media card's parts (docs/CARD_PARTS.md): each paints itself from the tile ----
+inline bool media_usable(const Tile &t){return fresh()&&t.available();}
+inline bool media_track(const Tile &t){return media_usable(t)&&media_card::has_track(t.state);}
+inline bool media_at_rest(const Tile &t){
+  const auto &x=t.extra();
+  return media_usable(t)&&!media_track(t)&&!media_off(t)&&x.media_library&&media_library::available()&&
+         !(t.supported&(tile_controls::feature::MEDIA_PLAY|tile_controls::feature::MEDIA_PAUSE));
+}
+// The title, or what the player does when nothing plays; a new text starts its roll again, the same one rolls on.
+inline void media_title_paint(lv_obj_t *line,const Tile &t,const CardPart &){
+  const auto &x=t.extra();
+  label(line,media_track(t)&&!x.media_title.empty()?x.media_title:std::string(media_card::idle_text(media_usable(t)?t.state:"unavailable")));
+}
+inline void media_artist_paint(lv_obj_t *line,const Tile &t,const CardPart &){
+  const auto &x=t.extra();
+  label(line,media_track(t)?media_card::subtitle(x.media_artist,x.media_album):media_at_rest(t)?std::string(tr(txt::media_library_hint)):std::string());
+}
+inline void media_play_paint(lv_obj_t *key,const Tile &t,const CardPart &){
+  paint_glyph(key,media_card::playing(t.state)?tile_controls::glyph::PAUSE:tile_controls::glyph::PLAY);
+}
+// Shuffle on is the accent, off a faded white; the dot under it shows while it is on.
+inline void media_shuffle_paint(lv_obj_t *key,const Tile &t,const CardPart &){
+  if(auto *icon=lv_obj_get_child(key,0))set_color(icon,LV_STYLE_TEXT_COLOR,theme::rgb(t.extra().media_shuffle==1?media_accent():media_soft(media_ground(t))));
+}
+inline void media_shuffle_dot_paint(lv_obj_t *dot,const Tile &t,const CardPart &){
+  set_hidden(dot,t.extra().media_shuffle!=1);
+}
+// Repeat all and one the accent (one with its own glyph), off a faded white.
+inline void media_repeat_paint(lv_obj_t *key,const Tile &t,const CardPart &){
+  const auto &repeat=t.extra().media_repeat;
+  paint_glyph(key,repeat=="one"?"\U000F0458":"\U000F0456");
+  if(auto *icon=lv_obj_get_child(key,0))set_color(icon,LV_STYLE_TEXT_COLOR,theme::rgb(repeat!="off"?media_accent():media_soft(media_ground(t))));
+}
+// The bar stands where a pause left it and runs on from there (the bar's own second-by-second tick does the rest).
+inline void media_bar_paint(lv_obj_t *,const Tile &t,const CardPart &){
+  if(media_progress_fill&&!media_seeking&&t.extra().media_duration)
+    media_bar_at(media_elapsed(t),t.extra().media_duration,media_progress_fill,media_elapsed_label,media_bar_width);
+}
+// What decides the media card's parts: whether something plays at all, the cover and its ground, the keys the player
+// has, the length of the track, the speakers and inputs. Play or pause, the words, mute, shuffle, repeat, the volume and
+// the bar are painted.
+inline uint32_t media_card_shape(const Tile &t){
+  Fingerprint f;
+  auto add=[&](const std::string &text){f.add(text);f.write('|');};
+  const auto &x=t.extra();
+  add(t.entity);f.write(media_usable(t));f.write(media_track(t));f.write(media_at_rest(t));f.write(media_off(t));
+  add(std::to_string(t.supported));add(std::to_string(x.media_features));add(std::to_string(x.media_duration));
+  add(x.media_picture);add(std::to_string(x.has_ground));add(std::to_string(x.ground_top));add(std::to_string(x.ground_bottom));add(std::to_string(x.ground_known));
+  add(std::to_string(x.media_library&&media_library::available()));add(std::to_string(x.media_inputs.size()));
+  add(x.media_source);add(std::to_string(x.media_sources.size()));add(std::to_string(x.assumed));
+  // Whether shuffle, repeat and the volume row are there at all.
+  f.write(x.media_shuffle>=0);f.write(!x.media_repeat.empty());f.write(std::isfinite(t.volume));
+  // Volume down works while muted on a player that cannot set its volume: then muting changes what the keys can do.
+  if(!(t.supported&(tile_controls::feature::MEDIA_VOLUME_SET|tile_controls::feature::MEDIA_VOLUME_STEP)))f.write(t.muted);
+  add(std::to_string(media_ground_pending));add(std::to_string(camera_supported()));
+  return f.value;
+}
 inline void render_media_detail(Tile &t,unsigned index,bool large,int width,int height,int top){
   using namespace media_card;
   using namespace tile_controls;
@@ -4166,9 +4803,8 @@ inline void render_media_detail(Tile &t,unsigned index,bool large,int width,int 
   const lv_font_t *title_font=watch_font?watch_font:detail_font,*artist_font=control_font?control_font:detail_font,*small=small_font?small_font:detail_font;
   const lv_text_align_t align=l.wide?LV_TEXT_ALIGN_LEFT:LV_TEXT_ALIGN_CENTER;
   // A title or artist line wider than the card rolls by, round and round (firmware 0.2.77+); a shorter one stands still.
-  marquee(detail_text(detail_root,track&&!x.media_title.empty()?x.media_title:std::string(idle_text(usable?t.state:"unavailable")),l.title.x,l.title.y+top,l.title.w,title_font,align,ink));
-  const std::string second=track?subtitle(x.media_artist,x.media_album):rest?std::string(tr(txt::media_library_hint)):std::string();
-  if(l.artist)marquee(detail_text(detail_root,second,l.artist_line.x,l.artist_line.y+top,l.artist_line.w,artist_font,align,soft));
+  marquee(card_bind(detail_text(detail_root,"",l.title.x,l.title.y+top,l.title.w,title_font,align,ink),t,media_title_paint));
+  if(l.artist)marquee(card_bind(detail_text(detail_root,"",l.artist_line.x,l.artist_line.y+top,l.artist_line.w,artist_font,align,soft),t,media_artist_paint));
   // The progress bar: the fill runs while the track plays; a stream without a length has no bar to show. Where the
   // player seeks (firmware 0.24.0+) the bar has a knob, and a finger on it moves the track.
   media_progress_fill=nullptr;media_elapsed_label=nullptr;media_knob=nullptr;media_bar_width=l.bar.w;media_bar_x=l.bar.x;
@@ -4194,6 +4830,7 @@ inline void render_media_detail(Tile &t,unsigned index,bool large,int width,int 
       media_elapsed_label=detail_text(detail_root,clock_text(elapsed),l.elapsed.x,l.elapsed.y+top,l.elapsed.w,small,LV_TEXT_ALIGN_LEFT,soft);
       detail_text(detail_root,clock_text(x.media_duration),l.total.x,l.total.y+top,l.total.w,small,LV_TEXT_ALIGN_RIGHT,soft);
     }
+    card_bind(media_progress_fill,t,media_bar_paint);
   }
   // The keys: previous, play or pause in white, next; shuffle and repeat at the ends where the row has room; under them
   // the volume row. An off player shows one power key instead, and no volume: it reports none. A player at rest with a
@@ -4219,17 +4856,21 @@ inline void render_media_detail(Tile &t,unsigned index,bool large,int width,int 
           media_key(detail_root,nullptr,at(l.play),play?glyph::PAUSE:glyph::PLAY,tile_icon_font(),true,false,can(feature::MEDIA_PLAY|feature::MEDIA_PAUSE),cb,(void*)(intptr_t)20),
           media_key(detail_root,nullptr,at(l.next),glyph::NEXT,key_font,false,false,can(feature::MEDIA_NEXT),cb,(void*)(intptr_t)22)};
     media_dark_key(keys[0],false,false,g);media_dark_key(keys[1],true,false,g);media_dark_key(keys[2],false,false,g);
+    card_bind(keys[1],t,media_play_paint);
     // Shuffle on is the accent with a dot under it, as on a phone; repeat all and one the accent, off a faded white.
     if(l.sides && x.media_shuffle>=0 && (had&feature::MEDIA_SHUFFLE)){
       const bool on=x.media_shuffle==1;
       keys.push_back(media_key(detail_root,nullptr,at(l.shuffle),"\U000F049F",key_font,false,true,can(feature::MEDIA_SHUFFLE),cb,(void*)(intptr_t)25));
       media_dark_key(keys.back(),false,true,g,on?media_accent():soft);
-      if(on){const int d=ui::px(large?5:4);media_box(detail_root,nullptr,Rect{at(l.shuffle).cx()-d/2,at(l.shuffle).bottom()+ui::px(2),d,d},media_accent(),LV_RADIUS_CIRCLE);}
+      card_bind(keys.back(),t,media_shuffle_paint);
+      const int d=ui::px(large?5:4);
+      card_bind(media_box(detail_root,nullptr,Rect{at(l.shuffle).cx()-d/2,at(l.shuffle).bottom()+ui::px(2),d,d},media_accent(),LV_RADIUS_CIRCLE),t,media_shuffle_dot_paint);
     }
     if(l.sides && !x.media_repeat.empty() && (had&feature::MEDIA_REPEAT)){
       const bool on=x.media_repeat!="off";
       keys.push_back(media_key(detail_root,nullptr,at(l.repeat),x.media_repeat=="one"?"\U000F0458":"\U000F0456",key_font,false,true,can(feature::MEDIA_REPEAT),cb,(void*)(intptr_t)26));
       media_dark_key(keys.back(),false,true,g,on?media_accent():soft);
+      card_bind(keys.back(),t,media_repeat_paint);
     }
     if(std::isfinite(t.volume))media_volume_row(detail_root,nullptr,at(l.minus),at(l.volume),at(l.plus),t,large,usable,(void*)(uintptr_t)index,true,&g,key_font);
   }
@@ -4247,6 +4888,8 @@ inline void render_media_detail(Tile &t,unsigned index,bool large,int width,int 
   // Only the keys the player supports join the card's actions: tick() enables those again after a wait, and a key
   // the player lacks stays faded.
   for(auto *k:keys)if(!lv_obj_has_state(k,LV_STATE_DISABLED) && detail_action_count<32)detail_actions[detail_action_count++]=k;
+  // Play or pause, the words, mute, shuffle, repeat, the volume and the bar paint themselves from here on.
+  card_shaped(t,media_card_shape);
 }
 inline void show_detail(unsigned index){
   if(index>=model.count&&index!=SENSOR_DETAIL)return;
@@ -4273,7 +4916,8 @@ inline void show_detail(unsigned index){
   }
   lv_obj_set_style_bg_color(detail_backdrop,theme::color(theme::PAGE),0);lv_obj_set_style_bg_opa(detail_backdrop,LV_OPA_COVER,0);
   lv_obj_remove_flag(detail_backdrop,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_backdrop);
-  detail_action_count=0;detail_status=nullptr;detail_badge_status=nullptr;detail_switch=nullptr;climate_number=nullptr;climate_ends[0]=climate_ends[1]=nullptr;climate_now_mark=nullptr;climate_keys[0]=climate_keys[1]=nullptr;detail_placed=false;detail_status_brief=false;history_forget();
+  ++card_builds;
+  detail_action_count=0;card_parts.clear();card_shape_of=nullptr;card_blocked=false;detail_status=nullptr;detail_badge_status=nullptr;detail_switch=nullptr;climate_number=nullptr;climate_ends[0]=climate_ends[1]=nullptr;climate_now_mark=nullptr;climate_keys[0]=climate_keys[1]=nullptr;detail_placed=false;detail_status_brief=false;history_forget();
   alarm_forget_widgets();media_progress_fill=nullptr;media_elapsed_label=nullptr;media_detail_picture=nullptr;weather_days_card=nullptr;weather_dots=nullptr;weather_chevron[0]=weather_chevron[1]=nullptr;light_value=nullptr;lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
   lv_obj_set_style_bg_color(detail_root,theme::color(theme::PAGE),0);lv_obj_set_style_bg_opa(detail_root,LV_OPA_COVER,0);
   lv_obj_set_style_bg_grad_dir(detail_root,LV_GRAD_DIR_NONE,0);
@@ -4311,7 +4955,7 @@ inline void show_detail(unsigned index){
   if(d=="media_player")media_top_bar(t,back,heading,width,bar,bar_x,bar_y);
   std::string state=card_status(t);
   // The vacuum and history cards draw their own state.
-  if(d!="vacuum"&&d!="media_player"&&d!="climate"&&d!="humidifier"&&d!="light"&&d!="fan"&&d!="select"&&d!="input_select"&&!with_history){detail_status=detail_label(detail_root,screen_text::with_unit(state,t.unit),pad,ui::px(large?80:50),width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,theme::color(theme::MUTED),0);}
+  if(d!="vacuum"&&d!="media_player"&&d!="climate"&&d!="humidifier"&&d!="light"&&d!="fan"&&d!="select"&&d!="input_select"&&!with_history){detail_status=detail_label(detail_root,screen_text::with_unit(state,t.unit),pad,ui::px(large?80:50),width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,theme::color(theme::MUTED),0);card_bind(detail_status,t,detail_status_paint);}
   if(with_history){
     render_history_detail(t,large,width,height,pad);
   }else if(d=="vacuum"){
@@ -4338,12 +4982,19 @@ inline void show_detail(unsigned index){
   }else if(d=="lock"){
     render_lock_detail(t,large,width,height,heading);
   }else if(d=="timer"){
-    detail_label(detail_root,tr(t.state=="active"?txt::timer_running:t.state=="paused"?txt::timer_paused:txt::timer_stopped),pad,top,width-2*pad);
-    detail_button(tr(t.state=="active"?txt::timer_pause:txt::timer_start),pad,top+(ui::px(large?50:30)),cw,bh,40);
+    // The words follow the timer in place (docs/CARD_PARTS.md): running, paused or stopped, and Pause or Start.
+    card_bind(detail_label(detail_root,"",pad,top,width-2*pad),t,[](lv_obj_t *o,const Tile &t,const CardPart &){
+      label(o,tr(t.state=="active"?txt::timer_running:t.state=="paused"?txt::timer_paused:txt::timer_stopped));});
+    auto *start=detail_button(tr(t.state=="active"?txt::timer_pause:txt::timer_start),pad,top+(ui::px(large?50:30)),cw,bh,40);
+    card_bind(lv_obj_get_child(start,0),t,[](lv_obj_t *o,const Tile &t,const CardPart &){label(o,tr(t.state=="active"?txt::timer_pause:txt::timer_start));});
     detail_button(tr(txt::timer_cancel),pad+cw+gap,top+(ui::px(large?50:30)),cw,bh,41);
+    card_shaped(t,entity_shape);
   }else if(d=="sun"){
-    detail_label(detail_root,fill(txt::sun_sunrise,"time",screen_text::clock_text(t.extra().sunrise,screen_settings::current.clock_24h!=0)),pad,top,width-2*pad);
-    detail_label(detail_root,fill(txt::sun_sunset,"time",screen_text::clock_text(t.extra().sunset,screen_settings::current.clock_24h!=0)),pad,top+lv_font_get_line_height(detail_font)+(ui::px(large?10:4)),width-2*pad);
+    card_bind(detail_label(detail_root,"",pad,top,width-2*pad),t,[](lv_obj_t *o,const Tile &t,const CardPart &){
+      label(o,fill(txt::sun_sunrise,"time",screen_text::clock_text(t.extra().sunrise,screen_settings::current.clock_24h!=0)));});
+    card_bind(detail_label(detail_root,"",pad,top+lv_font_get_line_height(detail_font)+(ui::px(large?10:4)),width-2*pad),t,[](lv_obj_t *o,const Tile &t,const CardPart &){
+      label(o,fill(txt::sun_sunset,"time",screen_text::clock_text(t.extra().sunset,screen_settings::current.clock_24h!=0)));});
+    card_shaped(t,entity_shape);
   }
   // A card that leaves room sits in the middle of the glass; a picture fills it and stays where it is.
   // The back key and the name stay at the top of the card; the content under them is centred.
@@ -4371,6 +5022,8 @@ inline void refresh_detail(unsigned index){
   // A player's library or speaker menu over its card follows the player itself; the card is drawn again when they
   // close (firmware 0.24.0+).
   if(index<model.count && (media_library::visible()||media_library::menu_visible())){media_library::updated(model.tiles[index].entity);return;}
+  // A card that paints itself follows in place, also under a finger (docs/CARD_PARTS.md).
+  if(index<model.count && card_repaint(model.tiles[index]))return;
   auto *input=lv_indev_get_next(nullptr);if(input && lv_indev_get_state(input)==LV_INDEV_STATE_PRESSED)return;
   show_detail(index);
 }
@@ -4555,9 +5208,15 @@ inline void event(lv_event_t *event) {
     return;
   }
   if (!fresh()) return;
-  if (!allowed(esphome::millis(), TILE_TOUCH + static_cast<int>(w.index), model.tiles[w.index].entity)) return;
   auto &tile = model.tiles[w.index];
   auto d = tile.domain();
+  // A tap that switches is a wish and takes every clean tap; one that opens or runs something keeps the guard.
+  {
+    const auto route = tile_controls::tap_route(tile, code == LV_EVENT_LONG_PRESSED);
+    const bool switches = route.route == tile_controls::TapRoute::ACTION && toggle_tap(tile, route.service);
+    if (!(switches ? allowed_wish(esphome::millis(), TILE_TOUCH + static_cast<int>(w.index), tile.entity)
+                   : allowed(esphome::millis(), TILE_TOUCH + static_cast<int>(w.index), tile.entity))) return;
+  }
   // Scenes/scripts often have timestamps or 'off'; unavailable devices never act.
   if (!tile.available() || tile.waiting(esphome::millis()) || tile.tap=="none") return;
   // A camera or an image entity opens full screen on a board that draws images (firmware 0.2.57+).
@@ -4577,8 +5236,10 @@ inline void event(lv_event_t *event) {
   switch (tap.route) {
     case tile_controls::TapRoute::ACTION:
       // On / off shows the new stand at once, as Home Assistant's switch does; other actions have nothing to show yet.
-      if (tap.service == d + ".toggle" && (d == "light" || d == "switch" || d == "input_boolean" || d == "fan" || d == "automation" || d == "remote"))
-        tile.optimistic(tile.state != "on");
+      if (toggle_tap(tile, tap.service)) {
+        toggle_wish(tile);
+        return;
+      }
       action(tap.service, tile.entity, "", "", true);
       return;
     case tile_controls::TapRoute::CUSTOM:
@@ -4661,7 +5322,10 @@ inline void slider_bar(lv_obj_t *slider, bool shown) {
   set_number(slider, LV_STYLE_BG_OPA, shown ? LV_OPA_COVER : LV_OPA_TRANSP, LV_PART_KNOB);
 }
 inline bool slider_bar_shown(const Tile &t, bool on) { auto d = t.domain(); return on || (d != "light" && d != "fan"); }
-inline void set_hidden(lv_obj_t *obj, bool hidden) { if (hidden) lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN); else lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN); }
+inline void set_hidden(lv_obj_t *obj, bool hidden) {
+  if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN) == hidden) return;  // only a change touches the object
+  if (hidden) lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN); else lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN);
+}
 // A card's size as its styles request it. LVGL's own getters only follow after a layout pass, and
 // that pass walks every object on the screen, so the cards are laid out without asking for one.
 // The card's size as the grid laid it out (place_page updates the layout before a card is drawn).
@@ -4771,10 +5435,7 @@ inline void climate_circle_event(lv_event_t *e){
   auto &t=model.tiles[w.index];const uint32_t now=esphome::millis();
   if(!tile_controls::thermostat(t)||!t.available()||t.waiting(now))return;
   if(!allowed(now,2000+slot,"power "+std::to_string(slot)))return;
-  const bool off=tile_controls::climate_off(t);
-  t.begin(now);
-  if(!off)t.state="off";
-  action(t.domain()+(off?".turn_on":".turn_off"),t.entity);
+  climate_power(t);
   refresh_tile(w.index);
 }
 // A card into its set at `index`. Its callbacks name the index and `widgets[index]`: they only fire while the card is on
@@ -6019,7 +6680,7 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
       }else lv_obj_add_flag(w.keys[0],LV_OBJ_FLAG_HIDDEN);
     }
   }else if(mode=="toggle"){
-    bool on=t.pending && !t.confirmed ? t.optimistic_on : t.state=="on";
+    bool on=t.state=="on";
     if(on && w.key_checked[0]!=1)lv_obj_set_style_bg_color(w.keys[0],w.panel_accent,LV_STATE_CHECKED);
     set_checked(0,on);
     if(w.knob_on!=(int)on){w.knob_on=on;lv_obj_set_x(w.knob,on?m.toggle_w-m.toggle_h+knob_pad:knob_pad);}
@@ -6083,7 +6744,8 @@ inline void control_event(lv_event_t *e) {
   bool held=lv_event_get_code(e)==LV_EVENT_LONG_PRESSED_REPEAT;
   if(held){ if(!step || now-t.edit_since<300)return; }  // three steps a second while holding
   else if(step){ if(!screen_input::touch_guard.accept_repeat(now,400+slot*16+n)){ESP_LOGI("touch","tap on control %u ignored: %s",(unsigned)slot,screen_input::touch_guard.reason().c_str());return;} }
-  else if(!allowed(now,400+slot*16+n,"control "+std::to_string(slot)))return;
+  else if(tile_controls::wanted(t,command,w.key_args[n]).valid?!allowed_wish(now,400+slot*16+n,"control "+std::to_string(slot))
+                                                               :!allowed(now,400+slot*16+n,"control "+std::to_string(slot)))return;
   if(!t.available())return;
   // A range (firmware 0.19.0): the chip switches the end the -/+ move, heat or cool; the -/+ move that end.
   if(command==tile_controls::RANGE_SWITCH&&tile_controls::climate_range(t)){
@@ -6105,8 +6767,7 @@ inline void control_event(lv_event_t *e) {
   }
   if(command==tile_controls::OPEN_CARD){active_index=w.index;show_detail(w.index);return;}
   if(t.waiting(now))return;
-  auto a=tile_controls::press_key(t,command,w.key_args[n]);
-  if(a.valid())action(a.service,t.entity,a.key,a.value);
+  key_press(t,command,w.key_args[n]);
 }
 // The one spinner of the firmware: a busy card, the starting screen and a camera that loads (firmware 0.2.73+). The
 // ring in the spinner paint, the arc in Home Assistant's blue. Null where the board builds no spinner.
@@ -6174,8 +6835,9 @@ inline void media_tile_key_event(lv_event_t *e){
   if(!enabled || !fresh() || w.index>=model.count || w.extra_mode!="media")return;
   if(lv_obj_has_state(lv_event_get_target_obj(e),LV_STATE_DISABLED))return;
   const uint32_t now=esphome::millis();
-  if(!allowed(now,500+slot*16+n,"media key "+std::to_string(slot)))return;
   auto &t=model.tiles[w.index];
+  // Play or pause is a wish; the track keys are not.
+  if(!(n==1&&!media_off(t)?allowed_wish(now,500+slot*16+n,"media key "+std::to_string(slot)):allowed(now,500+slot*16+n,"media key "+std::to_string(slot))))return;
   if(!t.available() || t.waiting(now))return;
   static const int commands[]={21,20,22};
   media_action(t,n==1 && media_off(t)?24:commands[n]);
@@ -6295,10 +6957,9 @@ inline void climate_mode_key_event(lv_event_t *e){
   if(n>=room||!enabled||!fresh()||!t.available()||t.waiting(now)||!tile_controls::thermostat(t))return;
   std::array<tile_controls::Key,CLIMATE_MODE_PARTS> keys;
   if(n>=tile_controls::climate_bar_keys(t,keys,room))return;
-  if(!allowed(now,700+slot*8+n,"control "+std::to_string(slot)))return;
+  if(!allowed_wish(now,700+slot*8+n,"control "+std::to_string(slot)))return;
   if(keys[n].command==tile_controls::OPEN_CARD){active_index=w.index;show_detail(w.index);return;}
-  const auto a=tile_controls::press_key(t,keys[n].command,keys[n].arg);
-  if(a.valid())action(a.service,t.entity,a.key,a.value);
+  key_press(t,keys[n].command,keys[n].arg);
 }
 // One segment of a thermostat's mode bar: the mode's icon, its word where the bar has room, and the mode it is in
 // filled in Home Assistant's colour for it with a white icon on it. `code`: its card's slot * 16 and its place.
@@ -6446,7 +7107,7 @@ inline std::string favorite_line(const Tile &t){
 inline void favorite_tap(size_t index){
   if(index>=model.count)return;
   auto &t=model.tiles[index];
-  if(t.extra().fav_playing&&t.state=="playing"){action("media_player.media_pause",media_entity(t));return;}
+  if(t.extra().fav_playing&&t.state=="playing"){wish(t,optimistic::Field::PLAYING,"0","media_player.media_pause","","",media_entity(t));return;}
   // No speaker of its own and the player plays nowhere: which speaker first, as a cover in the library asks.
   const auto &x=t.extra();
   if(x.fav_source.empty()&&x.media_source.empty()&&!(t.supported&tile_controls::feature::MEDIA_PLAY_MEDIA)&&!x.media_sources.empty()){
@@ -6968,6 +7629,8 @@ inline void render_slot(size_t slot) {
   }
   // A wide card with a panel says what its control is doing, unless the second line was set by hand.
   if(with_panel && !set_by_hand){std::string status=tile_controls::status_text(t);if(!status.empty()){value=status;value_short.clear();value_tail.clear();}}
+  // A wish Home Assistant takes long to square says so where the state stands (docs/OPTIMISTIC.md).
+  if(!t.builtin() && wish_slow(t.entity,esphome::millis())){value=tr(txt::tile_updating);value_short.clear();value_tail.clear();}
   label(w.value, value);
   // Only a thermostat with controls takes a tap on its circle (climate_circle_event); every other card's circle is
   // part of the card and the card's own tap.
@@ -8765,13 +9428,20 @@ inline void tick() {
       else if(now-history_asked_at>30000)history_request(t.entity,history_hours);
       else if(now-history_asked_at>8000)label(history_chart.status,tr(txt::history_unavailable));
     }
-    for(unsigned i=0;i<detail_action_count;++i){if(waiting||!fresh()||!t.available())lv_obj_add_state(detail_actions[i],LV_STATE_DISABLED);else lv_obj_remove_state(detail_actions[i],LV_STATE_DISABLED);}
+    // The card's keys wait with it; only a change touches them, and then the parts that fade for a reason of their own
+    // paint that again (docs/CARD_PARTS.md).
+    const bool blocked=waiting||!fresh()||!t.available();
+    if(blocked!=card_blocked){
+      card_blocked=blocked;
+      for(unsigned i=0;i<detail_action_count;++i){if(blocked)lv_obj_add_state(detail_actions[i],LV_STATE_DISABLED);else lv_obj_remove_state(detail_actions[i],LV_STATE_DISABLED);}
+      card_repaint(t);
+    }
     std::string status=waiting?std::string(tr(t.confirmed?txt::tile_confirmed:txt::tile_command_sent)):card_status(t,detail_status_brief);
     if(detail_status)label(detail_status,waiting?status:screen_text::with_unit(status,t.unit));
     // The vacuum card lays its state out with the room and battery beside it, so a new text draws the
     // card again; once Home Assistant answered, the new state says enough.
     if(detail_badge_status && t.domain()=="vacuum"){
-      status=waiting && !t.confirmed?std::string(tr(txt::tile_command_sent)):detail_state(t);
+      status=vacuum_badge_text(t);
       if(status!=lv_label_get_text(detail_badge_status))refresh_detail(detail_index);
     }else if(detail_badge_status)label(detail_badge_status,status);
     if(detail_switch && !lv_obj_has_state(detail_switch,LV_STATE_PRESSED)){
@@ -8835,11 +9505,8 @@ inline void tick() {
     if(t.refused_at && esphome::millis()-t.refused_at>=4000){t.refused_at=0;card(i);}
     // A held slider whose light never got there shows what Home Assistant last reported again.
     if(std::isfinite(t.slider_sent) && !t.slider_holding(esphome::millis())){t.release_slider();card(i);}
-    if(!t.pending || t.waiting(esphome::millis()) || t.tap_held(esphome::millis()))continue;
-    // A vacuum chip Home Assistant never confirmed goes back to what the robot reports.
-    bool sent=false;if(auto *x=t.extra_ptr())for(auto &c:x->choices)sent=sent||!c.sent.empty();
+    if(!t.pending || t.waiting(esphome::millis()))continue;
     end_wait(i);card(i);
-    if(sent)refresh_detail(i);
   }
   // A -/+ edit goes out as one call once the finger rests; a value HA never reports is dropped after a while.
   for(size_t i=0;i<model.count;++i){
@@ -8848,7 +9515,8 @@ inline void tick() {
     if(!t.edit_sent){
       if(now-t.edit_since<700 || t.waiting(now))continue;
       auto a=tile_controls::edit_action(t,t.edit_value);
-      if(a.valid()){t.edit_sent=true;t.edit_since=now;action(a.service,t.entity,a.key,a.value,true,a.key2,a.value2);}else{t.edit_value=NAN;t.edit_high=NAN;}
+      // The number already shows the value: nothing greys or waits while Home Assistant takes it (docs/OPTIMISTIC.md).
+      if(a.valid()){t.edit_sent=true;t.edit_since=now;action(a.service,t.entity,a.key,a.value,true,a.key2,a.value2,false);}else{t.edit_value=NAN;t.edit_high=NAN;}
     }else if(now-t.edit_since>10000){t.edit_value=NAN;t.edit_high=NAN;card(i);}
   }
   // Running timers advance once per second without any HA traffic; clocks show hours and minutes,

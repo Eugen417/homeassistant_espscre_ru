@@ -10,6 +10,8 @@
 #include "runtime_model.h"
 #include "screen_text.h"
 #include "theme.h"
+#include "media_card.h"
+#include "optimistic.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -686,7 +688,10 @@ inline unsigned keys_for(const Tile &t, std::array<Key, 3> &out, uint32_t now = 
     // them while it plays nowhere. They stand where they were, faded until the player reports them again.
     const uint32_t had = t.supported | t.extra().media_features;
     if (had & feature::MEDIA_PREVIOUS) add(glyph::PREVIOUS, MEDIA_PREVIOUS, !(t.supported & feature::MEDIA_PREVIOUS));
-    if (had & (feature::MEDIA_PLAY | feature::MEDIA_PAUSE)) add(t.state == "playing" ? glyph::PAUSE : glyph::PLAY, MEDIA_PLAY_PAUSE, !(t.supported & (t.state == "playing" ? feature::MEDIA_PAUSE : feature::MEDIA_PLAY)));
+    if (had & (feature::MEDIA_PLAY | feature::MEDIA_PAUSE)) {
+      const bool playing = media_card::playing(t.state);
+      add(playing ? glyph::PAUSE : glyph::PLAY, MEDIA_PLAY_PAUSE, !(t.supported & (playing ? feature::MEDIA_PAUSE : feature::MEDIA_PLAY)));
+    }
     if (had & feature::MEDIA_NEXT) add(glyph::NEXT, MEDIA_NEXT, !(t.supported & feature::MEDIA_NEXT));
   } else if (c == "chevrons") {
     // Nothing to step through is not a state that can lag: without two options there is no next one.
@@ -710,6 +715,14 @@ inline const char *run_label(const std::string &domain) {
   return screen_text::tr(screen_text::txt::ha_button_press);
 }
 // The Home Assistant action behind a key. STEP_* are handled locally (debounced) and return nothing.
+// Play or pause by what the player shows, as Home Assistant's media player row does (hui-media-player-entity-row): the
+// action of its own where the player has it, so a pause that follows a play is a pause, whatever the player said last.
+inline Action media_play_action(const Tile &t) {
+  const bool playing = media_card::playing(t.state);
+  if (playing && (t.supported & feature::MEDIA_PAUSE)) return {"media_player.media_pause", "", ""};
+  if (!playing && (t.supported & feature::MEDIA_PLAY)) return {"media_player.media_play", "", ""};
+  return {};
+}
 inline Action key_action(const Tile &t, int command, const std::string &arg = "") {
   auto d = t.domain();
   switch (command) {
@@ -725,10 +738,7 @@ inline Action key_action(const Tile &t, int command, const std::string &arg = ""
     case VACUUM_DOCK: return {"vacuum.return_to_base", "", ""};
     case MEDIA_PREVIOUS: return {"media_player.media_previous_track", "", ""};
     case MEDIA_PLAY_PAUSE:
-      if((t.supported&(feature::MEDIA_PLAY|feature::MEDIA_PAUSE))==(feature::MEDIA_PLAY|feature::MEDIA_PAUSE))return {"media_player.media_play_pause", "", ""};
-      if(t.state=="playing"&&(t.supported&feature::MEDIA_PAUSE))return {"media_player.media_pause", "", ""};
-      if(t.state!="playing"&&(t.supported&feature::MEDIA_PLAY))return {"media_player.media_play", "", ""};
-      return {};
+      return media_play_action(t);
     case MEDIA_NEXT: return {"media_player.media_next_track", "", ""};
     case MEDIA_MUTE: return {"media_player.volume_mute", "is_volume_muted", t.muted ? "false" : "true"};
     case TIMER_START: return {"timer.start", "", ""};
@@ -754,18 +764,34 @@ inline Action key_action(const Tile &t, int command, const std::string &arg = ""
     default: return {};
   }
 }
-// A tap on a key: the action follows the stand the tile had, and a toggle then shows its new stand at once. The order
-// matters, because Tile::optimistic writes the new stand into `state`: asked afterwards, key_action sent an off light
-// light.turn_off, so the knob flipped on and back while the light stayed off (firmware 0.2.59 to 0.2.71).
-inline Action press_key(Tile &t, int command, const std::string &arg = "") {
-  Action a = key_action(t, command, arg);
-  if (command == TOGGLE && a.valid()) t.optimistic(t.state != "on");
-  return a;
+// The value a key wishes for (docs/OPTIMISTIC.md): what the tile shows at once while key_action's call is on its way.
+// A key without one (a cover's open, a timer's start) is an ordinary action. Asked before anything changes the tile, as
+// key_action is: both follow what the tile shows now, so a second tap in a burst undoes the first.
+struct Wanted {
+  bool valid = false;
+  optimistic::Field field = optimistic::Field::ON_OFF;
+  std::string value;
+};
+inline Wanted wanted(const Tile &t, int command, const std::string &arg = "") {
+  using F = optimistic::Field;
+  const auto d = t.domain();
+  switch (command) {
+    case TOGGLE: return key_action(t, command).valid() ? Wanted{true, F::ON_OFF, t.state == "on" ? "off" : "on"} : Wanted{};
+    case HVAC_MODE: return arg.empty() ? Wanted{} : Wanted{true, d == "humidifier" ? F::HUMIDIFIER_MODE : F::HVAC_MODE, arg};
+    case SELECT_PREVIOUS: case SELECT_NEXT: {
+      const std::string option = neighbour_option(t, command == SELECT_NEXT ? 1 : -1);
+      return option.empty() ? Wanted{} : Wanted{true, F::OPTION, option};
+    }
+    case MEDIA_PLAY_PAUSE:
+      return key_action(t, command).valid() ? Wanted{true, F::PLAYING, media_card::playing(t.state) ? "0" : "1"} : Wanted{};
+    default: return {};
+  }
 }
 // ---- Vacuum card rows (firmware 0.2.39+) ----
 // The value a row shows as chosen: the one just tapped while Home Assistant has not answered yet.
 inline const std::string &shown_value(const Tile &t, const runtime_tiles::Choice &c, uint32_t now) {
-  return !c.sent.empty() && t.waiting(now) ? c.sent : c.current;
+  (void)t; (void)now;  // a chip just tapped is the row's current already: the wish wrote it (docs/OPTIMISTIC.md)
+  return c.current;
 }
 // Role of the cleaning mode in use: 'v' vacuum only, 'm' mop only, 'b' both, 'a' automatic; 'b' when
 // the robot has no mode select or reports a mode the manager did not know.

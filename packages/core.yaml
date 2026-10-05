@@ -16,7 +16,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.47.0"
+  SCREEN_FIRMWARE_VERSION: "0.48.0"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -306,6 +306,9 @@ esphome:
             if (rendered) runtime_tiles::action_template(service, entity, key, value);
             else runtime_tiles::action(service, entity, key, value);
           };
+          // Both pages change a lamp or a row as a wish, shown at once and squared with Home Assistant (docs/OPTIMISTIC.md).
+          group_page::wish = runtime_tiles::wish_part;
+          effects_page::wish = runtime_tiles::wish_part;
           effects_page::ask = [](const std::string &entity, unsigned page) { runtime_tiles::options_request(entity, page); };
           effects_page::drift = []() { return screen_input::touch_guard.distance(); };
           effects_page::tap_limit = ${TOUCH_MOVE_LIMIT_PX};

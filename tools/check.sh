@@ -201,6 +201,7 @@ firmware_preview() {
   "$PYTHON" web/wasm/generate_renderer_manifest.py --check || return 1
   node web/wasm/test_profiles.mjs || return 1
   node web/wasm/test_runtime.mjs || return 1
+  node web/wasm/test_card_parts.mjs || return 1
   node web/wasm/test_images.mjs || return 1
   PREVIEW_WIDTH=720 PREVIEW_HEIGHT=720 PREVIEW_DPI=254 node web/wasm/test_images.mjs || return 1
   PREVIEW_WIDTH=720 PREVIEW_HEIGHT=720 PREVIEW_DPI=254 node web/wasm/test_runtime.mjs || return 1

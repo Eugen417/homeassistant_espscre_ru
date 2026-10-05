@@ -193,6 +193,7 @@
       "page": "Strona {n}",
       "refused": "Odrzucono",
       "command_sent": "Wysłano polecenie...",
+      "updating": "Aktualizowanie...",
       "confirmed": "Potwierdzone przez Home Assistant",
       "no_answer": "Brak odpowiedzi"
     },

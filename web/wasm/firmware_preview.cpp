@@ -117,6 +117,15 @@ const char *preview_receive(const char *message) {
   dirty = true;
   return last_result.c_str();
 }
+// The card of tile `index` built anew, as a hold on the tile opens it; 1 when it paints itself (docs/CARD_PARTS.md).
+int preview_card(int index) {
+  if (index < 0 || index >= (int) runtime_tiles::model.count) return -1;
+  runtime_tiles::show_detail(index);
+  dirty = true;
+  return runtime_tiles::card_shape_of ? 1 : 0;
+}
+// How many times a card was built: a state that a card paints in place leaves it as it was.
+unsigned preview_card_builds() { return runtime_tiles::card_builds; }
 const char *preview_next_action() {
   auto &queue = esphome::api::host_api_server.outgoing;
   if (queue.empty()) return "";
@@ -237,7 +246,8 @@ const char *preview_diagnostics() {
     tile["title"] = lv_label_get_text(w.title);
     tile["mode"] = w.extra_mode;
     tile["state"] = runtime_tiles::model.tiles[w.index].state;
-    tile["pending"] = runtime_tiles::model.tiles[w.index].pending;
+    // Under way: a command the tile waits for, or a wish Home Assistant has not squared yet (docs/OPTIMISTIC.md).
+    tile["pending"] = runtime_tiles::model.tiles[w.index].pending || runtime_tiles::wish_live(runtime_tiles::model.tiles[w.index].entity);
   }
   auto icons = doc["icons"].to<JsonArray>();
   std::function<void(lv_obj_t *)> inspect = [&](lv_obj_t *object) {
