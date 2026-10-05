@@ -48,7 +48,7 @@ lights, the heating or the vacuum.
 
 **What.** Firmware for affordable panels, five of them today, from the 2.8-inch CYD to the 10.1-inch Guition, with
 tiles over up to eight pages, or more on the boards with the memory for them, as many per page as the glass holds: lights, climate, humidifiers, blinds and curtains, the vacuum, media, the weather,
-history graphs, clocks and timers, your alarm with its keypad, and your cameras and a map of where everyone is on every screen with room for pictures. A tile can take the whole page, one big switch you push without
+history graphs, the energy of your house live, clocks and timers, your alarm with its keypad, and your cameras and a map of where everyone is on every screen with room for pictures. A tile can take the whole page, one big switch you push without
 looking, and a tile can go to another page. An automation can put an alert on every screen when someone rings
 the bell, and a screen with room for pictures shows who is there with the doorbell camera's picture. A tap can run any
 action Home Assistant has for a tile, and Dark mode suits a screen beside the bed.
@@ -109,6 +109,22 @@ home fits on one page. The 10.1-inch Guition holds up to forty on a page: New sc
   <img src="docs/images/jc8012p4a1-8rows-dark.png" width="49%" alt="The page with eight rows in Dark mode">
 </p>
 <p align="center"><sub>Six, seven and eight rows on the 10.1-inch Guition, from thirty to forty tiles on a page, and eight rows in Dark mode. Rendered from the firmware's own code. The rows are chosen when the screen is built; one with five gets more by adding <code>GRID_ROWS: "6"</code> (or 7, or 8) to its own YAML and installing it again, and its saved layout moves along by itself. Thanks to <a href="https://github.com/Heronimonimo">Jeroen Peters</a> for <a href="https://github.com/MaxGramser/homeassistant_espscreen/pull/151">the rows</a>.</sub></p>
+
+## Your house's energy, live
+
+<p align="center">
+  <img src="docs/images/energy-jc8012p4a1-dark.png" width="98%" alt="The 10.1-inch Guition in Dark mode with the energy card on three by three cells: the sun gives 5.2 kW, the house uses 2.5 kW, the battery at 64 % charges with 1.5 kW and 1.2 kW goes back to the grid, with lines and moving dots between their circles and the heat pump, the fridge, the washing machine and the office around the house; beside it the weather, the solar energy of today, the EV charger, the battery and graphs of the solar power and the living room temperature">
+</p>
+<p align="center">
+  <img src="docs/images/energy-guition.png" width="32%" alt="The energy card on two by two cells of the 4-inch Guition: solar, grid, battery and the house with their power, above the solar energy of today and the EV charger">
+  <img src="docs/images/energy-waveshare43.png" width="41%" alt="The 4.3-inch Waveshare with the energy card two cells wide and three high, beside the solar energy of today, the EV charger and the battery">
+  <img src="docs/images/energy-cyd-standing.png" width="20%" alt="The 2.8-inch CYD standing up with the energy card over its whole page, the diagram turned upright: the grid at the top, solar and the battery at the sides and the house at the bottom">
+</p>
+<p align="center">
+  <img src="docs/images/energy-guition-history.png" width="32%" alt="A tap on the solar circle opens the history of the solar sensor: a day with its highest and lowest moment">
+  <img src="docs/images/energy-waveshare7-dark.png" width="49%" alt="The 7-inch Waveshare in Dark mode with the energy card on three by three cells and four devices, and the weather, the solar energy of today, the EV charger, the battery, the kitchen light, the heat pump and the car's battery beside and under it">
+</p>
+<p align="center"><sub>The energy card shows the power of your house right now, the way Home Assistant's own live Energy view and power-flow-card-plus show it: solar, the grid and the battery around the house, dots that run faster as more power flows, and the devices that draw the most. It reads the Energy settings you already have in Home Assistant, so there is nothing to set up, and a tap on a circle opens that sensor's history. It fits every screen, upright on one standing up (<a href="docs/ENERGY.md">how</a>). Rendered from the firmware's own LVGL code with a made-up house.</sub></p>
 
 ## Taller tiles, richer cards
 
