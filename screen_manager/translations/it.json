@@ -1364,7 +1364,9 @@
         "no_profile": "Nessun profilo ESPHome trovato con questo nome dispositivo.",
         "whats_new": "Novità",
         "full_log": "Registro completo",
-        "short": "Aggiornamento"
+        "short": "Aggiornamento",
+        "in_tessera": "Aggiorna prima in Tessera",
+        "in_tessera_why": "Aggiorna prima questo schermo qui in Tessera. Ha ancora la suddivisione della flash della sua prima installazione e il firmware attuale non ci sta più, quindi ESPHome Device Builder non può aggiornarlo. Tessera lo porta lungo la strada alla nuova suddivisione e ne mantiene le impostazioni. Dopo, funzionano entrambe le vie."
       },
       "host": {
         "hint": "L'indirizzo IP, una sola volta; poi il nuovo firmware lo comunica da solo.",
@@ -1439,7 +1441,8 @@
       "title": "I tuoi schermi",
       "summary": "{online} di {count} online",
       "open": "Apri {name}",
-      "no_layout": "Nessun layout ancora"
+      "no_layout": "Nessun layout ancora",
+      "in_tessera": "Aggiorna prima in Tessera"
     },
     "screen_view": {
       "confirm": {
@@ -1579,7 +1582,12 @@
       "last_known": "Come l’ha indicato lo schermo l’ultima volta che era online.",
       "full_library": "La memoria dello schermo per i riquadri è quasi piena. Puoi comunque aggiungere riquadri.",
       "confirm_close": "Con questo riquadro la memoria dello schermo per i riquadri è piena al {n} %. Aggiungerlo comunque?",
-      "confirm_over": "Con questo riquadro il layout richiede più memoria di quanta lo schermo ne abbia misurata per i riquadri ({n} %). Se lo schermo resta senza memoria, alcuni riquadri mostrano meno, oppure rifiuta il layout. Aggiungerlo comunque?"
+      "confirm_over": "Con questo riquadro il layout richiede più memoria di quanta lo schermo ne abbia misurata per i riquadri ({n} %). Se lo schermo resta senza memoria, alcuni riquadri mostrano meno, oppure rifiuta il layout. Aggiungerlo comunque?",
+      "measuring": "Misurazione",
+      "measuring_title": "Lo schermo misura la sua memoria per i riquadri quando i riquadri sono a posto, circa un minuto dopo l'avvio o dopo un nuovo layout.",
+      "none": "Nessuno spazio",
+      "none_title": "Lo schermo ora non ha memoria libera per i riquadri. Puoi comunque salvare: se lo schermo resta senza memoria, alcuni riquadri mostrano meno, oppure rifiuta il layout.",
+      "confirm_none": "Lo schermo ora non ha memoria libera per i riquadri. Se resta senza memoria, alcuni riquadri mostrano meno, oppure rifiuta il layout. Aggiungere comunque questo riquadro?"
     },
     "domains": {
       "light": "Luce",

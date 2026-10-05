@@ -1364,7 +1364,9 @@
         "no_profile": "Geen ESPHome-profiel met deze apparaatnaam gevonden.",
         "whats_new": "Wat is er nieuw",
         "full_log": "Volledig log",
-        "short": "Update"
+        "short": "Update",
+        "in_tessera": "Update eerst via Tessera",
+        "in_tessera_why": "Update dit scherm eerst hier in Tessera. Het heeft nog de flash-indeling van zijn eerste installatie, en de huidige firmware past daar niet meer in, dus ESPHome Device Builder kan het niet updaten. Tessera zet het onderweg om naar de nieuwe indeling en houdt zijn instellingen. Daarna werken beide manieren."
       },
       "host": {
         "hint": "Eenmalig het IP-adres; nieuwe firmware meldt het zelf.",
@@ -1439,7 +1441,8 @@
       "title": "Je schermen",
       "summary": "{online} van {count} online",
       "open": "{name} openen",
-      "no_layout": "Nog geen indeling"
+      "no_layout": "Nog geen indeling",
+      "in_tessera": "Update eerst via Tessera"
     },
     "screen_view": {
       "confirm": {
@@ -1579,7 +1582,12 @@
       "last_known": "Zoals het scherm het zei toen het voor het laatst online was.",
       "full_library": "Het geheugen van het scherm voor tegels is bijna vol. Je kunt nog steeds tegels toevoegen.",
       "confirm_close": "Met deze tegel is het geheugen van het scherm voor tegels voor {n} % vol. Toch toevoegen?",
-      "confirm_over": "Met deze tegel heeft de indeling meer geheugen nodig dan het scherm voor tegels heeft gemeten ({n} %). Komt het scherm tekort, dan tonen sommige tegels minder, of weigert het de indeling. Toch toevoegen?"
+      "confirm_over": "Met deze tegel heeft de indeling meer geheugen nodig dan het scherm voor tegels heeft gemeten ({n} %). Komt het scherm tekort, dan tonen sommige tegels minder, of weigert het de indeling. Toch toevoegen?",
+      "measuring": "Meten",
+      "measuring_title": "Het scherm meet zijn geheugen voor tegels zodra de tegels staan, ongeveer een minuut nadat het start of een nieuwe indeling krijgt.",
+      "none": "Geen ruimte",
+      "none_title": "Het scherm heeft nu geen geheugen over voor tegels. Opslaan kan nog steeds: komt het scherm tekort, dan tonen sommige tegels minder, of weigert het de indeling.",
+      "confirm_none": "Het scherm heeft nu geen geheugen over voor tegels. Komt het tekort, dan tonen sommige tegels minder, of weigert het de indeling. Deze tegel toch toevoegen?"
     },
     "domains": {
       "light": "Licht",

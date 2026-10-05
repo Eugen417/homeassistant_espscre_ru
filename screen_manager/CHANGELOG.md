@@ -1,3 +1,34 @@
+## 0.4.82 (firmware 0.51.0)
+
+- **No more "999 %" right after a screen starts** ([#169](https://github.com/MaxGramser/homeassistant_espscreen/issues/169)).
+  A screen measures how much memory it has for tiles, and it used to take its first measurement the moment Tessera said
+  hello, before its tiles were there. That minute is the busiest one: Home Assistant sends every state at once and the
+  cards are built, so the screen has some 25 KB less than a minute later. The screen reports the lowest of its last five
+  measurements, so on a board with little memory to spare that one bad minute read as no room at all for ten minutes, and
+  a restart started it over. A screen now measures only once its tiles have been on it for a minute.
+- **"Measuring" instead of a number.** Until that first measurement the screen says nothing about its room, and the
+  editor shows "Measuring" beside the tile count and asks nothing when you add a tile. Tessera keeps the last room the
+  screen measured for when it is offline.
+- **"No room" in words.** A screen that really has no memory to spare for tiles, or a layout that needs ten times what it
+  has, shows "No room" instead of a share such as 999 %, and the pop-up says the same in a sentence. It is still a
+  warning: you can add the tile, and the screen protects itself if it runs short.
+- An older app with this firmware shows no meter until the first measurement, instead of 999 %.
+- **"Update in Tessera first"** on a CYD, a CYD with an ILI9342 or a Hosyond 4-inch that still has the flash layout
+  it was first installed with. Since firmware 0.48.0 the firmware of these boards no longer fits that layout's update
+  slot, so the screen turns down an update from ESPHome Device Builder before it writes anything. Tessera moves the screen
+  to the new layout on the way (app 0.4.56). The screen's details in the sidebar now say so with an (i) that explains
+  why, and open by themselves while an update waits; its card on the overview carries the same (i). The hint goes once
+  the screen says it has the new layout.
+- Tested on the bench with Home Assistant, this app and real screens. With an older app (0.4.77) a CYD and a Waveshare
+  4.3-inch on this firmware showed no meter for about two minutes after a start and then their room (63 KB and 48 KB),
+  steady after. With this app the meter read "Measuring" six seconds after the Waveshare restarted and 16 % two minutes
+  later. A CYD flashed back to firmware 0.2.104 with ESPHome's own table carried "Update in Tessera first" on its card
+  and in its details, and no other screen did. Earlier the same day an Update in Tessera took such a CYD from 0.2.104 to
+  0.48.0 over the bridge in eleven minutes, with the new layout. Checked with every Python, C++, editor and WASM preview
+  check. Firmware builds on ESPHome 2026.9.0 for the CYD (90.6 % of its slot), the 4-inch and 10.1-inch Guition, the
+  Waveshare 7-inch and the bridge (34.9 % of the old slot), and on 2026.6.2 for the CYD (92.5 %). "No room" in words is
+  covered by the editor's tests only: no bench screen is that full.
+
 ## 0.4.81 (firmware 0.50.0)
 
 - **Entities on the screensaver clock.** Under the clock's weather choice, **Add an entity** puts up to four entities in

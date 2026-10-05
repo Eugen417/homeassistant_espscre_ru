@@ -39,7 +39,7 @@ from core import alarm_extras, lock_extras, ALERT_EVENT, board_of, BROADCAST_EVE
 from core import ENERGY_TILE, MAP_TILE_MIN_FIRMWARE, calibrate_entity, can_standby, dimmable, SETTING_ENTITIES, SETTING_RULES, STANDBY_KEYS, setting_action, setting_entities, setting_from_state, state_word
 from core import BOARD_KEYS, has_battery, is_key, drawn_controls, FAVORITE_KINDS, SCREENSAVER_MIN_FIRMWARE, short
 from core import (FIRMWARE_MAX_BAR_ITEMS, FIRMWARE_MAX_PAGES, FIRMWARE_MAX_TILES, Grid, page_target, PAGE_TILE_REPEAT_MIN_FIRMWARE, ENTITY_REPEAT_MIN_FIRMWARE, ROTATION_MIN_FIRMWARE, SHAPES, firmware_features, grid_of, orientation_at,
-                  packed_slots, run_tile_event, screen_firmware, shape_of, turns_of, version_text)
+                  packed_slots, run_tile_event, screen_firmware, shape_of, turns_of, update_in_tessera, version_text)
 import header_bar
 import history_card
 import i18n
@@ -3547,6 +3547,9 @@ def create_app(manager, development=False):
             screen['package'] = manager.package_of(screen, profiles)
             # The board too: a screen that says nothing about itself is known by the YAML its profile builds from.
             screen['board'] = board_of(screen)
+            # A screen with 4 MB of flash that still has ESPHome's partition table (app 0.4.82): the editor says to update
+            # it in Tessera, which moves the table; ESPHome Device Builder's update does not fit its slot.
+            screen['update_in_tessera'] = update_in_tessera(screen)
             # And which way it was built to hang (app 0.2.107), for the same reason: a screen standing up has another
             # canvas and another grid, and while it is offline only its own YAML says so.
             screen['orientation'] = manager.orientation_of(screen, profiles)

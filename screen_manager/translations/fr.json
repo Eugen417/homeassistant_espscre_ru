@@ -1364,7 +1364,9 @@
         "no_profile": "Aucun profil ESPHome trouvé avec ce nom d'appareil.",
         "whats_new": "Nouveautés",
         "full_log": "Journal complet",
-        "short": "Mise à jour"
+        "short": "Mise à jour",
+        "in_tessera": "Mettez d'abord à jour dans Tessera",
+        "in_tessera_why": "Mettez d'abord cet écran à jour ici dans Tessera. Il a encore la répartition de la mémoire flash de sa première installation, et le firmware actuel n'y tient plus, donc ESPHome Device Builder ne peut pas le mettre à jour. Tessera le passe au passage à la nouvelle répartition et garde ses réglages. Ensuite, les deux voies fonctionnent."
       },
       "host": {
         "hint": "L'adresse IP, une seule fois ; le nouveau firmware la communique ensuite lui-même.",
@@ -1439,7 +1441,8 @@
       "title": "Vos écrans",
       "summary": "{online} sur {count} en ligne",
       "open": "Ouvrir {name}",
-      "no_layout": "Pas encore de disposition"
+      "no_layout": "Pas encore de disposition",
+      "in_tessera": "Mettez d'abord à jour dans Tessera"
     },
     "screen_view": {
       "confirm": {
@@ -1579,7 +1582,12 @@
       "last_known": "Tel que l’écran l’a indiqué la dernière fois qu’il était en ligne.",
       "full_library": "La mémoire de l'écran pour les tuiles est presque pleine. Vous pouvez quand même ajouter des tuiles.",
       "confirm_close": "Avec cette tuile, la mémoire de l'écran pour les tuiles est pleine à {n} %. L'ajouter quand même ?",
-      "confirm_over": "Avec cette tuile, la disposition demande plus de mémoire que ce que l'écran a mesuré pour les tuiles ({n} %). Si l'écran en manque, certaines tuiles affichent moins, ou il refuse la disposition. L'ajouter quand même ?"
+      "confirm_over": "Avec cette tuile, la disposition demande plus de mémoire que ce que l'écran a mesuré pour les tuiles ({n} %). Si l'écran en manque, certaines tuiles affichent moins, ou il refuse la disposition. L'ajouter quand même ?",
+      "measuring": "Mesure en cours",
+      "measuring_title": "L'écran mesure sa mémoire pour les tuiles une fois les tuiles en place, environ une minute après son démarrage ou une nouvelle disposition.",
+      "none": "Plus de place",
+      "none_title": "L'écran n'a pas de mémoire libre pour les tuiles en ce moment. L'enregistrement reste possible : si l'écran manque de mémoire, certaines tuiles affichent moins, ou il refuse la disposition.",
+      "confirm_none": "L'écran n'a pas de mémoire libre pour les tuiles en ce moment. S'il en manque, certaines tuiles affichent moins, ou il refuse la disposition. Ajouter cette tuile quand même ?"
     },
     "domains": {
       "light": "Lumière",

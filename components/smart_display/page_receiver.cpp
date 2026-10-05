@@ -301,6 +301,8 @@ std::string receive(const std::string &payload) {
       if (layout_changed) layout_changed();
       prepare_start();  // every other page built ahead (firmware 0.3.2+)
       last_received = esphome::millis();
+      // The room is sampled once this layout has settled (tile_memory::SETTLE_MS, firmware 0.51.0).
+      layout_landed_at = std::max<uint32_t>(1, last_received);
       refresh_all();
 #ifdef USE_ESP32
       // Building every tile inside the API's call is the deepest the loop task goes; this is the figure the

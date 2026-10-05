@@ -1364,7 +1364,9 @@
         "no_profile": "Nie znaleziono profilu ESPHome o tej nazwie urządzenia.",
         "whats_new": "Co nowego",
         "full_log": "Pełny log",
-        "short": "Aktualizacja"
+        "short": "Aktualizacja",
+        "in_tessera": "Najpierw zaktualizuj w Tessera",
+        "in_tessera_why": "Najpierw zaktualizuj ten ekran tutaj w Tessera. Ma jeszcze układ pamięci flash z pierwszej instalacji, a obecny firmware już się w nim nie mieści, więc ESPHome Device Builder nie może go zaktualizować. Tessera po drodze przestawi go na nowy układ i zachowa jego ustawienia. Potem działają obie drogi."
       },
       "host": {
         "hint": "Adres IP, tylko ten jeden raz; nowy firmware sam go zgłasza.",
@@ -1439,7 +1441,8 @@
       "title": "Twoje ekrany",
       "summary": "{online} z {count} online",
       "open": "Otwórz {name}",
-      "no_layout": "Jeszcze bez układu"
+      "no_layout": "Jeszcze bez układu",
+      "in_tessera": "Najpierw zaktualizuj w Tessera"
     },
     "screen_view": {
       "confirm": {
@@ -1579,7 +1582,12 @@
       "last_known": "Tak, jak ekran podał, gdy ostatnio był online.",
       "full_library": "Pamięć ekranu na kafelki jest prawie pełna. Nadal możesz dodawać kafelki.",
       "confirm_close": "Z tym kafelkiem pamięć ekranu na kafelki jest pełna w {n} %. Dodać mimo to?",
-      "confirm_over": "Z tym kafelkiem układ potrzebuje więcej pamięci, niż ekran zmierzył dla kafelków ({n} %). Gdy jej zabraknie, niektóre kafelki pokażą mniej albo ekran odrzuci układ. Dodać mimo to?"
+      "confirm_over": "Z tym kafelkiem układ potrzebuje więcej pamięci, niż ekran zmierzył dla kafelków ({n} %). Gdy jej zabraknie, niektóre kafelki pokażą mniej albo ekran odrzuci układ. Dodać mimo to?",
+      "measuring": "Pomiar",
+      "measuring_title": "Ekran mierzy pamięć na kafelki, gdy kafelki są już na miejscu, mniej więcej minutę po starcie albo po nowym układzie.",
+      "none": "Brak miejsca",
+      "none_title": "Ekran nie ma teraz wolnej pamięci na kafelki. Zapisać nadal można: gdy zabraknie pamięci, niektóre kafelki pokażą mniej albo ekran odrzuci układ.",
+      "confirm_none": "Ekran nie ma teraz wolnej pamięci na kafelki. Gdy jej zabraknie, niektóre kafelki pokażą mniej albo ekran odrzuci układ. Dodać mimo to ten kafelek?"
     },
     "domains": {
       "light": "Światło",

@@ -1364,7 +1364,9 @@
         "no_profile": "Kein ESPHome-Profil mit diesem Gerätenamen gefunden.",
         "whats_new": "Was ist neu",
         "full_log": "Ganzes Protokoll",
-        "short": "Update"
+        "short": "Update",
+        "in_tessera": "Zuerst in Tessera aktualisieren",
+        "in_tessera_why": "Aktualisiere diesen Bildschirm zuerst hier in Tessera. Er hat noch die Flash-Aufteilung seiner ersten Installation, und die aktuelle Firmware passt nicht mehr hinein, darum kann ESPHome Device Builder ihn nicht aktualisieren. Tessera stellt ihn dabei auf die neue Aufteilung um und behält seine Einstellungen. Danach geht beides."
       },
       "host": {
         "hint": "Gib einmal die IP-Adresse ein; neue Firmware meldet sie selbst.",
@@ -1439,7 +1441,8 @@
       "title": "Deine Bildschirme",
       "summary": "{online} von {count} online",
       "open": "{name} öffnen",
-      "no_layout": "Noch kein Layout"
+      "no_layout": "Noch kein Layout",
+      "in_tessera": "Zuerst in Tessera aktualisieren"
     },
     "screen_view": {
       "confirm": {
@@ -1579,7 +1582,12 @@
       "last_known": "So, wie es der Bildschirm zuletzt online gemeldet hat.",
       "full_library": "Der Speicher des Bildschirms für Kacheln ist fast voll. Du kannst trotzdem Kacheln hinzufügen.",
       "confirm_close": "Mit dieser Kachel ist der Speicher des Bildschirms für Kacheln zu {n} % voll. Trotzdem hinzufügen?",
-      "confirm_over": "Mit dieser Kachel braucht das Layout mehr Speicher, als der Bildschirm für Kacheln gemessen hat ({n} %). Reicht der Speicher nicht, zeigen manche Kacheln weniger, oder der Bildschirm lehnt das Layout ab. Trotzdem hinzufügen?"
+      "confirm_over": "Mit dieser Kachel braucht das Layout mehr Speicher, als der Bildschirm für Kacheln gemessen hat ({n} %). Reicht der Speicher nicht, zeigen manche Kacheln weniger, oder der Bildschirm lehnt das Layout ab. Trotzdem hinzufügen?",
+      "measuring": "Wird gemessen",
+      "measuring_title": "Der Bildschirm misst seinen Speicher für Kacheln, sobald die Kacheln stehen, etwa eine Minute nach dem Start oder nach einem neuen Layout.",
+      "none": "Kein Platz",
+      "none_title": "Der Bildschirm hat gerade keinen Speicher für Kacheln übrig. Speichern geht trotzdem: Reicht der Speicher nicht, zeigen manche Kacheln weniger, oder der Bildschirm lehnt das Layout ab.",
+      "confirm_none": "Der Bildschirm hat gerade keinen Speicher für Kacheln übrig. Reicht der Speicher nicht, zeigen manche Kacheln weniger, oder der Bildschirm lehnt das Layout ab. Diese Kachel trotzdem hinzufügen?"
     },
     "domains": {
       "light": "Leuchte",

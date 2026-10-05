@@ -8,7 +8,7 @@ import { entriesOf, effectiveControls, isFull, isWide, newTile, pageOrder, pageP
 import { agoText, barMetricsFor, batteryView, clockText, dateText, itemKey, LINK_GLYPH, SAMPLE_BATTERY, SAMPLE_RSSI, type ItemView, whenBarFontsLoad, wifiView } from "./model/topbar";
 import { energyFits, frameOf, pillMetrics, uiScale } from "./model/ui-scale";
 import { createLayout, dimensions, type Size, versionAtLeast } from "./model/layout";
-import { memoryCrossing, memoryUse } from "./model/memory";
+import { measuring, memoryCrossing, memoryUse } from "./model/memory";
 import { validPreviewShape, type PreviewProfile } from "./model/preview";
 import renderer from "./wasm/renderer.json";
 import type { BoardChoice, Capability, ChildTile, FeedbackView, ChangelogSection, EntityAction, HeaderItem, Inventory, Layout, Screen, ScreensaverChoice, Tile, PageLayout, PageTile, PageDocument, PageGrid, PageWorkspace } from "./types";
@@ -222,13 +222,16 @@ export const tileLimit = computed(() => {
 // The memory this screen has for its tiles (firmware 0.34.0+, its hello) and how much of it the layout being edited
 // takes: the meter beside the tile count, and the library's "nearly full" (model/memory.ts).
 export const screenMemory = computed(() => currentScreen.value?.memory || null);
-export const memory = computed(() => (screenMemory.value && state.layout ? memoryUse(state.layout.tiles, screenMemory.value, state.document?.pages || []) : null));
+// A screen that is still measuring its room (firmware 0.51.0) has no share yet: the meter says so, and nothing asks.
+export const memoryMeasuring = computed(() => !!screenMemory.value && measuring(screenMemory.value));
+export const memory = computed(() => (screenMemory.value && !memoryMeasuring.value && state.layout
+  ? memoryUse(state.layout.tiles, screenMemory.value, state.document?.pages || []) : null));
 // Whether a new tile of this entity goes on, as a library click or drag makes it (its own action and line come later, in
 // its settings). Past nine tenths of the screen's memory for tiles, and past all of it, the editor asks first. A warning,
 // not a rule (app 0.4.61): a screen measured far less room than the screens it was priced on (GitHub #157), and a screen
 // protects itself when it runs short, so whoever wants to try may.
 export function confirmMemory(entity: string) {
-  if (!screenMemory.value || !state.layout) return true;
+  if (!screenMemory.value || memoryMeasuring.value || !state.layout) return true;
   const crossing = memoryCrossing(state.layout.tiles, { entity }, screenMemory.value, state.document?.pages || []);
   if (!crossing) return true;
   return window.confirm(t(`editor.memory.confirm_${crossing.line}`, { n: Math.min(999, Math.round(crossing.share * 100)) }));

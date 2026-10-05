@@ -9073,14 +9073,23 @@ inline tile_memory::Window memory_window;
 inline uint32_t memory_sampled_at = 0;
 // When a tile last went without its extras for want of memory (page_receiver.cpp), 0 for never.
 inline uint32_t memory_short_at = 0;
-// One sample a minute, and only with a whole layout in place: halfway through a transfer the heap says nothing.
+// When the layout on the screen landed (page_receiver.cpp), 0 while there is none: the room is sampled only once it has
+// settled (tile_memory::SETTLE_MS).
+inline uint32_t layout_landed_at = 0;
+// One sample a minute, and only with a whole layout in place that has settled: halfway through a transfer, and in the first
+// minute after one, the heap says nothing about what the screen has.
 inline void sample_memory(uint32_t now) {
-  if (!heap_room || (memory_window.count && now - memory_sampled_at < 60000)) return;
+  if (!heap_room || !tile_memory::sample_due(now, layout_landed_at, memory_window.known(), memory_sampled_at)) return;
   if (transfer.begun && !transfer.active) return;
   memory_sampled_at = now;
   memory_window.add(tile_memory::room(heap_room() + spare_tiles(), layout_cost()));
 }
+// Whether the screen knows its room yet (firmware 0.51.0): until the first sample it reports none, and the app shows that
+// it is still measuring instead of a room of nothing.
+inline bool memory_known(uint32_t now) { sample_memory(now); return memory_window.known(); }
 inline size_t memory_room(uint32_t now) { sample_memory(now); return memory_window.least(); }
+// The room this moment, unsettled: what a screen that had to turn a layout down says before it ever had a sample.
+inline size_t memory_room_now() { return heap_room ? tile_memory::room(heap_room() + spare_tiles(), layout_cost()) : 0; }
 // Short of memory in the last ten minutes: the app says so beside the screen in the editor.
 inline bool memory_short(uint32_t now) { return memory_short_at && now - memory_short_at < 600000; }
 // Short of memory with a layout in place (page_receiver.cpp): the tiles off the glass give up their extras, which their
@@ -9106,6 +9115,7 @@ inline void abandon_layout() {
   cancel_layout_input();
   model.begin(0, 1, "");
   transfer.begun = false;
+  layout_landed_at = 0;
   memory_short_at = std::max<uint32_t>(1, esphome::millis());
   refresh_all();
 }

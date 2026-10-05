@@ -1364,7 +1364,9 @@
         "no_profile": "No ESPHome profile found with this device name.",
         "whats_new": "What's new",
         "full_log": "Full log",
-        "short": "Update"
+        "short": "Update",
+        "in_tessera": "Update in Tessera first",
+        "in_tessera_why": "Update this screen here in Tessera first. It still has the flash layout it was first installed with, and the current firmware no longer fits it, so ESPHome Device Builder cannot update it. Tessera moves it to the new layout on the way and keeps its settings. After that, either way works."
       },
       "host": {
         "hint": "The IP address, once; new firmware reports it itself.",
@@ -1439,7 +1441,8 @@
       "title": "Your screens",
       "summary": "{online} of {count} online",
       "open": "Open {name}",
-      "no_layout": "No layout yet"
+      "no_layout": "No layout yet",
+      "in_tessera": "Update in Tessera first"
     },
     "screen_view": {
       "confirm": {
@@ -1579,7 +1582,12 @@
       "last_known": "As the screen said when it was last online.",
       "full_library": "The screen's memory for tiles is nearly full. You can still add tiles.",
       "confirm_close": "With this tile the screen's memory for tiles is {n} % full. Add it anyway?",
-      "confirm_over": "With this tile the layout needs more memory than the screen measured for tiles ({n} %). If the screen runs short, some tiles show less, or it turns the layout down. Add it anyway?"
+      "confirm_over": "With this tile the layout needs more memory than the screen measured for tiles ({n} %). If the screen runs short, some tiles show less, or it turns the layout down. Add it anyway?",
+      "measuring": "Measuring",
+      "measuring_title": "The screen measures its memory for tiles once its tiles have settled, about a minute after it starts or gets a new layout.",
+      "none": "No room",
+      "none_title": "The screen has no memory to spare for tiles right now. It still saves: if the screen runs short, some tiles show less, or it turns the layout down.",
+      "confirm_none": "The screen has no memory to spare for tiles right now. If it runs short, some tiles show less, or it turns the layout down. Add this tile anyway?"
     },
     "domains": {
       "light": "Light",

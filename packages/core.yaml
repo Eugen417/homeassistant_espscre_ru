@@ -16,7 +16,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.50.0"
+  SCREEN_FIRMWARE_VERSION: "0.51.0"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -634,11 +634,15 @@ api:
                     // this board to price a tile (tile_memory.h): whether it has PSRAM, the size of a tile and of its block
                     // of extras. In the reply to a hello or a ping: the app shows how full the screen is and refuses a
                     // layout that would not fit.
+                    // The room only once it is known (firmware 0.51.0): a layout has to settle first, and an app reads an
+                    // answer without it as a screen that is still measuring. A screen that had to turn a layout down
+                    // says the room it has this moment.
                     if (runtime_tiles::reply_memory) {
                       const uint32_t now = esphome::millis();
                       const auto board = runtime_tiles::memory_board();
                       auto memory = root["memory"].to<JsonObject>();
-                      memory["room"] = runtime_tiles::memory_room(now);
+                      if (runtime_tiles::memory_known(now)) memory["room"] = runtime_tiles::memory_room(now);
+                      else if (runtime_tiles::memory_short(now)) memory["room"] = runtime_tiles::memory_room_now();
                       memory["used"] = runtime_tiles::layout_cost();
                       memory["psram"] = board.psram;
                       memory["tile"] = board.tile_bytes;
@@ -1432,8 +1436,12 @@ sensor:
             #ifdef USE_ESP32
             // The part of it a byte-wise malloc can use (firmware 0.34.0+): on the classic ESP32 the figure above also
             // counts IRAM that takes 32-bit words only. The tile budget and LVGL's own buffers live on this one.
-            ESP_LOGI("health", "free_8bit=%u room=%u", (unsigned) heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
-                     (unsigned) runtime_tiles::memory_room(esphome::millis()));
+            // `room=measuring` until a layout has settled (firmware 0.51.0).
+            if (runtime_tiles::memory_known(esphome::millis()))
+              ESP_LOGI("health", "free_8bit=%u room=%u", (unsigned) heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                       (unsigned) runtime_tiles::memory_room(esphome::millis()));
+            else
+              ESP_LOGI("health", "free_8bit=%u room=measuring", (unsigned) heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
             // The least stack the loop task (LVGL, the tiles, the API) ever had left since boot: a layout replacement
             // runs deepest. loop_task_stack_size in hardware/esp-idf.yaml is sized from this line (firmware 0.3.1+).
             ESP_LOGI("health", "loop_stack_min_free=%u", (unsigned) uxTaskGetStackHighWaterMark(nullptr));

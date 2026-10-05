@@ -66,18 +66,24 @@ The screen sends, in the reply to a hello and a ping (`memory`):
 
 - **room**: what is free inside the chip now, plus what the tiles on the screen already take, less a reserve. On a
   board without PSRAM the room the tile list holds for more tiles counts too. The reported room is the smallest of the
-  last five samples, one a minute, so it stays steady.
+  last five samples, one a minute, so it stays steady. A sample is taken only once a layout has been on the screen for a
+  minute (`SETTLE_MS`, firmware 0.51.0): the first minute after a start or a new layout sits some 25 KB below where the
+  screen settles, while Home Assistant sends every state and the cards are built, and on a board with little to spare
+  that minute fell below the reserve and read as no room at all. Until the first sample the reply leaves `room` out,
+  and the add-on and the editor show that the screen is still measuring.
 - **used**: what the tiles on the screen take by the catalogue's prices.
 - **psram**, **tile**, **extra**, **page**: whether the board has PSRAM, and the size of a tile, of its block of extras
   and of a page's record (which holds its top bar). A board without PSRAM keeps all three inside the chip.
 
 The add-on and the editor count a layout as the screen does, the keys of a bedside clock included. The editor shows the
-share of the room in a thin bar beside the tile count, amber from 80 % and red when it is full. The budget is a warning,
-not a rule (app 0.4.61): a tile that takes the layout past nine tenths of the room, or past all of it, asks first in a
-pop-up, and whoever answers yes gets it, from a click or a drag in the library alike. The add-on saves whatever the
-editor sends, an automation's tile event included. A screen measured far less room than the bench screens the prices
-come from (GitHub #157), and a screen protects itself when it runs short (below), so trying is safe. A screen that says
-nothing about its memory (older firmware) is not asked: it keeps its old tile limit.
+share of the room in a thin bar beside the tile count, amber from 80 % and red when it is full. Past ten times the room,
+or with no room at all, it says "No room" in words instead of a share, and the pop-up says the same. The budget is a
+warning, not a rule (app 0.4.61): a tile that takes the layout past nine tenths of the room, or past all of it, asks
+first in a pop-up, and whoever answers yes gets it, from a click or a drag in the library alike. The add-on saves
+whatever the editor sends, an automation's tile event included. A screen measured far less room than the bench screens
+the prices come from (GitHub #157), and a screen protects itself when it runs short (below), so trying is safe. A screen
+that says nothing about its memory (older firmware) is not asked: it keeps its old tile limit. While a screen is still
+measuring, the bar says so and nothing asks.
 
 The reserve (`RESERVE`, 40 KB) covers what the screen needs beyond its tiles at its busiest: a layout switch dips about
 20 KB below where it settles, a picture that loads takes 20 to 25 KB for a moment, and the Wi-Fi link and the API need

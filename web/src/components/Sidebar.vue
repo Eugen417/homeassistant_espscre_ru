@@ -46,7 +46,9 @@ const status = (screen: Screen) => {
 const isSelected = (screen: Screen) => screen.id === state.selected && route.value === "";
 // Only a screen with something to explain opens by itself (app 0.4.32): an update that failed or waits for a build.
 // An update ready to go has its button on the row; a screen that is away says so there.
-const explains = (screen: Screen) => ["failed", "blocked"].includes(updateState(screen)?.kind || "");
+// So does one that has to be updated here rather than in ESPHome Device Builder (app 0.4.82), while an update waits.
+const explains = (screen: Screen) => ["failed", "blocked"].includes(updateState(screen)?.kind || "")
+  || Boolean(screen.update_in_tessera && updateState(screen)?.kind === "available");
 const isOpen = (screen: Screen) => folded.value?.id === screen.id ? folded.value.open : isSelected(screen) && explains(screen);
 const chevronShown = (screen: Screen) => isSelected(screen) || isOpen(screen);
 function choose(screen: Screen) {
@@ -156,6 +158,11 @@ const pendingText = (p: { installed?: boolean; downloaded?: boolean; file: strin
             <dd>{{ screen.firmware || t("editor.common.unknown") }}<template v-if="updateState(screen)?.kind === 'available' && !languageOnly(screen)"> → {{ screen.update?.target }}</template></dd>
             <template v-if="boardName(screen)"><dt>{{ t("editor.sidebar.details.board") }}</dt><dd>{{ boardName(screen) }}</dd></template>
           </dl>
+          <!-- A screen with 4 MB of flash on ESPHome's partition table (app 0.4.82): update it here, which moves the table. -->
+          <details v-if="screen.update_in_tessera" class="whatsnew in-tessera">
+            <summary class="act"><Icon name="information-outline" />{{ t("editor.sidebar.update.in_tessera") }}</summary>
+            <p>{{ t("editor.sidebar.update.in_tessera_why") }}</p>
+          </details>
           <div v-if="updateState(screen)" class="screen-update" :class="updateState(screen)!.kind">
             <template v-if="updateState(screen)!.kind === 'available'">
               <template v-if="hostFor === screen.id">

@@ -83,6 +83,10 @@ onMounted(loadOverview);
             <small v-if="screenSubline(screen)" :class="screenSubline(screen)!.kind">{{ screenSubline(screen)!.text }}</small>
             <small v-else-if="place(screen)">{{ place(screen) }}</small>
           </span>
+          <!-- A screen with 4 MB of flash on ESPHome's partition table (app 0.4.82): its next update comes from Tessera. -->
+          <span v-if="screen.update_in_tessera" class="home-badge" :title="t('editor.sidebar.update.in_tessera_why')">
+            <Icon name="information-outline" />{{ t("editor.home.in_tessera") }}
+          </span>
           <Icon name="chevron-right" class="home-go" />
         </span>
       </div>
@@ -120,6 +124,9 @@ onMounted(loadOverview);
 .home-name small { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .home-name small.down, .home-name small.failed { color: var(--danger); }
 .home-name small.update, .home-name small.available, .home-name small.running, .home-name small.queued { color: var(--warn); }
+.home-badge { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px 2px 6px; border-radius: 999px; font-size: 11.5px;
+  font-weight: 500; color: var(--accent); background: var(--accent-soft); white-space: nowrap; }
+.home-badge .ui-icon { font-size: 14px; }
 .home-go { color: var(--muted); font-size: 18px; }
 .home-card:hover .home-go { color: var(--accent); }
 /* Adding a screen: a quiet dashed card beside the screens, never as tall as one. */

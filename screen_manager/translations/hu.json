@@ -1364,7 +1364,9 @@
         "no_profile": "Nem található ESPHome-profil ezzel az eszköznévvel.",
         "whats_new": "Újdonságok",
         "full_log": "Teljes napló",
-        "short": "Frissítés"
+        "short": "Frissítés",
+        "in_tessera": "Előbb frissítsd a Tesserában",
+        "in_tessera_why": "Előbb itt, a Tesserában frissítsd ezt a kijelzőt. Még az első telepítéskori flash-felosztása van, és a mostani firmware már nem fér bele, ezért az ESPHome Device Builder nem tudja frissíteni. A Tessera közben átállítja az új felosztásra, és megtartja a beállításait. Utána mindkét út működik."
       },
       "host": {
         "hint": "Az IP-cím, egyszer; az új firmware utána maga jelenti.",
@@ -1439,7 +1441,8 @@
       "title": "Kijelzőid",
       "summary": "{online}/{count} online",
       "open": "{name} megnyitása",
-      "no_layout": "Még nincs elrendezés"
+      "no_layout": "Még nincs elrendezés",
+      "in_tessera": "Előbb frissítsd a Tesserában"
     },
     "screen_view": {
       "confirm": {
@@ -1579,7 +1582,12 @@
       "last_known": "Ahogy a kijelző legutóbb, még online állapotban jelentette.",
       "full_library": "A kijelző csempékre szánt memóriája majdnem megtelt. Továbbra is hozzáadhatsz csempéket.",
       "confirm_close": "Ezzel a csempével a kijelző csempékre szánt memóriája {n} %-ig telik meg. Mégis hozzáadod?",
-      "confirm_over": "Ezzel a csempével az elrendezésnek több memória kell, mint amennyit a kijelző a csempéknek mért ({n} %). Ha kevés a memória, egyes csempék kevesebbet mutatnak, vagy a kijelző elutasítja az elrendezést. Mégis hozzáadod?"
+      "confirm_over": "Ezzel a csempével az elrendezésnek több memória kell, mint amennyit a kijelző a csempéknek mért ({n} %). Ha kevés a memória, egyes csempék kevesebbet mutatnak, vagy a kijelző elutasítja az elrendezést. Mégis hozzáadod?",
+      "measuring": "Mérés",
+      "measuring_title": "A kijelző akkor méri a csempéknek jutó memóriát, amikor a csempék már a helyükön vannak, nagyjából egy perccel az indulás vagy egy új elrendezés után.",
+      "none": "Nincs hely",
+      "none_title": "A kijelzőnek most nincs szabad memóriája a csempéknek. Menteni így is lehet: ha kevés a memória, egyes csempék kevesebbet mutatnak, vagy a kijelző elutasítja az elrendezést.",
+      "confirm_none": "A kijelzőnek most nincs szabad memóriája a csempéknek. Ha kevés a memória, egyes csempék kevesebbet mutatnak, vagy a kijelző elutasítja az elrendezést. Mégis hozzáadod ezt a csempét?"
     },
     "domains": {
       "light": "Lámpa",

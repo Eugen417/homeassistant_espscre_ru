@@ -957,6 +957,9 @@ td code { white-space: nowrap; }
 .screen-details .whatsnew summary.act .ui-icon { font-size: 15px; color: var(--muted); }
 .screen-details .whatsnew summary.act:hover { background: var(--surface-2); color: var(--ink); }
 .screen-details .whatsnew ul { margin: 2px 0 4px; padding-left: 18px; }
+.screen-details .in-tessera summary.act { color: var(--accent); }
+.screen-details .in-tessera summary.act .ui-icon { color: var(--accent); }
+.screen-details .in-tessera p { margin: 2px 0 4px; font-size: 11.5px; line-height: 1.4; color: var(--ink-2); }
 
 /* ---- New screen (app 0.4.32): a setup assistant on the whole page, not a card in a page ----
    One quiet bar with the steps, one question per step with room around it, the screen itself drawn large, and one

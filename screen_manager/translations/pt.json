@@ -1364,7 +1364,9 @@
         "no_profile": "Não foi encontrado nenhum perfil ESPHome com este nome de dispositivo.",
         "whats_new": "Novidades",
         "full_log": "Registo completo",
-        "short": "Atualização"
+        "short": "Atualização",
+        "in_tessera": "Atualize primeiro no Tessera",
+        "in_tessera_why": "Atualize primeiro este ecrã aqui no Tessera. Ainda tem a divisão da flash da primeira instalação e o firmware atual já não cabe, por isso o ESPHome Device Builder não o consegue atualizar. O Tessera passa-o pelo caminho para a nova divisão e mantém as definições. Depois, ambos os caminhos funcionam."
       },
       "host": {
         "hint": "O endereço IP, só desta vez; o firmware novo passa a comunicá-lo sozinho.",
@@ -1439,7 +1441,8 @@
       "title": "Os seus ecrãs",
       "summary": "{online} de {count} online",
       "open": "Abrir {name}",
-      "no_layout": "Ainda sem disposição"
+      "no_layout": "Ainda sem disposição",
+      "in_tessera": "Atualize primeiro no Tessera"
     },
     "screen_view": {
       "confirm": {
@@ -1579,7 +1582,12 @@
       "last_known": "Tal como o ecrã disse da última vez que esteve online.",
       "full_library": "A memória do ecrã para mosaicos está quase cheia. Ainda pode adicionar mosaicos.",
       "confirm_close": "Com este mosaico, a memória do ecrã para mosaicos fica a {n} %. Adicionar mesmo assim?",
-      "confirm_over": "Com este mosaico, o layout precisa de mais memória do que o ecrã mediu para os mosaicos ({n} %). Se faltar memória, alguns mosaicos mostram menos, ou o ecrã recusa o layout. Adicionar mesmo assim?"
+      "confirm_over": "Com este mosaico, o layout precisa de mais memória do que o ecrã mediu para os mosaicos ({n} %). Se faltar memória, alguns mosaicos mostram menos, ou o ecrã recusa o layout. Adicionar mesmo assim?",
+      "measuring": "A medir",
+      "measuring_title": "O ecrã mede a sua memória para mosaicos quando os mosaicos já estão no lugar, cerca de um minuto depois de arrancar ou de receber um layout novo.",
+      "none": "Sem espaço",
+      "none_title": "O ecrã não tem agora memória livre para mosaicos. Ainda pode guardar: se faltar memória, alguns mosaicos mostram menos, ou o ecrã recusa o layout.",
+      "confirm_none": "O ecrã não tem agora memória livre para mosaicos. Se faltar memória, alguns mosaicos mostram menos, ou o ecrã recusa o layout. Adicionar este mosaico mesmo assim?"
     },
     "domains": {
       "light": "Luz",

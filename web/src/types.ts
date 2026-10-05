@@ -34,7 +34,8 @@ export type HeaderItem = { id?: string; type: string; entity?: string; content?:
 // board (whether it has PSRAM, the size of a tile and of its block of extras: model/memory.ts). `short`: a tile went
 // without its extras for want of memory lately; `live`: said by the screen as it is now, rather than the last thing it
 // said before it went offline.
-export type ScreenMemory = { room: number; used: number; psram: boolean; tile: number; extra: number; page?: number; short?: boolean; live?: boolean };
+// `room` is null while the screen is still measuring it (firmware 0.51.0).
+export type ScreenMemory = { room: number | null; used: number; psram: boolean; tile: number; extra: number; page?: number; short?: boolean; live?: boolean };
 // `barItems`: the items one page's top bar takes there (model/pages.ts barLimit).
 export type PageGrid = Readonly<{ columns: number; rows: number; pages?: number; barItems?: number }>;
 export type PageTarget = { kind: "page"; pageId: string } | { kind: "home" };
@@ -163,6 +164,9 @@ export type Screen = {
   memory?: ScreenMemory | null;
   // The items one page's top bar takes: six, or more on a board with room for them (firmware 0.34.0+).
   bar_limit?: number;
+  // A board with 4 MB of flash that still has ESPHome's partition table (app 0.4.82): its next update has to come from
+  // Tessera, which moves the table; ESPHome Device Builder's firmware no longer fits its slot (core.update_in_tessera).
+  update_in_tessera?: boolean;
   firmware_known?: string | null; tile_limit?: number; page_limit?: number; full_page?: boolean; page_tiles_repeat?: boolean; entity_tiles_repeat?: boolean; no_title?: boolean; climate_range?: boolean;
   // The language its firmware was built in (app 0.2.90); null for older firmware, which is English.
   language?: string | null;

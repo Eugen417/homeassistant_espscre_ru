@@ -101,7 +101,7 @@ REF = 'main'
 # The shared firmware of this app release: packages/core.yaml's SCREEN_FIRMWARE_VERSION, what every board builds
 # unless its own board file went ahead with a fix for that board alone (firmware_target, docs/BOARD_RELEASES.md). The
 # middle number is the core: the feature gates below name a shared X.Y.0, so a feature always ships with a new core.
-FIRMWARE_VERSION = '0.50.0'
+FIRMWARE_VERSION = '0.51.0'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -568,6 +568,18 @@ def parse_shape(text):
     if match[6]:
         shape['look'] = match[6]
     return shape
+
+def update_in_tessera(screen):
+    """Whether this screen's next update has to come from Tessera itself (app 0.4.82): its board builds for the wide
+    partition table (boards.json `wide_slots`) and the screen does not say it has that table yet. Its firmware no longer
+    fits the update slot of ESPHome's own table, so an update from ESPHome Device Builder is refused by the screen; only
+    Tessera moves it to the wide table on the way (docs/FLASH_LAYOUT.md). A screen that is away says nothing, and one with
+    a table of its owner's own ('other') is left as it is."""
+    if not isinstance(screen, dict) or not screen.get('online'):
+        return False
+    if not SHAPES.get(board_of(screen), {}).get('wide_slots'):
+        return False
+    return screen.get('flash') in (None, 'old', 'widen', 'widen_next')
 
 def board_of(screen):
     """Which board a screen is, in the order of what knows best: what it reported itself (firmware 0.2.80, or

@@ -74,8 +74,24 @@ inline size_t room(size_t free_now, size_t layout_cost) {
   return total > RESERVE ? total - RESERVE : 0;
 }
 
+// One sample a minute.
+inline constexpr uint32_t SAMPLE_MS = 60000;
+// How long a layout settles before the room is sampled (firmware 0.51.0). The first minute after a start or a new layout
+// sits some 25 KB below where the screen settles: Home Assistant sends every state at once, the cards are built and the
+// pages prepared. A sample from that minute is not what the screen has, and on a board with little memory to spare (an
+// 800 x 480 or larger RGB panel) it fell below the reserve, so the screen said it had no room at all.
+inline constexpr uint32_t SETTLE_MS = 60000;
+
+// Whether the room is sampled now: with a whole layout in place (`landed`, the moment it landed, 0 for none yet) that has
+// been there for SETTLE_MS, and a minute after the last sample.
+inline bool sample_due(uint32_t now, uint32_t landed, bool have_samples, uint32_t sampled_at) {
+  if (!landed || now - landed < SETTLE_MS) return false;
+  return !have_samples || now - sampled_at >= SAMPLE_MS;
+}
+
 // The room reported is the smallest of the last few samples, one a minute: the free heap moves with every picture and
-// state, and the editor should show one steady number that errs on the safe side.
+// state, and the editor should show one steady number that errs on the safe side. Before the first sample the room is not
+// known (`known()`), and the screen says nothing about it rather than a room of nothing.
 struct Window {
   static constexpr unsigned SIZE = 5;
   size_t samples[SIZE]{};
@@ -85,6 +101,7 @@ struct Window {
     next = (next + 1) % SIZE;
     if (count < SIZE) ++count;
   }
+  bool known() const { return count > 0; }
   size_t least() const {
     if (!count) return 0;
     size_t least = samples[0];

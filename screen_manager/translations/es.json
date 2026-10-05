@@ -1364,7 +1364,9 @@
         "no_profile": "No se ha encontrado ningún perfil de ESPHome con este nombre de dispositivo.",
         "whats_new": "Novedades",
         "full_log": "Registro completo",
-        "short": "Actualización"
+        "short": "Actualización",
+        "in_tessera": "Actualiza primero en Tessera",
+        "in_tessera_why": "Actualiza primero esta pantalla aquí en Tessera. Aún tiene la distribución de flash de su primera instalación y el firmware actual ya no cabe, así que ESPHome Device Builder no puede actualizarla. Tessera la pasa por el camino a la nueva distribución y conserva sus ajustes. Después, sirven las dos vías."
       },
       "host": {
         "hint": "La dirección IP, solo esta vez; el firmware nuevo la comunica por sí mismo.",
@@ -1439,7 +1441,8 @@
       "title": "Tus pantallas",
       "summary": "{online} de {count} en línea",
       "open": "Abrir {name}",
-      "no_layout": "Aún sin diseño"
+      "no_layout": "Aún sin diseño",
+      "in_tessera": "Actualiza primero en Tessera"
     },
     "screen_view": {
       "confirm": {
@@ -1579,7 +1582,12 @@
       "last_known": "Tal como lo dijo la pantalla la última vez que estuvo en línea.",
       "full_library": "La memoria de la pantalla para mosaicos está casi llena. Aún puedes añadir mosaicos.",
       "confirm_close": "Con este mosaico, la memoria de la pantalla para mosaicos está al {n} %. ¿Añadirlo de todos modos?",
-      "confirm_over": "Con este mosaico, el diseño necesita más memoria de la que la pantalla midió para los mosaicos ({n} %). Si le falta memoria, algunos mosaicos muestran menos, o rechaza el diseño. ¿Añadirlo de todos modos?"
+      "confirm_over": "Con este mosaico, el diseño necesita más memoria de la que la pantalla midió para los mosaicos ({n} %). Si le falta memoria, algunos mosaicos muestran menos, o rechaza el diseño. ¿Añadirlo de todos modos?",
+      "measuring": "Midiendo",
+      "measuring_title": "La pantalla mide su memoria para mosaicos cuando los mosaicos ya están puestos, más o menos un minuto después de arrancar o de recibir un diseño nuevo.",
+      "none": "Sin espacio",
+      "none_title": "La pantalla no tiene ahora memoria libre para mosaicos. Se puede guardar igualmente: si le falta memoria, algunos mosaicos muestran menos, o rechaza el diseño.",
+      "confirm_none": "La pantalla no tiene ahora memoria libre para mosaicos. Si le falta memoria, algunos mosaicos muestran menos, o rechaza el diseño. ¿Añadir este mosaico de todos modos?"
     },
     "domains": {
       "light": "Luz",
