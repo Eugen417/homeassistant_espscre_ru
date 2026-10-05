@@ -1,3 +1,17 @@
+## 0.4.81 (firmware 0.50.0)
+
+- **Entities on the screensaver clock.** Under the clock's weather choice, **Add an entity** puts up to four entities in
+  the same line as the outside temperature, centred at the bottom with a dot between two, in white on black: anything
+  the top bar can show. Pick them from the top bar's own list, and for each one choose its text, its icon or both. They
+  look as they do in the top bar, and a moment such as "5 min ago" counts on. A screen on older firmware keeps showing
+  the temperature alone.
+- The top bar and the screensaver clock draw their entities with the same code, and the editor's top bar and screensaver
+  share one entity list and one way to add, move and remove.
+- Checked with every Python, C++, editor and WASM preview check, and the clock with its row rendered from the real
+  firmware on the CYD, the 4-inch Guition and the 10.1-inch Guition. Firmware builds on ESPHome 2026.9.0 for the CYD
+  (90.6 % of its slot, 2 KB more than 0.48.0), the Hosyond 4-inch (93.4 %), the 4-inch and 10.1-inch Guition and the
+  Waveshare 7-inch, and on 2026.6.2 for the CYD (92.5 %). Not yet seen on a real screen.
+
 ## 0.4.80 (firmware 0.49.0)
 
 - **Pictures no longer hold the screen still.** Opening a folder of album covers in a speaker's library, a camera full

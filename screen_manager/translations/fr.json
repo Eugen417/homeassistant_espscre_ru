@@ -2050,7 +2050,20 @@
           "camera": "Son image, toutes les 15 secondes",
           "camera_unset": "Choisis une caméra pour l'utiliser",
           "clock": "L'heure, la date et la température extérieure, en blanc sur noir"
-        }
+        },
+        "items_add": "Ajouter une entité",
+        "items_hint": "À côté de la température, sur une seule ligne : un capteur, une porte, une lampe.",
+        "items_full": "L'horloge a de la place pour {n} entités.",
+        "items_already": "C'est déjà sur l'horloge.",
+        "items_removed": "{name} retiré de l'horloge",
+        "items_title": "Entités de l'horloge",
+        "items_slots": "{used} sur {n}",
+        "item_text": "Texte",
+        "item_icon": "Icône",
+        "item_both": "Les deux",
+        "item_look": "Affiche",
+        "item_hint": "Noir et blanc sur l'économiseur d'écran, quelle que soit la couleur de l'entité.",
+        "items_add_title": "Ajouter à l'horloge"
       }
     },
     "update": {

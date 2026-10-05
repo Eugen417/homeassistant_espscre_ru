@@ -1355,7 +1355,11 @@ class Run:
                     return
                 await asyncio.sleep(0.05)
         ground = media_library.ground_colours(media_art.png(0)) or ''
-        steps = [('clock', {'k': 'clock'})]
+        # The clock's row of entities (firmware 0.50.0+), as the app sends the top bar's items: the temperature first, a
+        # text alone, an icon alone, both, and a moment the screen counts itself.
+        row = [{'k': 'text', 't': '21°'}, {'k': 'text', 't': 'Open'}, {'k': 'text', 'i': 'F0335', 't': ''},
+               {'k': 'text', 'i': 'F140B', 't': '412 W'}, {'k': 'ago', 'i': 'F0D91', 'e': int(MOMENT.timestamp()) - 300}]
+        steps = [('clock', {'k': 'clock'}), ('clock-row', {'k': 'clock', 'w': '21°', 'wi': row})]
         if pictured:
             steps = [('media', {'k': 'media', 'e': 'media_player.living_room', 'n': 'Living room', 't': 'Evening Drive',
                                 'x': {'artist': 'Nova Coast', 'album': 'Low Sun', 'pic': 'c0ffee1234', 'g': ground}}),
@@ -1376,7 +1380,7 @@ class Run:
         for name, message in steps:
             start = len(calls)
             await self.send({'v': 1, 'op': 'saver', **message})
-            if name != 'clock':
+            if not name.startswith('clock'):
                 await answer(start)
             await asyncio.sleep(1.5)
             await self.render(f'saver-{name}')

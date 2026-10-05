@@ -54,6 +54,8 @@ export const itemKey = (item: HeaderItem) => item.type === "entity"
   ? JSON.stringify(["entity", item.entity, item.content ?? "state", item.icon ?? "auto", item.show ?? "always"])
   : item.type === "wifi" || item.type === "battery" ? JSON.stringify([item.type, item.content ?? "icon", item.show ?? "always"])
   : JSON.stringify([item.type]);
+// A new entity item as the top bar adds one: its state with the automatic icon, always shown.
+export const entityItem = (entity: string): HeaderItem => ({ type: "entity", entity, content: "state", icon: "auto", show: "always" });
 export const glyph = (cp: string) => String.fromCodePoint(parseInt(cp, 16));
 
 // The time as the screens write it (screen_text::clock_text): "07:12" on 24 hours; on 12 "7:12 PM" in the top bar, with

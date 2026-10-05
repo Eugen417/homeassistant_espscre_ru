@@ -26,6 +26,8 @@ export type Inspector =
   | { kind: "tile" }
   | { kind: "bar"; index: number }
   | { kind: "bar-add" }
+  | { kind: "saver-item"; index: number }
+  | { kind: "saver-add" }
   | { kind: "page"; id: string }
   | { kind: "inspect"; entity?: string; slot?: number; key?: number };
 // A whole page on its way to another place in the row (app 0.2.121): where it came from, where it is heading, and
@@ -1175,6 +1177,34 @@ export function openBarAdd() {
   state.selectedTile = null;
   state.inspector = { kind: "bar-add" };
 }
+// The clock's row of entities on the screensaver (app 0.4.81): the top bar's entity items, shown by their state, their icon
+// or both, in the drawer the top bar uses. At most four, in the order they stand on the glass after the temperature.
+export const SAVER_ITEMS_MAX = 4;
+export const saverItems = (): HeaderItem[] => currentScreen.value?.screensaver?.items || [];
+export function setSaverItems(items: HeaderItem[]) {
+  const screen = currentScreen.value;
+  if (!screen) return;
+  setScreensaver(screen, { items });
+  loadTopbarPreview(0);
+}
+export function openSaverItem(index: number) {
+  if (!(state.inspector?.kind === "saver-item" && state.inspector.index === index)) state.iconPickerOpen = false;
+  state.selectedTile = null;
+  state.inspector = { kind: "saver-item", index };
+}
+export function openSaverAdd() {
+  state.selectedTile = null;
+  state.inspector = { kind: "saver-add" };
+}
+const saverList = itemList({
+  items: saverItems, set: setSaverItems, max: () => SAVER_ITEMS_MAX, open: openSaverItem, inspector: "saver-item",
+  // One entity once: the clock has no room for the same one twice, whatever it shows of it.
+  same: (a, b) => a.entity === b.entity,
+  full: () => t("editor.screen_settings.screensaver.items_full", { n: SAVER_ITEMS_MAX }),
+  already: () => t("editor.screen_settings.screensaver.items_already"),
+  removed: (name) => t("editor.screen_settings.screensaver.items_removed", { name }),
+});
+export const { add: addSaverItem, update: updateSaverItem, move: moveSaverItem, remove: removeSaverItem } = saverList;
 export function closeInspector() {
   state.inspector = null;
   state.selectedTile = null;
@@ -1313,8 +1343,9 @@ export async function setScreensaver(screen: Screen, patch: Partial<ScreensaverC
   if (screen.virtual) return;
   const edit = ++saverEdits;
   try {
-    const { show, media, camera, order, off, weather = "auto", more = [] } = next;
-    const result = await send<{ screensaver: ScreensaverChoice }>(`screens/${encodeURIComponent(screen.id)}/screensaver`, "PUT", { screensaver: { show, media, camera, order, off, weather, more } });
+    const { show, media, camera, order, off, weather = "auto", more = [], items = [] } = next;
+    const result = await send<{ screensaver: ScreensaverChoice }>(`screens/${encodeURIComponent(screen.id)}/screensaver`, "PUT",
+      { screensaver: { show, media, camera, order, off, weather, more, items: items.map(({ id: _id, ...item }) => item) } });
     if (result?.screensaver && edit === saverEdits) screen.screensaver = { ...next, ...result.screensaver };
   } catch (e: any) {
     if (edit === saverEdits) screen.screensaver = { ...before };
@@ -1561,7 +1592,7 @@ export function loadTopbarPreview(delay = 150) {
   clearTimeout(topbarTimer);
   topbarTimer = window.setTimeout(async () => {
     const screen = state.selected;
-    const items = [...new Map((state.document?.pages.flatMap((page) => page.topbar.trailing) || []).map((item) => [itemKey(item), item])).values()];
+    const items = [...new Map([...(state.document?.pages.flatMap((page) => page.topbar.trailing) || []), ...saverItems()].map((item) => [itemKey(item), item])).values()];
     const entities = items.filter((item) => item.type === "entity");
     if (!entities.length) return;
     try {
@@ -1569,7 +1600,7 @@ export function loadTopbarPreview(delay = 150) {
       for (let at = 0; at < entities.length; at += 6) {
         const batch = entities.slice(at, at + 6), data = await send("header-preview", "POST", { header: { items: batch.map(({ id: _id, ...item }) => item) } });
         if (state.selected !== screen) return;
-        const stillUsed = new Set(state.document?.pages.flatMap((page) => page.topbar.trailing.map(itemKey)) || []);
+        const stillUsed = new Set([...(state.document?.pages.flatMap((page) => page.topbar.trailing) || []), ...saverItems()].map(itemKey));
         batch.forEach((item, i) => { if (stillUsed.has(itemKey(item))) state.topbarPreviews[itemKey(item)] = data.items[i]; });
       }
     } catch {
@@ -1596,33 +1627,57 @@ export function topbarView(item: HeaderItem): ItemView {
   if (!p) return { icon: item.icon === "none" ? null : iconNamed(item.icon)?.cp || automaticIcon(item.entity!), text: item.content === "icon" ? "" : "…", shown: true, loading: true };
   return { icon: p.i || null, text: p.k === "ago" ? agoText(p.e, Math.floor(state.now / 1000), screenLanguage.value) : p.t, color: p.c ? `#${p.c}` : null, shown: p.shown };
 }
-export function moveTopbarItem(from: number, to: number) {
-  const items = [...topbarItems()];
-  if (to < 0 || to >= items.length || from === to) return false;
-  items.splice(to, 0, ...items.splice(from, 1));
-  setTopbarItems(items);
-  return true;
+// One ordered list of bar items with the editor's add, update, move and remove (undo included): a page's top bar and the
+// screensaver clock's row are both one.
+function itemList(o: {
+  items: () => HeaderItem[]; set: (items: HeaderItem[]) => void; max: () => number; open: (index: number) => void;
+  inspector: string; same: (a: HeaderItem, b: HeaderItem) => boolean;
+  full: () => string; already: () => string; removed: (name: string) => string; added?: (item: HeaderItem) => void;
+}) {
+  return {
+    add(item: HeaderItem) {
+      const items = o.items();
+      if (items.length >= o.max()) return toast(o.full());
+      if (items.some((other) => o.same(other, item))) return toast(o.already());
+      o.added?.(item);
+      o.set([...items, item]);
+      o.open(items.length);
+    },
+    update(index: number, patch: Partial<HeaderItem>) {
+      const items = [...o.items()];
+      if (!items[index]) return;
+      items[index] = { ...items[index], ...patch };
+      o.set(items);
+    },
+    move(from: number, to: number) {
+      const items = [...o.items()];
+      if (to < 0 || to >= items.length || from === to) return false;
+      items.splice(to, 0, ...items.splice(from, 1));
+      o.set(items);
+      return true;
+    },
+    remove(index: number) {
+      const items = [...o.items()];
+      const [item] = items.splice(index, 1);
+      if (!item) return;
+      if (state.inspector?.kind === o.inspector) closeInspector();
+      o.set(items);
+      toast(o.removed(topbarLabel(item)), {
+        label: t("editor.common.undo"),
+        run: () => { const back = [...o.items()]; back.splice(Math.min(index, back.length), 0, item); o.set(back); },
+      });
+    },
+  };
 }
-export function removeTopbarItem(index: number) {
-  const items = [...topbarItems()];
-  const [item] = items.splice(index, 1);
-  if (!item) return;
-  if (state.inspector?.kind === "bar") closeInspector();
-  setTopbarItems(items);
-  toast(t("editor.topbar.removed", { name: topbarLabel(item) }), {
-    label: t("editor.common.undo"),
-    run: () => { const back = [...topbarItems()]; back.splice(Math.min(index, back.length), 0, item); setTopbarItems(back); },
-  });
-}
-export function addTopbarItem(item: HeaderItem) {
-  const items = topbarItems();
-  if (items.length >= topbarMax()) return toast(t("editor.topbar.full", topbarMax()));
-  if (items.some((other) => itemKey(other) === itemKey(item))) return toast(t("editor.topbar.already"));
+const topbarList = itemList({
+  items: () => topbarItems(), set: (items) => setTopbarItems(items), max: topbarMax, open: (index) => openBar(index), inspector: "bar",
+  same: (a, b) => itemKey(a) === itemKey(b),
+  full: () => t("editor.topbar.full", topbarMax()), already: () => t("editor.topbar.already"),
+  removed: (name) => t("editor.topbar.removed", { name }),
   // The new chip lights up briefly so the eye finds it.
-  state.topbarAdded = { key: itemKey(item), time: Date.now() };
-  setTopbarItems([...items, item]);
-  openBar(items.length);
-}
+  added: (item) => { state.topbarAdded = { key: itemKey(item), time: Date.now() }; },
+});
+export const { add: addTopbarItem, move: moveTopbarItem, remove: removeTopbarItem } = topbarList;
 
 // ---- Screen settings: the same groups and rows as the settings page on the screen itself ----
 // Every change applies at once, like on the screen; no Save needed. A screen with firmware 0.2.49+ owns its

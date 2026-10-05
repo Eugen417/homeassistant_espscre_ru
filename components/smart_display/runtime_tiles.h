@@ -178,13 +178,15 @@ inline bool pictures_awake() { return awake() || saver_pictures; }
 struct SaverChoice {
   std::string kind, entity, name, title, artist, album, picture, ground;
   std::string weather;  // the clock's outside temperature, ready to draw (firmware 0.31.0+, app 0.4.52)
+  // The clock's row of entities, the temperature first (firmware 0.50.0+, app 0.4.81): an icon and a text each.
+  std::vector<header_bar::Item> row;
   // A player's keys (firmware 0.33.0+, app 0.4.55): whether it plays or is paused, and what Home Assistant says it can do.
   std::string state;
   uint32_t features = 0;
   bool muted = false;
   bool operator==(const SaverChoice &o) const {
     return kind == o.kind && entity == o.entity && name == o.name && title == o.title && artist == o.artist &&
-           album == o.album && picture == o.picture && ground == o.ground && weather == o.weather &&
+           album == o.album && picture == o.picture && ground == o.ground && weather == o.weather && row == o.row &&
            state == o.state && features == o.features && muted == o.muted;
   }
 };
@@ -10791,6 +10793,43 @@ inline lv_obj_t *saver_text(lv_obj_t *parent, const lv_font_t *font, uint32_t co
   return label;
 }
 
+// The clock's row of entities (firmware 0.50.0+): the top bar's items in the date's font, centred in `line` on its middle
+// line, a middle dot between two, the first (the temperature) staying when the glass is too narrow for all. One soft
+// ink on black, whatever an entity's colour: the screensaver gives as little light as it can.
+inline void saver_row_draw(const std::vector<header_bar::Item> &row, const esphome::ESPTime &now, uint32_t ink,
+                           const media_card::Rect &line, const lv_font_t *font) {
+  lv_font_glyph_dsc_t zero;
+  if (!lv_font_get_glyph_dsc(font, &zero, '0', 0) || !zero.box_h) return;
+  const auto gaps = header_bar::gaps(zero.box_h);
+  std::array<page_header::Piece, header_bar::MAX_ITEMS> pieces;
+  std::array<int, header_bar::MAX_ITEMS> widths{};
+  size_t count = 0;
+  for (const auto &item : row) {
+    if (count == pieces.size()) break;
+    auto p = page_header::piece(item.icon, header_icon_font, page_header::item_text(item, now, now_epoch(), screen_settings::current.clock_24h != 0), font, gaps);
+    if (p.width) { widths[count] = p.width; pieces[count++] = std::move(p); }
+  }
+  // A middle dot between two values, with a little more than half the bar's gap between two items on either side.
+  const auto dot = page_header::piece(0, nullptr, "·", font, gaps);
+  const int side = (gaps.item * 3 + 2) / 5;
+  auto spaced = gaps;
+  if (dot.text_w) spaced.item = 2 * side + dot.text_w;
+  const auto placed = header_bar::centre(widths.data(), count, spaced, line.w);
+  const int middle2 = 2 * line.y + line.h, baseline = page_header::digits_baseline(font, middle2);
+  const int line_h = lv_font_get_line_height(font);
+  for (size_t k = 0; k < placed.count; ++k) {
+    const auto &p = pieces[k];
+    int x = line.x + placed.x[k];
+    if (k && dot.text_w) saver_text(saver_root, font, ink, {x - side - dot.text_w - dot.text_left, page_header::text_top(font, baseline), dot.text_left + dot.text_w + 2, line_h}, dot.text, LV_TEXT_ALIGN_LEFT);
+    if (p.icon) {
+      const auto glyph = tile_icon::utf8(p.icon);
+      saver_text(saver_root, p.font, ink, {x - p.icon_left, page_header::icon_top(p.font, p.icon, middle2), p.icon_w + 2, (int) lv_font_get_line_height(p.font)}, glyph, LV_TEXT_ALIGN_LEFT);
+      x += p.icon_w + (p.text_w ? gaps.icon : 0);
+    }
+    if (p.text_w) saver_text(saver_root, font, ink, {x - p.text_left, page_header::text_top(font, baseline), p.text_left + p.text_w + 2, line_h}, p.text, LV_TEXT_ALIGN_LEFT);
+  }
+}
+
 // The clock: the time in the bedside clock's digits where they fit, else the largest digit step that does, and the date
 // under it in the card heading's font, white on black whatever the look. In 12 hours AM or PM stands after the time, and
 // the outside temperature the app sends stands small in the middle at the bottom (firmware 0.31.0+).
@@ -10799,6 +10838,7 @@ inline void saver_clock_draw() {
   const auto now = now_time ? now_time() : esphome::ESPTime{};
   const std::string time = time_text(now), date = date_text(now), ampm = am_pm(now);
   const std::string &degrees = saver_next.weather;
+  const auto &entities = saver_next.row;
   const bool large = ui::large();
   const int margin = ui::px(large ? 24 : 10), gap = ui::px(large ? 12 : 6), space = ui::px(large ? 8 : 4);
   const lv_font_t *date_font = watch_font ? watch_font : detail_font;
@@ -10810,7 +10850,7 @@ inline void saver_clock_draw() {
   const int ampm_w = ampm.empty() || !small ? 0 : text_width(ampm, small);
   const int room_w = width - 2 * margin - (ampm_w ? space + ampm_w : 0);
   // The temperature in the date's font: small beside the digits, and as easy to read across a room as the date.
-  const int below = degrees.empty() ? 0 : date_h + gap;
+  const int below = degrees.empty() && entities.empty() ? 0 : date_h + gap;
   const lv_font_t *digits = bedside_digits();
   if (!digits || text_width(time, digits) > room_w) digits = largest_digits(time.c_str(), room_w, height - 2 * margin - gap - date_h - 2 * below);
   if (!digits) digits = clock_font;
@@ -10831,7 +10871,8 @@ inline void saver_clock_draw() {
     saver_text(saver_root, small, soft, {row.ampm_x, l.time.y + digits_h - small_digits - small_top, ampm_w + 2, small_h}, ampm, LV_TEXT_ALIGN_LEFT);
   }
   if (!date.empty()) saver_text(saver_root, date_font, soft, {margin, l.date.y, width - 2 * margin, date_h}, date);
-  if (!degrees.empty() && date_font) saver_text(saver_root, date_font, soft, saver_view::temperature(width, height, margin, date_h), degrees);
+  if (!entities.empty() && date_font && header_icon_font) saver_row_draw(entities, now, soft, saver_view::temperature(width, height, margin, date_h), date_font);
+  else if (!degrees.empty() && date_font) saver_text(saver_root, date_font, soft, saver_view::temperature(width, height, margin, date_h), degrees);
 }
 
 // Where a player's keys stand on this glass (saver_view::keys), the sizes the media card's keys have: the play key when

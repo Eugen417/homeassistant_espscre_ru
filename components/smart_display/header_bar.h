@@ -173,19 +173,34 @@ struct Placement {
   std::array<int, MAX_ITEMS> x{};
   int name_room = 0;
 };
+// The width of items `from` up to `to`, with the gaps between them.
+inline int span(const int *widths, size_t from, size_t to, const Gaps &g) {
+  int sum = 0;
+  for (size_t i = from; i < to; ++i) sum += widths[i] + (i > from ? g.item : 0);
+  return sum;
+}
 inline Placement place(const int *widths, size_t count, const Gaps &g, int width, int name_natural) {
   Placement p;
   count = std::min(count, MAX_ITEMS);
   int min_name = std::min(name_natural, width * 35 / 100);
-  auto total = [&](size_t from) {
-    int sum = 0;
-    for (size_t i = from; i < count; ++i) sum += widths[i] + (i > from ? g.item : 0);
-    return sum;
-  };
-  while (p.first < count && total(p.first) + g.name + min_name > width) ++p.first;
-  int x = width - total(p.first);
+  while (p.first < count && span(widths, p.first, count, g) + g.name + min_name > width) ++p.first;
+  int x = width - span(widths, p.first, count, g);
   for (size_t i = p.first; i < count; ++i) { p.x[i] = x; x += widths[i] + g.item; }
   p.name_room = p.first < count ? p.x[p.first] - g.name : width;
   return p;
+}
+// A row of the same items without a name, centred in `width` (the screensaver clock's, firmware 0.50.0+). Items leave
+// from the end until the rest fits, so the first stays; `count` is how many show.
+struct Centred {
+  size_t count = 0;
+  std::array<int, MAX_ITEMS> x{};
+};
+inline Centred centre(const int *widths, size_t count, const Gaps &g, int width) {
+  Centred c;
+  c.count = std::min(count, MAX_ITEMS);
+  while (c.count && span(widths, 0, c.count, g) > width) --c.count;
+  int x = (width - span(widths, 0, c.count, g)) / 2;
+  for (size_t i = 0; i < c.count; ++i) { c.x[i] = x; x += widths[i] + g.item; }
+  return c;
 }
 }  // namespace header_bar

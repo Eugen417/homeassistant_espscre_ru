@@ -2050,7 +2050,20 @@
           "camera": "Ihr Bild, alle 15 Sekunden",
           "camera_unset": "Wähle eine Kamera, um sie zu nutzen",
           "clock": "Uhrzeit, Datum und Außentemperatur, weiß auf Schwarz"
-        }
+        },
+        "items_add": "Entität hinzufügen",
+        "items_hint": "Neben der Temperatur in einer Zeile: ein Sensor, eine Tür, eine Lampe.",
+        "items_full": "Die Uhr hat Platz für {n} Entitäten.",
+        "items_already": "Das steht schon auf der Uhr.",
+        "items_removed": "{name} von der Uhr entfernt",
+        "items_title": "Entitäten der Uhr",
+        "items_slots": "{used} von {n}",
+        "item_text": "Text",
+        "item_icon": "Symbol",
+        "item_both": "Beides",
+        "item_look": "Zeigt",
+        "item_hint": "Schwarzweiß auf dem Bildschirmschoner, egal welche Farbe die Entität hat.",
+        "items_add_title": "Zur Uhr hinzufügen"
       }
     },
     "update": {

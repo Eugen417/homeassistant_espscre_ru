@@ -2050,7 +2050,20 @@
           "camera": "A képe, 15 másodpercenként",
           "camera_unset": "Válassz kamerát a használatához",
           "clock": "Az idő, a dátum és a kinti hőmérséklet, fehéren feketén"
-        }
+        },
+        "items_add": "Entitás hozzáadása",
+        "items_hint": "A hőmérséklet mellett, egy sorban: egy érzékelő, egy ajtó, egy lámpa.",
+        "items_full": "Az órán {n} entitásnak van hely.",
+        "items_already": "Ez már az órán van.",
+        "items_removed": "{name} eltávolítva az óráról",
+        "items_title": "Az óra entitásai",
+        "items_slots": "{used} / {n}",
+        "item_text": "Szöveg",
+        "item_icon": "Ikon",
+        "item_both": "Mindkettő",
+        "item_look": "Mutatja",
+        "item_hint": "Fekete-fehéren a képernyőkímélőn, az entitás színétől függetlenül.",
+        "items_add_title": "Hozzáadás az órához"
       }
     },
     "update": {

@@ -2050,7 +2050,20 @@
           "camera": "Its picture, every 15 seconds",
           "camera_unset": "Choose a camera to use it",
           "clock": "The time, the date and the outside temperature, white on black"
-        }
+        },
+        "items_add": "Add an entity",
+        "items_hint": "Shown next to the temperature, in one line: a sensor, a door, a lamp.",
+        "items_full": "The clock has room for {n} entities.",
+        "items_already": "This is already on the clock.",
+        "items_removed": "{name} removed from the clock",
+        "items_title": "Clock entities",
+        "items_slots": "{used} of {n}",
+        "item_text": "Text",
+        "item_icon": "Icon",
+        "item_both": "Both",
+        "item_look": "Shows",
+        "item_hint": "Black and white on the screensaver, whatever the colour of the entity.",
+        "items_add_title": "Add to the clock"
       }
     },
     "update": {

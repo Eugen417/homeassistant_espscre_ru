@@ -2050,7 +2050,20 @@
           "camera": "Jej obraz co 15 sekund",
           "camera_unset": "Wybierz kamerę, aby jej używać",
           "clock": "Godzina, data i temperatura na zewnątrz, biało na czarnym"
-        }
+        },
+        "items_add": "Dodaj encję",
+        "items_hint": "Obok temperatury, w jednej linii: czujnik, drzwi, lampa.",
+        "items_full": "Zegar ma miejsce na {n} encje.",
+        "items_already": "To już jest na zegarze.",
+        "items_removed": "Usunięto {name} z zegara",
+        "items_title": "Encje zegara",
+        "items_slots": "{used} z {n}",
+        "item_text": "Tekst",
+        "item_icon": "Ikona",
+        "item_both": "Oba",
+        "item_look": "Pokazuje",
+        "item_hint": "Czarno-biało na wygaszaczu, niezależnie od koloru encji.",
+        "items_add_title": "Dodaj do zegara"
       }
     },
     "update": {

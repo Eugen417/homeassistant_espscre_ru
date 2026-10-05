@@ -379,6 +379,17 @@ std::string receive(const std::string &payload) {
       }
       // The outside temperature under the clock (app 0.4.52, firmware 0.31.0+), ready to draw: "21°".
       if (next.kind == "clock") next.weather = string(root["w"], 8);
+      // The row of entities (app 0.4.81, firmware 0.50.0+): the temperature first, as the top bar's text and moment
+      // items; one that is not readable leaves the temperature alone on the glass, as before.
+      if (next.kind == "clock" && root["wi"].is<JsonArray>() && root["wi"].as<JsonArray>().size() <= header_bar::MAX_ITEMS) {
+        std::vector<header_bar::Item> row;
+        for (JsonVariant value : root["wi"].as<JsonArray>()) {
+          header_bar::Item item;
+          if (!parse_bar_item(value, item) || (item.kind != header_bar::Kind::text && item.kind != header_bar::Kind::ago)) { row.clear(); break; }
+          row.push_back(std::move(item));
+        }
+        next.row = std::move(row);
+      }
       saver_receive(next);
       result = model.ready() ? "Synced" : "Loading tiles";
       return true;

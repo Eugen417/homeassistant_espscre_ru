@@ -61,6 +61,14 @@ clock, since a speaker stays paused in Home Assistant for days.
   for its home (Met.no's, else its first weather entity) unless you choose one under the clock in the editor (or none), whole degrees in the unit Home
   Assistant is set to (app 0.4.52).
 
+**Entities on the clock** (app 0.4.81, firmware 0.50.0). Under the clock's weather choice, **Add an entity** puts up to
+four entities in the same line as the temperature: a sensor, a door, a lamp, anything the top bar can show. They use
+the top bar's own list and drawer. For each one you choose its text, its icon or both, and the icon is the automatic
+one or one you pick. They stand centred in one line at the bottom, after the temperature and with a dot between two,
+white on black like the rest, whatever the colour of the entity. They look as they do in the top bar, with its words
+and icons, and a moment ("5 min ago") counts on as it does there. When the line is wider than the glass, the last
+entities leave until it fits, so the temperature always stays. A screen on older firmware shows the temperature alone.
+
 The cover and the camera are a little darker everywhere, so the words always read. A camera has nothing else on it,
 and a cover only its three keys: no bar, no spinner.
 
@@ -88,6 +96,14 @@ has.
   every layout. `PUT api/screens/<inbox>/screensaver` stores the whole choice, and the screen's entry in the editor's
   inventory carries it as `screensaver`, with `ready` (the firmware takes one), `pictures` (the board draws pictures)
   and `standby` (the board goes into standby at all).
+- **The clock's entities** are `items` in the choice: entity items checked by `core.validate_header`, with the content
+  `state` or `icon` and shown always, at most `ITEMS_MAX`. The app follows their entities like the weather's. A screen
+  whose hello lists `saver_items` gets `wi` in the clock's message: the whole line as the top bar's wire items
+  (`header_bar.entity_item`, `text` and `ago`), the temperature first and without their colour; `w` stays for older
+  firmware. The screen draws it with the top bar's own parts (`saver_row_draw`): `page_header::piece` and `item_text`
+  measure and word each item, and `header_bar::centre`, beside the bar's `place`, centres the line with the bar's gaps
+  (`tests/test_header_bar.cpp`). The editor uses the top bar's entity list (`EntityItemPicker.vue`) and its add, move
+  and remove (`itemList` in `store.ts`), and edits one entity in `SaverItemInspector.vue`.
 - **The pick.** The app follows the chosen players and camera like a tile's entities (`watched_entities`). After every
   pass of a screen it works out the first step that is on and available (`screen_saver.pick`): the first player of the
   list (`media`, then `more`, `screen_saver.player`) whose state is `playing` with an `entity_picture`, a camera whose state is not `unavailable` or `unknown`, the clock always. A

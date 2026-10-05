@@ -3,16 +3,17 @@
 // your choice and the clock, in the order the screen tries them: it shows the first one that is there right now (a
 // player that plays with a cover, a camera Home Assistant has, the clock always). The add-on decides and tells the
 // screen; nothing on the screensaver takes a tap, so the first touch wakes the screen as standby always did.
-import { computed, ref, type Ref } from "vue";
+import { computed, onMounted, ref, type Ref } from "vue";
 import { t } from "../i18n";
 import { dropIndex, moved } from "../model/reorder";
 import { glyph } from "../model/topbar";
-import { currentScreen, setScreensaver, settingValues, state } from "../store";
+import { currentScreen, loadTopbarPreview, openSaverAdd, openSaverItem, removeSaverItem, SAVER_ITEMS_MAX, saverItems, setScreensaver, settingValues, state, topbarLabel, topbarView } from "../store";
 import type { SaverKind } from "../types";
 import Icon from "./ui/Icon.vue";
 import UiSelect from "./ui/UiSelect.vue";
 
 const saver = computed(() => currentScreen.value?.screensaver);
+onMounted(() => loadTopbarPreview(0));
 const MIN_FIRMWARE = "0.29.0";
 const ICONS: Record<SaverKind, string> = { media: "F075A", camera: "F07AE", clock: "F0150" };
 const DOMAINS: Record<"media" | "camera", string[]> = { media: ["media_player"], camera: ["camera", "image"] };
@@ -181,8 +182,22 @@ const playerSort = sorter<string>("#screensaver-players .saver-player[data-row]"
             </div>
             <UiSelect v-else-if="kind === 'camera'" class="saver-pick" id="screensaver-camera" :model-value="saver.camera" :options="choices('camera')"
               @update:model-value="(value: string) => change({ camera: value })" />
-            <UiSelect v-else class="saver-pick" id="screensaver-weather" :model-value="saver.weather ?? 'auto'" :options="weatherChoices"
-              @update:model-value="(value: string) => change({ weather: value })" />
+            <template v-else>
+              <UiSelect class="saver-pick" id="screensaver-weather" :model-value="saver.weather ?? 'auto'" :options="weatherChoices"
+                @update:model-value="(value: string) => change({ weather: value })" />
+              <!-- Entities beside the temperature (app 0.4.81): the top bar's items, edited in its drawer. -->
+              <div id="screensaver-items" class="saver-items" role="list" :aria-label="t('editor.screen_settings.screensaver.items_title')">
+                <div v-for="(it, i) in saverItems()" :key="it.entity" class="saver-item" role="listitem" tabindex="0" :data-index="i"
+                  @click="openSaverItem(i)" @keydown.enter.prevent="openSaverItem(i)">
+                  <span class="mdi">{{ topbarView(it).icon ? glyph(topbarView(it).icon!) : "" }}</span>
+                  <span class="saver-item-name">{{ topbarLabel(it) }}</span>
+                  <small>{{ it.content === "icon" ? "" : topbarView(it).text }}</small>
+                  <button type="button" class="x" :aria-label="t('editor.topbar.remove_named', { name: topbarLabel(it) })" @click.stop="removeSaverItem(i)"><Icon name="close" /></button>
+                </div>
+                <button v-if="saverItems().length < SAVER_ITEMS_MAX" type="button" class="ghost-btn" id="screensaver-add-item" @click.stop="openSaverAdd"><Icon name="plus" />{{ t("editor.screen_settings.screensaver.items_add") }}</button>
+              </div>
+              <small v-if="!saverItems().length">{{ t("editor.screen_settings.screensaver.items_hint") }}</small>
+            </template>
             <small>{{ detail(kind) }}</small>
           </span>
           <button type="button" class="switch" role="switch" :aria-checked="isOn(kind) ? 'true' : 'false'"
@@ -212,5 +227,9 @@ const playerSort = sorter<string>("#screensaver-players .saver-player[data-row]"
 .saver-player :deep(.saver-pick) { flex: 1; min-width: 0; }
 /* The row that adds a player lines up with the players over it, past their grips. */
 #screensaver-players :deep(.saver-add.indented) { margin-left: 28px; width: calc(100% - 28px); }
+.saver-items { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.saver-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 9px; cursor: pointer; background: var(--surface-2, rgba(127, 127, 127, 0.08)); }
+.saver-item .saver-item-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.saver-item .x { flex: none; }
 .saver-player.dragging-chip { outline: 2px dashed var(--accent); background: var(--accent-soft); cursor: grabbing; }
 </style>

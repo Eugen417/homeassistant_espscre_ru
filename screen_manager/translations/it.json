@@ -2050,7 +2050,20 @@
           "camera": "La sua immagine, ogni 15 secondi",
           "camera_unset": "Scegli una telecamera per usarla",
           "clock": "L'ora, la data e la temperatura esterna, in bianco su nero"
-        }
+        },
+        "items_add": "Aggiungi un'entità",
+        "items_hint": "Accanto alla temperatura, su una riga: un sensore, una porta, una lampada.",
+        "items_full": "L'orologio ha spazio per {n} entità.",
+        "items_already": "È già sull'orologio.",
+        "items_removed": "{name} tolto dall'orologio",
+        "items_title": "Entità dell'orologio",
+        "items_slots": "{used} di {n}",
+        "item_text": "Testo",
+        "item_icon": "Icona",
+        "item_both": "Entrambi",
+        "item_look": "Mostra",
+        "item_hint": "In bianco e nero sul salvaschermo, qualunque sia il colore dell'entità.",
+        "items_add_title": "Aggiungi all'orologio"
       }
     },
     "update": {

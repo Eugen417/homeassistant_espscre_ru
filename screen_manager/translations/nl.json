@@ -2050,7 +2050,20 @@
           "camera": "Het beeld, elke 15 seconden",
           "camera_unset": "Kies een camera om hem te gebruiken",
           "clock": "De tijd, de datum en de buitentemperatuur, wit op zwart"
-        }
+        },
+        "items_add": "Voeg een entiteit toe",
+        "items_hint": "Naast de temperatuur, op één regel: een sensor, een deur, een lamp.",
+        "items_full": "De klok heeft ruimte voor {n} entiteiten.",
+        "items_already": "Dit staat al op de klok.",
+        "items_removed": "{name} van de klok gehaald",
+        "items_title": "Entiteiten bij de klok",
+        "items_slots": "{used} van {n}",
+        "item_text": "Tekst",
+        "item_icon": "Icoon",
+        "item_both": "Beide",
+        "item_look": "Toont",
+        "item_hint": "Zwart-wit op de screensaver, welke kleur de entiteit ook heeft.",
+        "items_add_title": "Aan de klok toevoegen"
       }
     },
     "update": {

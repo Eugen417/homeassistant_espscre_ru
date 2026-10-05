@@ -2050,7 +2050,20 @@
           "camera": "Su imagen, cada 15 segundos",
           "camera_unset": "Elige una cámara para usarla",
           "clock": "La hora, la fecha y la temperatura exterior, en blanco sobre negro"
-        }
+        },
+        "items_add": "Añadir una entidad",
+        "items_hint": "Junto a la temperatura, en una línea: un sensor, una puerta, una lámpara.",
+        "items_full": "El reloj tiene sitio para {n} entidades.",
+        "items_already": "Ya está en el reloj.",
+        "items_removed": "{name} quitado del reloj",
+        "items_title": "Entidades del reloj",
+        "items_slots": "{used} de {n}",
+        "item_text": "Texto",
+        "item_icon": "Icono",
+        "item_both": "Ambos",
+        "item_look": "Muestra",
+        "item_hint": "En blanco y negro en el salvapantallas, sea cual sea el color de la entidad.",
+        "items_add_title": "Añadir al reloj"
       }
     },
     "update": {

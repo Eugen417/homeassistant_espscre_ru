@@ -2839,8 +2839,14 @@ class Manager:
         sender = self.page_senders.get(screen.get('id'))
         keys = screen_saver.KEYS_FEATURE in (getattr(sender, 'features', None) or ())
         # The player it shows keeps the glass for a while after a pause (screen_saver.HELD_SECONDS).
+        row = screen_saver.ITEMS_FEATURE in (getattr(sender, 'features', None) or ())
         return screen_saver.message(choice, self.ha.states, pictures, short, media_extras, self.player_ground, keys,
-                                    held=self.saver_shown.get(screen.get('id'), ''))
+                                    held=self.saver_shown.get(screen.get('id'), ''), bar=self.saver_item if row else None)
+
+    def saver_item(self, item):
+        """One of the clock's entity items as the top bar sends it (header_bar.entity_item)."""
+        return header_bar.entity_item(item, self.ha.states, self.registry_index(), getattr(self.ha, 'units', {}),
+                                      getattr(self.ha, 'time_zone', None), getattr(self.ha, 'state_words', None))[0]
 
     async def sync_saver(self, inbox, screen):
         """Tell a screen that takes a screensaver (its hello lists it, firmware 0.29.0+) what it shows now, whenever that
