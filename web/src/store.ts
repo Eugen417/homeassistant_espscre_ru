@@ -11,7 +11,7 @@ import { createLayout, dimensions, type Size, versionAtLeast } from "./model/lay
 import { memoryCrossing, memoryUse } from "./model/memory";
 import { validPreviewShape, type PreviewProfile } from "./model/preview";
 import renderer from "./wasm/renderer.json";
-import type { Capability, ChildTile, FeedbackView, ChangelogSection, EntityAction, HeaderItem, Inventory, Layout, Screen, ScreensaverChoice, Tile, PageLayout, PageTile, PageDocument, PageGrid, PageWorkspace } from "./types";
+import type { BoardChoice, Capability, ChildTile, FeedbackView, ChangelogSection, EntityAction, HeaderItem, Inventory, Layout, Screen, ScreensaverChoice, Tile, PageLayout, PageTile, PageDocument, PageGrid, PageWorkspace } from "./types";
 
 import * as pages from "./model/pages";
 import { DraftHistory, type HistoryScope } from './model/draft-history';
@@ -254,6 +254,10 @@ export const repeatable = (id: string) => pageTarget(id) > 0 ? pageTilesRepeat.v
 // Whether the screen's board draws pictures (camera tiles, an album cover): the add-on says so per screen from the
 // board's own camera sizes (app 0.2.94), and this page always comes with that add-on.
 export const pictures = computed(() => Boolean(currentScreen.value?.pictures));
+// Whether a screen's board draws pictures, for its firmware preview (firmware 0.46.0 keeps no square for an album cover
+// on a board without them): the add-on says it per screen; a preview screen takes it from its board.
+export const drawsPictures = (screen?: Screen) =>
+  screen?.pictures ?? (screen?.shape?.catalog as Partial<BoardChoice> | undefined)?.camera ?? true;
 // What the screen being edited looks like. The manager works it out (core.shape_of): what the screen reported
 // itself, else the board package its YAML builds from, else its board. The editor only draws it, and falls
 // back to the smallest screen there is while it has heard nothing at all.

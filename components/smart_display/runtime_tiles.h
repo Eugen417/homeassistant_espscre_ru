@@ -3775,10 +3775,18 @@ inline int media_bar_width=0;
 inline media_card::Rect media_art_rect;  // where the card's cover goes once it is here
 inline uint32_t media_accent(){return theme::foreground(theme::ha::LIGHT_BLUE);}
 inline const lv_font_t *tile_icon_font(){for(auto &w:widgets)if(w.icon_font)return w.icon_font;return mini_icon_font?mini_icon_font:detail_font;}
-inline media_card::Metrics media_metrics(bool large){
+// `duration`: the track's length, whose time is the widest beside the bar (firmware 0.46.0). A board that draws no
+// pictures gets no place for a cover (media_card.h).
+inline media_card::Metrics media_metrics(bool large,uint32_t duration=0){
   media_card::Metrics m;m.large=large;
+  m.art=camera_supported();
   const lv_font_t *title=watch_font?watch_font:detail_font,*artist=control_font?control_font:detail_font,*small=small_font?small_font:detail_font;
   m.title_h=lv_font_get_line_height(title);m.artist_h=lv_font_get_line_height(artist);m.small_h=lv_font_get_line_height(small);
+  if(duration){
+    lv_point_t size;const std::string widest=media_card::clock_text(duration);
+    lv_text_get_size(&size,widest.c_str(),small,0,0,LV_COORD_MAX,LV_TEXT_FLAG_NONE);
+    m.clock_w=size.x+ui::px(2);
+  }
   return m;
 }
 // What the keys do, on the card and on a tile over the whole page: 20 play or pause, 21 previous, 22 next, 23 mute,
@@ -4109,7 +4117,7 @@ inline void render_media_detail(Tile &t,unsigned index,bool large,int width,int 
   using namespace media_card;
   using namespace tile_controls;
   const auto &x=t.extra();
-  const Metrics m=media_metrics(large);
+  const Metrics m=media_metrics(large,x.media_duration);
   // The volume row ends with the keys of what the player has besides: its inputs, and its library outermost.
   const bool library=x.media_library&&media_library::available(),inputs=!x.media_inputs.empty();
   const Layout l=layout(m,width,std::max(60,height-top-(ui::px(large?12:6))),library+inputs);
@@ -4121,25 +4129,29 @@ inline void render_media_detail(Tile &t,unsigned index,bool large,int width,int 
   // A player at rest whose library opens, with nothing to play or pause (Spotify playing nowhere): the card says how
   // to start it, and its one key is the library.
   const bool rest=usable&&!track&&!media_off(t)&&x.media_library&&media_library::available()&&!(f&(feature::MEDIA_PLAY|feature::MEDIA_PAUSE));
-  // The cover, or its placeholder with the player's icon; the cover comes over it once the app served it.
+  // The cover, or its placeholder with the player's icon; the cover comes over it once the app served it. A board that
+  // draws no pictures has neither (firmware 0.46.0): the layout gives the player that room.
   // A darker square on a cover's colours, a faint white one on the plain black.
-  auto *frame=media_box(detail_root,nullptr,at(l.art),x.has_ground?theme::hex(theme::CAMERA_PAGE):ink,l.art_radius);
-  lv_obj_set_style_bg_opa(frame,x.has_ground?60:24,0);
-  const std::string glyph=rest?std::string("\U000F04C7"):icon_for(t);
-  // The big icon where the square holds it, the tile's icon in a small one.
-  const lv_font_t *placeholder_font=big_icon_font&&font_has(big_icon_font,glyph)&&lv_font_get_line_height(big_icon_font)<=l.art.h?big_icon_font:tile_icon_font();
-  auto *icon=lv_label_create(frame);lv_obj_remove_flag(icon,LV_OBJ_FLAG_CLICKABLE);lv_obj_set_style_text_font(icon,placeholder_font,0);
-  lv_obj_set_style_text_color(icon,theme::rgb(theme::mix(ink,g.top,120)),0);lv_label_set_text(icon,glyph.c_str());center_icon(icon);
-  media_art_rect=at(l.art);media_detail_picture=nullptr;
-  const uint32_t ground=media_ground_at(g,media_art_rect.cy(),height);
-  // The cover is rounded over the ground behind it, so it is asked for once the app has read its colours, or after
-  // MEDIA_GROUND_WAIT_MS without them (an app from before): one download per track, not one for each ground.
-  const std::string waited=t.entity+"|"+x.media_picture;
-  if(waited!=media_ground_waited){media_ground_waited=waited;media_ground_since=esphome::millis();}
-  media_ground_pending=!x.ground_known&&esphome::millis()-media_ground_since<MEDIA_GROUND_WAIT_MS;
-  if(camera_supported()&&track&&!x.media_picture.empty()&&!media_ground_pending){
-    cover_want(t.entity,x.media_picture,l.art.w,ground,CoverOwner::DETAIL,0);
-    media_detail_picture=media_picture_show(detail_root,nullptr,media_art_rect,cover_ready(t.entity,l.art.w,ground));
+  media_art_rect={};media_detail_picture=nullptr;
+  if(l.art.w){
+    auto *frame=media_box(detail_root,nullptr,at(l.art),x.has_ground?theme::hex(theme::CAMERA_PAGE):ink,l.art_radius);
+    lv_obj_set_style_bg_opa(frame,x.has_ground?60:24,0);
+    const std::string glyph=rest?std::string("\U000F04C7"):icon_for(t);
+    // The big icon where the square holds it, the tile's icon in a small one.
+    const lv_font_t *placeholder_font=big_icon_font&&font_has(big_icon_font,glyph)&&lv_font_get_line_height(big_icon_font)<=l.art.h?big_icon_font:tile_icon_font();
+    auto *icon=lv_label_create(frame);lv_obj_remove_flag(icon,LV_OBJ_FLAG_CLICKABLE);lv_obj_set_style_text_font(icon,placeholder_font,0);
+    lv_obj_set_style_text_color(icon,theme::rgb(theme::mix(ink,g.top,120)),0);lv_label_set_text(icon,glyph.c_str());center_icon(icon);
+    media_art_rect=at(l.art);
+    const uint32_t ground=media_ground_at(g,media_art_rect.cy(),height);
+    // The cover is rounded over the ground behind it, so it is asked for once the app has read its colours, or after
+    // MEDIA_GROUND_WAIT_MS without them (an app from before): one download per track, not one for each ground.
+    const std::string waited=t.entity+"|"+x.media_picture;
+    if(waited!=media_ground_waited){media_ground_waited=waited;media_ground_since=esphome::millis();}
+    media_ground_pending=!x.ground_known&&esphome::millis()-media_ground_since<MEDIA_GROUND_WAIT_MS;
+    if(camera_supported()&&track&&!x.media_picture.empty()&&!media_ground_pending){
+      cover_want(t.entity,x.media_picture,l.art.w,ground,CoverOwner::DETAIL,0);
+      media_detail_picture=media_picture_show(detail_root,nullptr,media_art_rect,cover_ready(t.entity,l.art.w,ground));
+    }
   }
   // Title, artist · album.
   const lv_font_t *title_font=watch_font?watch_font:detail_font,*artist_font=control_font?control_font:detail_font,*small=small_font?small_font:detail_font;
@@ -6144,7 +6156,7 @@ inline void render_media_full(Widgets &w,const Tile &t,bool big,int content_w,in
   using namespace media_card;
   using namespace tile_controls;
   const auto &x=t.extra();
-  const Metrics m=media_metrics(big);
+  const Metrics m=media_metrics(big,x.media_duration);
   const int top=head_h+(ui::px(big?8:4));
   const Layout l=layout(m,content_w,std::max(40,content_h-top-(ui::px(big?4:2))));
   begin_extra(w,"media",content_w,content_h);
@@ -6152,13 +6164,17 @@ inline void render_media_full(Widgets &w,const Tile &t,bool big,int content_w,in
   const bool usable=fresh()&&t.available(),track=usable&&has_track(t.state),play=media_card::playing(t.state);
   const uint32_t f=t.supported;auto can=[&](uint32_t bit){return usable&&(!f||(f&bit));};
   const size_t slot=&w-widgets.data();
-  // The placeholder and the player's icon; the cover comes over them once the app served it.
-  w.parts[0]=media_box(w.extra,w.parts[0],at(l.art),theme::tint(theme::ha::LIGHT_BLUE,51),l.art_radius);
-  const std::string glyph=icon_for(t);
-  // The big icon where the square holds it (a cover that shrank for the volume row may not), else the tile's icon.
-  const lv_font_t *placeholder_font=big_icon_font&&font_has(big_icon_font,glyph)&&lv_font_get_line_height(big_icon_font)<=l.art.h?big_icon_font:w.icon_font;
-  if(!w.parts[1]){w.parts[1]=lv_label_create(w.parts[0]);lv_obj_remove_flag(w.parts[1],LV_OBJ_FLAG_CLICKABLE);}
-  set_font(w.parts[1],placeholder_font);set_color(w.parts[1],LV_STYLE_TEXT_COLOR,theme::rgb(theme::icon(theme::ha::LIGHT_BLUE)));label(w.parts[1],glyph);lv_obj_center(w.parts[1]);
+  // The placeholder and the player's icon; the cover comes over them once the app served it. A board that draws no
+  // pictures has neither (firmware 0.46.0): the player stands in the middle of the room instead.
+  if(l.art.w){
+    w.parts[0]=media_box(w.extra,w.parts[0],at(l.art),theme::tint(theme::ha::LIGHT_BLUE,51),l.art_radius);
+    lv_obj_remove_flag(w.parts[0],LV_OBJ_FLAG_HIDDEN);
+    const std::string glyph=icon_for(t);
+    // The big icon where the square holds it (a cover that shrank for the volume row may not), else the tile's icon.
+    const lv_font_t *placeholder_font=big_icon_font&&font_has(big_icon_font,glyph)&&lv_font_get_line_height(big_icon_font)<=l.art.h?big_icon_font:w.icon_font;
+    if(!w.parts[1]){w.parts[1]=lv_label_create(w.parts[0]);lv_obj_remove_flag(w.parts[1],LV_OBJ_FLAG_CLICKABLE);}
+    set_font(w.parts[1],placeholder_font);set_color(w.parts[1],LV_STYLE_TEXT_COLOR,theme::rgb(theme::icon(theme::ha::LIGHT_BLUE)));label(w.parts[1],glyph);lv_obj_center(w.parts[1]);
+  }else if(w.parts[0])lv_obj_add_flag(w.parts[0],LV_OBJ_FLAG_HIDDEN);
   // The colour behind the cover's rounded corners: the card's own, as the palette below will paint it (firmware 0.3.2).
   // Read from the card, it was the colour of whatever the card showed before, so a new card asked for a cover with the
   // wrong corners first and for the right one after its first drawing.
@@ -6174,14 +6190,15 @@ inline void render_media_full(Widgets &w,const Tile &t,bool big,int content_w,in
   else if(pictured&&!card_open){cover_want(t.entity,x.media_picture,l.art.w,ground,CoverOwner::TILE,slot);src=cover_ready(t.entity,l.art.w,ground);}
   if(src)w.parts[MEDIA_PICTURE]=media_picture_show(w.extra,w.parts[MEDIA_PICTURE],at(l.art),src);
   else if(w.parts[MEDIA_PICTURE]){lv_obj_delete(w.parts[MEDIA_PICTURE]);w.parts[MEDIA_PICTURE]=nullptr;}
-  // Title, artist · album, left-aligned beside the cover.
+  // Title, artist · album, left-aligned beside the cover, in the middle without one.
   const lv_font_t *title_font=watch_font?watch_font:w.title_font,*artist_font=control_font?control_font:w.title_font,*small=small_font?small_font:w.title_font;
+  const lv_text_align_t words_align=m.art?LV_TEXT_ALIGN_LEFT:LV_TEXT_ALIGN_CENTER;
   auto text=[&](unsigned i,const lv_font_t *font,const Rect &r,lv_text_align_t align,const std::string &value,theme::Role role){
     auto *p=part_label(w,i,font,r.x,r.y+top,r.w,align,value);lv_label_set_long_mode(p,LV_LABEL_LONG_DOT);set_color(p,LV_STYLE_TEXT_COLOR,theme::color(role));lv_obj_remove_flag(p,LV_OBJ_FLAG_HIDDEN);return p;
   };
   // The title and the artist line roll by when they are too long (firmware 0.2.77+), as on the card.
-  marquee(text(2,title_font,l.title,LV_TEXT_ALIGN_LEFT,track&&!x.media_title.empty()?x.media_title:std::string(idle_text(usable?t.state:"unavailable")),theme::INK));
-  if(l.artist)marquee(text(3,artist_font,l.artist_line,LV_TEXT_ALIGN_LEFT,track?subtitle(x.media_artist,x.media_album):std::string(),theme::MUTED));
+  marquee(text(2,title_font,l.title,words_align,track&&!x.media_title.empty()?x.media_title:std::string(idle_text(usable?t.state:"unavailable")),theme::INK));
+  if(l.artist)marquee(text(3,artist_font,l.artist_line,words_align,track?subtitle(x.media_artist,x.media_album):std::string(),theme::MUTED));
   else if(w.parts[3])lv_obj_add_flag(w.parts[3],LV_OBJ_FLAG_HIDDEN);
   // The progress bar and its times; a stream without a length has none.
   w.media_bar_w=l.bar.w;

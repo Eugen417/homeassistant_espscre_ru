@@ -59,8 +59,10 @@ what plays, with the title, the artist and the album, a progress bar and the key
   when the page turns back to a full-page media tile. Nothing polls.
 - A player without a picture (a radio station, a player that is off) keeps the player's icon in
   the cover's place; the app answers with an empty link and the screen stops asking.
-- A board without camera pictures (CYD, Waveshare 3.5, Hosyond 4-inch) shows the same card without
-  the picture: its icon stands in for the cover.
+- A board without camera pictures (CYD, Waveshare 3.5, Hosyond 4-inch) has no place for a cover on its media card
+  or on a media tile over the whole page (firmware 0.46.0): the title, the bar and the keys stand together in the
+  middle and take the room, with shuffle and repeat where they fit. Before, an empty square with the player's icon
+  stood where a cover never came.
 - One picture loads at a time. An alert closes an open card and its cover. Under a media tile of
   size *Full page* the alert's picture goes first: the tile's cover waits until the alert's picture
   is there, and a cover already on its way finishes before the alert's picture starts.

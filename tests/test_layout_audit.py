@@ -199,12 +199,15 @@ def boards():
                 continue
             grids = [o['rows']] + ([rows for rows in choices if rows != o['rows']] if o['width'] >= o['height'] else [])
             for rows in grids:
-                shape_key = (o['width'], o['height'], o['columns'], rows, shape['dpi'])
+                # A board without pictures draws its cards without a cover's place (firmware 0.46.0), so it is a shape of
+                # its own even on the glass of a board with them.
+                pictures = bool(shape.get('camera'))
+                shape_key = (o['width'], o['height'], o['columns'], rows, shape['dpi'], pictures)
                 if shape_key in seen:
                     continue
                 name = f'{key}-{side}' if rows == o['rows'] else f'{key}-{side}-{rows}rows'
                 seen[shape_key] = {'key': name, 'width': o['width'], 'height': o['height'], 'columns': o['columns'],
-                                   'rows': rows, 'dpi': shape['dpi']}
+                                   'rows': rows, 'dpi': shape['dpi'], 'pictures': pictures}
                 found.append(seen[shape_key])
     return found
 
@@ -337,9 +340,10 @@ KNOWN = [
     {'layout': r'^jc8012p4a1-portrait: input_number ', 'problem': r"^text '[\d.]+ °C' is cut without dots",
      'cause': 'the stepper falls back to text_font when no face fits its room (runtime_tiles.h:5153 stepper_keys), and the '
               'number is clipped: "21.5 °C" in 45 px between the keys'},
-    {'layout': r'^jc3248w535-landscape: weather-watch full ', 'problem': r"^text '[\d.]+ °C' (leaves its card by \d+ px|is -\d+ px from its card's edge)$",
+    {'layout': r'^(jc3248w535|waveshare35)-landscape: weather-watch full ', 'problem': r"^text '[\d.]+ °C' (leaves its card by \d+ px|is -\d+ px from its card's edge)$",
      'cause': 'a full card stacks circle, name and value without giving any up when they are taller than the card '
-              '(runtime_tiles.h:5960 render_full): the watch face\'s value ends 5 px under the card'},
+              '(runtime_tiles.h:5960 render_full): the watch face\'s value ends 5 px under the card; the 3.5-inch glass with '
+              'pictures and the one without are audited apart since firmware 0.46.0'},
 ]
 
 

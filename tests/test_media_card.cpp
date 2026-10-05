@@ -2,6 +2,7 @@
 // clang++ -std=c++17 -Wall -Wextra -Werror -I. tests/test_media_card.cpp -o /tmp/test_media_card && /tmp/test_media_card
 #include "../components/smart_display/media_card.h"
 #include <cassert>
+#include <cstdlib>
 #include <cstdio>
 
 using namespace media_card;
@@ -11,8 +12,11 @@ static bool apart(const Rect &a, const Rect &b) { return a.right() <= b.x || b.r
 static bool above(const Rect &a, const Rect &b) { return a.bottom() <= b.y; }
 
 // Every part inside the area, nothing over anything else, the keys in one row and the volume row at the bottom.
-static void sound(const Layout &l, int width, int height) {
-  const Rect *parts[] = {&l.art, &l.title, &l.bar, &l.prev, &l.play, &l.next, &l.minus, &l.volume, &l.plus};
+static void sound(const Layout &l, int width, int height, bool art = true) {
+  // A board without pictures has no cover and no square for one (firmware 0.46.0).
+  if (art) assert(l.art.w > 0 && l.art.h > 0 && inside(l.art, width, height));
+  else assert(l.art.w == 0 && l.art.h == 0);
+  const Rect *parts[] = {&l.title, &l.bar, &l.prev, &l.play, &l.next, &l.minus, &l.volume, &l.plus};
   for (const Rect *r : parts) assert(r->w > 0 && r->h > 0 && inside(*r, width, height));
   if (l.artist) assert(l.artist_line.h > 0 && inside(l.artist_line, width, height));
   if (l.times) assert(l.elapsed.h > 0 && l.total.h > 0 && inside(l.elapsed, width, height) && inside(l.total, width, height));
@@ -28,12 +32,12 @@ static void sound(const Layout &l, int width, int height) {
   assert(l.minus.cy() == l.volume.cy() && l.plus.cy() == l.volume.cy());
   for (const Rect *e : {&l.ends[0], &l.ends[1]}) if (e->w) assert(inside(*e, width, height) && e->x > l.plus.right() && e->cy() == l.plus.cy());
   if (l.ends[1].w) assert(l.ends[1].right() < l.ends[0].x);
-  for (const Rect *r : {&l.art, &l.title, &l.bar, &l.prev, &l.play, &l.next}) assert(above(*r, l.minus));
+  for (const Rect *r : {&l.art, &l.title, &l.bar, &l.prev, &l.play, &l.next}) if (r->w) assert(above(*r, l.minus));
   // Nothing overlaps.
   const Rect *rects[] = {&l.art, &l.title, &l.artist_line, &l.bar, &l.elapsed, &l.total, &l.prev, &l.play, &l.next, &l.minus, &l.volume, &l.plus, &l.ends[0], &l.ends[1]};
   for (const Rect *a : rects) for (const Rect *b : rects) if (a != b && a->w && b->w) assert(apart(*a, *b));
   // The art is square and its corner follows its size.
-  assert(l.art.w == l.art.h && l.art_radius == radius_for(l.art.w));
+  if (art) assert(l.art.w == l.art.h && l.art_radius == radius_for(l.art.w));
 }
 
 int main() {
@@ -120,6 +124,48 @@ int main() {
     Layout wide = layout(m, 800, 396);
     sound(wide, 800, 396);
     printf("sides: guition shuffle x=%d repeat x=%d; 800 wide %s\n", l.shuffle.x, l.repeat.x, wide.sides ? "yes" : "no");
+  }
+  // A board without pictures (firmware 0.46.0): no cover and no square for one; the player takes the room, in the middle.
+  {
+    Metrics m; m.large = false; m.art = false; m.title_h = 21; m.artist_h = 17; m.small_h = 13;
+    // The CYD's card: everything stacked and centred, the column wider than beside a cover, the times kept.
+    Layout card = layout(m, 320, 192);
+    sound(card, 320, 192, false);
+    Metrics with_art = m; with_art.art = true;
+    const Layout before = layout(with_art, 320, 192);
+    assert(!card.wide && card.artist && card.times && card.title.w > before.title.w);
+    assert(card.title.cx() == 160 && card.bar.cx() == 160 && card.play.cx() == 160);
+    assert(above(card.title, card.artist_line) && above(card.artist_line, card.bar) && above(card.bar, card.play));
+    // In the middle of the room above the volume row: as much air over the title as under the keys.
+    const int top_air = card.title.y, low_air = card.minus.y - m.gap() - card.play.bottom();
+    assert(std::abs(top_air - low_air) <= 1);
+    // The CYD standing up (240 wide) and a CYD tile over the whole page under its head: the artist line goes first.
+    sound(layout(m, 240, 272), 240, 272, false);
+    Layout tile = layout(m, 302, 108);
+    sound(tile, 302, 108, false);
+    assert(!tile.artist && tile.play.cx() == 151);
+    // A board with PSRAM keeps its cover exactly as before.
+    Metrics big; Layout guition = layout(big, 480, 396);
+    assert(guition.art.w >= 140);
+    printf("no pictures: cyd column w=%d (%d beside a cover), sides %s; tile artist %d\n", card.title.w, before.title.w,
+           card.sides ? "yes" : "no", tile.artist);
+  }
+  // The times beside the bar take the room the longest time needs (firmware 0.46.0): "1:02:45" was cut at "12:34"'s width.
+  {
+    Metrics m;
+    const Layout narrow = layout(m, 480, 396);
+    m.clock_w = m.time_w() + 20;
+    const Layout hour = layout(m, 480, 396);
+    sound(hour, 480, 396);
+    assert(hour.times && hour.elapsed.w == m.clock_w && hour.total.w == m.clock_w && hour.bar.w == narrow.bar.w - 40);
+    m.clock_w = 1;  // never narrower than a minutes' time
+    assert(layout(m, 480, 396).elapsed.w == m.time_w());
+    // The CYD without its cover has the room for an hour's times too.
+    Metrics cyd; cyd.large = false; cyd.art = false; cyd.title_h = 21; cyd.artist_h = 17; cyd.small_h = 13;
+    cyd.clock_w = cyd.time_w() + 14;
+    const Layout podcast = layout(cyd, 320, 192);
+    sound(podcast, 320, 192, false);
+    assert(podcast.times && podcast.elapsed.w == cyd.clock_w);
   }
   // Seeking: a place on the bar is a second of the track, and a seek holds until Home Assistant agrees.
   assert(seek_seconds(0, 200, 240) == 0 && seek_seconds(100, 200, 240) == 120 && seek_seconds(250, 200, 240) == 240);

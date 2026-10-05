@@ -264,7 +264,8 @@ Click **Save & send** to send your changes.
   a key such as Play or Menu, add the remote again with **On tap** set to **Perform action** and **Send command**, and
   pick the command from the list under the field (Android TV, Apple TV, Roku and others) or type it as Home Assistant
   knows it (Harmony, Broadlink).
-- Media player: tap for the media card with the cover (boards with camera pictures), the keys, and the volume row:
+- Media player: tap for the media card with the cover (boards with camera pictures; the others give the player that
+  room), the keys, and the volume row:
   volume down, the slider and volume up, as on the screensaver. Hold volume down to mute; the next tap on either key
   takes the mute off. A player Home Assistant can turn off has its power key at the top right (firmware 0.39.0). The
   speaker it plays on is at the top of the card; tap it to choose another. A player that groups (Sonos and others that

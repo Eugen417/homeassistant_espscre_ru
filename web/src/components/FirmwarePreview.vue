@@ -13,7 +13,9 @@ import type { PageLayout } from "../types";
 const props = withDefaults(defineProps<{
   width: number; height: number; dpi?: number; columns: number; rows: number;
   layout?: PageLayout | null; still?: boolean; controls?: boolean;
-}>(), { still: false, controls: true });
+  // Whether the board draws pictures (store.drawsPictures): a CYD's preview has no square for an album cover.
+  pictures?: boolean;
+}>(), { still: false, controls: true, pictures: true });
 const emit = defineEmits<{ ready: []; failed: [message: string] }>();
 const canvas = ref<HTMLCanvasElement | null>(null);
 const error = ref("");
@@ -239,6 +241,8 @@ onMounted(async () => {
     if (!module._preview_init(props.width, props.height, props.dpi ?? 170, props.columns, props.rows)) {
       throw new Error(t("editor.preview.invalid_shape"));
     }
+    // A board that draws no pictures (the CYD) has no square for an album cover, as on its glass (firmware 0.46.0).
+    module._preview_pictures?.(props.pictures === false ? 0 : 1);
     await receive();
     listen();
     draw();

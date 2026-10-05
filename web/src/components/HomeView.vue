@@ -5,7 +5,7 @@ import { computed, onMounted, reactive } from "vue";
 import { t } from "../i18n";
 import { barMetricsFor } from "../model/topbar";
 import { boardTitle } from "../model/boards";
-import { go, homeView, loadOverview, phone, screenLight, screenSubline, select, setFullEditor, state } from "../store";
+import { drawsPictures, go, homeView, loadOverview, phone, screenLight, screenSubline, select, setFullEditor, state } from "../store";
 import UiMenu from "./ui/UiMenu.vue";
 import UiMenuItem from "./ui/UiMenuItem.vue";
 import UiMenuSeparator from "./ui/UiMenuSeparator.vue";
@@ -59,7 +59,7 @@ onMounted(loadOverview);
         <span class="home-stage">
           <span v-if="live && layout && !failed.has(screen.id)" class="home-live" :style="{ width: liveWidth(live) }" aria-hidden="true">
             <FirmwarePreview :key="`${screen.id}:${JSON.stringify(live)}`" :width="live.width" :height="live.height" :dpi="live.dpi"
-              :columns="live.columns" :rows="live.rows" :layout="layout" still
+              :columns="live.columns" :rows="live.rows" :layout="layout" :pictures="drawsPictures(screen)" still
               @ready="drawn.add(screen.id)" @failed="failed.add(screen.id)" />
           </span>
           <span v-if="view && !(live && layout && drawn.has(screen.id) && !failed.has(screen.id))" class="home-glass"

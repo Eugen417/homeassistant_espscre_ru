@@ -1,3 +1,26 @@
+## 0.4.76 (firmware 0.46.0)
+
+- **No empty album cover on a screen without pictures.** The CYD, the Waveshare 3.5-inch and the Hosyond 4-inch have
+  no memory for pictures, so they never get an album cover, yet the media card and a media tile over the whole page
+  kept a square for one, with the player's icon in it. People took it for a cover that failed to load. Those boards now
+  have no square at all: the title, the artist, the bar and the keys stand together in the middle of the card and take
+  its room, a hand's width at most. The bar is wider, shuffle and repeat fit beside the keys on the CYD's card, and a
+  player at rest shows its whole line ("Tap a cover in the library to play") instead of a piece of it beside an empty
+  Spotify square. Boards with pictures keep their cover as before. The layout follows the room, not the board: what
+  does not fit still goes in the same order, the artist line first.
+- **The times beside a media card's bar fit a track of an hour or more.** Their place was as wide as "12:34", so a
+  podcast, an audiobook or a long mix showed "1:02:..." at both ends. The place is now as wide as the track's length
+  in the screen's own font.
+- The editor's live preview of a screen follows its board: a CYD's preview shows the media card without a cover's place,
+  as its glass does.
+- Every screen is offered this firmware, 0.46.0.
+- Tested: the media card and a media tile over a whole page rendered from the real firmware on the CYD before and
+  after (no square, the words and keys in its room), and on the 4-inch Guition after (the cover as before). The layout
+  audit now checks the boards without pictures as shapes of their own, so every card on the CYD, the Waveshare
+  3.5-inch and the Hosyond 4-inch is checked without a cover's place. Every Python, C++, editor and WASM preview
+  check. Firmware builds on ESPHome 2026.9.0 for the CYD (87.9 % of its slot), the 4-inch Guition, the 10.1-inch
+  Guition and the Waveshare 7-inch, and on 2026.6.2 for the CYD (89.7 %).
+
 ## 0.4.75 (firmware 0.45.0)
 
 - **A Big number card's number stays inside its card in the editor** ([#167](https://github.com/MaxGramser/homeassistant_espscreen/issues/167)).

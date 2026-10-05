@@ -9,6 +9,11 @@
 // page) puts the art at the left with the texts, the bar and the keys beside it. The volume row always runs along the
 // bottom. What does not fit goes: first the artist line, then the times beside the bar, and the art shrinks last.
 //
+// A board that draws no pictures (one without PSRAM, such as the CYD: camera_supported) never gets a cover, so it gets no
+// square for one either (firmware 0.46.0): the words, the bar and the keys stand together in the middle of the room, a
+// hand's width at most, as a phone's player does for a track without art. Before, it showed an empty square with the
+// player's icon in it, which people took for a cover that failed to load.
+//
 // On glass wider than a hand (a ten-inch panel) two rules of overlay_card apply: the cover is a picture and grows
 // with the glass, while the texts, the keys and the volume row keep a hand's width and stand together in the middle.
 // Before that the cover stayed a thumbnail in the left corner and the volume slider ran from edge to edge, nineteen
@@ -36,6 +41,8 @@ struct Rect {
 // What the board brings: its size class and the line heights of the fonts the card writes with.
 struct Metrics {
   bool large = true;   // the Guition: big keys and a big cover; the CYD gets the small numbers
+  bool art = true;     // the board draws pictures, so the card has a place for the cover (above)
+  int clock_w = 0;     // the widest time beside the bar as the small font writes it ("1:02:45"), 0 for time_w()
   int title_h = 32;    // the title's font (the card heading font)
   int artist_h = 25;   // the artist line (the control font)
   int small_h = 19;    // the times and the percentage (the small font)
@@ -63,6 +70,9 @@ struct Metrics {
   // The widest a row a finger works may get (overlay_card::reach, without pulling LVGL in here).
   int reach() const { return ui::control_max_width(); }
   int time_w() const { return ui::px(large ? 48 : 34); }     // "12:34" beside the bar
+  // The times' place beside the bar: as wide as the longest time the track has, never narrower than "12:34" takes
+  // (firmware 0.46.0). A fixed place cut a track of an hour or more to "1:02:..." (a podcast, an audiobook, a mix).
+  int times_w() const { return std::max(time_w(), clock_w); }
 };
 struct Layout {
   bool wide = false;    // the art at the left, everything else beside it
@@ -111,7 +121,7 @@ inline Layout layout_with(const Metrics &m, int width, int height, int ends, int
   const int row_min = 2 * m.key_h() + m.play_h() + 2 * m.min_gap();
   // The bar's row: the elapsed time at the left, the total at the right, the bar between them, on one small line.
   auto bar_row = [&](int x, int w, int y, bool with_times) {
-    const int tw = with_times && w >= 4 * m.time_w() ? m.time_w() : 0;  // no room for times on a very narrow row
+    const int tw = with_times && w >= 4 * m.times_w() ? m.times_w() : 0;  // no room for times on a very narrow row
     l.times = tw > 0;
     const int row_h = l.times ? m.small_h : m.bar_h();
     l.elapsed = {x, y, tw, m.small_h};
@@ -138,7 +148,24 @@ inline Layout layout_with(const Metrics &m, int width, int height, int ends, int
       l.shuffle = l.repeat = Rect{};
     }
   };
-  if (!l.wide) {
+  if (!m.art) {
+    // No pictures on this board: no cover and no square for one. The words, the bar and the keys stand together in the
+    // middle of the room above the volume row, as wide as the card leaves them and a hand's width at most; the keys'
+    // row has the card's whole width, so shuffle and repeat fit where the cover used to take their room.
+    l.wide = false;
+    const int text_w = std::min(width - 2 * margin, m.reach()), text_x = (width - text_w) / 2;
+    int stack = m.title_h + m.artist_h + g + m.small_h + g + m.play_h();
+    l.artist = stack <= above;
+    if (!l.artist) stack -= m.artist_h;
+    const bool with_times = stack <= above;
+    if (!with_times) stack -= m.small_h - m.bar_h();
+    int y = std::max(0, (above - stack) / 2);
+    l.title = {text_x, y, text_w, m.title_h}; y += m.title_h;
+    if (l.artist) { l.artist_line = {text_x, y, text_w, m.artist_h}; y += m.artist_h; }
+    y += g;
+    y += bar_row(text_x, text_w, y, with_times);
+    keys(0, width, y + g);
+  } else if (!l.wide) {
     // Tall: the art on top, the texts, the bar and the keys under it, all centred.
     const int keys_y = above - m.play_h();
     const int stack = m.title_h + m.artist_h + g + m.small_h + g;  // between the art and the keys: the bar row is one small line
@@ -188,6 +215,7 @@ inline Layout layout_with(const Metrics &m, int width, int height, int ends, int
 // the row had before.
 inline Layout layout(const Metrics &m, int width, int height, int ends = 0) {
   const Layout l = layout_with(m, width, height, ends, m.key_h());
+  if (!m.art) return l.artist ? l : layout_with(m, width, height, ends, m.mute_h());
   if (!l.wide || l.artist) return l;
   return layout_with(m, width, height, ends, m.mute_h());
 }
