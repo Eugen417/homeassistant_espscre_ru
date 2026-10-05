@@ -1,3 +1,17 @@
+## 0.4.78 (firmware 0.47.0)
+
+- **"Not quite" leads to a GitHub issue that is already filled in.** When you tell Tessera a screen doesn't work as you
+  expect, the card no longer ends with a small link under the problem boxes. After you pick what goes wrong (or skip
+  it), it asks whether you want it fixed and offers one button, Open a GitHub issue. The bug report opens with your
+  board, the add-on and firmware versions, the problems you ticked and your note already in it, so only the dropdowns
+  and a log are left. Nothing goes to GitHub until you post it yourself, under your own name, so you can be asked
+  about it and hear when it is fixed.
+- No screen gets new firmware: this release is the editor alone.
+- Tested: the editor's tests, with new ones for the filled-in link with and without a note, the type check, the build
+  and the translations check. On the bench Home Assistant, the card of a Waveshare 4.3-inch driven in a browser: Not
+  quite, Touch and a note, then the button, whose link carries the title, the versions, the board, the problem and
+  the note, while the answer itself reached the Tessera website.
+
 ## 0.4.77 (firmware 0.47.0)
 
 - **The energy card.** A new card in the library, Energy, shows the power of your house right now the way Home
