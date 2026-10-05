@@ -74,7 +74,7 @@ The diagram needs at least 30 mm of width and 25 mm of height on the compact loo
 on every density and look a board has, with seven devices and a car at 11 kW. The editor offers only sizes that big
 (`energyFits` in `web/src/model/ui-scale.ts`, the same numbers, measured with a page bar under the tiles). A new card
 starts 2 × 2 where that fits, else at the smallest size that does: a page of its own on the CYD lying down, three rows on
-the CYD standing up. A card lower than that, which the editor does not offer, shows the house's use alone.
+the CYD standing up, two columns of the whole height on the Waveshare 4.3-inch. A card lower than that, which the editor does not offer, shows the house's use alone.
 
 ### A tap
 

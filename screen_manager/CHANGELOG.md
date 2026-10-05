@@ -23,8 +23,9 @@
   Assistant's energy colours, light and dark.
 - It fits itself to every screen like the other cards: the largest of the board's fonts that fit, the arrows and the
   names only where there is room, and the diagram turned upright on a screen standing up. A long device name takes
-  two lines before the card shows a device fewer. The editor offers the sizes the diagram fits: 2 × 2 on most screens,
-  a page of its own on the CYD and the Waveshare 4.3-inch.
+  two lines before the card shows a device fewer. The editor offers the sizes the diagram fits:
+  2 × 2 on most screens, two columns of the whole height on the Waveshare 4.3-inch, three rows on the CYD standing up
+  and a page of its own on the CYD lying down.
 - The card keeps more memory than a clock, and the memory meter in the editor counts it at its own price.
 - Every screen is offered this firmware, 0.47.0, which the energy card needs.
 - Tested: the card rendered from the real firmware on the CYD lying down and standing up, the 4-inch Guition and the
