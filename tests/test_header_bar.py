@@ -370,12 +370,13 @@ class ParityTests(unittest.TestCase):
         render = TILES.split('inline void render(lv_obj_t *room) {', 1)[1].split('\n}', 1)[0]
         # Firmware 0.38.0: step by step, with what the screen knows of each step (boot_view).
         self.assertIn('const auto view = boot_view(esphome::millis());', render)
-        self.assertIn('boot_status(lv_obj_get_parent(room), view.title.c_str(), true, false, view.facts, view.hint);', render)
+        # Firmware 0.45.0: no spinner while it waits for a person to choose its first tiles, the steps instead.
+        self.assertIn('boot_status(lv_obj_get_parent(room), view.title.c_str(), view.steps.empty(), false, view.facts, view.hint, std::string(), view.steps);', render)
         self.assertIn('else if (boot_panel) boot_forget();', render)
         view = TILES.split('inline BootView boot_view(uint32_t now) {', 1)[1].split('\n}', 1)[0]
         for step in ('txt::status_wifi_connecting', 'txt::status_wifi_address', 'txt::status_connecting',
                      'txt::status_waiting', 'txt::status_loading_tiles_count', 'txt::status_hint_home_assistant',
-                     'txt::status_hint_tessera'):
+                     'txt::status_hint_tessera', 'txt::status_first_tiles', 'txt::status_first_tiles_open', 'txt::status_first_tiles_pick', 'txt::status_first_tiles_save'):
             self.assertIn(step, view)
         # tick() draws it again whenever what it says changes, so a step shows the moment it happens.
         self.assertIn('const auto view=boot_view(esphome::millis());', TILES.split('inline void tick() {', 1)[1])

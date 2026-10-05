@@ -7335,10 +7335,64 @@ inline lv_obj_t *boot_brand_create(lv_obj_t *parent) {
 // network, its address, how long it has waited) and, once a step takes long, what usually fixes it.
 // `qr` (firmware 0.38.0): what a phone's camera reads under the hint, the hotspot to join on the Wi-Fi problem screen,
 // drawn with LVGL's QR code where the board builds it (features/hotspot.yaml, the boards with a hotspot).
-inline lv_obj_t *boot_facts = nullptr, *boot_hint = nullptr, *boot_qr = nullptr;
+inline lv_obj_t *boot_facts = nullptr, *boot_hint = nullptr, *boot_qr = nullptr, *boot_steps = nullptr;
+// What a person does next, one line per step, each after a small tile in one of the Tessera mark's colours (firmware
+// 0.45.0): what a screen shows while it waits for its first tiles. The lines start under each other and the block stands
+// in the middle; a line too long for the glass wraps under its own start. Returns the block, sized.
+struct StepsSize { int tile, gap, row_gap, widest, width, height; std::vector<int> heights; };
+inline StepsSize steps_measure(const std::vector<std::string> &steps, const lv_font_t *font, int width) {
+  StepsSize m{};
+  const int line = lv_font_get_line_height(font);
+  // The tile as tall as a capital, its corners the mark's (11 of 43), a capital's width from the words.
+  m.tile = std::max(6, line * 58 / 100);
+  m.gap = std::max(6, line * 3 / 5);
+  m.row_gap = std::max(4, line * 9 / 20);
+  const int room = std::max(40, width - m.tile - m.gap);
+  for (size_t i = 0; i < steps.size(); ++i) {
+    lv_point_t size;
+    lv_text_get_size(&size, steps[i].c_str(), font, 0, 0, room, LV_TEXT_FLAG_NONE);
+    m.widest = std::max(m.widest, (int) size.x);
+    m.heights.push_back(size.y);
+    m.height += size.y + (i + 1 < steps.size() ? m.row_gap : 0);
+  }
+  m.width = m.tile + m.gap + m.widest;
+  return m;
+}
+inline lv_obj_t *steps_create(lv_obj_t *parent, const std::vector<std::string> &steps, const lv_font_t *font, int width) {
+  static constexpr theme::Role marks[] = {theme::MARK_AMBER, theme::MARK_BLUE, theme::MARK_PURPLE, theme::MARK_GREEN};
+  const int line = lv_font_get_line_height(font);
+  const auto m = steps_measure(steps, font, width);
+  const int tile = m.tile, gap = m.gap, row_gap = m.row_gap, widest = m.widest;
+  const auto &heights = m.heights;
+  auto *box = lv_obj_create(parent);
+  lv_obj_remove_style_all(box);
+  lv_obj_remove_flag(box, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_remove_flag(box, LV_OBJ_FLAG_SCROLLABLE);
+  int y = 0;
+  for (size_t i = 0; i < steps.size(); ++i) {
+    auto *mark = lv_obj_create(box);
+    lv_obj_remove_style_all(mark);
+    lv_obj_set_size(mark, tile, tile);
+    lv_obj_set_style_radius(mark, tile * 26 / 100, 0);
+    lv_obj_set_style_bg_opa(mark, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(mark, theme::color(marks[i % 4]), 0);
+    // On the middle of the first line.
+    lv_obj_set_pos(mark, 0, y + (line - tile) / 2);
+    auto *words = lv_label_create(box);
+    lv_obj_add_style(words, theme::style(theme::Paint::ink), 0);
+    lv_obj_set_style_text_font(words, font, 0);
+    lv_label_set_long_mode(words, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(words, widest);
+    lv_label_set_text(words, steps[i].c_str());
+    lv_obj_set_pos(words, tile + gap, y);
+    y += heights[i] + (i + 1 < steps.size() ? row_gap : 0);
+  }
+  lv_obj_set_size(box, tile + gap + widest, y);
+  return box;
+}
 inline void boot_status(lv_obj_t *page, const char *text, bool waiting = true, bool cover = false,
                         const std::string &facts = std::string(), const std::string &hint = std::string(),
-                        const std::string &qr = std::string()) {
+                        const std::string &qr = std::string(), const std::vector<std::string> &steps = {}) {
   const int width = lv_display_get_horizontal_resolution(lv_obj_get_display(page));
   const bool large = ui::large();
   const int ring = ui::px(large ? 48 : 32), gap = ui::px(large ? 24 : 16), text_width = width - 2 * lv_obj_get_style_x(room_label, LV_PART_MAIN);
@@ -7406,10 +7460,34 @@ inline void boot_status(lv_obj_t *page, const char *text, bool waiting = true, b
     lv_text_get_size(&size, words, f, 0, 0, text_width, LV_TEXT_FLAG_NONE);
     return (int) size.y;
   };
-  const int text_h = height(text, font);
+  // The steps a person takes next (firmware 0.45.0) and the text over them in the largest faces that leave the block
+  // air on this glass, the lockup over them where there is room for it too: words to act on come before the name, so
+  // the 2.8-inch shows them large without the lockup and the 10.1-inch large with it.
+  const lv_font_t *title_font = font, *steps_font = control_font ? control_font : note_font;
+  bool lockup_shown = true;
+  if (!steps.empty()) {
+    const int glass_h = lv_display_get_vertical_resolution(lv_obj_get_display(page));
+    const int lockup = boot_brand ? (int) lv_obj_get_style_height(boot_brand, LV_PART_MAIN) + 2 * gap : 0;
+    struct Step { const lv_font_t *title, *steps; bool lockup; };
+    const Step ladder[] = {{watch_value_font, font, true}, {watch_value_font, font, false},
+                           {font, steps_font, true}, {font, steps_font, false}};
+    for (const auto &step : ladder) {
+      if (!step.title || !step.steps) continue;
+      const auto m = steps_measure(steps, step.steps, text_width);
+      const int block_h = (step.lockup ? lockup : 0) + height(text, step.title) + 2 * gap + m.height;
+      if (block_h <= glass_h * 3 / 5 && m.width <= text_width) {
+        title_font = step.title;
+        steps_font = step.steps;
+        lockup_shown = step.lockup;
+        break;
+      }
+    }
+  }
+  if (lv_obj_get_style_text_font(boot_text, LV_PART_MAIN) != title_font) lv_obj_set_style_text_font(boot_text, title_font, 0);
+  const int text_h = height(text, title_font);
   const int facts_h = facts.empty() ? 0 : line_gap + height(facts.c_str(), note_font);
   const int hint_h = hint.empty() ? 0 : gap + height(hint.c_str(), note_font);
-  int brand = boot_brand ? lv_obj_get_height(boot_brand) : 0, brand_gap = boot_brand ? 2 * gap : 0;
+  int brand = boot_brand ? (int) lv_obj_get_style_height(boot_brand, LV_PART_MAIN) : 0, brand_gap = boot_brand ? 2 * gap : 0;
   int qr_h = 0;
 #if LV_USE_QRCODE
   if (!qr.empty()) {
@@ -7437,9 +7515,18 @@ inline void boot_status(lv_obj_t *page, const char *text, bool waiting = true, b
   }
   if (qr.empty() && boot_brand) set_hidden(boot_brand, false);
 #endif
-  const int block = brand + brand_gap + text_h + facts_h + hint_h + qr_h + (waiting ? gap + ring : 0);
+  // The steps a person takes next, under the text (firmware 0.45.0): made again when they change, gone without.
+  static std::vector<std::string> shown_steps;
+  static const lv_font_t *shown_font = nullptr;
+  if (boot_steps && (steps != shown_steps || steps_font != shown_font)) { lv_obj_delete(boot_steps); boot_steps = nullptr; }
+  if (!steps.empty() && !boot_steps) boot_steps = steps_create(boot_panel, steps, steps_font, text_width);
+  shown_steps = steps;
+  shown_font = steps_font;
+  const int steps_h = boot_steps ? 2 * gap + (int) lv_obj_get_style_height(boot_steps, LV_PART_MAIN) : 0;
+  if (boot_steps && !lockup_shown && boot_brand) { set_hidden(boot_brand, true); brand = brand_gap = 0; }
+  const int block = brand + brand_gap + text_h + facts_h + hint_h + qr_h + steps_h + (waiting ? gap + ring : 0);
   int top = -block / 2;
-  if (boot_brand) { lv_obj_align(boot_brand, LV_ALIGN_CENTER, 0, top + brand / 2); top += brand + brand_gap; }
+  if (boot_brand && brand) { lv_obj_align(boot_brand, LV_ALIGN_CENTER, 0, top + brand / 2); top += brand + brand_gap; }
   lv_obj_align(boot_text, LV_ALIGN_CENTER, 0, top + text_h / 2);
   top += text_h;
   if (facts_h) { lv_obj_align(boot_facts, LV_ALIGN_CENTER, 0, top + line_gap + (facts_h - line_gap) / 2); top += facts_h; }
@@ -7447,8 +7534,16 @@ inline void boot_status(lv_obj_t *page, const char *text, bool waiting = true, b
 #if LV_USE_QRCODE
   if (qr_h && boot_qr) { lv_obj_align(boot_qr, LV_ALIGN_CENTER, 0, top + gap + (qr_h - gap) / 2); top += qr_h; }
 #endif
+  if (steps_h) { lv_obj_align(boot_steps, LV_ALIGN_CENTER, 0, top + 2 * gap + (steps_h - 2 * gap) / 2); top += steps_h; }
   top += gap;
   if (boot_spinner) lv_obj_align(boot_spinner, LV_ALIGN_CENTER, 0, top + ring / 2);
+  // The version under the block, where the block leaves it room (firmware 0.45.0): a long hint with its spinner on
+  // the smallest glass reached into it.
+  if (boot_version) {
+    const int height = lv_display_get_vertical_resolution(lv_obj_get_display(page));
+    const int foot = 2 * ui::px(large ? 16 : 8) + lv_font_get_line_height(small_font ? small_font : font) + gap;
+    set_hidden(boot_version, block / 2 > height / 2 - foot);
+  }
 }
 // A connection that left before it said who it was (firmware 0.38.0, ESPHome's api on_client_disconnected): every
 // client names itself in its first message after the encrypted handshake, so one without a name never got through it.
@@ -7461,7 +7556,7 @@ inline void client_left(const std::string &name, const std::string &address) {
 inline void client_came() { turned_away.clear(); }
 inline void boot_forget() {
   if (boot_panel) lv_obj_delete(boot_panel);
-  boot_panel = boot_text = boot_spinner = boot_brand = boot_version = boot_facts = boot_hint = boot_qr = nullptr;
+  boot_panel = boot_text = boot_spinner = boot_brand = boot_version = boot_facts = boot_hint = boot_qr = boot_steps = nullptr;
 }
 // A line of fun under "Preparing pages", about what the page being built holds: a joke is welcome where nothing is at
 // stake, and waiting for a screen to load is such a moment. Its first tile of a kind with a line of its own picks it;
@@ -7547,8 +7642,14 @@ inline std::string wifi_fix_text(const wifi_status::Problem &wifi) {
 // whether Tessera sent the tiles and how many of them arrived. Every step says itself with what the screen knows of it
 // and how long it has been at it, and once a step takes long, what usually fixes it. tick() draws it again as soon as
 // any of it changes.
-enum class BootStep : uint8_t { wifi, address, home_assistant, tessera, tiles };
-struct BootView { std::string title, facts, hint; };
+enum class BootStep : uint8_t { wifi, address, home_assistant, tessera, choose, tiles };
+// `choose`: Tessera said in its hello that it has no tiles for this screen yet (app 0.4.74+, page_protocol.h), so the
+// screen waits for a person, not for a program: it says how its tiles are chosen, step by step.
+struct BootView { std::string title, facts, hint; std::vector<std::string> steps; };
+// Set by every hello: whether Tessera has no tiles for this screen yet. The first tiles of a layout clear it.
+inline bool awaiting_tiles = false;
+// This screen's name as its YAML gives it (esphome: friendly_name), the one Tessera lists it under.
+inline std::string screen_name();
 // How long a step may take before the screen says what usually fixes it.
 constexpr uint32_t BOOT_HINT_MS = 30000;
 inline BootStep boot_step = BootStep::wifi;
@@ -7559,14 +7660,29 @@ inline std::string elapsed_text(uint32_t ms) {
   snprintf(text, sizeof(text), "%u:%02u", (unsigned) (seconds / 60), (unsigned) (seconds % 60));
   return text;
 }
+inline std::string screen_name() {
+#ifndef ESP_SCREEN_HOST
+  const auto &friendly = esphome::App.get_friendly_name();
+  return (friendly.empty() ? esphome::App.get_name() : friendly).str();
+#else
+  return std::string();
+#endif
+}
 inline BootView boot_view(uint32_t now) {
   const auto link = wifi_status::link();
   const BootStep step = link.wifi && !link.connected ? (link.joined ? BootStep::address : BootStep::wifi)
                       : !ha_connected() ? BootStep::home_assistant
-                      : transfer.begun ? BootStep::tiles : BootStep::tessera;
+                      : transfer.begun ? BootStep::tiles : awaiting_tiles ? BootStep::choose : BootStep::tessera;
   if (step != boot_step || !boot_step_since) { boot_step = step; boot_step_since = now ? now : 1; }
   const uint32_t waited = now - boot_step_since;
   BootView view;
+  if (step == BootStep::choose) {
+    // Nothing technical to report: the screen is up and waits for its tiles, chosen in Tessera.
+    view.title = tr(txt::status_first_tiles);
+    view.steps = {tr(txt::status_first_tiles_open), fill(txt::status_first_tiles_pick, "name", screen_name()),
+                  tr(txt::status_first_tiles_save)};
+    return view;
+  }
   std::vector<std::string> lines;
   if (link.wifi) lines.push_back(network_facts(link));
   std::string status;
@@ -7585,6 +7701,7 @@ inline BootView boot_view(uint32_t now) {
       view.title = tr(txt::status_waiting);
       if (waited >= BOOT_HINT_MS) view.hint = tr(txt::status_hint_tessera);
       break;
+    case BootStep::choose: break;  // said above, with its steps
     case BootStep::tiles:
       view.title = transfer.expected_tiles
           ? fill(fill(txt::status_loading_tiles_count, "n", (int) transfer.tiles.count()), "total", std::to_string(transfer.expected_tiles))
@@ -7653,7 +7770,7 @@ inline void render(lv_obj_t *room) {
   if (!model.configured && !model.refusal.empty()) boot_status(lv_obj_get_parent(room), tr(txt::tile_refused), false);
   else if (!model.configured) {
     const auto view = boot_view(esphome::millis());
-    boot_status(lv_obj_get_parent(room), view.title.c_str(), true, false, view.facts, view.hint);
+    boot_status(lv_obj_get_parent(room), view.title.c_str(), view.steps.empty(), false, view.facts, view.hint, std::string(), view.steps);
   }
   else if (preparing.foreground) prepare_status();
   else if (boot_panel) boot_forget();
@@ -8623,7 +8740,8 @@ inline void tick() {
     static std::string said;
     const auto view=boot_view(esphome::millis());
     std::string now_said=view.title+'\x1f'+view.facts+'\x1f'+view.hint;
-    if(now_said!=said || !boot_panel){said=std::move(now_said);boot_status(lv_obj_get_parent(room_label),view.title.c_str(),true,false,view.facts,view.hint);}
+    for(const auto &step:view.steps)now_said+='\x1f'+step;
+    if(now_said!=said || !boot_panel){said=std::move(now_said);boot_status(lv_obj_get_parent(room_label),view.title.c_str(),view.steps.empty(),false,view.facts,view.hint,std::string(),view.steps);}
   }
   // "This screen" on the settings page tells its network and links again every two seconds while it is open.
   if(settings_screen::root && settings_screen::current_page==4){

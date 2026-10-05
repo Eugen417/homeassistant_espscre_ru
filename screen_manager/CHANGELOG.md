@@ -1,3 +1,25 @@
+## 0.4.74 (firmware 0.45.0)
+
+- **A new screen asks for its first tiles.** Once a new screen was in Home Assistant, its starting screen said
+  "Waiting for Tessera", while it was really waiting for someone to choose its tiles. Tessera now tells a screen that
+  it has no tiles for it yet, and the screen says what to do in three short steps: open Tessera in Home Assistant, pick
+  tiles for the screen, by its own name, and press Save & send. A small tile in one of the Tessera mark's colours
+  stands before each step. The words take the largest of the screen's faces that leaves them air, with the Tessera
+  lockup over them where the glass has room for both: large words without the lockup on the 2.8- to 4.3-inch screens,
+  the lockup over them on the 10.1-inch. The tiles take their place as soon as they are saved.
+- The starting screen's hint after half a minute without Home Assistant no longer asks whether the screen was added
+  under Devices & services. Tessera adds it by itself since 0.4.73, so the hint says that, and that Home Assistant has
+  to reach the screen at its address.
+- A long hint on the 2.8-inch ran into the version number at the foot of the starting screen. The number now steps
+  aside when the words need the room.
+- Every screen is offered this firmware, 0.45.0.
+- Tested: the starting screen rendered from the real firmware on the CYD lying down and standing up, the 4-inch
+  Guition, the Waveshare 4.3-inch and the 10.1-inch Guition, light and dark, before and after. On the bench, a
+  Waveshare 4.3-inch without tiles runs 0.45.0 with this app and got the hello that asks for its first tiles. Every
+  Python, C++, editor and WASM preview check, the layout audit included. Firmware builds on ESPHome 2026.9.0 for the
+  CYD (87.9 % of its slot), the 4-inch Guition, the 10.1-inch Guition and the Waveshare 7-inch, and on 2026.6.2 for the
+  CYD (89.7 %). The steps on glass were not looked at yet.
+
 ## 0.4.73 (firmware 0.44.0)
 
 - **A new screen joins Home Assistant by itself.** After flashing, there were two steps left in Home Assistant: add

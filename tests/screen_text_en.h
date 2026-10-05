@@ -3,7 +3,7 @@
 #pragma once
 #include "components/smart_display/screen_text.h"
 
-static_assert(screen_text::KEYS_HASH == 0xE9EECF71u && screen_text::KEY_COUNT == 428,
+static_assert(screen_text::KEYS_HASH == 0xC6833EBEu && screen_text::KEY_COUNT == 432,
               "screen_text_keys.h does not match screen_manager/translations/en.json: run tools/i18n.py header");
 const char *const screen_text::TABLE[] = {
     ".",
@@ -100,8 +100,12 @@ const char *const screen_text::TABLE[] = {
     "Signal too weak ({dbm} dBm)",
     "Could not connect, trying again",
     "Loading tiles {n}/{total}",
-    "Home Assistant has not connected yet. Is this screen added under Settings > Devices & services > ESPHome?",
+    "Tessera adds this screen once Home Assistant can reach it at this address.",
     "Is the Tessera Screen Manager app running in Home Assistant?",
+    "Choose your tiles",
+    "Open Tessera in Home Assistant",
+    "Pick tiles for {name}",
+    "Press Save & send",
     "Updating firmware {percent}",
     "Update complete, restarting",
     "Update failed",

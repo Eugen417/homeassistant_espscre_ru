@@ -1049,7 +1049,8 @@ class Manager:
         """
         sender = self.page_sender(inbox, screen)
         if sender.protocol is None and self.answers(inbox, screen):
-            await sender.probe()
+            # Only a screen without tiles is probed: its hello says so, and the screen asks for its first tiles.
+            await sender.probe(empty=inbox not in self.layouts)
             self.page_capabilities.remember(inbox, screen, sender)
         return sender
 

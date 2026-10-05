@@ -350,6 +350,7 @@ ACTIONS = '''    - action: render_live_reset
         hotspot: string
         password: string
         ota: int
+        empty: bool
       then:
         - lambda: |-
             // The starting screen in one state (firmware 0.38.0): the network, Home Assistant, how long the step took,
@@ -369,6 +370,8 @@ ACTIONS = '''    - action: render_live_reset
             l.reason_rssi = seen ? seen_rssi : rssi;
             l.failures = (uint16_t) failures;
             runtime_tiles::host_ha = ha;
+            // Tessera said it has no tiles for this screen yet (firmware 0.45.0): the starting screen asks for them.
+            runtime_tiles::awaiting_tiles = empty && ha >= 0;
             wifi_status::host_problem = wifi_status::Problem{};
             const std::string spot(hotspot.c_str(), hotspot.size());
             if (!spot.empty()) {

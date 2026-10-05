@@ -93,6 +93,12 @@ enum Role : uint8_t {
   // camera reads a QR code most surely, with a white quiet zone around it
   QR_DARK,
   QR_LIGHT,
+  // ---- the Tessera mark's four colours (docs/images/tessera-mark.svg), the same in both looks: the mosaic a screen shows
+  // while it waits for its first tiles (firmware 0.45.0)
+  MARK_AMBER,
+  MARK_BLUE,
+  MARK_PURPLE,
+  MARK_GREEN,
   ROLE_COUNT
 };
 
@@ -167,6 +173,10 @@ inline constexpr Pair ROLES[ROLE_COUNT] = {
   /* CALIBRATION_MARK */         {0xFFD34D, 0xFFD34D},
   /* QR_DARK */                  {0x000000, 0x000000},
   /* QR_LIGHT */                 {0xFFFFFF, 0xFFFFFF},
+  /* MARK_AMBER */               {0xFFC107, 0xFFC107},
+  /* MARK_BLUE */                {0x009FE3, 0x009FE3},
+  /* MARK_PURPLE */              {0x926BC7, 0x926BC7},
+  /* MARK_GREEN */               {0x4CAF50, 0x4CAF50},
 };
 
 // The look on screen. The board sets it through set_dark() (below) from the Dark mode setting; the table and the

@@ -70,7 +70,7 @@ CHOICE_FIELDS = ('button_color', 'button2_text', 'button2_color')
 # The starting screen's steps (firmware 0.38.0, render_boot): a network, its address, Home Assistant, Tessera, a Wi-Fi
 # problem with and without a hotspot, and an update. `waited` is how long the step has taken, in ms.
 BOOT_DEFAULTS = dict(connected=False, joined=False, ssid='', rssi=0, address='', scanned=False, seen=False, seen_rssi=0,
-                     reason=0, failures=0, ha=0, waited=0, hotspot='', password='', ota=-1)
+                     reason=0, failures=0, ha=0, waited=0, hotspot='', password='', ota=-1, empty=False)
 NETWORK = dict(connected=True, ssid='Home network', rssi=-61, address='192.168.1.40')
 BOOT_STATES = (
     ('starting-wifi', dict(ssid='Home network', waited=1000)),
@@ -80,6 +80,8 @@ BOOT_STATES = (
     ('starting-home-assistant', dict(NETWORK, waited=6000)),
     ('starting-home-assistant-hint', dict(NETWORK, waited=95000)),
     ('starting-tessera-hint', dict(NETWORK, ha=1, waited=48000)),
+    # Tessera has no tiles for this screen yet (firmware 0.45.0): where to choose them, over a mosaic of its page.
+    ('starting-first-tiles', dict(NETWORK, ha=1, empty=True)),
     ('starting-wifi-problem', dict(ssid='Home network', scanned=True, seen=True, seen_rssi=-86, reason=15, failures=6,
                                    hotspot='Kitchen Setup', password='a1b2c3d4')),
     ('starting-wifi-problem-usb', dict(ssid='Home network', reason=202, failures=6, hotspot='-')),

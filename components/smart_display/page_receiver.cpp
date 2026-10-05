@@ -99,6 +99,8 @@ std::string receive(const std::string &payload) {
     if (op == "hello") {
       uint64_t request;
       if (!page_protocol::key(string(root["request"]), request)) return false;
+      // Tessera says whether it has tiles for this screen yet (app 0.4.74+): without, the starting screen asks for them.
+      awaiting_tiles = root["empty"].is<bool>() && root["empty"].as<bool>();
       const uint64_t random = (uint64_t{esphome::random_uint32()} << 32) | esphome::random_uint32();
       result = "Session:" + protocol_key(transfer.grant(request, random));
       return true;

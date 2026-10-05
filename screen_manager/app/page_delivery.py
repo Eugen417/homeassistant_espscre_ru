@@ -213,9 +213,14 @@ class Sender:
         self.phase = "waiting"
         self.failed_revision = self.failure = None
 
-    async def _hello(self):
+    async def _hello(self, empty=False):
         request = new_id()
-        answer = await self.send({"v": PROTOCOL, "op": "hello", "request": request})
+        hello = {"v": PROTOCOL, "op": "hello", "request": request}
+        # `empty`: this app has no tiles for the screen yet (app 0.4.74), so its starting screen asks for them instead of
+        # waiting for Tessera (firmware 0.45.0). Older firmware reads only the request.
+        if empty:
+            hello["empty"] = True
+        answer = await self.send(hello)
         if isinstance(answer, dict) and answer.get("protocol") == PROTOCOL:
             session = answer.get("session", "")
             if answer.get("request") != request or len(session) != 16 or any(c not in "0123456789abcdef" for c in session):
@@ -260,9 +265,9 @@ class Sender:
         of the firmware before it go, as its ceilings do in the hello."""
         self.memory = self.last_memory = memory_of(answer)
 
-    async def probe(self):
+    async def probe(self, empty=False):
         async with self.lock:
-            return await self._hello()
+            return await self._hello(empty)
 
     async def _packet(self, message, revision):
         if not self.session:

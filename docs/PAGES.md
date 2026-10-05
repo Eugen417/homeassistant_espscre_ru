@@ -51,6 +51,10 @@ grid is a span such as `3x2` (columns × rows, app 0.4.32, firmware 0.19.0+). A 
 its hello (`tile_sizes`), and the add-on never sends a size the screen did not name (`core.TILE_SIZES_ON_SCREEN`,
 `core.span_offered`).
 
+A hello from the add-on to a screen it has no tiles for yet carries `"empty": true` (app 0.4.74). The screen's starting
+screen then stops waiting for Tessera and says how its tiles are chosen, in three steps (firmware 0.45.0). The first
+layout's hello leaves the field out, and older firmware reads only the request.
+
 A tall or square tile reserves two rows, including their normal gap. Tiles cannot overlap or extend beyond a page, and the screen's tile capacity does not change. If there is no free rectangle during resizing, the previous size and position stay intact.
 
 Hover over a tile or focus its edge handle to resize it. The right handle changes width; the bottom handle changes height. Handles offer only supported sizes that fit at the current position without moving neighbours. Drag to preview, release to apply, or press Escape to cancel. Arrow keys work on a focused handle. Each completed resize is one undo step. Full-page cards retain their existing inspector setting and do not have edge handles.
