@@ -9,9 +9,9 @@ import { vDrag } from "../drag";
 import { numberText, t, te } from "../i18n";
 import { dimensions, sizeOf, inlineControlKind, displayName, effectiveControls, isFull, isWide, keysOf, pageTarget } from "../model/layout";
 import { clockText, glyph } from "../model/topbar";
-import { clock24, currentScreen, deviceStyle, screenShape, isCompact, supports, pictures, entityName, isSelected, liveOf, numberMarks, openTile, placeTile, removeTile, screenBuiltinName, screenText, state, tileIconCp, toast, unitSuffix } from "../store";
+import { clock24, currentScreen, deviceStyle, pageBarShown, screenShape, isCompact, supports, pictures, entityName, isSelected, liveOf, numberMarks, openTile, placeTile, removeTile, screenBuiltinName, screenText, state, tileIconCp, toast, unitSuffix } from "../store";
 import { modeColor, tilePalette, tileActive } from "../model/tile-palette";
-import { textEms, wideChip, widestSetpoint } from "../model/ui-scale";
+import { cardContent, cardHeight, textEms, watchCard, watchPadding, wideChip, widestSetpoint } from "../model/ui-scale";
 import { bits, drawable } from "../model/catalogue";
 import type { Tile } from "../types";
 import TileResize from "./TileResize.vue";
@@ -268,6 +268,32 @@ const status = computed(() => {
 });
 // The big value of the watch display; its unit sits beside it in small letters.
 const bigValue = computed(() => (current.value && !gone.value ? (unit.value || NUMERIC.includes(domain.value) ? num(current.value.state) : current.value.state) : "—"));
+// A Big number card as the glass lays it out in this card's room on this grid (ui-scale watchCard, app 0.4.74): the
+// icon and the name above the number in the largest face that fits, or in a low cell the name small in the corner
+// and the number under it. Before, the mockup stacked a head and a number of its own sizes, and in a low cell the
+// number was cut off at its middle (GitHub #167). A card of another screen (the overview) keeps the old drawing.
+const watchFace = computed(() => {
+  if (display.value !== "watch" || full.value || foreign.value || props.round || goesTo.value || props.slot < 0) return null;
+  const s = screenShape.value, g = grid.value, cell = props.slot % g.slots, pad = watchPadding(s, g.rows);
+  const width = cardContent(s, g.columns, shape.value.columns, cell % g.columns);
+  const height = cardHeight(s, g.rows, shape.value.rows, Math.floor(cell / g.columns), pageBarShown.value) - 2 * (pad + 1);
+  return { pad, ...watchCard(s, width, height, bigValue.value, unit.value && !gone.value ? unit.value : "", pad) };
+});
+const glassPx = (n: number) => `${(n * glassScale.value).toFixed(2)}px`;
+const watchStyle = computed(() => {
+  const w = watchFace.value;
+  if (!w) return null;
+  const text = (box: { x: number; y: number; width: number; size: number; line: number }) =>
+    ({ left: glassPx(box.x), top: glassPx(box.y), width: glassPx(box.width), fontSize: glassPx(box.size), lineHeight: glassPx(box.line) });
+  const unit = w.unit && { fontSize: glassPx(w.unit.size), lineHeight: glassPx(w.unit.line) };
+  // Under a head the number stands at the left and its unit at the right edge, as wide as its own letters. Alone, the
+  // two are one row in the middle of the card, their bottoms in line, so the browser's letters cannot push either out.
+  return { pad: { paddingBlock: glassPx(w.pad) },
+    circle: { left: glassPx(w.circle.x), top: glassPx(w.circle.y), width: glassPx(w.circle.size), height: glassPx(w.circle.size), fontSize: glassPx(w.circle.icon) },
+    title: text(w.title), value: w.stacked ? text(w.value) : { fontSize: glassPx(w.value.size), lineHeight: glassPx(w.value.line) },
+    row: { top: glassPx(w.value.y), height: glassPx(w.value.line), gap: glassPx(w.unitGap) },
+    unit: unit && (w.stacked ? { ...unit, right: "0", top: glassPx(w.unit!.y) } : unit) };
+});
 // The small slider's fill, from what the entity reports; off is empty, like the screen's grey fill.
 const fill = computed(() => {
   const c = current.value;
@@ -368,8 +394,8 @@ async function onKey(e: KeyboardEvent) {
     <!-- The same remove key as on a tile, at the circle's corner. -->
     <button v-if="live && !preview" type="button" class="remove" :title="t('editor.tile_card.remove')" :aria-label="t('editor.tile_card.remove_named', { name })" @click.stop="removeTile(tile)">✕</button>
   </span>
-  <div v-else class="tile" :class="{ wide, full, tall, 'tall-action': tallAction || tallStack, 'big-key': bigKey, photo: artworkLoaded && !!artwork, camera: (cameraCard && cameraLoaded) || (favoriteCard && favoriteLoaded), bare, placeholder: placeholder || (!live && !foreign), chosen, 'just-added': !preview && !!tile.id && state.justAdded === tile.id }" :data-slot="slot" :data-tile-id="tile.id" :data-columns="shape.columns" :data-rows="shape.rows"
-    :style="{ gridColumn: `${slot % grid.columns + 1} / span ${shape.columns}`, gridRow: `${Math.floor(slot % grid.slots / grid.columns) + 1} / span ${shape.rows}`, ...(background && !bare ? { backgroundColor: background } : {}), '--tile-icon': palette.icon, '--tile-circle': palette.circle, '--tile-accent': palette.accent }"
+  <div v-else class="tile" :class="{ wide, full, tall, 'watch-card': !!watchFace, 'tall-action': tallAction || tallStack, 'big-key': bigKey, photo: artworkLoaded && !!artwork, camera: (cameraCard && cameraLoaded) || (favoriteCard && favoriteLoaded), bare, placeholder: placeholder || (!live && !foreign), chosen, 'just-added': !preview && !!tile.id && state.justAdded === tile.id }" :data-slot="slot" :data-tile-id="tile.id" :data-columns="shape.columns" :data-rows="shape.rows"
+    :style="{ gridColumn: `${slot % grid.columns + 1} / span ${shape.columns}`, gridRow: `${Math.floor(slot % grid.slots / grid.columns) + 1} / span ${shape.rows}`, ...(background && !bare ? { backgroundColor: background } : {}), '--tile-icon': palette.icon, '--tile-circle': palette.circle, '--tile-accent': palette.accent, ...(watchStyle?.pad ?? {}) }"
     :tabindex="!foreign && (preview ? goesTo : live) ? 0 : -1" :role="!foreign && (preview ? goesTo : live) ? 'button' : undefined" :aria-label="live ? label : undefined"
     v-drag="preview || foreign ? null : { kind: 'tile', tile }" @click="activate" @keydown="live && onKey($event)">
     <template v-if="bedside">
@@ -439,6 +465,18 @@ async function onKey(e: KeyboardEvent) {
       <span v-if="!cameraLoaded" class="head"><span class="ic mdi">{{ glyph(tileIconCp(tile)) }}</span><span class="tx"><span class="nm">{{ name }}</span><span v-if="line" class="st" :class="{ off: gone }">{{ line }}</span></span></span>
       <span v-else-if="tile.options?.overlay !== 'none'" class="camera-name"><span>{{ name }}</span></span>
     </template>
+    <span v-else-if="watchFace && watchStyle" class="watch" :class="{ stacked: watchFace.stacked }">
+      <span v-if="watchFace.stacked" class="ic mdi" :class="{ lit: isOn }" :style="watchStyle.circle">{{ glyph(tileIconCp(tile)) }}</span>
+      <span class="nm" :style="watchStyle.title">{{ name }}</span>
+      <template v-if="watchFace.stacked">
+        <span class="big" :style="watchStyle.value">{{ bigValue }}</span>
+        <span v-if="watchStyle.unit" class="unit" :style="watchStyle.unit">{{ unit }}</span>
+      </template>
+      <span v-else class="alone" :style="watchStyle.row">
+        <span class="big" :style="watchStyle.value">{{ bigValue }}</span>
+        <span v-if="watchStyle.unit" class="unit" :style="watchStyle.unit">{{ unit }}</span>
+      </span>
+    </span>
     <template v-else-if="full && !tall">
       <span class="ic mdi" :class="{ lit: isOn, thumb: display === 'live' || display === 'cover' }">{{ glyph(tileIconCp(tile)) }}</span>
       <span class="lead">
@@ -539,6 +577,16 @@ async function onKey(e: KeyboardEvent) {
 
 <style scoped>
 .tile .ic:not(.thumb) { color: var(--tile-icon); background: var(--tile-circle); border-radius: 50%; padding: 5px; }
+/* A Big number card: its content box is the glass's (the board's TILE_PAD), and its parts stand where watchCard puts them. */
+.tile.watch-card { padding-inline: var(--frame-pad, 8px); }
+.tile .watch { position: relative; flex: 1; align-self: stretch; min-width: 0; min-height: 0; }
+.tile .watch > * { position: absolute; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile .watch .alone { left: 0; right: 0; display: flex; justify-content: center; align-items: flex-end; }
+.tile .watch .alone > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tile .watch .alone .unit { flex: none; }
+.tile .watch .ic:not(.thumb) { display: grid; place-items: center; padding: 0; line-height: 1; }
+.tile .watch .big { font-weight: 500; letter-spacing: 0; }
+.tile .watch .unit { color: #5a5f66; font-weight: 400; overflow: visible; }
 .tile .tog:not(.off) { background: var(--tile-accent); }
 .face-clock { display: flex; align-items: center; gap: 10px; min-width: 0; width: 100%; height: 100%; padding-inline: 2px; }
 .face-clock.upright { flex-direction: column; justify-content: center; gap: 4px; }

@@ -1,3 +1,18 @@
+## 0.4.75 (firmware 0.45.0)
+
+- **A Big number card's number stays inside its card in the editor** ([#167](https://github.com/MaxGramser/homeassistant_espscreen/issues/167)).
+  The editor drew a page in sizes of its own: a frame of 10 pixels, gaps of 8 and a page bar of 24, on every board.
+  On a 4-inch Guition with three rows and more than one page that left a card 65 pixels high where the screen's card,
+  at the editor's scale, is 73, and a Big number card stacked its icon, its name and its number in sizes of its own
+  too, so the number was cut off at its middle. The editor's page now has the glass's proportions: the top bar from
+  the top of the glass down to where the tiles start, the board's margins and gaps, and its page bar once the layout
+  has more than one page. A Big number card is laid out as the screen lays it out: the icon and the name above the
+  number in the largest face that fits, its unit at the right, and in a cell too low for that the name small at the
+  top and the number under it, without the icon. The board's top bar, page bar and gaps now come with its other
+  sizes (`boards.json`), a preview screen made in the editor gets the board's fonts and sizes too, and a test
+  compares the editor's card heights and Big number cards with the firmware's on every board, lying down and
+  standing up, with and without a page bar. The screen itself draws as before.
+
 ## 0.4.74 (firmware 0.45.0)
 
 - **A new screen asks for its first tiles.** Once a new screen was in Home Assistant, its starting screen said

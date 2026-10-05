@@ -25,8 +25,8 @@ fontTools and jinja2, and stops when one is missing, because a skipped test prov
 - **The editor draws the firmware's numbers** (`tests/test_editor_parity.py`): the editor's mockup ports the firmware's
   sizes to TypeScript (`web/src/model/`), and this test compiles the real C++ headers, runs the real TypeScript and,
   where LVGL's grid decides, asks the firmware preview, on every board shape: the scale, the pill and mode bar, card
-  widths, the top bar, tile sizes and spans, and the colours of a tile. Change one side and it fails until the other
-  follows. `tests/test_setting_ranges.py` does the same for the range of every screen setting, in all five places it
+  widths and heights, the top bar, a Big number card (its head, faces and places, with and without the page bar),
+  tile sizes and spans, and the colours of a tile. Change one side and it fails until the other follows. `tests/test_setting_ranges.py` does the same for the range of every screen setting, in all five places it
   is written.
 - **No feature bit counted by hand** (`tests/test_feature_bits.py`): the firmware, the add-on and the editor test Home
   Assistant's `supported_features` only through the constants generated from the catalogue (docs/CATALOGUE.md).

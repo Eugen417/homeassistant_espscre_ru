@@ -170,11 +170,20 @@ def shapes():
                                                                    # The top bar's page title and home key, which the
                                                                    # mockup's bar takes as the board has them (topbar.ts).
                                                                    ('headline', 'FONT_HEADLINE_SIZE'),
-                                                                   ('icon_home', 'FONT_ICON_HOME_SIZE'))},
+                                                                   ('icon_home', 'FONT_ICON_HOME_SIZE'),
+                                                                   # A Big number card: its icon, and the digits a
+                                                                   # tall cell gives its number (app 0.4.74).
+                                                                   ('watch_icon', 'FONT_WATCH_ICON_SIZE'),
+                                                                   ('setpoint', 'FONT_SETPOINT_SIZE'))},
                  # The glass's grid in its own pixels (the look's GRID_MARGIN, GRID_GAP_X and TILE_PAD): the editor's
                  # mockup works out a card's width from them as runtime_tiles::cell_content_width does (app 0.4.32).
+                 # And its height (app 0.4.74): the tile area runs from under the top bar (SCROLL_Y) to the page bar
+                 # (PAGE_BAR_H) or the margin, its rows GRID_GAP_Y apart, so the mockup's page has the glass's
+                 # proportions; `circle` is a card's icon circle (TILE_ICON_SIZE), which a Big number card halves.
                  'spacing': {name: int(values[key]) for name, key in (('margin', 'GRID_MARGIN'), ('gap', 'GRID_GAP_X'),
-                                                                  ('tile_pad', 'TILE_PAD'))},
+                                                                  ('gap_y', 'GRID_GAP_Y'), ('tile_pad', 'TILE_PAD'),
+                                                                  ('top', 'SCROLL_Y'), ('page_bar', 'PAGE_BAR_H'),
+                                                                  ('circle', 'TILE_ICON_SIZE'))},
                  # What New screen offers and the screen list names (boards.yaml with what the board's files say).
                  'catalog': catalog_of(board, values, lying),
                  # The chip it is built for, for the browser flasher's check of the board on the cable.

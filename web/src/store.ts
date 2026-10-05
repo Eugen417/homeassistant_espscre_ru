@@ -6,7 +6,7 @@ import { api, getJson, send, setCsrf } from "./api";
 import { andList, editorLanguage, languageMeta, loadLanguage, type NumberMarks, pickLanguage, STYLE_MARKS, t } from "./i18n";
 import { entriesOf, effectiveControls, isFull, isWide, newTile, pageOrder, pagePlaces, pageTarget, reorderTitles, retargetedPage, sizeOf, supportsFirmware as supportsVersion } from "./model/layout";
 import { agoText, barMetricsFor, batteryView, clockText, dateText, itemKey, LINK_GLYPH, SAMPLE_BATTERY, SAMPLE_RSSI, type ItemView, whenBarFontsLoad, wifiView } from "./model/topbar";
-import { pillMetrics, uiScale } from "./model/ui-scale";
+import { frameOf, pillMetrics, uiScale } from "./model/ui-scale";
 import { createLayout, dimensions, type Size, versionAtLeast } from "./model/layout";
 import { memoryCrossing, memoryUse } from "./model/memory";
 import { validPreviewShape, type PreviewProfile } from "./model/preview";
@@ -270,6 +270,9 @@ export const barMetrics = computed(() => barMetricsFor(screenShape.value));
 // narrower. Drawn the same height instead, a 480 x 800 screen came out 180 px wide, smaller than the 480 x 480
 // Guition though it has more glass. Very wide glass is capped so it still fits beside a neighbour on a laptop.
 const MOCKUP_SIDE = 300;
+// Whether the screen keeps room for its page bar under the tiles: on every page, once the layout has more than one
+// (page_protocol.h footer), so a card is lower on all of them.
+export const pageBarShown = computed(() => Boolean(state.document && pages.navigationFooter(state.document, navigationSettings())));
 export const deviceStyle = computed(() => {
   const shape = screenShape.value;
   // To a tenth of a pixel, not a whole one: on a 1280 x 800 screen the nearest whole pixel of width would make
@@ -279,8 +282,21 @@ export const deviceStyle = computed(() => {
   // The glass in editor pixels, and the -/+ pill at the size the screen draws it (model/ui-scale.ts).
   const glass = rounded / shape.width, pill = pillMetrics(shape);
   const [watch, text] = [pill.faces[0] ?? 22, pill.faces[1] ?? pill.faces[0] ?? 14];
+  // The page in the glass's proportions (app 0.4.74): the top bar from the top of the glass down to where the tile area
+  // starts, the margins and gaps of the grid, and the page bar where the layout has one, so a card is as high against
+  // its page as on the screen (ui-scale cardHeight). Before, the mockup's own 10 px frame, 8 px gaps and 24 px
+  // page bar left a card of a 4-inch Guition with three rows and three pages 65 px high where the glass's is 117 x 0.625.
+  const frame = frameOf(shape), paged = pageBarShown.value;
+  const g = (n: number) => `${(n * glass).toFixed(2)}px`;
   return {
     "--glass": String(glass),
+    "--frame-top": g(frame.top),
+    "--frame-side": g(frame.margin),
+    "--frame-bottom": g(paged ? 0 : frame.margin),
+    "--frame-bar": g(frame.page_bar),
+    "--frame-gap-x": g(frame.gap),
+    "--frame-gap-y": g(frame.gap_y),
+    "--frame-pad": g(frame.tile_pad),
     "--pill-h": `${(pill.height * glass).toFixed(2)}px`,
     "--pill-in": `${(pill.inset * glass).toFixed(2)}px`,
     "--pill-key": `${(pill.key * glass).toFixed(2)}px`,

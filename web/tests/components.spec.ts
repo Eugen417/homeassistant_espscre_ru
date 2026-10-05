@@ -276,7 +276,8 @@ describe("TileCard", () => {
     state.liveStates["sensor.t"] = { state: "1249", word: null, a: { unit_of_measurement: "W" } };
     const big = placed({ entity: "sensor.t", name: "Power", slot: 0, options: { display: "watch" } });
     // Numbers as the screens write them (app 0.2.90): "1,234.5" until the add-on names another format.
-    expect(big.find(".big").text()).toBe("1,249W");
+    expect(big.find(".watch .big").text()).toBe("1,249");
+    expect(big.find(".watch .unit").text()).toBe("W");
     state.liveStates["light.a"] = { state: "off", word: "Off", a: {} };
     const wide = placed({ entity: "light.a", name: "", slot: 2, options: { size: "wide" } });
     expect(wide.classes()).toContain("wide");
@@ -292,11 +293,16 @@ describe("TileCard", () => {
     expect(plain.find(".head > .ic").exists()).toBe(true);
     expect(plain.find(".head > .tx > .nm").text()).toBe("Power");
     expect(plain.find(".head > .tx > .st").text()).toBe("1,249 W");
-    // A watch card keeps the name next to the icon and puts the big value underneath.
+    // A watch card stands as the glass lays it out (ui-scale watchCard, app 0.4.74): the icon and the name above the
+    // big value where the cell has room for the three, each where the firmware puts it.
     const watch = placed({ entity: "sensor.t", name: "Power", slot: 1, options: { display: "watch" } });
-    expect(watch.find(".head").classes()).toContain("top");
-    expect(watch.find(".head .big").exists()).toBe(false);
-    expect(watch.find(".head + .big").text()).toBe("1,249W");
+    expect(watch.classes()).toContain("watch-card");
+    expect(watch.find(".watch").classes()).toContain("stacked");
+    expect(watch.find(".watch > .ic").exists()).toBe(true);
+    expect(watch.find(".watch > .nm").text()).toBe("Power");
+    expect(watch.find(".watch > .big").text()).toBe("1,249");
+    expect(Number.parseFloat(watch.find(".watch > .big").attributes("style")!.match(/top: ([\d.]+)px/)![1]))
+      .toBeGreaterThan(Number.parseFloat(watch.find(".watch > .nm").attributes("style")!.match(/top: ([\d.]+)px/)![1]));
     state.liveStates["light.a"] = { state: "on", word: "On", a: { brightness: 255 } };
     const lamp = placed({ entity: "light.a", name: "", slot: 2, options: { inline: "slider" } });
     expect(lamp.find(".head + .mini-slider").exists()).toBe(true);
