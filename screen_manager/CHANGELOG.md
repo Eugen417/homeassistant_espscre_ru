@@ -1,3 +1,27 @@
+## 0.4.77 (firmware 0.47.0)
+
+- **The energy card.** A new card in the library, Energy, shows the power of your house right now the way Home
+  Assistant's own live Energy view and power-flow-card-plus show it: solar, the grid and the battery around the house,
+  a line for every flow with dots that run faster as more power flows, the house's ring coloured by where its power
+  comes from, and the devices that draw the most, with Other for the rest. It reads the Energy settings you already
+  have in Home Assistant (power sensors, the battery's charge, the devices), so there is nothing to set up, and it
+  splits the moment exactly as Home Assistant does. A tap on a circle opens that sensor's history. It is in Home
+  Assistant's energy colours, light and dark.
+- It fits itself to every screen like the other cards: the largest of the board's fonts that fit, the arrows and the
+  names only where there is room, and the diagram turned upright on a screen standing up. A long device name takes
+  two lines before the card shows a device fewer. The editor offers the sizes the diagram fits: 2 × 2 on most screens,
+  a page of its own on the CYD and the Waveshare 4.3-inch.
+- The card keeps more memory than a clock, and the memory meter in the editor counts it at its own price.
+- Every screen is offered this firmware, 0.47.0, which the energy card needs.
+- Tested: the card rendered from the real firmware on the CYD lying down and standing up, the 4-inch Guition and the
+  Waveshare 4.3-inch, light and dark, with seven moments of a house read from a Home Assistant with a fake house in its
+  Energy settings (noon, a car charging at night, selling at the peak, solar only, grid only, seven devices, no power
+  sensors), and a tap on the solar circle opening its history. On the bench, the CYD, the Guition and the Waveshare
+  4.3-inch run it with live data from the bench Home Assistant. Every Python, C++, editor and WASM preview check; the
+  layout of the diagram is checked on every density and look a board has, from the least room the editor offers up.
+  Firmware builds on ESPHome 2026.9.0 for the CYD (89.9 % of its slot, 39 KB more than 0.46.0, agreed for this
+  card), the 4-inch Guition, the 10.1-inch Guition and the Waveshare 7-inch, and on 2026.6.2 for the CYD (91.7 %).
+
 ## 0.4.76 (firmware 0.46.0)
 
 - **No empty album cover on a screen without pictures.** The CYD, the Waveshare 3.5-inch and the Hosyond 4-inch have
