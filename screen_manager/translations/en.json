@@ -727,7 +727,8 @@
         "enter_ip": "Enter this screen's IP address.",
         "no_profile": "No ESPHome profile found for this screen. Check the name in the ESPHome folder.",
         "ip_unknown": "IP address unknown. Enter it once; new firmware reports it itself after that.",
-        "all_updated": "All reachable screens are already updated."
+        "all_updated": "All reachable screens are already updated.",
+        "reinstall_dev": "Reinstalling the same firmware is for the dev channel only."
       },
       "remove": {
         "not_allowed": "This app may not remove an integration from Home Assistant. Remove the screen in Home Assistant itself, under Settings → Devices & services.",
@@ -1368,6 +1369,8 @@
         "whats_new": "What's new",
         "full_log": "Full log",
         "short": "Update",
+        "reinstall": "Reinstall from dev",
+        "reinstall_why": "Builds this screen again from the newest dev and installs it over Wi-Fi. On dev the version number stays the same, so a new dev is never offered as an update.",
         "in_tessera": "Update in Tessera first",
         "in_tessera_why": "Update this screen here in Tessera first. It still has the flash layout it was first installed with, and the current firmware no longer fits it, so ESPHome Device Builder cannot update it. Tessera moves it to the new layout on the way and keeps its settings. After that, either way works."
       },

@@ -145,10 +145,12 @@ class TheCandidate(unittest.TestCase):
                 self.assertGreaterEqual(changed, 1)
                 self.assertNotRegex(text, release.REF_MAIN)
                 self.assertNotRegex(text, release.FONTS_MAIN)
-                self.assertIn(f'ref: {release.CANDIDATE}', text)
-        # The fonts too, where an entry fetches them from GitHub.
+                self.assertNotRegex(text, release.GITHUB_REF_MAIN)
+                # The components and the fonts follow GITHUB_REF, whose default is now the candidate.
+                self.assertIn(f'GITHUB_REF: "{release.CANDIDATE}"', text)
+                self.assertIn('ref: ${GITHUB_REF}', text)
         cyd, _ = release.pointed_at((ROOT / 'packages/cyd.yaml').read_text(), release.CANDIDATE)
-        self.assertIn(f'homeassistant_espscreen/{release.CANDIDATE}/fonts', cyd)
+        self.assertIn('homeassistant_espscreen/${GITHUB_REF}/fonts', cyd)
 
     def test_nothing_else_in_the_packages_fetches_from_main(self):
         """The candidate only rewrites the published entries: any other package that named main would build main's."""

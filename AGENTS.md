@@ -128,8 +128,9 @@ release is checked fully, once a week. docs/TESTING.md says what each layer prov
 Two branches, and the difference between them is the most important rule in this file.
 
 - **dev is where all work goes**: features, fixes, issues, boards, experiments. Commit on dev (or on a branch of your
-  own that you merge into dev) and push to `origin dev`. Nobody installs dev: it is proven on the bench boards (see
-  Checks). Bump no app version and no firmware number on dev. Anything a user would notice gets a line
+  own that you merge into dev) and push to `origin dev`. Only testers who ask for it install dev (the `#dev` repository URL,
+  docs/RELEASING.md "Testing dev"), and a push reaches them when they rebuild that app or reinstall a screen: it is
+  proven on the bench boards first (see Checks). Bump no app version and no firmware number on dev. Anything a user would notice gets a line
   under `## Unreleased` at the top of `screen_manager/CHANGELOG.md` (add the heading when it is missing); the release
   turns that section into its version heading.
 - **main is what every user gets**: Home Assistant installs the add-on from it, and every screen builds its firmware

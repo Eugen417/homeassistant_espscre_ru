@@ -62,6 +62,9 @@ BOARD_ID = re.compile(r'^  BOARD_ID:.*\n', re.M)
 # What a published entry (packages/<board>.yaml, packages/bridge.yaml) fetches from main: its components and fonts.
 REF_MAIN = re.compile(r'^(\s+ref:[ \t]*)main[ \t]*$', re.M)
 FONTS_MAIN = re.compile(r'(raw\.githubusercontent\.com/' + re.escape(REPOSITORY) + r'/)main/')
+# The branch a published entry fetches its components and fonts from (packages/<key>.yaml, GITHUB_REF): main unless the
+# screen's own YAML says otherwise, as the dev channel's does.
+GITHUB_REF_MAIN = re.compile(r'^(\s+GITHUB_REF:[ \t]*)"main"[ \t]*$', re.M)
 
 
 class Refusal(Exception):
@@ -159,9 +162,10 @@ def without_board_number(board_yaml):
 def pointed_at(entry, branch):
     """(a published entry that fetches its components and fonts from `branch` instead of main, how many places
     changed)."""
+    entry, default = GITHUB_REF_MAIN.subn(lambda m: m.group(1) + f'"{branch}"', entry)
     entry, refs = REF_MAIN.subn(lambda m: m.group(1) + branch, entry)
     entry, fonts = FONTS_MAIN.subn(lambda m: m.group(1) + branch + '/', entry)
-    return entry, refs + fonts
+    return entry, default + refs + fonts
 
 
 def section(changelog, version):
@@ -374,7 +378,7 @@ def candidate_commit(head, cwd=None):
         pointed = 0
         for path in entries:
             text, changed = pointed_at(git('show', f'{head}:{path}', cwd=cwd), CANDIDATE)
-            if REF_MAIN.search(text) or FONTS_MAIN.search(text):
+            if REF_MAIN.search(text) or FONTS_MAIN.search(text) or GITHUB_REF_MAIN.search(text):
                 raise Refusal(f'{path} still fetches from main after the change')
             if changed:
                 blob = git('hash-object', '-w', '--stdin', input=text + '\n', cwd=cwd)

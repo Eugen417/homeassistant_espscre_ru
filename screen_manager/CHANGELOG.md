@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **Try dev before a release (GitHub #180).** Add the repository with `#dev` at the end of its URL and the store
+  offers a second Tessera that builds every screen from dev, with a Reinstall from dev button for each screen.
+  docs/RELEASING.md, "Testing dev", says how it works and how to go back. The stable app is unchanged.
 - **A Spotify link makes a favourite.** Paste a link from the Spotify app (Share > Copy link) under the library in a
   favourite's picker and it becomes a favourite like any other, with its cover and name. That reaches what Home
   Assistant's library never lists, such as Discover Weekly, Release Radar and the Daily Mixes. It works on a Spotify

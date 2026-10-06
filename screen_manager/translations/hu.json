@@ -727,7 +727,8 @@
         "enter_ip": "Add meg a kijelző IP-címét.",
         "no_profile": "Nem található ESPHome-profil ehhez a kijelzőhöz. Ellenőrizd a nevet az ESPHome mappában.",
         "ip_unknown": "Az IP-cím ismeretlen. Add meg egyszer; utána az új firmware maga jelenti.",
-        "all_updated": "Minden elérhető kijelző már frissítve van."
+        "all_updated": "Minden elérhető kijelző már frissítve van.",
+        "reinstall_dev": "Ugyanazt a firmware-t újratelepíteni csak a dev csatornán lehet."
       },
       "remove": {
         "not_allowed": "Ez az alkalmazás nem távolíthat el integrációt a Home Assistantból. Töröld a kijelzőt magában a Home Assistantban: Beállítások → Eszközök és szolgáltatások.",
@@ -1368,6 +1369,8 @@
         "whats_new": "Újdonságok",
         "full_log": "Teljes napló",
         "short": "Frissítés",
+        "reinstall": "Újratelepítés dev-ről",
+        "reinstall_why": "Újraépíti ezt a kijelzőt a legfrissebb dev-ből, és Wi-Fi-n telepíti. A dev verziószáma nem változik, ezért egy új dev sosem jelenik meg frissítésként.",
         "in_tessera": "Előbb frissítsd a Tesserában",
         "in_tessera_why": "Előbb itt, a Tesserában frissítsd ezt a kijelzőt. Még az első telepítéskori flash-felosztása van, és a mostani firmware már nem fér bele, ezért az ESPHome Device Builder nem tudja frissíteni. A Tessera közben átállítja az új felosztásra, és megtartja a beállításait. Utána mindkét út működik."
       },

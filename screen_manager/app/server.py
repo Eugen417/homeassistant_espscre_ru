@@ -33,6 +33,7 @@ import energy_flow
 import map_tiles
 import tile_icons
 from updates import Updater
+import core
 
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
 from core import alarm_extras, lock_extras, ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_choice, alert_data, choice_service, ALERT_CHOICE_ACTION, ALERT_CHOICE_MIN_FIRMWARE, parse_firmware, alert_reference, alert_screen_choice, alert_screen_names, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, entity_slug, extras, media_cover, media_extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, name_clash, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
@@ -3879,7 +3880,7 @@ def create_app(manager, development=False):
         return web.json_response(view)
     async def update_screen(request):
         data = await request.json() if request.can_read_body else {}
-        return web.json_response(manager.updates.start(request.match_info['inbox'], data.get('host')))
+        return web.json_response(manager.updates.start(request.match_info['inbox'], data.get('host'), data.get('reinstall') is True))
     async def update_all(request):
         return web.json_response({'started': manager.updates.start_all()})
     async def update_settings(request):
@@ -4328,6 +4329,21 @@ def create_app(manager, development=False):
     app.router.add_static('/assets/', static / 'assets')
     return app
 
+async def addon_slug(session):
+    """This app's slug from the Supervisor (/addons/self/info, which needs no role), None without a Supervisor."""
+    token = os.environ.get('SUPERVISOR_TOKEN', '')
+    if not token:
+        return None
+    try:
+        async with session.get('http://supervisor/addons/self/info', headers={'Authorization': f'Bearer {token}'},
+                               timeout=ClientTimeout(total=10)) as response:
+            info = await response.json()
+        slug = (info.get('data') or {}).get('slug')
+        return slug if isinstance(slug, str) else None
+    except Exception as error:
+        LOG.info('Reading the app slug failed (%s)', type(error).__name__)
+        return None
+
 async def main():
     development = os.environ.get('SCREEN_DEV') == '1'
     token = os.environ.get('SUPERVISOR_TOKEN', '')
@@ -4336,6 +4352,10 @@ async def main():
     if not token:
         raise SystemExit('No Home Assistant access. Start the app via Supervisor.')
     async with ClientSession(timeout=ClientTimeout(total=20)) as session:
+        # The branch the screens build from (docs/RELEASING.md, "Testing dev"): dev for an app added from the `#dev` URL.
+        slug = await addon_slug(session)
+        core.set_channel(core.channel_of(slug))
+        LOG.info('App %s, channel %s', slug or 'without a Supervisor', core.channel() or 'none (screens keep their ref)')
         ha = HomeAssistant(session, os.environ.get('HA_API', 'http://supervisor/core/api'), token)
         manager = Manager(ha, Path(os.environ.get('SCREEN_DATA', '/data')) / 'screens.json')
         # handle_signals: SIGTERM (the Supervisor stopping the app, `docker stop`) and SIGINT end the app through the

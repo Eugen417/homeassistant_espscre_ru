@@ -768,6 +768,37 @@ describe("Sidebar", () => {
     expect(item.find(".update-pill").exists()).toBe(false);
     expect(item.find(".sub").text()).toBe("Update");
   });
+  it("offers Reinstall from dev on the dev channel only, and asks for a reinstall", async () => {
+    Object.assign(state.inventory.screens[0], { online: true, update: { available: false, target: "0.51.0", profile: "living.yaml", host: "10.0.0.5" } });
+    state.inventory.updates = { target: "0.51.0", auto: false, channel: "main" };
+    const calls: [string, RequestInit][] = [];
+    vi.stubGlobal("fetch", vi.fn((path: string, options: RequestInit) => {
+      calls.push([path, options]);
+      return Promise.resolve(new Response(JSON.stringify({}), { status: 200 }));
+    }));
+    const sidebar = mount(Sidebar);
+    const item = sidebar.find("#screens .screen-item");
+    await item.find(".nav-item").trigger("click");
+    if (!item.classes().includes("open")) await item.find(".details-toggle").trigger("click");
+    expect(item.find(".reinstall-dev").exists()).toBe(false);
+    // An app with no channel (a local copy) has no such button either.
+    state.inventory.updates = { target: "0.51.0", auto: false, channel: null };
+    await nextTick();
+    expect(item.find(".reinstall-dev").exists()).toBe(false);
+    state.inventory.updates = { target: "0.51.0", auto: false, channel: "dev" };
+    await nextTick();
+    expect(item.find(".reinstall-dev").text()).toContain("Reinstall from dev");
+    // Not while another update runs.
+    state.inventory.updates = { target: "0.51.0", auto: false, channel: "dev", busy: "other" };
+    await nextTick();
+    expect(item.find(".reinstall-dev").exists()).toBe(false);
+    state.inventory.updates = { target: "0.51.0", auto: false, channel: "dev" };
+    await nextTick();
+    await item.find(".reinstall-dev").trigger("click");
+    await flushPromises();
+    const sent = calls.find(([path]) => path.endsWith("/update"))!;
+    expect(JSON.parse(String(sent[1].body))).toEqual({ reinstall: true });
+  });
   it("goes home from the logo: the overview, nothing chosen (app 0.4.0)", async () => {
     const sidebar = mount(Sidebar);
     await sidebar.find(".brand").trigger("click");

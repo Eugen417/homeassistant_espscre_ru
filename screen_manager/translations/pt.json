@@ -727,7 +727,8 @@
         "enter_ip": "Introduza o endereço IP deste ecrã.",
         "no_profile": "Não foi encontrado nenhum perfil ESPHome para este ecrã. Verifique o nome na pasta do ESPHome.",
         "ip_unknown": "Endereço IP desconhecido. Introduza-o uma vez; depois disso, o firmware novo passa a comunicá-lo sozinho.",
-        "all_updated": "Todos os ecrãs acessíveis já estão atualizados."
+        "all_updated": "Todos os ecrãs acessíveis já estão atualizados.",
+        "reinstall_dev": "Reinstalar o mesmo firmware só é possível no canal dev."
       },
       "remove": {
         "not_allowed": "Esta aplicação não pode remover uma integração do Home Assistant. Remova o ecrã no próprio Home Assistant, em Configuração → Dispositivos & serviços.",
@@ -1368,6 +1369,8 @@
         "whats_new": "Novidades",
         "full_log": "Registo completo",
         "short": "Atualização",
+        "reinstall": "Reinstalar a partir do dev",
+        "reinstall_why": "Compila de novo este ecrã a partir do dev mais recente e instala-o por Wi-Fi. No dev o número da versão não muda, por isso um dev novo nunca é oferecido como atualização.",
         "in_tessera": "Atualize primeiro no Tessera",
         "in_tessera_why": "Atualize primeiro este ecrã aqui no Tessera. Ainda tem a divisão da flash da primeira instalação e o firmware atual já não cabe, por isso o ESPHome Device Builder não o consegue atualizar. O Tessera passa-o pelo caminho para a nova divisão e mantém as definições. Depois, ambos os caminhos funcionam."
       },

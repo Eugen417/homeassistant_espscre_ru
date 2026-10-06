@@ -727,7 +727,8 @@
         "enter_ip": "Inserisci l'indirizzo IP di questo schermo.",
         "no_profile": "Nessun profilo ESPHome trovato per questo schermo. Controlla il nome nella cartella di ESPHome.",
         "ip_unknown": "Indirizzo IP sconosciuto. Inseriscilo una sola volta; poi il nuovo firmware lo comunica da solo.",
-        "all_updated": "Tutti gli schermi raggiungibili sono già aggiornati."
+        "all_updated": "Tutti gli schermi raggiungibili sono già aggiornati.",
+        "reinstall_dev": "Reinstallare lo stesso firmware è possibile solo sul canale dev."
       },
       "remove": {
         "not_allowed": "Questa app non può rimuovere un'integrazione da Home Assistant. Rimuovi lo schermo in Home Assistant, in Impostazioni → Dispositivi e servizi.",
@@ -1368,6 +1369,8 @@
         "whats_new": "Novità",
         "full_log": "Registro completo",
         "short": "Aggiornamento",
+        "reinstall": "Reinstalla da dev",
+        "reinstall_why": "Ricompila questo schermo dal dev più recente e lo installa via Wi-Fi. Su dev il numero di versione resta uguale, quindi un nuovo dev non viene mai offerto come aggiornamento.",
         "in_tessera": "Aggiorna prima in Tessera",
         "in_tessera_why": "Aggiorna prima questo schermo qui in Tessera. Ha ancora la suddivisione della flash della sua prima installazione e il firmware attuale non ci sta più, quindi ESPHome Device Builder non può aggiornarlo. Tessera lo porta lungo la strada alla nuova suddivisione e ne mantiene le impostazioni. Dopo, funzionano entrambe le vie."
       },

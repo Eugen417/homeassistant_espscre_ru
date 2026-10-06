@@ -16,7 +16,7 @@ import yaml
 import zipfile
 import build_cache
 import build_memory
-from core import BOARD_KEYS, ORIENTATIONS, REF, REPO, SHAPES, hotspot_name, installation_yaml, old_hotspot_name
+from core import BOARD_KEYS, CHANNELS, ORIENTATIONS, REF, REPO, SHAPES, channel, hotspot_name, installation_yaml, old_hotspot_name, ref
 from i18n import t
 
 LOG = logging.getLogger('screen_manager')
@@ -384,6 +384,46 @@ class Firmware:
         self._names.pop(profile.name, None)
         return True
 
+    def set_branch(self, name, branch):
+        """Let the screen's next build come from `branch`, main or dev: the app's channel (core.channel, docs/RELEASING.md
+        "Testing dev"). The `ref:` of the package from this repository, and GITHUB_REF of the substitutions, which the
+        package fetches its components and fonts with. Only a `ref:` that says main or dev is changed, on its own line;
+        a tag, a commit, another branch or a fork is the owner's own choice and stays, and so does the rest of the
+        file. The result is read back and written only when that line is the one thing that changed. True when the
+        profile changed."""
+        if branch not in CHANNELS.values():
+            return False
+        profile = self.profile(name)
+        raw = profile.read_bytes().decode('utf-8')
+        newline = '\r\n' if '\r\n' in raw else '\n'
+        text = raw.replace('\r\n', '\n')
+        before = yaml.load(text, Loader=LenientLoader)
+        packages = before.get('packages') if isinstance(before, dict) else None
+        ours = [key for key, entry in packages.items() if isinstance(entry, dict) and REPO in str(entry.get('url', ''))] \
+            if isinstance(packages, dict) else []
+        if not ours or any(packages[key].get('ref') not in CHANNELS.values() for key in ours):
+            return False
+        changed = False
+        line = re.compile(r'(?m)^([ \t]+ref:[ \t]*)(["\']?)(main|dev)\2([ \t]*(?:#.*)?)$')
+        for key in ours:
+            if packages[key]['ref'] == branch:
+                continue
+            expected = deepcopy(before)
+            expected['packages'][key]['ref'] = branch
+            for match in line.finditer(text):
+                candidate = text[:match.start(3)] + branch + text[match.end(3):]
+                if yaml.load(candidate, Loader=LenientLoader) == expected:
+                    text, before, changed = candidate, expected, True
+                    break
+            else:
+                LOG.warning('%s: its ref could not be changed without changing more, so it builds from %s',
+                            profile.name, packages[key]['ref'])
+                return False
+        if changed:
+            self._atomic_write(profile, text.replace('\n', newline))
+            self._names.pop(profile.name, None)
+        return self._set_substitution(profile.name, 'GITHUB_REF', branch, default=REF, what='branch') or changed
+
     def rename_hotspot(self, name):
         """Give the Wi-Fi fallback hotspot of a profile this app wrote before 0.4.63 its name with the screen in it
         (core.hotspot_name): "Tessera Living room" instead of "living-room Setup", so a house full of screens that lost a
@@ -569,7 +609,7 @@ class Firmware:
 packages:
   bridge:
     url: {REPO}
-    ref: {REF}
+    ref: {ref()}
     files: [packages/bridge.yaml]
     refresh: 0s
 
@@ -826,6 +866,13 @@ packages:
                 self.set_language(profile.name, self.language())
             except (OSError, ValueError, yaml.YAMLError) as error:
                 LOG.warning('Could not write the language into %s (%s)', profile.name, error)
+        # The branch of the app's channel (docs/RELEASING.md, "Testing dev"): dev for an app added from the `#dev` URL,
+        # main again once the screen is with the app from the plain URL. An app with no channel leaves it as it is.
+        if managed and channel():
+            try:
+                self.set_branch(profile.name, channel())
+            except (OSError, ValueError, yaml.YAMLError) as error:
+                LOG.warning('Could not write the branch into %s (%s)', profile.name, error)
         # A board without room for the Wi-Fi fallback hotspot builds without it, also a screen made before (app 0.4.5).
         dropped = False
         if managed:

@@ -727,7 +727,8 @@
         "enter_ip": "Gib die IP-Adresse dieses Bildschirms ein.",
         "no_profile": "Kein ESPHome-Profil für diesen Bildschirm gefunden. Prüfe den Namen im ESPHome-Ordner.",
         "ip_unknown": "IP-Adresse unbekannt. Gib sie einmal ein; neue Firmware meldet sie danach selbst.",
-        "all_updated": "Alle erreichbaren Bildschirme sind schon aktuell."
+        "all_updated": "Alle erreichbaren Bildschirme sind schon aktuell.",
+        "reinstall_dev": "Dieselbe Firmware erneut installieren geht nur im Dev-Kanal."
       },
       "remove": {
         "not_allowed": "Diese App darf keine Integration aus Home Assistant entfernen. Entferne den Bildschirm in Home Assistant selbst, unter Einstellungen → Geräte & Dienste.",
@@ -1368,6 +1369,8 @@
         "whats_new": "Was ist neu",
         "full_log": "Ganzes Protokoll",
         "short": "Update",
+        "reinstall": "Neu installieren von dev",
+        "reinstall_why": "Baut diesen Bildschirm neu aus dem neuesten dev und installiert ihn über WLAN. Auf dev bleibt die Versionsnummer gleich, daher wird ein neues dev nie als Update angeboten.",
         "in_tessera": "Zuerst in Tessera aktualisieren",
         "in_tessera_why": "Aktualisiere diesen Bildschirm zuerst hier in Tessera. Er hat noch die Flash-Aufteilung seiner ersten Installation, und die aktuelle Firmware passt nicht mehr hinein, darum kann ESPHome Device Builder ihn nicht aktualisieren. Tessera stellt ihn dabei auf die neue Aufteilung um und behält seine Einstellungen. Danach geht beides."
       },

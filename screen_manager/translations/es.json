@@ -727,7 +727,8 @@
         "enter_ip": "Introduce la dirección IP de esta pantalla.",
         "no_profile": "No se ha encontrado ningún perfil de ESPHome para esta pantalla. Revisa el nombre en la carpeta de ESPHome.",
         "ip_unknown": "Dirección IP desconocida. Introdúcela una vez; después, el firmware nuevo la comunica por sí mismo.",
-        "all_updated": "Todas las pantallas accesibles ya están actualizadas."
+        "all_updated": "Todas las pantallas accesibles ya están actualizadas.",
+        "reinstall_dev": "Reinstalar el mismo firmware solo es posible en el canal dev."
       },
       "remove": {
         "not_allowed": "Esta aplicación no puede eliminar una integración de Home Assistant. Elimina la pantalla en el propio Home Assistant, en Configuración → Dispositivos y servicios.",
@@ -1368,6 +1369,8 @@
         "whats_new": "Novedades",
         "full_log": "Registro completo",
         "short": "Actualización",
+        "reinstall": "Reinstalar desde dev",
+        "reinstall_why": "Compila de nuevo esta pantalla con el dev más reciente y la instala por Wi-Fi. En dev el número de versión no cambia, así que un dev nuevo nunca se ofrece como actualización.",
         "in_tessera": "Actualiza primero en Tessera",
         "in_tessera_why": "Actualiza primero esta pantalla aquí en Tessera. Aún tiene la distribución de flash de su primera instalación y el firmware actual ya no cabe, así que ESPHome Device Builder no puede actualizarla. Tessera la pasa por el camino a la nueva distribución y conserva sus ajustes. Después, sirven las dos vías."
       },

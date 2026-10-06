@@ -727,7 +727,8 @@
         "enter_ip": "Vul het IP-adres van dit scherm in.",
         "no_profile": "Geen ESPHome-profiel gevonden voor dit scherm. Controleer de naam in de ESPHome-map.",
         "ip_unknown": "IP-adres onbekend. Vul het eenmalig in; nieuwe firmware meldt het daarna zelf.",
-        "all_updated": "Alle bereikbare schermen zijn al bijgewerkt."
+        "all_updated": "Alle bereikbare schermen zijn al bijgewerkt.",
+        "reinstall_dev": "Dezelfde firmware opnieuw installeren kan alleen in het dev-kanaal."
       },
       "remove": {
         "not_allowed": "Deze app mag geen integratie uit Home Assistant verwijderen. Verwijder het scherm in Home Assistant zelf, onder Instellingen → Apparaten & diensten.",
@@ -1368,6 +1369,8 @@
         "whats_new": "Wat is er nieuw",
         "full_log": "Volledig log",
         "short": "Update",
+        "reinstall": "Opnieuw installeren vanaf dev",
+        "reinstall_why": "Bouwt dit scherm opnieuw vanuit de nieuwste dev en installeert het via wifi. Op dev blijft het versienummer gelijk, dus een nieuwe dev wordt nooit als update aangeboden.",
         "in_tessera": "Update eerst via Tessera",
         "in_tessera_why": "Update dit scherm eerst hier in Tessera. Het heeft nog de flash-indeling van zijn eerste installatie, en de huidige firmware past daar niet meer in, dus ESPHome Device Builder kan het niet updaten. Tessera zet het onderweg om naar de nieuwe indeling en houdt zijn instellingen. Daarna werken beide manieren."
       },

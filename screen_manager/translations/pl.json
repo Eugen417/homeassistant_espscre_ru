@@ -727,7 +727,8 @@
         "enter_ip": "Wpisz adres IP tego ekranu.",
         "no_profile": "Nie znaleziono profilu ESPHome dla tego ekranu. Sprawdź nazwę w folderze ESPHome.",
         "ip_unknown": "Nieznany adres IP. Wpisz go raz; potem nowy firmware sam go zgłasza.",
-        "all_updated": "Wszystkie osiągalne ekrany są już zaktualizowane."
+        "all_updated": "Wszystkie osiągalne ekrany są już zaktualizowane.",
+        "reinstall_dev": "Ponowna instalacja tego samego firmware jest możliwa tylko w kanale dev."
       },
       "remove": {
         "not_allowed": "Ta aplikacja nie może usunąć integracji z Home Assistant. Usuń ekran w samym Home Assistant, w sekcji Ustawienia → Urządzenia oraz usługi.",
@@ -1368,6 +1369,8 @@
         "whats_new": "Co nowego",
         "full_log": "Pełny log",
         "short": "Aktualizacja",
+        "reinstall": "Zainstaluj ponownie z dev",
+        "reinstall_why": "Buduje ten ekran od nowa z najnowszego dev i instaluje go przez Wi-Fi. Na dev numer wersji się nie zmienia, więc nowy dev nigdy nie jest proponowany jako aktualizacja.",
         "in_tessera": "Najpierw zaktualizuj w Tessera",
         "in_tessera_why": "Najpierw zaktualizuj ten ekran tutaj w Tessera. Ma jeszcze układ pamięci flash z pierwszej instalacji, a obecny firmware już się w nim nie mieści, więc ESPHome Device Builder nie może go zaktualizować. Tessera po drodze przestawi go na nowy układ i zachowa jego ustawienia. Potem działają obie drogi."
       },
