@@ -5620,6 +5620,17 @@ inline void climate_circle_event(lv_event_t *e){
   climate_power(t);
   refresh_tile(w.index);
 }
+// The ring of a favourite that plays (ring_favorite marks the card with LV_OBJ_FLAG_USER_1): the accent along the
+// card's own edge and corners, over everything the card holds, inside the card's box. Nothing of the card moves.
+inline void ring_draw(lv_event_t *e){
+  auto *tile=static_cast<lv_obj_t *>(lv_event_get_current_target(e));
+  if(!lv_obj_has_flag(tile,LV_OBJ_FLAG_USER_1))return;
+  lv_draw_rect_dsc_t ring;lv_draw_rect_dsc_init(&ring);
+  ring.bg_opa=LV_OPA_TRANSP;ring.border_width=ui::px(3);ring.border_opa=LV_OPA_COVER;
+  ring.border_color=theme::color(theme::ACCENT);ring.radius=lv_obj_get_style_radius(tile,LV_PART_MAIN);
+  lv_area_t box;lv_obj_get_coords(tile,&box);
+  lv_draw_rect(lv_event_get_layer(e),&ring,&box);
+}
 // A card into its set at `index`. Its callbacks name the index and `widgets[index]`: they only fire while the card is on
 // the glass, and then that is where it is (the set exchange in keep_page never moves a card to another index).
 // `like`: a card of the board's own set whose measurements this one takes over (make_card), instead of laying the grid
@@ -5669,6 +5680,7 @@ inline void bind_card(Widgets &into, size_t index, lv_obj_t *tile, lv_obj_t *tit
   lv_obj_add_event_cb(w.slider,slider_event,LV_EVENT_ALL,(void*)(uintptr_t)index);
   lv_obj_add_event_cb(tile, event, LV_EVENT_SHORT_CLICKED, &widgets[index]);
   lv_obj_add_event_cb(tile, event, LV_EVENT_LONG_PRESSED, &widgets[index]);
+  lv_obj_add_event_cb(tile, ring_draw, LV_EVENT_DRAW_POST, nullptr);
 }
 // The board's own cards (packages/cells/<n>.yaml, bound at boot).
 inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value, lv_obj_t *circle, lv_obj_t *icon) {
@@ -7557,22 +7569,16 @@ inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
   }
   return true;
 }
-// A favourite that plays now has a ring of the accent (firmware 0.24.0+): the card's own border, drawn over its picture
-// along the card's own corners. An outline outside the card left the picture's corners, which the app fills with the
-// page's colour, as a light wedge between the ring and the picture. Every other card keeps its hairline under its parts.
+// A favourite that plays now has a ring of the accent (firmware 0.24.0+), drawn over its picture along the card's own
+// corners. An outline outside the card left the picture's corners, which the app fills with the page's colour, as a
+// light wedge between the ring and the picture. The ring is drawn after the card's parts (ring_draw) and is no border:
+// a wider border moved the card's inside, so the picture under it slid out past the ring by the difference and the
+// card looked to grow. Every other card keeps its hairline under its parts.
 inline void ring_favorite(Widgets &w,const Tile &t){
   const bool ringed=t.favorite()&&t.extra().fav_playing;
-  set_number(w.tile,LV_STYLE_BORDER_POST,ringed?1:0);
-  if(ringed){
-    set_number(w.tile,LV_STYLE_BORDER_WIDTH,ui::px(3));
-    set_number(w.tile,LV_STYLE_BORDER_OPA,LV_OPA_COVER);
-    set_color(w.tile,LV_STYLE_BORDER_COLOR,theme::color(theme::ACCENT));
-  }else if(t.favorite()){
-    // The palette's own hairline again: the palette pass is skipped while the card's colours stand still.
-    set_number(w.tile,LV_STYLE_BORDER_WIDTH,1);
-    set_number(w.tile,LV_STYLE_BORDER_OPA,t.transparent?LV_OPA_TRANSP:LV_OPA_COVER);
-    set_color(w.tile,LV_STYLE_BORDER_COLOR,lv_color_hex(theme::outline(t.background)));
-  }
+  if(lv_obj_has_flag(w.tile,LV_OBJ_FLAG_USER_1)==ringed)return;
+  if(ringed)lv_obj_add_flag(w.tile,LV_OBJ_FLAG_USER_1);else lv_obj_remove_flag(w.tile,LV_OBJ_FLAG_USER_1);
+  lv_obj_invalidate(w.tile);
 }
 inline void style_tall(Widgets &w,const Tile &t){
   // A thermostat's stepper (render_tall, climate_tile.h): a grey pill with white keys on one row, or the keys alone
