@@ -191,6 +191,12 @@ test logs: what a release changed goes in `screen_manager/CHANGELOG.md` and its 
 
 ## Replying to issues and pull requests
 
+A fix or a change that is done goes to dev first and reaches users with the next release, about once a week (Branches
+and releases). So a reply about it says what was done and how it was tested, and that it comes with the next release,
+usually within a week; it names no date and promises nothing that is not built yet. The issue stays open until that
+release is out. Then a short reply says which version has it and how to get it (update the app, then the screen's
+Update), and the issue is closed: `tools/release.py publish` lists the issues the release's CHANGELOG section names.
+
 A reply on GitHub goes out under the project owner's own account, so every comment on an issue or a pull request ends
 with the same signature: a blank line, a `---` rule, and two italic lines, each its own paragraph.
 

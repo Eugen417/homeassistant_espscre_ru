@@ -173,6 +173,19 @@ def section(changelog, version):
     return match.group(0), changelog[match.end():end.start() if end else len(changelog)].strip()
 
 
+ISSUE = re.compile(r'github\.com/' + re.escape(REPOSITORY) + r'/(?:issues|pull)/(\d+)|(?<![\w/&])#(\d+)\b')
+
+
+def issues_in(notes):
+    """The issue and pull request numbers a CHANGELOG section names, as links or as #123, in order, once each."""
+    found = []
+    for match in ISSUE.finditer(notes):
+        number = int(match.group(1) or match.group(2))
+        if number not in found:
+            found.append(number)
+    return found
+
+
 def title(changelog_heading):
     """The GitHub release's title from its CHANGELOG heading: "Tessera 0.4.84 · firmware 0.52.0"."""
     match = re.fullmatch(r'## (\d+\.\d+\.\d+) \(firmware (\d+\.\d+\.\d+)((?: for [a-z0-9, ]+)?)\)', changelog_heading)
@@ -459,6 +472,10 @@ def publish(args):
     if git('ls-remote', '--heads', 'origin', CANDIDATE):
         git('push', '--quiet', 'origin', '--delete', CANDIDATE)
     print(f'Published {name}: main is {head[:12]}, tag {tag}.')
+    named = issues_in(found[1])
+    if named:
+        print('Reply on each with the version that has it and how to get it, then close it: '
+              + ', '.join(f'https://github.com/{REPOSITORY}/issues/{number}' for number in named))
     if here != WORK:
         print(f'This came from {here}: merge origin/main into {WORK} now, so the next release has it too.')
     print('Point the test screens back at main (ref: main), and keep an eye on new issues today.')

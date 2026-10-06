@@ -75,6 +75,20 @@ class TheChangelog(unittest.TestCase):
         self.assertNotIn('\n## ', notes)
 
 
+class TheIssues(unittest.TestCase):
+    def test_the_issues_a_section_names(self):
+        notes = ('- **A fix** ([#169](https://github.com/MaxGramser/homeassistant_espscreen/issues/169)). Also #170 and '
+                 'again #169, a pull request https://github.com/MaxGramser/homeassistant_espscreen/pull/151, not '
+                 'a colour like &#35;1 or a heading anchor docs/PAGES.md#updating, nor another repository '
+                 'https://github.com/esphome/esphome/issues/9999.')
+        self.assertEqual(release.issues_in(notes), [169, 170, 151])
+
+    def test_a_real_section_reads(self):
+        """The newest CHANGELOG section of this tree, so a changed link form fails here first."""
+        version = firmware_count.dotted(test_release_lint.app_headings()[0][0])
+        self.assertIsInstance(release.issues_in(release.section(CHANGELOG, version)[1]), list)
+
+
 class TheNumbers(unittest.TestCase):
     def test_the_app_version_goes_up_by_one(self):
         version = release.version_of(CONFIG)

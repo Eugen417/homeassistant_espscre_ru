@@ -78,7 +78,9 @@ does the steps that can go wrong by hand, and refuses when something is missing.
 7. **After.** Point the test screens back at main. Users find the update in the App store and update Tessera Screen
    Manager; for new screen features they use **Update** on the screen in Tessera (or the nightly round), and ESPHome
    Device Builder's Install, Wirelessly, on the existing device works too. The existing YAML stays in place;
-   `refresh: 0s` fetches current code on every build. Keep an eye on new issues that day.
+   `refresh: 0s` fetches current code on every build. Every issue the release's CHANGELOG section names gets a short
+reply (which version has it, and how to get it) and is closed; `publish` lists them. Keep an eye on new issues that
+day.
 
 ## A hotfix
 
