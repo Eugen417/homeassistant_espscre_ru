@@ -790,8 +790,9 @@ replaced by the `Last boot` timestamp.
 See the [release history](screen_manager/CHANGELOG.md), [how a release is made](docs/RELEASING.md) and
 [updating the app and the screens at different times](docs/PAGES.md#updating-at-different-times).
 
-**If you publish your own fork:** every push to GitHub is a release. Always also
-bump the add-on version in `screen_manager/config.yaml` and log the change in
+**If you publish your own fork:** every push to its main branch is a release, because the HA App store and the
+screens read main. This project works on `dev` and moves main only for a release ([how a release is
+made](docs/RELEASING.md)). A release bumps the add-on version in `screen_manager/config.yaml` and logs the change in
 the CHANGELOG, otherwise the HA App store won't offer an update. A change to the
 screen also gets a new firmware number: in `packages/core.yaml` and `FIRMWARE_VERSION` in
 `screen_manager/app/core.py` when it reaches every board, or in the board file alone when it is a fix for one

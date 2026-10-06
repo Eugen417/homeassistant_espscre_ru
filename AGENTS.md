@@ -32,7 +32,7 @@ Home Assistant entity belongs in a board file. docs/README.md lists every doc an
 | add or change a text | docs/TRANSLATING.md | `screen_manager/translations/en.json` |
 | touch the YAML package layers | docs/PROFILES.md | `packages/`, `checkout/` |
 | know which test proves what | docs/TESTING.md | `tools/check.sh` |
-| publish | docs/RELEASING.md, docs/BOARD_RELEASES.md | `screen_manager/config.yaml`, `tools/affected_boards.py` |
+| release what is on dev | docs/RELEASING.md, docs/BOARD_RELEASES.md | `tools/release.py`, `tools/affected_boards.py` |
 
 Each recipe ends with the list of places a change of that kind touches. Follow it; a check fails on most you forget.
 
@@ -101,28 +101,55 @@ Most of these are guarded by a test; the test names the doc to read when it fail
 
 ## Checks
 
-`tools/check.sh` is the gate, locally and in CI; docs/TESTING.md says what each layer proves.
+How much is checked follows the branch (next section): work on dev moves fast and is proven on real screens, a
+release is checked fully, once a week. docs/TESTING.md says what each layer proves.
 
-- Every code change: `tools/check.sh` (Python and C++ tests, package and generator checks, translations, the editor's
-  tests, types and build, the WASM preview tests and the layout audit of every card on every board shape).
-- A firmware change: also `tools/check.sh --firmware --affected`. A change that reaches one board or a few builds only
-  those; a change that reaches every board builds `SAMPLE` in `tools/profiles.py` (four boards that differ in chip,
-  flash and glass), and CI builds every board nightly. On the packages' older `min_version` ESPHome the same
-  `--affected` build is the CYD alone (`MIN_VERSION_SAMPLE`), plus a board for each changed file the CYD doesn't
-  build. Renders use `RENDER_SAMPLE`, the smallest, a middle and the largest glass (`tools/check.sh --render
-  --sample`), and run by hand.
-- A firmware change makes the committed WASM preview stale: `web/wasm/build.sh` rebuilds it, or CI's preview job does
-  after the push.
+- **On dev the proof is the bench**: the three real boards on the owner's bench Home Assistant and its local app
+  (`.esphome/bench/README.md` on the owner's machine). Put the app on it, flash the change to the boards it concerns,
+  and have the owner look and tap. Run a single test when that is the quickest way to see a piece of logic work. No
+  `tools/check.sh`, no builds of other boards and no renders on dev, and a push to dev starts no CI. After a change
+  under `web/src`, `cd web && npm run build` (the app serves that build) and commit `screen_manager/app/static` with it.
+- **At a release** (and a hotfix) everything runs, on the commit that goes out: `tools/check.sh`, CI on that commit
+  (`tools/release.py ci`: every board on both ESPHome versions), the renders when the release changes what screens
+  draw, and the upgrade test on the bench (docs/TESTING.md, "6. The upgrade"). What fails there is fixed in the release.
+- `tools/check.sh`: Python and C++ tests, package and generator checks, translations, the editor's tests, types and
+  build, the WASM preview tests and the layout audit of every card on every board shape.
+- Its firmware builds: `tools/check.sh --firmware --affected` builds the boards a change reaches; a change that reaches
+  every board builds `SAMPLE` in `tools/profiles.py` (four boards that differ in chip, flash and glass). On the
+  packages' older `min_version` ESPHome the same `--affected` build is the CYD alone (`MIN_VERSION_SAMPLE`), plus a
+  board for each changed file the CYD doesn't build. CI builds every board each night on main and at a release. Renders
+  use `RENDER_SAMPLE`, the smallest, a middle and the largest glass (`tools/check.sh --render --sample`), by hand.
+- A firmware change makes the committed WASM preview stale: CI's preview job rebuilds it after the push to dev and
+  commits it there (pull before the next push), or `web/wasm/build.sh` does it locally.
 - Firmware tests and hardware acceptance are different checks: report which ones actually ran.
 
-## Releases
+## Branches and releases
 
-Every push of code to main is a release: bump the add-on version in `screen_manager/config.yaml` with a CHANGELOG
-entry, otherwise Home Assistant offers no update. Docs-only changes may go out without one. Run
-`tools/affected_boards.py` first: it says whether the change reaches no screen, a new board, some boards or every board,
-and prints the firmware number, the CHANGELOG heading and the checks. The firmware number is X.Y.Z: Y counts the core
-(a shared release is the next X.Y.0) and Z a board's own revision on it (`tools/firmware_count.py` holds the rule). A
-new board takes no firmware number. docs/BOARD_RELEASES.md is the recipe, docs/RELEASING.md the rest.
+Two branches, and the difference between them is the most important rule in this file.
+
+- **dev is where all work goes**: features, fixes, issues, boards, experiments. Commit on dev (or on a branch of your
+  own that you merge into dev) and push to `origin dev`. Nobody installs dev: it is proven on the bench boards (see
+  Checks). Bump no app version and no firmware number on dev. Anything a user would notice gets a line
+  under `## Unreleased` at the top of `screen_manager/CHANGELOG.md` (add the heading when it is missing); the release
+  turns that section into its version heading.
+- **main is what every user gets**: Home Assistant installs the add-on from it, and every screen builds its firmware
+  from its packages. main changes only in a release, a hotfix, or a change to README.md, README_EXTENDED.md or docs/
+  alone; after a docs change on main, merge main into dev.
+- **A release is explicit.** Prepare or publish one only when the maintainer asks for a release in so many words.
+  "Add this", "fix this issue" or "try this" means: on dev, on the bench. When a request could mean either, ask
+  whether it is a release or work to test on the bench, before anything goes near main.
+- **The release**, about once a week: `tools/release.py` with docs/RELEASING.md, "The release", step by step. It counts
+  everything since the last release as one: one app version, one CHANGELOG section, one firmware number, tested as an
+  upgrade from main on the bench, and then main moves to that exact commit with its tag and GitHub release.
+- **A hotfix** is for something broken for users now: a screen that doesn't start, an add-on that doesn't start, data
+  that is lost. Branch from main (`hotfix-<what>`), fix it, release it alone with the same steps, then merge main into
+  dev.
+
+`tools/affected_boards.py` says whether the work since main reaches no screen, a new board, some boards or every
+board, and prints the firmware number, the CHANGELOG heading and the checks; `tools/release.py prepare` writes them.
+The firmware number is X.Y.Z: Y counts the core (a shared release is the next X.Y.0) and Z a board's own revision on
+it (`tools/firmware_count.py` holds the rule). A new board takes no firmware number. docs/BOARD_RELEASES.md is the
+recipe for the numbers, docs/RELEASING.md for the rest.
 
 ## Installing a screen and working with hardware
 

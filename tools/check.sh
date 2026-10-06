@@ -29,6 +29,8 @@
 #                     build folders, so a check build never replaces the firmware.bin of a screen's profile
 #   CHECK_BASE        the commit to hold the firmware numbers against (CI: the push's previous commit or the pull
 #                     request's base); set, a firmware change without its number fails instead of warning
+#   CHECK_BRANCH      the branch the commit is on (CI); on any branch but main the numbers are held against origin/main
+#                     instead, and only warn until the commit that bumps the app's version (docs/RELEASING.md)
 #
 # Every check prints PASS, WARN or FAIL; a failing check shows the end of its output. Exit status 1 when one failed.
 set -euo pipefail
@@ -176,11 +178,12 @@ entries_current() { cd "$ROOT" && "$PYTHON" tools/generate_entries.py --check; }
 issue_templates_current() { cd "$ROOT" && "$PYTHON" tools/generate_issue_templates.py --check; }
 # A firmware change with no higher number for the boards it reaches (docs/BOARD_RELEASES.md): those screens would
 # never be offered it. Against origin/main it warns while the work goes on and fails once config.yaml names a new app
-# version (a release); with CHECK_BASE, the commit CI compares with, it always fails.
+# version (a release); with CHECK_BASE, the commit CI compares with, it always fails on main, where every commit is a
+# release. On dev the numbers are set once, at the release (docs/RELEASING.md), so there it is held against origin/main.
 firmware_numbers_raised() {
   local out status=0 args=(--verify)
   cd "$ROOT" || return 1
-  if [[ -n ${CHECK_BASE:-} ]]; then args+=(--strict --base "$CHECK_BASE"); fi
+  if [[ -n ${CHECK_BASE:-} && ${CHECK_BRANCH:-main} == main ]]; then args+=(--strict --base "$CHECK_BASE"); fi
   out=$("$PYTHON" tools/affected_boards.py "${args[@]}" 2>&1) || status=$?
   echo "$out"
   if ((status == 3)); then warn "$out"; note "not raised yet"; return 0; fi

@@ -56,5 +56,5 @@
 - [CALIBRATING.md](CALIBRATING.md): calibrating a resistive panel (the CYD) over USB, and the touch orientation it
   assumes.
 - [SWIPE_PROFILE.md](SWIPE_PROFILE.md): measuring what a page swipe costs the main loop.
-- [TESTING.md](TESTING.md): the levels of testing, from `tools/check.sh` to the whole chain.
-- [RELEASING.md](RELEASING.md): the release steps, the flash budget and the ESPHome versions.
+- [TESTING.md](TESTING.md): the levels of testing, from `tools/check.sh` to the whole chain and the upgrade from the last release.
+- [RELEASING.md](RELEASING.md): the two branches, the weekly release, a hotfix, the flash budget and the ESPHome versions.
