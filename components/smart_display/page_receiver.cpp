@@ -749,7 +749,7 @@ std::string receive(const std::string &payload) {
       if (next.media_repeat != "off" && next.media_repeat != "all" && next.media_repeat != "one") next.media_repeat.clear();
       next.media_features = extra["mf"].is<uint32_t>() ? extra["mf"].as<uint32_t>() : 0;
       const std::string ground = string(extra["g"], 13);
-      next.has_ground = media_card::ground(ground, next.ground_top, next.ground_bottom);
+      next.has_ground = media_card::ground(ground, next.ground);
       next.ground_known = !ground.empty();
       next.media_library = (extra["lb"] | 0) == 1;
       // A favourite (firmware 0.24.0+): what its tile says, and its picture's mark.

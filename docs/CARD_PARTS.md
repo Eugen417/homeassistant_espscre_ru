@@ -32,8 +32,7 @@ card_shaped(t, climate_card_shape);
 ```
 
 The shape is a fingerprint of everything that decides which parts exist and where they stand: which modes and rows a
-thermostat has, whether a player plays anything, which keys it has, its cover and its colours. It leaves out what the
-parts paint.
+thermostat has, whether a player is off or at rest, which keys it has. It leaves out what the parts paint.
 
 On every change `card_repaint(t)` compares the shape with the one the card was built with. The same shape runs every
 paint function; another shape builds the card again, as every card did before. A card that binds nothing names no
@@ -99,7 +98,10 @@ their own.
   the power key and the status line. A range's band and a humidifier's ring draw their values into their shape, so
   they are built again when those change.
 - **Media player:** play or pause, the title and the artist (a new text starts its roll again, the same text rolls on),
-  shuffle and its dot, repeat, mute, the volume slider and the progress bar.
+  shuffle and its dot, repeat, mute, the volume slider, the progress bar and its times, the cover and the card's colour.
+  A new track paints the card: the words and the bar at once, the cover and its colour together once the new cover is
+  here, the old ones until then (`MediaFace` in `runtime_tiles.h`). Only a track of an hour or more, whose times need
+  more room beside the bar, builds it again.
 - **Light and fan:** the power key, the slider, the round field of a light that only switches, the icon and the value.
 - **Cover:** the position and tilt sliders and their values (they follow the blind as it moves), the keys with the
   direction it moves in and its end stops, the icon of a door that only opens and closes.

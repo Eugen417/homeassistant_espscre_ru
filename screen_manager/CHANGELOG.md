@@ -1,3 +1,23 @@
+## Unreleased
+
+- **A new track without a flash on the media card** ([#177](https://github.com/MaxGramser/homeassistant_espscreen/issues/177)).
+  The card changes its words and its bar at once, and its cover and colour together, in one go, once the new cover is
+  here. Until then it keeps the cover and colour of the track before. Before, the card was drawn again on a black
+  ground with an empty square, and once more when the new colour came, so the keys and the bar flashed and the cover
+  was gone for a second or two. A media tile over a whole page keeps its cover the same way.
+- **Live radio says Live.** A station plays without a length, so the card had no bar for it. Now the bar stays, empty,
+  with "Live" where the time stands, as Music Assistant keeps its bar for a station. Between two tracks the bar stands
+  at nought with 0:00 at both ends, where it went and came back.
+- **Covers keep coming after many tracks.** Each track's cover stayed in the screen's picture memory, and after some
+  sixteen of them there was no place left for a new picture: the media card stood on its empty square, and a camera or a
+  library page could not keep its picture either. A cover the card or a tile has moved on from now goes, and when every
+  place is taken the picture used longest ago that is not on the glass makes way.
+- **Air around the knobs.** The volume knob at 0 or 100 % no longer touches the volume keys beside it, and the knob of
+  the track's bar keeps clear of the times.
+- **The play key's triangle stands in the middle** of its key, where it sat a few pixels to the left.
+- The card stands on one colour from its cover. The app has sent one colour since the bands of #135; the card's code
+  for a colour at the top and another at the bottom is gone.
+
 ## 0.4.83 (firmware 0.51.0)
 
 - **A calmer Screensaver card.** In a screen's settings the Screensaver card is now a short list of its three steps,

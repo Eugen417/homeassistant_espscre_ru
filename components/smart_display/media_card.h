@@ -52,7 +52,11 @@ struct Metrics {
   int min_gap() const { return ui::px(large ? 12 : 8); }
   int mute_h() const { return ui::px(large ? 32 : 22); }    // shuffle and repeat, bare at the ends of the keys
   int slider_h() const { return ui::px(large ? 20 : 12); }
+  // The volume slider's round knob, the slider and its padding (runtime_tiles::media_slider), and the seek knob on the
+  // bar: both stand centred on the end of their fill, so at either end half of it reaches past the line.
+  int knob_h() const { return slider_h() + 2 * ui::px(large ? 4 : 3); }
   int bar_h() const { return ui::px(large ? 6 : 4); }
+  int seek_knob_h() const { return bar_h() + ui::px(large ? 14 : 10); }
   int gap() const { return ui::px(large ? 12 : 6); }
   int margin() const { return ui::px(large ? 24 : 10); }
   int max_art() const { return ui::px(large ? 200 : 120); }
@@ -109,8 +113,9 @@ inline Layout layout_with(const Metrics &m, int width, int height, int ends, int
   }
   l.minus = {row_x, row_y, volume_h, volume_h};
   l.plus = {right - volume_h, row_y, volume_h, volume_h};
-  const int slider_x = l.minus.right() + g;
-  l.volume = {slider_x, row_y + (volume_h - m.slider_h()) / 2, std::max(1, l.plus.x - g - slider_x), m.slider_h()};
+  // The knob at 0 or 100 % keeps a gap's air to volume down and up instead of touching them (firmware 0.52.0).
+  const int knob_reach = g + m.knob_h() / 2, slider_x = l.minus.right() + knob_reach;
+  l.volume = {slider_x, row_y + (volume_h - m.slider_h()) / 2, std::max(1, l.plus.x - knob_reach - slider_x), m.slider_h()};
   const int above = height - volume_h - g;  // room for the rest
   // The wide form is for an area too short to stack: a tile over a CYD page. Glass wider than a hand with room
   // for a full cover and the stack takes the tall form instead, the "now playing" a phone draws, and the cover
@@ -119,14 +124,16 @@ inline Layout layout_with(const Metrics &m, int width, int height, int ends, int
   const int stack_min = m.max_art() + m.title_h + m.artist_h + 3 * g + m.small_h + m.play_h();
   l.wide = width * 4 > height * 5 && !(width > m.reach() && above >= stack_min);
   const int row_min = 2 * m.key_h() + m.play_h() + 2 * m.min_gap();
-  // The bar's row: the elapsed time at the left, the total at the right, the bar between them, on one small line.
+  // The bar's row: the elapsed time at the left, the total at the right, the bar between them, on one small line. The
+  // seek knob at either end keeps half a gap's air to the times (firmware 0.52.0).
   auto bar_row = [&](int x, int w, int y, bool with_times) {
     const int tw = with_times && w >= 4 * m.times_w() ? m.times_w() : 0;  // no room for times on a very narrow row
     l.times = tw > 0;
     const int row_h = l.times ? m.small_h : m.bar_h();
     l.elapsed = {x, y, tw, m.small_h};
     l.total = {x + w - tw, y, tw, m.small_h};
-    const int bar_x = x + (tw ? tw + g / 2 : 0), bar_w = std::max(1, w - 2 * (tw ? tw + g / 2 : 0));
+    const int side = tw ? tw + g / 2 + m.seek_knob_h() / 2 : 0;
+    const int bar_x = x + side, bar_w = std::max(1, w - 2 * side);
     l.bar = {bar_x, y + (row_h - m.bar_h()) / 2, bar_w, m.bar_h()};
     return row_h;
   };
@@ -248,17 +255,18 @@ struct Seek {
 };
 
 // ---- The card's ground (firmware 0.24.0+) ----
-// The two colours the app read from the cover, "RRGGBB,RRGGBB" (top, bottom); false without them, and the card keeps
-// its neutral ground (theme::MEDIA_TOP, theme::MEDIA_BOTTOM).
-inline bool ground(const std::string &text, uint32_t &top, uint32_t &bottom) {
-  if (text.size() != 13 || text[6] != ',') return false;
+// The colour the app read from the cover; false without it, and the card keeps its neutral ground (theme::MEDIA_GROUND).
+// One colour (firmware 0.52.0): the app has sent the same colour twice, "RRGGBB,RRGGBB", since a gradient between two
+// dark colours showed as bands on 16-bit glass (GitHub #135), and it keeps that form for the firmware of before, which
+// reads nothing else. This one reads the first colour, and a lone "RRGGBB" as well.
+inline bool ground(const std::string &text, uint32_t &colour) {
+  if (text.size() != 6 && (text.size() != 13 || text[6] != ',')) return false;
   for (size_t i = 0; i < text.size(); ++i) {
     if (i == 6) continue;
     const char c = text[i];
     if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f'))) return false;
   }
-  top = static_cast<uint32_t>(std::stoul(text.substr(0, 6), nullptr, 16));
-  bottom = static_cast<uint32_t>(std::stoul(text.substr(7, 6), nullptr, 16));
+  colour = static_cast<uint32_t>(std::stoul(text.substr(0, 6), nullptr, 16));
   return true;
 }
 // The repeat key's next step, as Spotify's and Home Assistant's own player cycle it: off, all, one.

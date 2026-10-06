@@ -264,8 +264,9 @@ struct Extra {
   std::vector<std::string> media_inputs;
   std::string media_input, media_target;
   int8_t media_shuffle = -1;
-  uint32_t media_features = 0, ground_top = 0, ground_bottom = 0;
-  // ground_known: the app read the cover (its colours, or that it has none to speak of), so its cover may be asked for.
+  // ground: the media card's colour, read from the cover by the app (has_ground). ground_known: the app read the cover
+  // (its colour, or that it has none to speak of), so its cover may be asked for.
+  uint32_t media_features = 0, ground = 0;
   bool has_ground = false, ground_known = false, media_library = false;
   // A favourite (firmware 0.24.0+, app 0.4.42+): the kind of thing it plays in the screen's words ("Playlist"), the
   // speaker chosen for it, the mark of its picture, the glyph of its kind, and whether it plays now.

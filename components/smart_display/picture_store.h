@@ -55,6 +55,8 @@ template <class Image> struct Store {
   std::array<Entry, ENTRIES> entries{};
   std::function<void *(size_t)> allocate;
   std::function<void(void *)> release;
+  // Whether a card (or an open card over the page) still draws a picture: put() makes room only with what none draws.
+  std::function<bool(const Image *)> shown;
   size_t budget = 0;         // bytes; 0 keeps nothing, so a board without the room stores no picture
   uint32_t uses = 0;
 
@@ -76,7 +78,8 @@ template <class Image> struct Store {
     return &e->image;
   }
   // Keep a copy of `from` under `key`. The same key with the same size keeps its place (the cards drawing it show the
-  // new picture); nullptr when there is no room, and the caller draws nothing from the store.
+  // new picture); nullptr when there is no room, and the caller draws nothing from the store. With every slot taken the
+  // picture used longest ago that no card draws makes way (make_room).
   Image *put(const std::string &key, const Image &from, uint32_t now, const std::string &note = {}) {
     if (!budget || !allocate || !from.data || !from.data_size || key.empty() || from.data_size > budget) return nullptr;
     Entry *e = entry(key);
@@ -88,6 +91,7 @@ template <class Image> struct Store {
     if (e) e->retired = true;
     Entry *slot = nullptr;
     for (auto &c : entries) if (!c.buffer) { slot = &c; break; }
+    if (!slot) slot = make_room();
     if (!slot) return nullptr;
     void *buffer = allocate(from.data_size);
     if (!buffer) return nullptr;
@@ -97,6 +101,20 @@ template <class Image> struct Store {
     slot->image.data = static_cast<decltype(from.data)>(buffer);
     slot->stored_at = now; slot->used = ++uses; slot->retired = false;
     return &slot->image;
+  }
+  // Every slot taken (firmware 0.52.0): the picture that no card draws and was used longest ago makes way, one no longer
+  // wanted (retired) before any other. Before, the slots ran out long before the bytes reached the budget: on a 4-inch
+  // board sixteen covers of tracks gone by take 0.7 MB of 1.5, and from then on no new picture was kept, so a media card
+  // stood on its placeholder for good (GitHub #177). nullptr when every picture is on a card.
+  Entry *make_room() {
+    if (!shown) return nullptr;
+    Entry *oldest = nullptr;
+    for (auto &c : entries) {
+      if (!c.buffer || shown(&c.image)) continue;
+      if (!oldest || (c.retired != oldest->retired ? c.retired : c.used < oldest->used)) oldest = &c;
+    }
+    if (oldest) drop(*oldest);
+    return oldest;
   }
   // Frees what may go: copies that were replaced, then the pictures used longest ago while the store is over its
   // budget. `shown` says whether a card (or an open card over the page) still draws a picture.

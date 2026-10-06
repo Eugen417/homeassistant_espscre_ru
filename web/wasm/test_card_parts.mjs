@@ -34,6 +34,9 @@ const CASES = [
   ['climate: off', climate, { state: 'off', a: { ...climate.a, hvac_action: 'off' } }],
   ['media: paused, muted, shuffled', media, { state: 'paused', a: { ...media.a, is_volume_muted: true, volume_level: 0.7 }, x: { ...media.x, sh: 1, rp: 'one' } }],
   ['media: another track', media, { x: { ...media.x, title: 'Other', artist: 'Singer' } }],
+  // A new track brings its picture, its colour and its length with it: painted, never built (firmware 0.52.0, #177).
+  ['media: a new track, its cover colour and length', media, { x: { ...media.x, title: 'Other', artist: 'Singer', pic: 'b2c3', g: '461511,461511', dur: 260, pos: 0 } }],
+  ['media: between two tracks', media, { state: 'idle', x: { sh: 0, rp: 'off' } }],
   ['light: dimmer', light, { a: { ...light.a, brightness: 40 } }],
   ['light: off', light, { state: 'off', a: { supported_color_modes: ['brightness'] } }],
   ['cover: moving', cover, { state: 'closing', a: { ...cover.a, current_position: 35 } }],
