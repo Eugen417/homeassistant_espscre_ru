@@ -142,9 +142,13 @@ tiles side by side are about 25 KB each per refresh, and a tile over the whole p
 seconds works there, but the larger the picture and the slower the Wi-Fi, the longer the screen spends reading it.
 
 From app 0.4.13 with firmware 0.9.0 no picture is larger than 1024 pixels either way or 1.25 MB once the
-screen has decoded it, whatever the size of the glass. Since firmware 0.52.0 that cap holds for each tile's picture
-alone, so only a tile that is larger itself (a camera over the whole page of a 10-inch screen) comes a little
-smaller, in the middle of its card on a dark ground, so the name under it stays readable.
+screen has decoded it, on a board with 8 MB of PSRAM. Since firmware 0.52.0 that cap holds for each tile's picture
+alone, and a board with more memory takes larger pictures: one picture may be a third of its picture store, up to
+2048 pixels a side (`picture_store::cap_for`). The P4 boards with 32 MB keep 6 MB of pictures, so 2 MB a picture: the
+10-inch glass gets a camera over its whole page, its full view, a map and the screensaver at its own 1280 x 800. The
+screen says so with `cap` (the bytes) when it asks for a picture of the whole glass, and the app honours up to 4 MB
+(`camera_feed.picture_cap`); an older app keeps the common cap. A picture that is still smaller than its place sits in
+the middle of its card on a dark ground, so the name under it stays readable.
 
 A screen with firmware 0.3.3 or newer gets its live pictures in 8-bit colour: a palette of the picture's own
 256 colours, dithered so a shade stays smooth. That is a third of the bytes of a 24-bit BMP (a 2 × 2 card

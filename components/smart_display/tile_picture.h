@@ -41,11 +41,12 @@ struct Frame {
   int w = 0, h = 0, radius = 0, shade = 0;
   uint32_t ground = 0;
 };
-// The frame for a place of `width` by `height` with corners of `radius`: the place's own pixels, or, over the cap, the
-// largest picture of its proportions within it, which then sits in the middle of its place on `smaller_ground`.
-inline Frame frame(int width, int height, int radius, int shade, uint32_t ground, uint32_t smaller_ground) {
+// The frame for a place of `width` by `height` with corners of `radius`: the place's own pixels, or, over the board's
+// cap, the largest picture of its proportions within it, which then sits in the middle of its place on `smaller_ground`.
+inline Frame frame(int width, int height, int radius, int shade, uint32_t ground, uint32_t smaller_ground,
+                   const picture_store::Cap &cap = {}) {
   Frame f;
-  const int scale = picture_store::fit_scale(width, height);
+  const int scale = picture_store::fit_scale(width, height, cap);
   f.w = std::max(1, picture_store::scaled(width, scale));
   f.h = std::max(1, picture_store::scaled(height, scale));
   f.radius = std::max(0, std::min(picture_store::scaled(radius, scale), std::min(f.w, f.h) / 2));

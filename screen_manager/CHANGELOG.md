@@ -4,7 +4,9 @@
   each load their own picture now, at their own pace. Before, the pictures of a page came as one image, so on a large
   screen every picture of the page came smaller with a dark edge as soon as a player on that page started to play, and
   every new song sent all the cameras of the page again. Now a new song replaces only its cover, and a page with
-  several cameras shows each one at the full size of its tile.
+  several cameras shows each one at the full size of its tile. The 10-inch and the other screens with 32 MB of memory
+  also show a camera over the whole page, the camera full screen and the screensaver at the glass's own pixels, no
+  longer a little smaller in the middle.
 - **Try dev before a release (GitHub #180).** Add the repository with `#dev` at the end of its URL and the store
   offers a second Tessera that builds every screen from dev, with a Reinstall from dev button for each screen.
   docs/RELEASING.md, "Testing dev", says how it works and how to go back. The stable app is unchanged.

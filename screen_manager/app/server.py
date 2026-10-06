@@ -2978,7 +2978,8 @@ class Manager:
         action = self.transport(inbox, screen)
         if not action or not self.camera_allowed(inbox, entity):
             return
-        message = await self.cover_message(entity, *cover) if cover else await self.camera_message(entity, 'full', screen)
+        message = await self.cover_message(entity, *cover) if cover else await self.camera_message(
+            entity, 'full', screen, box=camera_feed.box(screen, 'full', camera_feed.picture_cap(request)))
         await self.send_auxiliary(inbox, message, action, request)
         LOG.info('%s %s on %s%s', 'Cover of' if cover else 'Camera', entity, screen['name'], '' if message['u'] else ': no image')
 
@@ -2990,7 +2991,7 @@ class Manager:
             return
         if (kind == 'media') != (entity.split('.')[0] == 'media_player'):
             return
-        box, action = camera_feed.box(screen, 'full'), self.transport(inbox, screen)
+        box, action = camera_feed.box(screen, 'full', camera_feed.picture_cap(request)), self.transport(inbox, screen)
         if not box or not action:
             return
         ground = 0
@@ -3139,7 +3140,7 @@ class Manager:
         # A person's own tile tapped (firmware 0.21.0+): where that person is, on a map of them alone, opened on them.
         if tile is None and entity.startswith('person.') and 0 <= index < len(tiles) and tiles[index]['entity'] == entity:
             tile = {'entity': entity, 'name': tiles[index].get('name', ''), 'options': {'display': 'map', 'distance': 'neighbourhood'}}
-        box = camera_feed.box(screen, 'full')
+        box = camera_feed.box(screen, 'full', camera_feed.picture_cap(request))
         if tile is None or not box:
             LOG.info('A map for %s: not a map tile of %s', entity, screen['name'])
             return

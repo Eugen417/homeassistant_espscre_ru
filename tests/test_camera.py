@@ -94,6 +94,23 @@ class Rules(unittest.TestCase):
         self.assertLessEqual(w * h * 2, camera_feed.PICTURE_MAX_BYTES)
         self.assertAlmostEqual(w / h, 1248 / 684, places=2)
 
+    def test_a_screen_with_the_memory_takes_its_glass_at_its_own_pixels(self):
+        # GitHub #183: a screen whose picture store has the room (the 32 MB of the P4 boards) says how large one picture
+        # may be (`cap`, picture_store::cap_for), and its full view, map and screensaver come at its own pixels. A
+        # screen that says nothing, or less than the common cap, keeps that cap; nothing goes over PICTURE_LARGE_BYTES.
+        header = (ROOT / 'components/smart_display/picture_store.h').read_text()
+        self.assertIn(f'constexpr int LARGE_SIDE = {camera_feed.PICTURE_LARGE_SIDE};', header)
+        store = min(6 << 20, (32 << 20) // 5)  # runtime_tiles::pictures_kept on a P4 board
+        cap = camera_feed.picture_cap({'cap': str(store // 3)})
+        self.assertEqual(camera_feed.box({'board': 'jc8012p4a1'}, 'full', cap), (1280, 800))
+        self.assertEqual(camera_feed.box({'board': 'tab5'}, 'full', cap), (1280, 720))
+        for request in ({}, {'cap': ''}, {'cap': 'x'}, {'cap': '1000'}, None):
+            self.assertEqual(camera_feed.picture_cap(request), (camera_feed.PICTURE_MAX_SIDE, camera_feed.PICTURE_MAX_BYTES))
+            self.assertEqual(camera_feed.box({'board': 'jc8012p4a1'}, 'full', camera_feed.picture_cap(request)), (1024, 640))
+        self.assertEqual(camera_feed.picture_cap({'cap': str(64 << 20)}), (camera_feed.PICTURE_LARGE_SIDE, camera_feed.PICTURE_LARGE_BYTES))
+        # The firmware asks it only for a picture of the whole glass (camera_request), never on a board of 8 MB.
+        self.assertIn('const bool larger = size <= 0 && cap.bytes > picture_store::MAX_BYTES;', TILES)
+
     @unittest.skipUnless(HAS_PIL, 'needs Pillow')
     def test_a_turned_snapshot_is_measured_the_way_it_is_shown(self):
         from PIL import Image

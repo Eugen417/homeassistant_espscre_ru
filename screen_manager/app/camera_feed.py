@@ -89,6 +89,11 @@ CONTENT_TYPE = 'image/bmp'
 # sizes itself (a page's atlas) with the same numbers: picture_store::MAX_SIDE and MAX_BYTES (tests/test_camera.py).
 PICTURE_MAX_SIDE = 1024
 PICTURE_MAX_BYTES = 1024 * 640 * 2
+# A screen whose memory takes larger pictures says how large one may be (`cap`, its bytes, GitHub #183): a third of its
+# picture store, 2 MB on the 32 MB of the P4 boards, so a 10-inch glass gets its 1280x800 full view at its own pixels
+# (picture_store::cap_for). The app makes none larger than this, whatever a screen says.
+PICTURE_LARGE_SIDE = 2048
+PICTURE_LARGE_BYTES = 4 * 1024 * 1024
 BOXES = {shape['board']: {view: tuple(box) for view, box in shape['camera'].items()}
          for shape in SHAPES.values() if shape.get('camera')}
 
@@ -107,21 +112,34 @@ def boxes(screen):
     return {view: tuple(box) for view, box in found.items()}
 
 
-def capped(size, bounds=None):
+def picture_cap(request):
+    """(side, bytes) one picture may be for the screen that asked: the cap every screen takes, or the larger one its
+    memory takes (`cap`, firmware 0.52.0+), never more than PICTURE_LARGE_BYTES."""
+    try:
+        wanted = int((request or {}).get('cap') or 0)
+    except (TypeError, ValueError):
+        wanted = 0
+    if wanted <= PICTURE_MAX_BYTES:
+        return PICTURE_MAX_SIDE, PICTURE_MAX_BYTES
+    return PICTURE_LARGE_SIDE, min(wanted, PICTURE_LARGE_BYTES)
+
+
+def capped(size, bounds=None, cap=None):
     """`size` (width, height), or the largest size of its proportions within the picture caps and optional bounds."""
     width, height = size
-    limits = [1.0, PICTURE_MAX_SIDE / width, PICTURE_MAX_SIDE / height,
-              (PICTURE_MAX_BYTES / (2 * width * height)) ** 0.5]
+    side, most = cap or (PICTURE_MAX_SIDE, PICTURE_MAX_BYTES)
+    limits = [1.0, side / width, side / height, (most / (2 * width * height)) ** 0.5]
     if bounds:
         limits.extend((bounds[0] / width, bounds[1] / height))
     scale = min(limits)
     return (width, height) if scale >= 1 else (max(1, int(width * scale)), max(1, int(height * scale)))
 
 
-def box(screen, view):
-    """One of them ('full' or 'thumb') within the cap, or None on a screen whose board draws no pictures."""
+def box(screen, view, cap=None):
+    """One of them ('full' or 'thumb') within the cap (`cap`, picture_cap, for a screen that takes larger pictures), or
+    None on a screen whose board draws no pictures."""
     found = (boxes(screen) or {}).get(view)
-    return capped(found) if found else None
+    return capped(found, cap=cap) if found else None
 
 
 # Firmware 0.2.103 lays its alert out again for the picture it gets, in that picture's own proportions

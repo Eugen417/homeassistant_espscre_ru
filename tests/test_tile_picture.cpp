@@ -34,6 +34,16 @@ int main() {
     assert(f.w < 1248 && f.h < 760 && f.ground == 0x0A0A0A && f.radius < 24);
     assert(std::abs(double(f.w) / f.h - 1248.0 / 760.0) < 0.01);
   }
+  // A board whose store has the room takes the place's own pixels (GitHub #183): the 32 MB of the P4 boards keep 6 MB,
+  // so a camera over the whole 10-inch page comes whole; a board with 8 MB (a store of 1.2 MB) keeps the common cap.
+  {
+    const auto large = picture_store::cap_for(6u << 20), small = picture_store::cap_for(1196u << 10);
+    assert(large.side == picture_store::LARGE_SIDE && large.bytes == (6u << 20) / 3);
+    assert(small.side == picture_store::MAX_SIDE && small.bytes == picture_store::MAX_BYTES);
+    const Frame whole = frame(1248, 760, 24, 0, 0x202020, 0x0A0A0A, large);
+    assert(whole.w == 1248 && whole.h == 760 && whole.ground == 0x202020 && whole.radius == 24);
+    assert(frame(1248, 760, 24, 0, 0x202020, 0x0A0A0A, small).w < 1248);
+  }
   // The key: the place (tile, entity, frame, ground, look) and the mark. Another track is the same place, another
   // picture; another frame, another look or another tile is another place.
   {

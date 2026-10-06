@@ -10010,6 +10010,8 @@ inline void pictures_collect() {
   ESP_LOGI("picture", "store: %u pictures, %u of %u KB (%s), %u to go", count, (unsigned) (bytes >> 10), (unsigned) (pictures.budget >> 10),
            kinds.c_str(), retired);
 }
+// What one picture may be on this board (picture_store::cap_for): larger where the store has the room.
+inline picture_store::Cap picture_cap() { return picture_store::cap_for(pictures_kept() ? pictures.budget : 0); }
 inline bool picture_kept_here(const lv_image_dsc_t *image) { return !pictures_kept() || pictures.holder(image) != nullptr; }
 // A cover no card wants any more (a track gone by): it goes at the next collect once nothing draws it, so the covers of
 // a long evening's tracks never fill the store (firmware 0.52.0, GitHub #177).
@@ -10149,7 +10151,7 @@ inline bool tile_ask(const Widgets &w, const Tile &t, tile_picture::Ask &a) {
   // An album cover and a favourite carry their words on the picture, dimmed whole as a cover over a card is.
   const int shade = art && (t.cover_tile() || t.favorite()) ? tile_picture::SHADE : 0;
   // A picture over the cap sits in the middle of its card on the dark of a camera's page, which its corners round over.
-  a.frame = tile_picture::frame(width, height, radius, shade, ground, theme::hex(theme::CAMERA_PAGE));
+  a.frame = tile_picture::frame(width, height, radius, shade, ground, theme::hex(theme::CAMERA_PAGE), picture_cap());
   a.index = w.index;
   a.entity = t.entity;
   // A favourite's picture is what it plays (firmware 0.24.0+), never the player's cover; a map's mark is where its
@@ -10300,11 +10302,22 @@ inline void camera_request(const std::string &entity, int size, uint32_t backgro
   const bool saver = size <= 0 && saver_camera;
   const std::string keys[] = {"inbox", "entity", "size", "bg", "session", "rev", "view", "idx", "dark", "focus"}, values[] = {inbox, entity, size_text, background_text, protocol_key(transfer.lease), layout_rev, std::to_string(size > 0 ? ++cover_view_id : ++camera_view_id), std::to_string(camera_map_index), theme::dark ? "1" : "0", map_focus};
   const int count = map ? 10 : 7;
-  request.data.init(count + (saver ? 1 : 0));
+  // A board that takes larger pictures than the cap every screen takes says how large (picture_cap, GitHub #183): the
+  // full view, a map's and the screensaver's picture come at its own pixels. An older app reads the keys it knows.
+  const auto cap = picture_cap();
+  const std::string cap_text = std::to_string(cap.bytes);
+  const bool larger = size <= 0 && cap.bytes > picture_store::MAX_BYTES;
+  request.data.init(count + (saver ? 1 : 0) + (larger ? 1 : 0));
   if (saver) {
     esphome::api::HomeassistantServiceMap entry;
     entry.key = esphome::StringRef("saver");
     entry.value = esphome::StringRef(saver_now.kind);
+    request.data.push_back(entry);
+  }
+  if (larger) {
+    esphome::api::HomeassistantServiceMap entry;
+    entry.key = esphome::StringRef("cap");
+    entry.value = esphome::StringRef(cap_text);
     request.data.push_back(entry);
   }
   for (int i = 0; i < count; ++i) {

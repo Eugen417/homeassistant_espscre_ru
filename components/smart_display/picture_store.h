@@ -37,13 +37,27 @@ constexpr size_t ENTRIES = 48;
 // numbers (camera_feed.PICTURE_MAX_SIDE and PICTURE_MAX_BYTES, tests/test_camera.py keeps them equal).
 constexpr int MAX_SIDE = 1024;
 constexpr size_t MAX_BYTES = 1024 * 640 * 2;
+// A board whose store has the room takes larger pictures (GitHub #183): one picture may be a third of the store's
+// budget, at most LARGE_SIDE either way. The 32 MB of the P4 boards keep 6 MB, so one picture of 2 MB: the 10-inch
+// glass's 1280x800 at its own pixels, for a camera over the whole page, the full view and the screensaver. A board with
+// 8 MB keeps the cap above. ESP Screen Manager honours the same side (camera_feed.PICTURE_LARGE_SIDE).
+constexpr int LARGE_SIDE = 2048;
+struct Cap {
+  int side = MAX_SIDE;
+  size_t bytes = MAX_BYTES;
+};
+inline Cap cap_for(size_t budget) {
+  Cap cap;
+  if (budget / 3 > MAX_BYTES) { cap.side = LARGE_SIDE; cap.bytes = budget / 3; }
+  return cap;
+}
 // A scale in 1/SCALE_ONE, so the screen and its request round a picture's frames the same way.
 constexpr int SCALE_ONE = 4096;
 // The scale that brings a picture of `width` by `height` within the cap, SCALE_ONE when it fits already.
-inline int fit_scale(int width, int height) {
+inline int fit_scale(int width, int height, const Cap &cap = Cap{}) {
   if (width <= 0 || height <= 0) return SCALE_ONE;
-  double scale = std::min({1.0, double(MAX_SIDE) / width, double(MAX_SIDE) / height,
-                           std::sqrt(double(MAX_BYTES) / (2.0 * width * height))});
+  double scale = std::min({1.0, double(cap.side) / width, double(cap.side) / height,
+                           std::sqrt(double(cap.bytes) / (2.0 * width * height))});
   return std::max(1, static_cast<int>(scale * SCALE_ONE));
 }
 // A coordinate at that scale, rounded down: a frame from `x` to `x + w` becomes scaled(x) to scaled(x + w), so frames
