@@ -208,7 +208,8 @@ const taps = computed(() => {
   const keys = ["auto", "detail", "none"];
   // On / off where Home Assistant can toggle the entity, such as a cover; a speaker without on and off gets none.
   if ((caps.value ? caps.value.toggle : TOGGLE_BEFORE.includes(domain.value)) || tap.value === "toggle") keys.push("toggle");
-  keys.push("action");
+  // A favourite plays on a tap and keeps no action of its own (the add-on drops it).
+  if (display.value !== "favorite") keys.push("action");
   return offer("tap", keys.map((key) => [key, t(`editor.tile.tap.${key}`)] as [string, string]), tap.value);
 });
 function pickTap(value: string) {
@@ -265,7 +266,7 @@ function writeSubText(value: string) {
   setTileOption(props.tile, "sub", words ? `text:${words}` : "none", `sub:${props.tile.id}`);
 }
 const inline = computed(() => current("inline", "none") as string);
-const showSlider = computed(() => !taller.value && SLIDER_DOMAINS.includes(domain.value) && (inline.value === "slider" ||
+const showSlider = computed(() => !taller.value && display.value !== "favorite" && SLIDER_DOMAINS.includes(domain.value) && (inline.value === "slider" ||
   ((!caps.value || caps.value.inline) && choiceOffered(props.tile, "inline", "slider", controlled.value))));
 const sliderWarn = computed(() => inline.value === "slider" && caps.value && !caps.value.inline);
 const history = computed(() => current("history_hours", 24) as number);
