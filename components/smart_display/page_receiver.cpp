@@ -318,13 +318,17 @@ std::string receive(const std::string &payload) {
       // announced with an empty link before show_alert and sent again with the link), or the media card's cover
       // ("cover", app 0.2.77+). Only ESP Screens' own port.
       const std::string view = string(root["t"], 8), entity = string(root["e"], view == "live" ? 400 : 120), url = string(root["u"], 240);
-      // "live" (app 0.2.91+): the page's camera tiles as one strip; `e` lists them, "" for one without a picture.
+      // "live" (app 0.2.91+): a page's pictures, asked per tile (tile_picture.h); `e` names the tile's entity.
       // "lib" (app 0.4.42+, firmware 0.24.0+): the covers of a page of a player's library, one picture.
       // "saver" (app 0.4.48, firmware 0.29.0+): the screensaver's picture of the whole glass, as a full view's.
       if (view == "live" ? !valid_entity_list(entity) : !valid_entity(entity) || (view != "full" && view != "alert" && view != "cover" && view != "lib" && view != "saver")) return false;
       if (!url.empty() && url.rfind("http://", 0) != 0) return false;
-      const uint32_t expected_view = view == "live" ? live_view_id : view == "cover" ? cover_view_id : view == "lib" ? library_art_view_id : camera_view_id;
-      if (view != "alert" && (!root["view"].is<unsigned>() || root["view"].as<unsigned>() != expected_view)) {
+      // Every answer but an alert's carries the number of its question; one to an older question is dropped. A tile's
+      // picture is the answer to that tile's last question (tile_picture::Questions).
+      const uint32_t number = root["view"].is<unsigned>() ? root["view"].as<unsigned>() : 0;
+      const bool current = view == "live" ? tile_questions.answered(number) >= 0
+                           : number == (view == "cover" ? cover_view_id : view == "lib" ? library_art_view_id : camera_view_id);
+      if (view != "alert" && (!root["view"].is<unsigned>() || !current)) {
         result = "Synced"; return true;
       }
       // A map's full view (app 0.4.36, firmware 0.21.0+): where its markers are on the picture, the one a finger
@@ -352,7 +356,7 @@ std::string receive(const std::string &payload) {
         }
         camera_map_sheet(next);
       }
-      camera_answer(view, entity, url);
+      camera_answer(view, entity, url, number);
       result = model.ready() ? "Synced" : "Loading tiles";
       return true;
     }

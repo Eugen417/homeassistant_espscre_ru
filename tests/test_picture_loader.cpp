@@ -40,7 +40,6 @@ struct Bench {
 };
 
 static const Owner CARD{Kind::CARD, 0}, VIEW{Kind::VIEW, 0}, ALERT{Kind::ALERT, 0};
-static Owner page(uint32_t n) { return {Kind::PAGE, n}; }
 static Owner tile(uint32_t n) { return {Kind::TILE, n}; }
 
 int main() {
@@ -66,9 +65,9 @@ int main() {
   // A picture the store holds is there at once: nothing is asked, nothing loads.
   {
     Bench b;
-    b.store["live|page2"] = 5;
-    b.loader.begin(); b.loader.want(page(2), b.want("live|page2", "live|p", Rank::PAGE, Slot::LIVE)); b.loader.end(1000, true);
-    assert(b.asked.empty() && b.loads.empty() && b.loader.settled_for(page(2)) && !b.loader.glass_waiting(1000));
+    b.store["tile|picture2"] = 5;
+    b.loader.begin(); b.loader.want(tile(2), b.want("tile|picture2", "tile|p", Rank::PAGE, Slot::LIVE)); b.loader.end(1000, true);
+    assert(b.asked.empty() && b.loads.empty() && b.loader.settled_for(tile(2)) && !b.loader.glass_waiting(1000));
   }
   // Pages turned fast: each page on the glass for a moment. What was not wanted any more never loads, a download for a
   // page already gone breaks off, and only the page that stays is loaded.
@@ -76,23 +75,23 @@ int main() {
     Bench b;
     uint32_t t = 1000;
     for (uint32_t n : {3u, 5u, 9u, 4u}) {
-      b.loader.begin(); b.loader.want(page(n), b.want("live|page" + std::to_string(n), "live|" + std::to_string(n), Rank::PAGE, Slot::LIVE));
+      b.loader.begin(); b.loader.want(tile(n), b.want("tile|picture" + std::to_string(n), "tile|" + std::to_string(n), Rank::PAGE, Slot::LIVE));
       b.loader.end(t, false);  // the pages do not stand still: nothing starts loading
-      b.loader.answer("live|" + std::to_string(n), "http://app/live" + std::to_string(n), t + 50);
+      b.loader.answer("tile|" + std::to_string(n), "http://app/tile" + std::to_string(n), t + 50);
       t += 300;
     }
     assert(b.loads.empty() && b.loader.size() == 1);
     // Page 4 stands still and starts loading; then the page turns to 2 before it came.
-    b.loader.begin(); b.loader.want(page(4), b.want("live|page4", "live|4", Rank::PAGE, Slot::LIVE)); b.loader.end(t, true);
-    assert(b.loads.size() == 1 && b.loads[0] == "2:http://app/live4");
-    b.loader.begin(); b.loader.want(page(2), b.want("live|page2", "live|2", Rank::PAGE, Slot::LIVE)); b.loader.end(t += 200, false);
+    b.loader.begin(); b.loader.want(tile(4), b.want("tile|picture4", "tile|4", Rank::PAGE, Slot::LIVE)); b.loader.end(t, true);
+    assert(b.loads.size() == 1 && b.loads[0] == "2:http://app/tile4");
+    b.loader.begin(); b.loader.want(tile(2), b.want("tile|picture2", "tile|2", Rank::PAGE, Slot::LIVE)); b.loader.end(t += 200, false);
     assert(b.cancels.size() == 1 && !b.loader.busy());
     // The download that was broken off reports nothing; page 2 gets its own.
-    b.loader.answer("live|2", "http://app/live2", t + 50);
-    b.loader.begin(); b.loader.want(page(2), b.want("live|page2", "live|2", Rank::PAGE, Slot::LIVE)); b.loader.end(t += 900, true);
-    assert(b.loads.size() == 2 && b.loads[1] == "2:http://app/live2");
+    b.loader.answer("tile|2", "http://app/tile2", t + 50);
+    b.loader.begin(); b.loader.want(tile(2), b.want("tile|picture2", "tile|2", Rank::PAGE, Slot::LIVE)); b.loader.end(t += 900, true);
+    assert(b.loads.size() == 2 && b.loads[1] == "2:http://app/tile2");
     b.finish(Slot::LIVE, true, t + 300);
-    assert(b.store.count("live|page2") && !b.store.count("live|page4"));
+    assert(b.store.count("tile|picture2") && !b.store.count("tile|picture4"));
   }
   // A card opened and closed before its cover came: the download breaks off, nothing is left behind.
   {
@@ -121,7 +120,7 @@ int main() {
     auto round = [&](uint32_t t, bool card) {
       b.loader.begin();
       b.loader.want(tile(7), b.want("cover|p|a|196", "cover|p", Rank::AHEAD));
-      if (card) b.loader.want(page(2), b.want("live|page2", "live|2", Rank::PAGE, Slot::LIVE));
+      if (card) b.loader.want(tile(2), b.want("tile|picture2", "tile|2", Rank::PAGE, Slot::LIVE));
       b.loader.end(t, true);
     };
     round(1000, false);
@@ -129,9 +128,9 @@ int main() {
     b.loader.answer("cover|p", "http://app/ahead", 1100);
     round(1200, false);
     assert(b.loads.size() == 1 && b.loads[0] == "0:http://app/ahead");
-    round(1300, true);  // the page on the glass wants its strip: the download ahead breaks off
-    assert(b.cancels.size() == 1 && b.asked.size() == 2 && b.asked[1] == "live|2");
-    b.loader.answer("live|2", "http://app/strip", 1400);
+    round(1300, true);  // a tile on the glass wants its picture: the download ahead breaks off
+    assert(b.cancels.size() == 1 && b.asked.size() == 2 && b.asked[1] == "tile|2");
+    b.loader.answer("tile|2", "http://app/strip", 1400);
     round(1500, true);
     assert(b.loads.size() == 2 && b.loads[1] == "2:http://app/strip");
     b.finish(Slot::LIVE, true, 1700);
@@ -182,16 +181,16 @@ int main() {
     auto round = [&](uint32_t t) {
       b.loader.begin();
       b.loader.want(CARD, b.want("cover|radio", "cover|radio", Rank::CARD));
-      b.loader.want(page(4), b.want("live|map", "live|map", Rank::PAGE, Slot::LIVE, 0, true));
+      b.loader.want(tile(4), b.want("tile|map", "tile|map", Rank::PAGE, Slot::LIVE, 0, true));
       b.loader.end(t, true);
     };
     round(1000);
     b.loader.answer("cover|radio", "", 1100);
-    b.loader.answer("live|map", "", 1100);
+    b.loader.answer("tile|map", "", 1100);
     assert(b.told.size() == 2 && b.told[0].second == Outcome::NONE && b.loader.settled_for(CARD));
     for (uint32_t t = 1250; t < 12000; t += 250) round(t);
     assert(b.asked.size() == 3);  // the map once more after ten seconds, the cover never
-    b.loader.answer("live|map", "", 11200);
+    b.loader.answer("tile|map", "", 11200);
     for (uint32_t t = 11250; t < 31000; t += 250) round(t);
     assert(b.asked.size() == 3);  // twenty seconds the second time
     round(31250);
@@ -216,13 +215,13 @@ int main() {
   {
     Bench b;
     b.loader.begin();
-    b.loader.want(page(1), b.want("live|1", "live|1", Rank::PAGE, Slot::LIVE));
+    b.loader.want(tile(1), b.want("tile|1", "tile|1", Rank::PAGE, Slot::LIVE));
     b.loader.want(CARD, b.want("cover|p", "cover|p", Rank::CARD));
     b.loader.want(ALERT, b.want("alert|c", "alert|c", Rank::ALERT, Slot::THUMB));
     b.loader.end(1000, true);
-    for (auto tag : {"live|1", "cover|p", "alert|c"}) b.loader.answer(tag, std::string("http://app/") + tag, 1100);
+    for (auto tag : {"tile|1", "cover|p", "alert|c"}) b.loader.answer(tag, std::string("http://app/") + tag, 1100);
     b.loader.begin();
-    b.loader.want(page(1), b.want("live|1", "live|1", Rank::PAGE, Slot::LIVE));
+    b.loader.want(tile(1), b.want("tile|1", "tile|1", Rank::PAGE, Slot::LIVE));
     b.loader.want(CARD, b.want("cover|p", "cover|p", Rank::CARD));
     b.loader.want(ALERT, b.want("alert|c", "alert|c", Rank::ALERT, Slot::THUMB));
     b.loader.end(1200, true);
@@ -271,6 +270,48 @@ int main() {
     b.loader.begin(); b.loader.end(1750, true);
     b.loader.begin(); b.loader.want(CARD, b.want("cover|p|b", "cover|p", Rank::CARD)); b.loader.end(2000, true);
     assert(b.forgotten.size() == 1 && b.forgotten[0] == "cover|p|a");
+  }
+  // A page of tiles, each with its own picture (tile_picture.h, GitHub #183): all of them are asked for at once, the
+  // ones not there yet load first, and cameras at the same pace take turns, the oldest picture first.
+  {
+    Bench b;
+    b.store["tile|2"] = 200;  // the third tile's camera is kept from before: it is there at once
+    auto round = [&](uint32_t t, bool may = true) {
+      b.loader.begin();
+      for (uint32_t n = 0; n < 3; ++n) {
+        const std::string name = "tile|" + std::to_string(n);
+        b.loader.want(tile(n), b.want(name, name, Rank::PAGE, Slot::LIVE, 5000));
+      }
+      b.loader.end(t, may);
+    };
+    assert(!b.loader.has(tile(0)));
+    round(1000);
+    assert(b.asked.size() == 2 && b.loader.has(tile(0)) && !b.loader.settled_for(tile(0)) && b.loader.settled_for(tile(2)));
+    for (uint32_t n = 0; n < 2; ++n) b.loader.answer("tile|" + std::to_string(n), "http://app/t" + std::to_string(n), 1100);
+    // One download at a time, each the moment the last one is in.
+    round(1200);
+    assert(b.loads.size() == 1 && b.loads[0] == "2:http://app/t0");
+    b.finish(Slot::LIVE, true, 1300);
+    round(1300);
+    assert(b.loads.size() == 2 && b.loads[1] == "2:http://app/t1");
+    b.finish(Slot::LIVE, true, 1400);
+    // A finger on the glass until all three are due: the oldest picture goes first, not the first tile.
+    for (uint32_t t = 1500; t < 7000; t += 250) round(t, false);
+    assert(b.asked.size() == 3 && b.asked[2] == "tile|2");  // its turn came: it has no link yet, so it asks for one
+    b.loader.answer("tile|2", "http://app/t2", 6900);
+    for (uint32_t t = 7000; b.loads.size() < 5; t += 250) {
+      round(t);
+      if (b.loader.busy()) b.finish(Slot::LIVE, true, t + 100);
+    }
+    assert(b.loads[2] == "2:http://app/t2" && b.loads[3] == "2:http://app/t0" && b.loads[4] == "2:http://app/t1");
+    // A new track on one tile: only that tile asks again, and its last picture is let go.
+    b.loader.begin();
+    b.loader.want(tile(0), b.want("tile|0", "tile|0", Rank::PAGE, Slot::LIVE, 5000));
+    b.loader.want(tile(1), b.want("tile|1|next", "tile|1", Rank::PAGE, Slot::LIVE));
+    b.loader.want(tile(2), b.want("tile|2", "tile|2", Rank::PAGE, Slot::LIVE, 5000));
+    b.loader.end(8000, true);
+    assert(b.asked.size() == 4 && b.asked[3] == "tile|1" && b.forgotten.size() == 1 && b.forgotten[0] == "tile|1");
+    assert(b.loader.settled_for(tile(0)) && !b.loader.settled_for(tile(1)));
   }
   printf("test_picture_loader: ok\n");
   return 0;

@@ -292,13 +292,12 @@ touchscreen:
 
 
 # The actions tools/render/run.py drives the program with: a PNG of what LVGL draws (the top layer blended in), whether
-# the page is placed and drawn, a page by number, a fixed clock so every render shows the same time, and a live picture
-# asked for again (tools/render/camera_tiles.py).
+# the page is placed and drawn, a page by number, a fixed clock so every render shows the same time, and the tiles'
+# pictures asked for again (tools/render/camera_tiles.py).
 ACTIONS = '''    - action: render_live_reset
       then:
         - lambda: |-
-            runtime_tiles::live_wish = runtime_tiles::LiveWish{};
-            runtime_tiles::live_release();
+            runtime_tiles::tile_pictures_reset();
             ESP_LOGI("render", "live reset");
     - action: render_png
       variables:

@@ -62,17 +62,17 @@ from its size. Its cards ask for no pictures while it runs (`warming`).
 ## Kept pictures
 
 Every picture a card draws on a board with PSRAM is the store's own copy, never the download's buffer
-(`picture_fetch`) that the next download overwrites: a strip of camera or cover squares under the tiles, colours, marks and frames it was asked for,
-and a media card's cover under its player, track, size and colour. A cover is fetched once per track; a camera page
-that comes back shows its last picture at once and loads the next one when that picture is as old as its pace
-(`camera_view::Feed::resume`). A picture that is still on some card, on the glass or kept, is never freed; the budget
-is a fifth of the PSRAM, at most 1.5 MB. Two more rules:
+(`picture_fetch`) that the next download overwrites: each tile's own picture under its tile, entity, frame, colours and
+mark (`tile_picture.h`), and a media card's cover under its player, track, size and colour. A cover is fetched once
+per track; a camera page that comes back shows its last pictures at once and loads the next one of each camera when
+its picture is as old as its tile's pace. A picture that is still on some card, on the glass or kept, is never freed;
+the budget for the rest is a fifth of the PSRAM, at most 6 MB (about 1.2 MB on a board with 8 MB). Two more rules:
 
 - **No download starts between two quick page turns** (`camera_view::SETTLE_MS`, 800 ms after the last turn), so a
   picture never lands in the middle of someone paging through.
-- **Covers are fetched ahead** while the screen is in use, for the media cards on kept pages, after everything on the
-  glass and broken off for it (`tile_cover_wants`, docs/CAMERA.md "One route for every picture"), and put on those cards
-  straight away.
+- **Pictures that do not refresh are fetched ahead** while the screen is in use, for the cards on kept pages (a cover,
+  a favourite, a map), after everything on the glass and broken off for it (`card_picture_wants`, docs/CAMERA.md "One
+  route for every picture"). A camera on a kept page loads when its page comes back, showing its last picture meanwhile.
 
 ## Never walk the PSRAM heap while the glass is lit
 

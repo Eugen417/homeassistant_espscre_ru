@@ -69,7 +69,12 @@ STILL_SECONDS = 1800
 FIRST_FRAME_SECONDS = 8
 FETCH_SECONDS = 15
 MAX_SNAPSHOT_BYTES = 8 * 1024 * 1024
-MAX_LINKS = 64
+# A screen with firmware that asks for each tile's picture alone (tile_picture.h, GitHub #183) holds a link per tile,
+# so a few screens with pages of cameras and covers hold a few dozen at once.
+MAX_LINKS = 256
+# The last picture made for each tile of the screens (or each page of an older screen), kept for the load that follows
+# the answer and for a picture that did not change since (a cover, a camera between its fetches).
+STRIPS_KEPT = 32
 # What the screens load (online_image `format: BMP`).
 CONTENT_TYPE = 'image/bmp'
 # The pixel box per board and view, for the board lying down; the image keeps its proportions inside it. Straight
@@ -605,9 +610,12 @@ class CameraFeed:
             return None
         digests = [mark if render else (self.watches[entity].digest if raw is not None else '')
                    for entity, raw, render, mark in zip(entities, raws, renders, marks)]
-        key = ('live', size, tuple(grounds), tuple(digests), atlas, tuple(modes or ()), compact)
+        # The place a picture is made for, and what it shows there: a camera's next snapshot replaces its last picture.
+        place = ('live', tuple(entities), size, tuple(grounds), atlas, tuple(modes or ()), compact)
+        key = place + (tuple(digests),)
         tag = f'"{hashlib.sha1(repr(key).encode()).hexdigest()[:16]}-l{size}"'  # names the strip; not sent
-        cached = self.strips.get(key)
+        made = self.strips.pop(place, None)
+        cached = made[1] if made and made[0] == key else None
         if cached is None:
             try:
                 frames = atlas[2] if atlas else ()
@@ -621,10 +629,18 @@ class CameraFeed:
                 return None
             # A map drawn while some of its streets did not come is not kept: the next load asks for them again.
             if not any(getattr(raw, 'info', {}).get('provisional') for raw, render in zip(raws, renders) if render):
-                self.strips = {key: image}  # the last strip only: the next load makes another anyway
+                self.keep_strip(place, key, image)
         else:
             image = cached
+            self.keep_strip(place, key, image)
         return tag, image, [entity if raw is not None or render else '' for entity, raw, render in zip(entities, raws, renders)]
+
+    def keep_strip(self, place, key, image):
+        """Keeps the picture made for a page or a tile as the newest of STRIPS_KEPT places; the oldest goes. A screen that
+        asks per tile asks for several in turn, so with one kept picture each would be made again at every load."""
+        self.strips[place] = (key, image)
+        while len(self.strips) > STRIPS_KEPT:
+            del self.strips[next(iter(self.strips))]
 
     # ----- covers -----
     # A media player's picture is fetched when a screen loads its cover link and Home Assistant's picture is another

@@ -25,9 +25,9 @@ int main() {
   store.budget = 1000;
 
   // A copy of its own, found again by what was asked for.
-  Image *kept = store.put("cover", a, 1, "note");
+  Image *kept = store.put("cover", a, 1);
   assert(kept && kept->data != red.data() && kept->data[0] == 1 && store.find("cover") == kept && live == 1);
-  assert(store.entry("cover")->note == "note" && !store.find("other"));
+  assert(store.entry("cover") && !store.find("other"));
 
   // The next camera picture of the same size is written over the old one: the card keeps its pointer.
   Image b{{10, 5, 1}, 100, blue.data()};
@@ -86,12 +86,12 @@ int main() {
 
   // A page's strip from before someone on its map moved (firmware 0.30.0+): retired by what its key says, found by
   // its picture for as long as a card draws it, and gone once none does. Sixteen moves never fill the store.
-  Image *first = store.put("live|a|1", a, 8, "person.one");
+  Image *first = store.put("live|a|1", a, 8);
   shown = {first};
-  Image *second = store.put("live|a|2", a, 9, "person.one");
+  Image *second = store.put("live|a|2", a, 9);
   store.retire_if([](const auto &e) { return e.key != "live|a|2" && e.key.rfind("live|a|", 0) == 0; });
   assert(!store.find("live|a|1") && store.find("live|a|2") == second);
-  assert(store.holder(first) && store.holder(first)->note == "person.one" && !store.holder(&a) && !store.holder(nullptr));
+  assert(store.holder(first) && store.holder(first)->key == "live|a|1" && !store.holder(&a) && !store.holder(nullptr));
   store.collect(on_card);
   assert(live == 2 && store.holder(first));           // a card still draws the old one
   shown = {second};
@@ -99,7 +99,7 @@ int main() {
   assert(live == 1 && !store.holder(first) && store.find("live|a|2") == second);
   for (int move = 3; move < 40; ++move) {
     const std::string key = "live|a|" + std::to_string(move);
-    Image *next = store.put(key, a, 10 + move, "person.one");
+    Image *next = store.put(key, a, 10 + move);
     assert(next);                                       // always a place for the next one
     store.retire_if([&](const auto &e) { return e.key != key && e.key.rfind("live|a|", 0) == 0; });
     shown = {next};

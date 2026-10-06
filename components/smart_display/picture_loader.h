@@ -1,15 +1,17 @@
 #pragma once
 // Every picture a screen shows goes one way (firmware 0.52.0): the camera full screen and the screensaver, a media card's
-// cover, a media tile's cover (on the glass and fetched ahead for a kept page), a page's strip of covers, cameras and
-// maps, a player's library and an alert's picture. Each of them only says, every round, what it wants to see: its
-// owner (who wants it), the picture's key (what it is: another key is another picture), the board's download slot it
-// comes through, how much it matters, and how the app is asked for it. The loader decides for all of them:
+// cover, a media tile's cover (on the glass and fetched ahead for a kept page), each tile's own picture (a camera, a
+// cover, a favourite, a map: tile_picture.h), a player's library and an alert's picture. Each of them only says, every
+// round, what it wants to see: its owner (who wants it), the picture's key (what it is: another key is another
+// picture), the board's download slot it comes through, how much it matters, and how the app is asked for it. The
+// loader decides for all of them:
 //
 // - What the store holds is there. Whether a picture is had is read from the store every round (`kept`), never from a
 //   flag an owner keeps, so a picture that went from the store (to make room, a layout that changed) is asked for again
 //   at once instead of being waited for until something else changes.
 // - One download at a time, in the order of what matters: an alert first, then the full view and the screensaver, a
-//   media card, the library, the page on the glass, and last what is fetched ahead for a page out of sight. What is on
+//   media card, the library, the tiles on the glass, and last what is fetched ahead for a page out of sight. Of equal
+//   ones, a picture not yet there goes first, then the one longest on the glass. What is on
 //   the glass breaks off a download for a page out of sight; a download nobody wants any more breaks off too. Turning
 //   pages fast, opening and closing a card before its picture came, leaves nothing behind: what an owner stops wanting
 //   is gone the next round.
@@ -30,15 +32,15 @@
 #include "camera_view.h"
 
 namespace picture_loader {
-// The board's downloads (picture_fetch): the full view, the alert's frame and the page's strip.
+// The board's downloads (picture_fetch): the full view, the alert's frame and the tiles' own pictures.
 enum class Slot : uint8_t { FULL, THUMB, LIVE };
 // How much a picture matters, the order downloads go in.
 enum class Rank : uint8_t { ALERT, VIEW, CARD, LIBRARY, PAGE, AHEAD };
-// Who wants a picture: one of each kind, or one per tile or page.
-enum class Kind : uint8_t { ALERT, VIEW, CARD, LIBRARY, PAGE, TILE };
+// Who wants a picture: one of each kind, or one per tile.
+enum class Kind : uint8_t { ALERT, VIEW, CARD, LIBRARY, TILE };
 struct Owner {
   Kind kind = Kind::VIEW;
-  uint32_t index = 0;  // the tile's index, the page's number; 0 where there is one
+  uint32_t index = 0;  // the tile's index; 0 where there is one
   bool operator==(const Owner &o) const { return kind == o.kind && index == o.index; }
 };
 // What came of a picture, for its owner.
@@ -143,7 +145,7 @@ class Loader {
     Job *next = nullptr;
     for (auto &job : jobs_) {
       if (job.want.rank == Rank::AHEAD && glass_waits) continue;  // a page out of sight waits for the glass
-      if (should_load(job, now) && (!next || job.want.rank < next->want.rank)) next = &job;
+      if (should_load(job, now) && (!next || before(job, *next))) next = &job;
     }
     if (!next) return;
     next->phase = Phase::LOADING;
@@ -210,6 +212,8 @@ class Loader {
   bool glass_waiting(uint32_t now) const {
     return std::any_of(jobs_.begin(), jobs_.end(), [&](const Job &j) { return j.want.rank != Rank::AHEAD && waiting(j, now); });
   }
+  // Whether the owner said what it wants (this round or before, and has not moved on).
+  bool has(const Owner &owner) const { return find(owner) != nullptr; }
   // Whether the owner's picture is on its way right now.
   bool loading_for(const Owner &owner) const { const Job *job = find(owner); return job && job->phase == Phase::LOADING; }
   // Whether a download runs in this slot (its buffer is not to be freed under it).
@@ -310,6 +314,14 @@ class Loader {
       }
       default: return false;
     }
+  }
+  // Which of two pictures ready to load goes first: the one that matters more; of equal ones (the pictures of a page's
+  // tiles), one that has no picture yet before a refresh, then the oldest picture, so cameras at the same pace take
+  // turns. Otherwise the order in which their owners asked.
+  static bool before(const Job &a, const Job &b) {
+    if (a.want.rank != b.want.rank) return a.want.rank < b.want.rank;
+    if ((a.kept_at == 0) != (b.kept_at == 0)) return a.kept_at == 0;
+    return a.kept_at != 0 && a.kept_at < b.kept_at;
   }
   bool should_load(const Job &job, uint32_t now) const {
     if (job.phase != Phase::LINKED) return false;

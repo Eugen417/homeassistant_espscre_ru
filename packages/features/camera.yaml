@@ -32,7 +32,7 @@ substitutions:
     runtime_tiles::camera_thumb.load = [](const std::string &url) { picture_fetch::load(picture_fetch::thumb(), url); };
     runtime_tiles::camera_thumb.release = []() { picture_fetch::release(picture_fetch::thumb()); };
     runtime_tiles::camera_thumb.source = []() { return picture_fetch::source(picture_fetch::thumb()); };
-    // The live pictures of a page's camera tiles (firmware 0.2.77+): one strip in the third slot.
+    // The tiles' own pictures (a live camera, a cover, a favourite, a map: tile_picture.h), one at a time in the third slot.
     picture_fetch::bind(picture_fetch::live(), [](bool ok, bool cached) {
       runtime_tiles::picture_done(picture_loader::Slot::LIVE, ok, cached);
     });
@@ -76,7 +76,7 @@ api:
 # in the main loop, 16 KB a turn, and every turn waited for its chunk: a page of album covers (a few hundred KB at the
 # 200 KB/s a 4-inch panel manages) held the glass still for two to three seconds, and so did every camera picture for
 # the better part of a second. One picture full screen (also the cover and the library's covers), one in an alert's
-# frame, and one strip with the live pictures of a page's camera tiles (firmware 0.2.77+); runtime_tiles.h decides when
+# frame, and one for the tiles' own pictures (a live camera, a cover, a favourite, a map); runtime_tiles.h decides when
 # they load and frees them when they close. Plain HTTP on the LAN, no certificates.
 # LVGL's image widget, which every picture is drawn with: made only in C++ (runtime_tiles.h, media_library.cpp), so
 # the YAML names no image and this flag enables it, as the core's flags do for the widgets it makes itself

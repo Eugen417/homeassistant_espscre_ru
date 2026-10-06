@@ -187,7 +187,7 @@ class Rules(unittest.TestCase):
         want = TILES.split('inline void camera_want() {', 1)[1].split('\n}\n', 1)[0]
         self.assertIn('if (!camera_root || !camera.open() || !pictures_awake()) return;', want)
         # The answer starts the download in the same round, not on the next tick.
-        answer = TILES.split('inline void camera_answer(const std::string &view, const std::string &entity, const std::string &url) {', 1)[1].split('\n}\n', 1)[0]
+        answer = TILES.split('inline void camera_answer(const std::string &view, const std::string &entity, const std::string &url, uint32_t number) {', 1)[1].split('\n}\n', 1)[0]
         self.assertTrue(answer.rstrip().endswith('pictures_round();'))
         # Never under a finger, and not while the pages turn: the round tells the loader whether it may load.
         round_ = TILES.split('inline void pictures_round() {', 1)[1].split('\n}\n', 1)[0]
@@ -204,7 +204,7 @@ class Rules(unittest.TestCase):
         # Every download goes into the store under its picture's key (picture_done, firmware 0.52.0); a 304 keeps the copy.
         done = TILES.split('inline void picture_done(picture_loader::Slot slot, bool ok, bool cached) {', 1)[1].split('\n}\n', 1)[0]
         self.assertIn('if (cached && pictures.entry(key)) { pictures.touch(key, now); kept = true; }', done)
-        self.assertIn('pictures.put(key, *src, now,', done)
+        self.assertIn('pictures.put(key, *src, now)', done)
         # A picture the store has no room for is drawn from the download, and says so in the log.
         self.assertIn('ESP_LOGW("picture", "no room to keep %s", key.c_str());', done)
         self.assertIn('if (!kept) { slot_key[s] = key; slot_at[s] = now; }', done)
@@ -860,14 +860,14 @@ class LiveTiles(unittest.TestCase):
         """GitHub #161 (firmware 0.40.0): a dimmed screen without a screensaver still shows its tiles, so their pictures
         keep loading there. The rule itself is camera_view::tiles_seen (tests/test_camera_view.cpp); the firmware asks
         it everywhere a picture on the tiles loads, and the backlight goes by the same standby level."""
-        page = TILES.split('inline void page_want() {', 1)[1].split('\n}\n', 1)[0]
-        self.assertIn('if (live_wish.entities.empty() || camera_root || card_open() || !tiles_seen()) return;', page)
-        waiting = TILES.split('inline bool live_waiting(const Tile &t) {', 1)[1].split('\n}', 1)[0]
+        waiting = TILES.split('inline bool tile_picture_waiting(const Widgets &w, const Tile &t) {', 1)[1].split('\n}', 1)[0]
         self.assertIn('!tiles_seen()', waiting)
-        # A cover on the glass follows the tiles; one fetched ahead for a page that is not shown waits for a screen in use.
-        tiles = TILES.split('inline void tile_cover_wants() {', 1)[1].split('\n}\n', 1)[0]
+        # A picture on the glass (a tile's own, a cover over a whole page) follows the tiles; one fetched ahead for a page
+        # that is not shown waits for a screen in use.
+        tiles = TILES.split('inline void card_picture_wants() {', 1)[1].split('\n}\n', 1)[0]
         self.assertIn('const bool seen = tiles_seen() && !card_open() && !camera_root;', tiles)
         self.assertIn('const bool ahead = awake() && pictures_kept() && !prepare_busy();', tiles)
+        page = tiles
         card = TILES.split('inline void card_cover_want() {', 1)[1].split('\n}\n', 1)[0]
         self.assertIn('!tiles_seen()', card)
         self.assertNotIn('if (!awake()) return;', page + tiles + card)
@@ -1041,6 +1041,42 @@ class LiveApp(unittest.IsolatedAsyncioTestCase):
             # A media tile that shows its icon is not in the strip.
             await m.answer_camera({'inbox': 'text.d1_tiles', 'tiles': 'camera.max,media_player.tv', 'size': '54', 'bg': 'FFFFFF,FFFFFF'})
             self.assertEqual([entry for entry in ha.log if entry[0] == 'send'], [])
+
+    async def test_a_screen_asks_for_each_tiles_picture_alone(self):
+        """GitHub #183: a screen asks for every tile's picture on its own, as a page of one tile with one frame at the
+        top left (tile_picture.h), so a new album cover sends no camera again and no picture is made smaller for another
+        one on the page. The answer carries the question's number, which is how the screen finds the tile."""
+        from PIL import Image
+        import json
+        with tempfile.TemporaryDirectory() as tmp:
+            ha = fake_ha(picture('JPEG', (1920, 1080)))
+            ha.states['sensor.d1_fw']['state'] = '0.51.0'
+            m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
+            seed_layout(m, 'text.d1_tiles', validate_layout({'title': 'Hall', 'tiles': [
+                {'entity': 'camera.max', 'name': '', 'options': {'display': 'live', 'size': 'square', 'refresh': 5}},
+                {'entity': 'camera.max', 'name': '', 'options': {'display': 'live', 'size': 'square', 'fit': 'contain'}},
+                {'entity': 'media_player.sonos', 'name': '', 'options': {'display': 'cover', 'size': 'wide'}}]}))
+            sent = []
+            for index, (entity, frame) in enumerate([('camera.max', [0, 0, 236, 236, 18, 0]),
+                                                     ('camera.max', [0, 0, 236, 236, 18, 0]),
+                                                     ('media_player.sonos', [0, 0, 236, 112, 18, 170])]):
+                ha.log.clear()
+                await m.answer_camera({'inbox': 'text.d1_tiles', 'tiles': entity, 'idx': str(index), 'size': '54',
+                                       'bg': '101010', 'dark': '1', 'view': str(40 + index), 'atlas': json.dumps([frame])})
+                (_, _, message), = [entry for entry in ha.log if entry[0] == 'send']
+                self.assertEqual((message['t'], message['e']), ('live', entity))
+                token = message['u'].rsplit('/', 1)[1][:-4]
+                # A camera is fetched at the pace of its quickest tile; each tile loads at its own (the screen's rhythm).
+                self.assertEqual(m.camera.links[token].live[3], [0 if index == 2 else 5])
+                status, raw, _ = await m.camera.serve(token)
+                self.assertEqual(status, 200)
+                with Image.open(io.BytesIO(raw)) as image:
+                    sent.append(image.convert('RGB'))
+                    self.assertEqual(image.size, (frame[2], frame[3]), 'the frame exactly, whatever else the page holds')
+            # Each tile is prepared as its own settings say: the same camera filled on one tile, whole on the other.
+            self.assertNotEqual(sent[0].getpixel((118, 2)), sent[1].getpixel((118, 2)))
+            # Every tile's last picture is kept for the load after its answer, one per place.
+            self.assertEqual(len(m.camera.strips), 3)
 
     async def test_tall_artwork_is_bounded_and_reuses_the_live_image_endpoint(self):
         from PIL import Image

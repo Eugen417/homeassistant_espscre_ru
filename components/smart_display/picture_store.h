@@ -20,12 +20,19 @@
 #include <string>
 
 namespace picture_store {
-constexpr size_t ENTRIES = 16;
+// One place per picture a screen may hold at once: every tile's own picture (tile_picture.h) on the glass and on the
+// kept pages, the covers, the full view, the alert's and the library's. A board that draws no pictures (the CYD, built
+// without SCREEN_PICTURES) keeps none and needs no room for them.
+#if defined(USE_ESP32) && !defined(SCREEN_PICTURES)
+constexpr size_t ENTRIES = 1;
+#else
+constexpr size_t ENTRIES = 48;
+#endif
 
 // The largest picture any screen gets, whatever its glass (firmware 0.9.0+, GitHub #68): at most MAX_SIDE pixels
-// either way and MAX_BYTES decoded (RGB565, two bytes a pixel). The page's pictures of three 2x2 cameras on a 10-inch
-// glass came to a 1248x684 atlas of 1.7 MB, more than the store keeps, and a larger glass would ask more still. A
-// picture over the cap is sent smaller and shown in the middle of its place. 1024x640 keeps every board up to the
+// either way and MAX_BYTES decoded (RGB565, two bytes a pixel). It holds for each picture alone: a tile's picture is
+// its own (tile_picture.h), so only a tile larger than the cap, a camera over a whole 10-inch page, comes smaller and
+// is shown in the middle of its place. 1024x640 keeps every board up to the
 // 7-inch and the 1024x600 glass at its own pixels. ESP Screen Manager caps the pictures it sizes itself with the same
 // numbers (camera_feed.PICTURE_MAX_SIDE and PICTURE_MAX_BYTES, tests/test_camera.py keeps them equal).
 constexpr int MAX_SIDE = 1024;
@@ -45,7 +52,7 @@ inline int scaled(int value, int scale) { return static_cast<int>(static_cast<in
 
 template <class Image> struct Store {
   struct Entry {
-    std::string key, note;   // note: what the picture holds beyond its key (the tiles a strip answered for)
+    std::string key;
     Image image{};
     void *buffer = nullptr;
     size_t bytes = 0;
@@ -80,12 +87,12 @@ template <class Image> struct Store {
   // Keep a copy of `from` under `key`. The same key with the same size keeps its place (the cards drawing it show the
   // new picture); nullptr when there is no room, and the caller draws nothing from the store. With every slot taken the
   // picture used longest ago that no card draws makes way (make_room).
-  Image *put(const std::string &key, const Image &from, uint32_t now, const std::string &note = {}) {
+  Image *put(const std::string &key, const Image &from, uint32_t now) {
     if (!budget || !allocate || !from.data || !from.data_size || key.empty() || from.data_size > budget) return nullptr;
     Entry *e = entry(key);
     if (e && e->bytes == from.data_size && std::memcmp(&e->image.header, &from.header, sizeof(from.header)) == 0) {
       std::memcpy(e->buffer, from.data, from.data_size);
-      e->stored_at = now; e->used = ++uses; e->note = note;
+      e->stored_at = now; e->used = ++uses;
       return &e->image;
     }
     if (e) e->retired = true;
@@ -96,7 +103,7 @@ template <class Image> struct Store {
     void *buffer = allocate(from.data_size);
     if (!buffer) return nullptr;
     std::memcpy(buffer, from.data, from.data_size);
-    slot->key = key; slot->note = note; slot->buffer = buffer; slot->bytes = from.data_size;
+    slot->key = key; slot->buffer = buffer; slot->bytes = from.data_size;
     slot->image = from;
     slot->image.data = static_cast<decltype(from.data)>(buffer);
     slot->stored_at = now; slot->used = ++uses; slot->retired = false;
