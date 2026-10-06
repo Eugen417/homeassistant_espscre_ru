@@ -84,6 +84,8 @@ map: {framing: [...], distance: [...], ...}             # a map card's choices, 
 keypad:                       # a remote's card: per integration, the command each key sends
   apple_tv: {up: up, down: down, left: left, right: right, ok: select, back: menu, ...}
 key: false                    # may not stand as a key under the bedside clock
+favorite:                     # what a favourite sets as it starts, each where the player meets its needs; needs the favorite display
+  shuffle: {needs: {actions: [media_player.shuffle_set]}}
 ```
 
 A control may also say `sizes: {full: false}` (not on a full-page card), and the keys of an option are `needs`,

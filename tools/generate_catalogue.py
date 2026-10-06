@@ -31,7 +31,7 @@ VERSION = re.compile(r'^\d+\.\d+\.\d+$')
 FIRST_TYPES = frozenset('alarm_control_panel automation binary_sensor button camera climate cover fan image input_boolean input_button '
                         'input_number input_select light lock media_player number person scene screen script select sensor sun switch '
                         'timer vacuum weather'.split())
-TOP = {'domain', 'firmware', 'displays', 'controls', 'inline', 'toggle', 'taps', 'guards', 'picture', 'map', 'key', 'keypad', 'memory', 'cards'}
+TOP = {'domain', 'firmware', 'displays', 'controls', 'inline', 'toggle', 'taps', 'guards', 'picture', 'map', 'key', 'keypad', 'memory', 'cards', 'favorite'}
 # What one tile of a type keeps in the memory inside a screen's chip (firmware 0.34.0+, docs/TILE_MEMORY.md): `bytes`
 # measured on a board with PSRAM, `extras` whether it keeps a block of extras. Every type says it, so a new one cannot
 # leave the screen's memory budget guessing; the most a tile may keep is a sanity bound, not a rule.
@@ -221,6 +221,12 @@ def normalise(tile, types, translations, facts, commands=None):
                                                      'look', 'with', 'max'})
             if 'map' not in displays:
                 fail(where, 'map options need the map display')
+        # What a favourite sets as it starts (app 0.4.84): its shuffle and repeat, each with what it needs.
+        favorite = data.get('favorite')
+        if favorite is not None:
+            check_keys(f'{where} favorite', favorite, {'shuffle', 'repeat'})
+            if 'favorite' not in displays:
+                fail(where, 'favorite options need the favorite display')
         memory = data.get('memory')
         if memory is None:
             fail(where, 'says what one tile of it keeps in the memory inside the chip (memory: {bytes: N, extras: true or '
@@ -254,6 +260,8 @@ def normalise(tile, types, translations, facts, commands=None):
             'picture': picture,
             'map': map_options,
             'keypad': keypad(f'{where} keypad', data['keypad'], commands) if 'keypad' in data else None,
+            **({'favorite': [option(f'{where} favorite {key}', domain, key, value, favorite) for key, value in favorite.items()]}
+               if favorite else {}),
         }
     check_keys('catalogue/_tile.yaml', tile, {'taps', 'sizes', 'history_hours', 'memory'})
     choice = tile.get('memory')

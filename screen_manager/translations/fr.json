@@ -1855,7 +1855,18 @@
         "speaker_hint": "Où il démarre. « Là où il joue » demande une enceinte sur l’écran quand le lecteur ne joue nulle part.",
         "link": "Ou collez un lien Spotify",
         "link_hint": "Un lien ou une URI de l’app Spotify, via Partager > Copier le lien : une playlist, un album, un artiste, un titre ou un podcast.",
-        "link_add": "Ajouter"
+        "link_add": "Ajouter",
+        "shuffle": "Aléatoire",
+        "shuffle_hint": "Réglé au démarrage. En aléatoire, il passe un titre, pour que le premier soit déjà aléatoire. « Tel quel » laisse le lecteur comme il est.",
+        "shuffle_keep": "Tel quel",
+        "shuffle_on": "Activé",
+        "shuffle_off": "Désactivé",
+        "repeat": "Répétition",
+        "repeat_hint": "Réglée au démarrage. « Tel quel » laisse le lecteur comme il est.",
+        "repeat_off": "Désactivé",
+        "repeat_all": "Répéter tout",
+        "repeat_one": "Répéter une piste",
+        "repeat_keep": "Tel quel"
       },
       "energy": {
         "hint": "La puissance de la maison en ce moment, dessinée comme la vue Énergie de Home Assistant la dessine : solaire, réseau, batterie et vos appareils, depuis les paramètres Énergie de Home Assistant. Un appui sur un cercle ouvre l'historique de ce capteur.",

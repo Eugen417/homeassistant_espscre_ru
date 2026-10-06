@@ -1855,7 +1855,18 @@
         "speaker_hint": "Gdzie startuje. „Tam, gdzie gra” prosi na ekranie o głośnik, gdy odtwarzacz nigdzie nie gra.",
         "link": "Albo wklej link do Spotify",
         "link_hint": "Link lub URI z aplikacji Spotify, przez Udostępnij > Kopiuj link: playlista, album, wykonawca, utwór lub podcast.",
-        "link_add": "Dodaj"
+        "link_add": "Dodaj",
+        "shuffle": "Losowo",
+        "shuffle_hint": "Ustawiane przy starcie. Przy odtwarzaniu losowym pomija jeden utwór, aby już pierwszy był losowy. \"Bez zmian\" zostawia odtwarzacz tak, jak jest.",
+        "shuffle_keep": "Bez zmian",
+        "shuffle_on": "Wł.",
+        "shuffle_off": "Wył.",
+        "repeat": "Powtarzanie",
+        "repeat_hint": "Ustawiane przy starcie. \"Bez zmian\" zostawia odtwarzacz tak, jak jest.",
+        "repeat_off": "Wył.",
+        "repeat_all": "Powtarzaj wszystko",
+        "repeat_one": "Powtarzaj jeden",
+        "repeat_keep": "Bez zmian"
       },
       "energy": {
         "hint": "Moc domu w tej chwili, narysowana tak, jak rysuje ją widok Energia w Home Assistant: słońce, sieć, bateria i twoje urządzenia, z ustawień Energii w Home Assistant. Dotknięcie koła otwiera historię tego czujnika.",

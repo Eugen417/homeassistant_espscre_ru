@@ -468,7 +468,7 @@
     ]
   },
   {
-    "name": "favourite with what it plays and its speaker",
+    "name": "favourite with what it plays, its speaker, shuffle and repeat",
     "valid": true,
     "grid": {
       "columns": 2,
@@ -525,7 +525,77 @@
                   "thumb": "https://i.scdn.co/image/ab67616d00001e02",
                   "class": "playlist"
                 },
-                "speaker": "Kitchen"
+                "speaker": "Kitchen",
+                "shuffle": "on",
+                "repeat": "all"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "favourite with an unknown repeat",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "favorite",
+              "content": {
+                "kind": "entity",
+                "entityId": "media_player.music"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "",
+                "display": "favorite"
+              },
+              "interaction": {
+                "play": {
+                  "id": "spotify:playlist:37i9dQZF1DXcBWIGoYBM5M",
+                  "type": "spotify://playlist",
+                  "title": "Top hits",
+                  "thumb": "https://i.scdn.co/image/ab67616d00001e02",
+                  "class": "playlist"
+                },
+                "speaker": "Kitchen",
+                "shuffle": "on",
+                "repeat": "forever"
               }
             }
           ]

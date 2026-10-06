@@ -1385,7 +1385,29 @@
    "guards": [],
    "picture": null,
    "map": null,
-   "keypad": null
+   "keypad": null,
+   "favorite": [
+    {
+     "key": "shuffle",
+     "needs": {
+      "actions": [
+       {
+        "action": "media_player.shuffle_set"
+       }
+      ]
+     }
+    },
+    {
+     "key": "repeat",
+     "needs": {
+      "actions": [
+       {
+        "action": "media_player.repeat_set"
+       }
+      ]
+     }
+    }
+   ]
   },
   "number": {
    "firmware": null,

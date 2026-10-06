@@ -1855,7 +1855,18 @@
         "speaker_hint": "Where it starts. \"Where it plays\" asks for a speaker on the screen when the player plays nowhere.",
         "link": "Or paste a Spotify link",
         "link_hint": "A link or URI from the Spotify app, through Share > Copy link: a playlist, album, artist, song or podcast.",
-        "link_add": "Add"
+        "link_add": "Add",
+        "shuffle": "Shuffle",
+        "shuffle_hint": "Set as it starts. With shuffle on it skips once, so the first song is a shuffled one. \"As it is\" keeps the player's own.",
+        "shuffle_keep": "As it is",
+        "shuffle_on": "On",
+        "shuffle_off": "Off",
+        "repeat": "Repeat",
+        "repeat_hint": "Set as it starts. \"As it is\" keeps the player's own.",
+        "repeat_off": "Off",
+        "repeat_all": "Repeat all",
+        "repeat_one": "Repeat one",
+        "repeat_keep": "As it is"
       },
       "energy": {
         "hint": "The power of the house right now, drawn the way Home Assistant's own Energy view draws it: solar, grid, battery and your devices, from the Energy settings in Home Assistant. A tap on a circle opens that sensor's history.",

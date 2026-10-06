@@ -1855,7 +1855,18 @@
         "speaker_hint": "Waar hij start. \"Waar hij speelt\" vraagt op het scherm om een speaker als de speler nergens speelt.",
         "link": "Of plak een Spotify-link",
         "link_hint": "Een link of URI uit de Spotify-app, via Delen > Link kopiëren: een playlist, album, artiest, nummer of podcast.",
-        "link_add": "Toevoegen"
+        "link_add": "Toevoegen",
+        "shuffle": "Shuffle",
+        "shuffle_hint": "Wordt gezet bij het starten. Met shuffle aan slaat hij één nummer over, zodat het eerste nummer al geshuffled is. \"Zoals hij staat\" laat de speler zoals hij is.",
+        "shuffle_keep": "Zoals hij staat",
+        "shuffle_on": "Aan",
+        "shuffle_off": "Uit",
+        "repeat": "Herhalen",
+        "repeat_hint": "Wordt gezet bij het starten. \"Zoals hij staat\" laat de speler zoals hij is.",
+        "repeat_off": "Uit",
+        "repeat_all": "Herhaal alles",
+        "repeat_one": "Herhaal één",
+        "repeat_keep": "Zoals hij staat"
       },
       "energy": {
         "hint": "Het vermogen van het huis op dit moment, getekend zoals de Energie-weergave van Home Assistant het tekent: zon, net, batterij en je apparaten, uit de Energie-instellingen van Home Assistant. Een tik op een cirkel opent de geschiedenis van die sensor.",

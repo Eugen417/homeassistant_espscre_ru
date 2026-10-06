@@ -15,7 +15,7 @@ import { BUILTIN_CARDS, type BuiltinName } from "../types";
 const APPEARANCE = { display: "display", icon: "icon", background: "background", historyHours: "history_hours", refresh: "refresh", subtitle: "sub", fit: "fit", overlay: "overlay",
   mapEntities: "map", mapFraming: "framing", mapDistance: "distance",
   mapFollow: "follow", mapMarkers: "markers", mapNames: "names", mapZones: "zones", mapStreets: "streets", mapLook: "look" } as const;
-const INTERACTION = ["tap", "inline", "controls", "action", "play", "speaker"] as const;
+const INTERACTION = ["tap", "inline", "controls", "action", "play", "speaker", "shuffle", "repeat"] as const;
 const PICTURE_OWN = ["refresh", ...Object.keys(rules.picture)];
 // A map card's own choices (app 0.4.33); its name on the picture is the live picture's `overlay`.
 const MAP = ofType("person")?.map;
@@ -50,7 +50,7 @@ export function canonicalOptions(entity: string, options: TileOptions = {}, key 
   // A map keeps who rides along and how it frames them; an empty list is no list, as the add-on stores it.
   if (out.display !== "map") for (const field of MAP_OWN) delete out[field];
   // A favourite (app 0.4.42) keeps what it plays and its speaker; it plays on a tap, so it has no slider or controls.
-  if (out.display !== "favorite") { delete out.play; delete out.speaker; }
+  if (out.display !== "favorite") { delete out.play; delete out.speaker; delete out.shuffle; delete out.repeat; }
   else { delete out.inline; delete out.controls; if (out.tap === "action") delete out.tap; }
   if (Array.isArray(out.map) && !out.map.length) delete out.map;
   // Following is the map tile's own; a person's map follows that person.

@@ -1484,6 +1484,31 @@ describe("ChoiceField: the choice under the pointer is drawn on its tile first (
   });
 });
 
+describe("a favourite's own shuffle and repeat (app 0.4.84)", () => {
+  const row = (wrapper: ReturnType<typeof mount>, label: string) =>
+    wrapper.findAll(".prop").find((f) => f.find(".prop-label").text().replace(/^[^\p{L}\d]+/u, "").trim() === label);
+  const favorite = { id: "spotify:album:0000000000000000000000", type: "spotify://album", title: "An album", class: "album" };
+  it("offers them where the player has the actions, and stores nothing for the player's own", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(JSON.stringify({ title: "", folder: 0, items: [] })))));
+    state.inventory.entities.push({ id: "media_player.spotify", name: "Spotify", state: "idle", area: "" } as any);
+    const tile: Tile = { entity: "media_player.spotify", name: "", slot: 0, options: { display: "favorite", play: favorite } };
+    appendTiles(tile);
+    state.capabilities["media_player.spotify"] = { toggle: false, inline: false, controls: [], displays: ["standard", "favorite"], favorite: ["shuffle", "repeat"] };
+    const drawer = inspector(tile);
+    await flushPromises();
+    expect(row(drawer, "Shuffle")!.findAll(".seg button").map((b) => b.text())).toEqual(["As it is", "On", "Off"]);
+    await row(drawer, "Shuffle")!.findAll(".seg button")[1].trigger("click");
+    expect(current(tile).options).toMatchObject({ display: "favorite", shuffle: "on" });
+    await row(drawer, "Shuffle")!.findAll(".seg button")[0].trigger("click");
+    expect(current(tile).options).not.toHaveProperty("shuffle");
+    expect(row(drawer, "Repeat")).toBeTruthy();
+    // A player without repeat_set: no repeat row.
+    state.capabilities["media_player.spotify"] = { ...state.capabilities["media_player.spotify"]!, favorite: ["shuffle"] };
+    await drawer.vm.$nextTick();
+    expect(row(drawer, "Repeat")).toBeUndefined();
+  });
+});
+
 describe("a favourite from a pasted link (app 0.4.84)", () => {
   const DW = "37i9dQZEVXcEU0pQ6tFj16";
   const favorite = { id: `spotify:playlist:${DW}`, type: "spotify://playlist", title: "Discover Weekly", class: "playlist" };

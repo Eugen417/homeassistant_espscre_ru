@@ -51,7 +51,18 @@ MAX_TOKENS = 4000       # numbers a screen's items get before the oldest are for
 
 BROWSE_MEDIA = catalogue.bits('media_player', 'BROWSE_MEDIA')
 PLAY_MEDIA = catalogue.bits('media_player', 'PLAY_MEDIA')
+NEXT_TRACK = catalogue.bits('media_player', 'NEXT_TRACK')
 SELECT_SOURCE = catalogue.bits('media_player', 'SELECT_SOURCE')
+SHUFFLE_SET = catalogue.bits('media_player', 'SHUFFLE_SET')
+REPEAT_SET = catalogue.bits('media_player', 'REPEAT_SET')
+# A favourite's own shuffle and repeat (app 0.4.84), as Home Assistant's shuffle_set and repeat_set take them; without
+# one the player keeps its own.
+SHUFFLES = {'on': True, 'off': False}
+REPEATS = ('off', 'all', 'one')
+# What a shuffled start skips to: Spotify starts a context at its first track whatever its shuffle says, so the first
+# song heard is a shuffled one only after one skip. A single song has nothing to skip to.
+SKIPS = ('playlist', 'album', 'artist', 'podcast')
+SETTLE_SECONDS = 1.5    # for a player to take what it was given, before its shuffle and again before a skip
 
 # What an item says it can do, as the screen reads it.
 CAN_PLAY, CAN_EXPAND, PICTURED, PLAYING = 1, 2, 4, 8
@@ -346,9 +357,11 @@ async def browse(call, entity, item=None):
     return folder_of(answer.get(entity) if entity in answer else answer)
 
 
-async def start(states, call, entity, item, source=None, wait=START_SECONDS, sleep=asyncio.sleep, clock=time.monotonic):
+async def start(states, call, entity, item, source=None, wait=START_SECONDS, sleep=asyncio.sleep, clock=time.monotonic,
+                shuffle=None, repeat=None):
     """Play an item on a player: first the speaker it should play on, when one is chosen or the player must be woken, and
-    then the item once the player takes it (see the module's notes). Returns what happened, for the log."""
+    then the item once the player takes it (see the module's notes), and then a favourite's own shuffle and repeat (app
+    0.4.84). Returns what happened, for the log."""
     attrs = (states.get(entity) or {}).get('attributes') or {}
     if source and source != attrs.get('source'):
         if not features_of(attrs) & SELECT_SOURCE:
@@ -363,7 +376,27 @@ async def start(states, call, entity, item, source=None, wait=START_SECONDS, sle
                 return 'not woken'
             await sleep(0.25)
     await call('media_player', 'play_media', {'entity_id': entity, 'media_content_type': item['type'], 'media_content_id': item['id']})
+    if shuffle in SHUFFLES or repeat in REPEATS:
+        await arrange(states, call, entity, item, shuffle, repeat, wait, sleep, clock)
     return 'playing'
+
+
+async def arrange(states, call, entity, item, shuffle, repeat, wait=START_SECONDS, sleep=asyncio.sleep, clock=time.monotonic):
+    """A favourite's shuffle and repeat, set once the player plays what it was given: a new queue may reset them (a
+    Sonos), and Spotify takes them on what plays. With shuffle on, one skip makes the first song a shuffled one (SKIPS).
+    A player without the action keeps its own."""
+    await sleep(SETTLE_SECONDS)
+    until = clock() + wait
+    while (states.get(entity) or {}).get('state') != 'playing' and clock() < until:
+        await sleep(0.25)
+    features = features_of((states.get(entity) or {}).get('attributes'))
+    if shuffle in SHUFFLES and features & SHUFFLE_SET:
+        await call('media_player', 'shuffle_set', {'entity_id': entity, 'shuffle': SHUFFLES[shuffle]})
+    if repeat in REPEATS and features & REPEAT_SET:
+        await call('media_player', 'repeat_set', {'entity_id': entity, 'repeat': repeat})
+    if shuffle == 'on' and features & SHUFFLE_SET and item.get('class') in SKIPS and features & NEXT_TRACK:
+        await sleep(SETTLE_SECONDS)
+        await call('media_player', 'media_next_track', {'entity_id': entity})
 
 
 # ---- a favourite: one item of the library on a tile of its own (app 0.4.42, firmware 0.24.0) ----

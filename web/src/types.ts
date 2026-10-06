@@ -48,7 +48,7 @@ export type PageTile = {
   appearance: { label: string; presentation?: "single" | "wide" | "tall" | "square" | "full" | `${number}x${number}`; display?: string; icon?: string; background?: string; historyHours?: number; refresh?: number; subtitle?: string; fit?: string; overlay?: string;
     mapEntities?: string[]; mapFraming?: string; mapDistance?: string; mapFollow?: string; mapMarkers?: string; mapNames?: string;
     mapZones?: string; mapStreets?: string; mapLook?: string };
-  interaction: { tap?: string; inline?: string; controls?: string; action?: TileOptions["action"]; guard?: string; play?: FavoritePlay; speaker?: string };
+  interaction: { tap?: string; inline?: string; controls?: string; action?: TileOptions["action"]; guard?: string; play?: FavoritePlay; speaker?: string; shuffle?: string; repeat?: string };
   children?: ChildTile[];
 };
 export type Page = {
@@ -246,7 +246,7 @@ export type Inventory = {
   language?: Languages;
   [key: string]: unknown;
 };
-export type Capability = { toggle: boolean; inline: boolean; controls: string[]; displays: string[] };
+export type Capability = { toggle: boolean; inline: boolean; controls: string[]; displays: string[]; favorite?: string[] };
 export type EntityAction = {
   action: string; name: string; description: string;
   fields: { key: string; name: string; required?: boolean; description?: string; example?: unknown; selector?: Record<string, any>; options?: string[]; suggestions?: string[] }[];

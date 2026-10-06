@@ -1916,7 +1916,9 @@ class Manager:
                 return
             item = media_library.favorite_item(options.get('play'))
             source = source or options.get('speaker')
+            order = {'shuffle': options.get('shuffle'), 'repeat': options.get('repeat')}
         else:
+            order = {}
             token = self.media_token(request.get('item'))
             item = self.shelves.get(inbox, media_library.Shelf()).get(entity, token) if token else None
         if item is None or not item['play']:
@@ -1936,7 +1938,7 @@ class Manager:
         elif source is not None and source not in (attrs.get('source_list') or []):
             LOG.info('%s on %s: no speaker %s', item['title'], entity, source)
             return
-        outcome = await media_library.start(self.ha.states, self.ha.call_service, where, item, source)
+        outcome = await media_library.start(self.ha.states, self.ha.call_service, where, item, source, **order)
         if outcome == 'playing':
             if where != entity:
                 self.outputs[entity] = where

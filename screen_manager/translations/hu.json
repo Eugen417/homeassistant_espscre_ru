@@ -1855,7 +1855,18 @@
         "speaker_hint": "Ahol indul. Az „Ahol éppen szól” a képernyőn kér hangszórót, ha a lejátszó sehol sem szól.",
         "link": "Vagy illessz be egy Spotify-linket",
         "link_hint": "Link vagy URI a Spotify alkalmazásból, a Megosztás > Link másolása útján: lejátszási lista, album, előadó, dal vagy podcast.",
-        "link_add": "Hozzáadás"
+        "link_add": "Hozzáadás",
+        "shuffle": "Keverés",
+        "shuffle_hint": "Indításkor állítja be. Keveréssel egyszer továbblép, így már az első dal is kevert. Az \"Ahogy van\" a lejátszó saját beállítását hagyja.",
+        "shuffle_keep": "Ahogy van",
+        "shuffle_on": "Be",
+        "shuffle_off": "Ki",
+        "repeat": "Ismétlés",
+        "repeat_hint": "Indításkor állítja be. Az \"Ahogy van\" a lejátszó saját beállítását hagyja.",
+        "repeat_off": "Ki",
+        "repeat_all": "Összes ismétlése",
+        "repeat_one": "Egy ismétlése",
+        "repeat_keep": "Ahogy van"
       },
       "energy": {
         "hint": "A ház teljesítménye most, úgy rajzolva, ahogy a Home Assistant saját Energia nézete rajzolja: nap, hálózat, akkumulátor és az eszközeid, a Home Assistant Energia beállításaiból. Egy kör megérintése megnyitja annak az érzékelőnek az előzményeit.",

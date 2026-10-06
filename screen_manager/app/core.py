@@ -1161,7 +1161,9 @@ TILE_EVENT_OPTIONS = {'size': 'size', 'controls': 'controls', 'display': 'displa
                       # How a map frames its people (app 0.4.33); who is on it is the editor's.
                       'framing': 'framing', 'distance': 'distance',
                       # A favourite (app 0.4.42): what it plays, as Home Assistant's library names it, and on which speaker.
-                      'play': 'play', 'speaker': 'speaker'}
+                      'play': 'play', 'speaker': 'speaker',
+                      # Its own shuffle and repeat (app 0.4.84).
+                      'shuffle': 'shuffle', 'repeat': 'repeat'}
 TILE_SIZES = {'full': 'full', 'fullscreen': 'full', 'full screen': 'full', 'full-screen': 'full', 'page': 'full', 'whole page': 'full',
               'wide': 'wide', 'double': 'wide', 'large': 'wide', 'big': 'wide',
               'single': 'single', 'small': 'single', 'normal': 'single', 'tall': 'tall', 'high': 'tall', 'square': 'square'}
@@ -1590,7 +1592,11 @@ def action_for_screen(value):
     return act
 
 # A favourite's own options (app 0.4.42): what it plays, as Home Assistant's library names it, and on which speaker.
-FAVORITE_OWN = ('play', 'speaker')
+# Since app 0.4.84 also its own shuffle ('on', 'off') and repeat ('off', 'all', 'one', Home Assistant's repeat_set), set
+# as it starts; without one the player keeps its own.
+FAVORITE_OWN = ('play', 'speaker', 'shuffle', 'repeat')
+FAVORITE_SHUFFLES = ('on', 'off')
+FAVORITE_REPEATS = ('off', 'all', 'one')
 FAVORITE_KINDS = ('playlist', 'album', 'artist', 'track', 'podcast', 'episode', 'channel', 'genre', 'directory', 'music')
 
 def validate_favorite(value):
@@ -1799,6 +1805,9 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
                     raise ValueError(t('addon.errors.layout.favorite_play'))
                 if 'speaker' in options and (not isinstance(options['speaker'], str) or not options['speaker'].strip() or len(options['speaker'].encode()) > 48):
                     raise ValueError(t('addon.errors.layout.invalid_setting', setting='speaker'))
+                for key, allowed in (('shuffle', FAVORITE_SHUFFLES), ('repeat', FAVORITE_REPEATS)):
+                    if key in options and options[key] not in allowed:
+                        raise ValueError(t('addon.errors.layout.invalid_setting', setting=key))
                 options = {k: v for k, v in options.items() if k not in ('inline', 'controls', 'action') and not (k == 'tap' and v == 'action')}
             elif set(options) & set(FAVORITE_OWN):
                 options = {k: v for k, v in options.items() if k not in FAVORITE_OWN}

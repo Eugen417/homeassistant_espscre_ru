@@ -4,6 +4,9 @@
   favourite's picker and it becomes a favourite like any other, with its cover and name. That reaches what Home
   Assistant's library never lists, such as Discover Weekly, Release Radar and the Daily Mixes. It works on a Spotify
   player and on a speaker whose library lists your Spotify account, such as a Sonos.
+- **A favourite sets its own shuffle and repeat.** Next to its speaker, a favourite can turn shuffle on or off and set
+  repeat as it starts, or leave the player as it is. With shuffle on it skips once, because Spotify always begins a
+  playlist or album at its first song, so the first song you hear is a shuffled one.
 - **Choosing what a favourite plays works again.** The editor refused every choice with "Invalid or unsupported page
   settings", so a new favourite could not be saved. It also no longer offers a small slider or a tap action on a
   favourite, which the app drops anyway.

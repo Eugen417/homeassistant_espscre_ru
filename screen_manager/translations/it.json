@@ -1855,7 +1855,18 @@
         "speaker_hint": "Dove inizia. «Dove suona» chiede un altoparlante sullo schermo quando il lettore non suona da nessuna parte.",
         "link": "Oppure incolla un link di Spotify",
         "link_hint": "Un link o un URI dall’app Spotify, con Condividi > Copia link: una playlist, un album, un artista, un brano o un podcast.",
-        "link_add": "Aggiungi"
+        "link_add": "Aggiungi",
+        "shuffle": "Casuale",
+        "shuffle_hint": "Impostato all’avvio. Con la riproduzione casuale salta un brano, così il primo è già casuale. \"Com’è\" lascia il lettore com’è.",
+        "shuffle_keep": "Com’è",
+        "shuffle_on": "Acceso",
+        "shuffle_off": "Spento",
+        "repeat": "Ripeti",
+        "repeat_hint": "Impostato all’avvio. \"Com’è\" lascia il lettore com’è.",
+        "repeat_off": "Spento",
+        "repeat_all": "Ripeti tutto",
+        "repeat_one": "Ripeti una volta",
+        "repeat_keep": "Com’è"
       },
       "energy": {
         "hint": "La potenza della casa in questo momento, disegnata come la disegna la vista Energia di Home Assistant: solare, rete, batteria e i tuoi dispositivi, dalle impostazioni Energia di Home Assistant. Un tocco su un cerchio apre la cronologia di quel sensore.",

@@ -179,6 +179,42 @@ class AStart(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(calls, ['select_source'])
 
 
+    async def test_a_favourite_sets_its_shuffle_and_repeat_once_it_plays(self):
+        """Measured on Spotify (2026-10-06): a context starts at its first track whatever shuffle says, so a shuffled
+        start skips once; shuffle and repeat go after play_media, where a new queue cannot reset them."""
+        states = {PLAYER: self.player(PLAYING, 'Kitchen', 'paused')}
+        calls, slept = [], []
+
+        async def call(domain, service, data):
+            calls.append((service, {k: v for k, v in data.items() if k != 'entity_id'}))
+            if service == 'play_media':
+                states[PLAYER] = self.player(PLAYING, 'Kitchen', 'playing')
+
+        async def sleep(seconds):
+            slept.append(seconds)
+        album = media_library.item_of(albums(1)['children'][0])
+        self.assertEqual(await media_library.start(states, call, PLAYER, album, shuffle='on', repeat='all', sleep=sleep), 'playing')
+        self.assertEqual([c[0] for c in calls], ['play_media', 'shuffle_set', 'repeat_set', 'media_next_track'])
+        self.assertEqual((calls[1][1], calls[2][1]), ({'shuffle': True}, {'repeat': 'all'}))
+        self.assertIn(media_library.SETTLE_SECONDS, slept)
+        # Shuffle off, or a single song: no skip. Nothing chosen: the player keeps its own.
+        for options, kind, wanted in (({'shuffle': 'off'}, 'album', ['play_media', 'shuffle_set']),
+                                      ({'shuffle': 'on'}, 'track', ['play_media', 'shuffle_set']),
+                                      ({'repeat': 'one'}, 'track', ['play_media', 'repeat_set']),
+                                      ({}, 'album', ['play_media'])):
+            calls.clear()
+            await media_library.start(states, call, PLAYER, {**album, 'class': kind}, sleep=sleep, **options)
+            self.assertEqual([c[0] for c in calls], wanted, (options, kind))
+        # A player without the actions keeps its own.
+        calls.clear()
+        bare = {PLAYER: self.player(media_library.PLAY_MEDIA, None, 'playing')}
+
+        async def plain(domain, service, data):
+            calls.append((service, data))
+        await media_library.start(bare, plain, PLAYER, album, shuffle='on', repeat='all', sleep=sleep)
+        self.assertEqual([c[0] for c in calls], ['play_media'])
+
+
 class ThePlayersState(unittest.TestCase):
     def test_the_extras_of_a_player(self):
         attrs = {'source': 'Kitchen', 'source_list': [f'Speaker {n}' for n in range(20)], 'shuffle': False, 'repeat': 'one',
@@ -306,6 +342,8 @@ class TheApp(unittest.IsolatedAsyncioTestCase):
                 self.log.append(('call', service, data))
                 if service == 'select_source':
                     self.states[PLAYER] = {'state': 'paused', 'attributes': {'supported_features': PLAYING, 'source': data['source'], 'source_list': ['Kitchen']}}
+                if service == 'play_media':
+                    self.states[PLAYER] = {**self.states[PLAYER], 'state': 'playing'}
 
             async def browse_image(self, entity, url):
                 self.log.append(('thumbnail', url))
@@ -445,10 +483,11 @@ class TheApp(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual((await client.get(f'/api/media/link?entity=light.x&link=spotify:album:{DW}')).status, 404)
             # A tap on the favourite plays the link as the library's item would.
             seed_layout(m, 'text.d1_tiles', validate_layout({'title': 'Music', 'tiles': [
-                {'entity': PLAYER, 'name': '', 'options': {'display': 'favorite', 'play': item['favorite'], 'speaker': 'Kitchen'}}]}))
+                {'entity': PLAYER, 'name': '', 'options': {'display': 'favorite', 'play': item['favorite'], 'speaker': 'Kitchen', 'shuffle': 'off'}}]}))
             await m.answer_play({'inbox': 'text.d1_tiles', 'entity': PLAYER, 'tile': '0'})
             self.assertEqual([e[2] for e in ha.log if e[0] == 'call' and e[1] == 'play_media'],
                              [{'entity_id': PLAYER, 'media_content_type': 'spotify://playlist', 'media_content_id': f'spotify:playlist:{DW}'}])
+            self.assertEqual([e[2] for e in ha.log if e[0] == 'call' and e[1] == 'shuffle_set'], [{'entity_id': PLAYER, 'shuffle': False}])
 
 if __name__ == '__main__':
     unittest.main()

@@ -161,12 +161,16 @@ def offers(entity_id, state, actions, services=None, fields=None, history=None):
         if met[item['key']]:
             controls.append(item['key'])
     toggle = entry.get('toggle') or {'actions': [{'action': f'{domain}.toggle'}]}
-    return {
+    found = {
         'toggle': holds(domain, toggle, entity_id, state, actions, services, fields, history),
         'inline': bool(entry.get('inline')) and meets(entry['inline']),
         'controls': controls,
         'displays': [item['key'] for item in entry.get('displays', []) if meets(item)],
     }
+    # What a favourite of it may set as it starts (app 0.4.84): its shuffle and repeat.
+    if 'favorite' in entry:
+        found['favorite'] = [item['key'] for item in entry['favorite'] if meets(item)]
+    return found
 
 
 # ---- The card's side: what a card of a size draws ----

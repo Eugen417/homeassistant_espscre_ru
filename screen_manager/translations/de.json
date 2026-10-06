@@ -1855,7 +1855,18 @@
         "speaker_hint": "Wo er startet. „Wo er gerade spielt“ fragt auf dem Bildschirm nach einem Lautsprecher, wenn der Player nirgends spielt.",
         "link": "Oder einen Spotify-Link einfügen",
         "link_hint": "Ein Link oder eine URI aus der Spotify-App, über Teilen > Link kopieren: eine Playlist, ein Album, ein Künstler, ein Song oder ein Podcast.",
-        "link_add": "Hinzufügen"
+        "link_add": "Hinzufügen",
+        "shuffle": "Zufallsmodus",
+        "shuffle_hint": "Wird beim Start gesetzt. Mit Zufallsmodus überspringt er einmal, damit schon der erste Song zufällig ist. \"Wie er ist\" lässt den Player, wie er ist.",
+        "shuffle_keep": "Wie er ist",
+        "shuffle_on": "An",
+        "shuffle_off": "Aus",
+        "repeat": "Wiederholen",
+        "repeat_hint": "Wird beim Start gesetzt. \"Wie er ist\" lässt den Player, wie er ist.",
+        "repeat_off": "Aus",
+        "repeat_all": "Alle wiederholen",
+        "repeat_one": "Eins wiederholen",
+        "repeat_keep": "Wie er ist"
       },
       "energy": {
         "hint": "Die Leistung des Hauses in diesem Moment, gezeichnet wie die Energie-Ansicht von Home Assistant sie zeichnet: Solar, Netz, Batterie und deine Geräte, aus den Energie-Einstellungen von Home Assistant. Ein Tippen auf einen Kreis öffnet den Verlauf dieses Sensors.",

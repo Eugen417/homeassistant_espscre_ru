@@ -1855,7 +1855,18 @@
         "speaker_hint": "Onde começa. «Onde está a tocar» pede uma coluna no ecrã quando o leitor não toca em nenhuma.",
         "link": "Ou cole um link do Spotify",
         "link_hint": "Um link ou URI da app do Spotify, em Partilhar > Copiar link: uma playlist, um álbum, um artista, uma música ou um podcast.",
-        "link_add": "Adicionar"
+        "link_add": "Adicionar",
+        "shuffle": "Aleatório",
+        "shuffle_hint": "Definido ao começar. Com aleatório salta uma faixa, para que a primeira já seja aleatória. \"Como está\" deixa o leitor como está.",
+        "shuffle_keep": "Como está",
+        "shuffle_on": "Ligado",
+        "shuffle_off": "Desligado",
+        "repeat": "Repetir",
+        "repeat_hint": "Definido ao começar. \"Como está\" deixa o leitor como está.",
+        "repeat_off": "Desligado",
+        "repeat_all": "Repetir tudo",
+        "repeat_one": "Repetir um",
+        "repeat_keep": "Como está"
       },
       "energy": {
         "hint": "A potência da casa neste momento, desenhada como a vista de Energia do Home Assistant a desenha: solar, rede, bateria e os seus dispositivos, a partir das definições de Energia do Home Assistant. Um toque num círculo abre o histórico desse sensor.",
