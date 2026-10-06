@@ -290,3 +290,8 @@ through, how much it matters, and how the app is asked for it. One loader decide
   finished download, the `LV_USE_IMAGE` flag, the alert frame, and the diagnostic action `preview_camera` (an entity
   opens it, an empty entity closes it).
 - `tests/test_camera.py`: the app side and the words both sides share.
+- Every step of every picture is in the screen's log at DEBUG (`logger: level: DEBUG` in a screen's Override YAML),
+  under the tag `picture`: who wants which picture, the question and its answer, the download, the store keeping,
+  renewing, retiring and freeing each copy (and why), a picture put on its card on the glass or on a kept page, and an
+  answer to an older question dropped. The `store:` line at INFO sums it up whenever it changes; "0 to go" means no
+  copy waits to be freed.

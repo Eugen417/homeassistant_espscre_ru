@@ -329,6 +329,7 @@ std::string receive(const std::string &payload) {
       const bool current = view == "live" ? tile_questions.answered(number) >= 0
                            : number == (view == "cover" ? cover_view_id : view == "lib" ? library_art_view_id : camera_view_id);
       if (view != "alert" && (!root["view"].is<unsigned>() || !current)) {
+        ESP_LOGD("picture", "answer %u (%s) to an older question: dropped", (unsigned) number, view.c_str());
         result = "Synced"; return true;
       }
       // A map's full view (app 0.4.36, firmware 0.21.0+): where its markers are on the picture, the one a finger

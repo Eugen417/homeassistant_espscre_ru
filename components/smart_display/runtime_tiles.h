@@ -9391,7 +9391,17 @@ inline unsigned kept_count() { return (unsigned) shelf.pages(); }
 // Nothing kept shows what it did (another layout): the sets stay for the pages to come, their cards drawn anew.
 inline void forget_kept() {
   shelf.forget();
-  for (auto *set : kept_sets) if (set) for (auto &w : *set) { w.index = grid.max_tiles(); w.cached_active = -1; }
+  for (auto *set : kept_sets) if (set) for (auto &w : *set) {
+    w.index = grid.max_tiles(); w.cached_active = -1; w.art_key.clear();
+#if LV_USE_IMAGE
+    // Their pictures go with what they showed: a picture object still pointing at a copy counts as drawing it, and the
+    // store frees nothing a card draws, so the old layout's pictures stayed beside the new ones until the set showed
+    // another page (GitHub #183). The cards are drawn anew with their own.
+    for (lv_obj_t *picture : {w.picture, w.extra_mode == "media" ? w.parts[MEDIA_PICTURE] : nullptr})
+      if (picture) { lv_image_set_src(picture, nullptr); lv_obj_add_flag(picture, LV_OBJ_FLAG_HIDDEN); }
+    w.cover_shown.clear();
+#endif
+  }
 }
 // A page key's chevron with its ink on the tiles' margin (firmware 0.14.0+), the line the top bar and the cards keep
 // from the side of the glass, measured from the glyph itself so the font's side bearing does not push it inward.
@@ -9945,6 +9955,11 @@ inline bool pictures_kept() {
     pictures.release = kept_free;
     // With every slot taken, a new picture takes the place of the one used longest ago that no card draws.
     pictures.shown = [](const lv_image_dsc_t *image) { return picture_shown(image); };
+    // Each copy's life, for a diagnosis (`logger: level: DEBUG`): kept, renewed, retired, freed and why.
+    pictures.log = [](const char *what, const picture_store::Store<lv_image_dsc_t>::Entry &e) {
+      ESP_LOGD("picture", "store %s %s (%ux%u, %u KB)", what, e.key.c_str(), (unsigned) e.image.header.w,
+               (unsigned) e.image.header.h, (unsigned) (e.bytes >> 10));
+    };
   }
   return pictures.budget > 0;
 }
@@ -10204,7 +10219,10 @@ inline void tile_picture_place(Widgets &w, const Tile &t, int size, int x, int y
   lv_image_dsc_t *src = mine ? picture_of(w.art_key) : nullptr;
   if (!src && mine && w.picture && pictures_kept()) {
     auto *held = pictures.holder(static_cast<const lv_image_dsc_t *>(lv_image_get_src(w.picture)));
-    if (held && tile_picture::place_of(held->key) == tile_picture::place_of(w.art_key)) src = &held->image;
+    if (held && tile_picture::place_of(held->key) == tile_picture::place_of(w.art_key)) {
+      src = &held->image;
+      ESP_LOGD("picture", "tile %u keeps %s until %s", (unsigned) w.index, held->key.c_str(), w.art_key.c_str());
+    }
   }
   const bool background = card_art(t);
   if (src) {
@@ -10227,8 +10245,17 @@ inline void tile_picture_place(Widgets &w, const Tile &t, int size, int x, int y
     }
     lv_obj_remove_flag(w.picture, LV_OBJ_FLAG_HIDDEN);
     lv_obj_invalidate(w.picture);
-  } else if (w.picture) lv_obj_add_flag(w.picture, LV_OBJ_FLAG_HIDDEN);
-  set_hidden(w.circle, src != nullptr && !background);
+  } else if (w.picture) {
+    // Hidden, it lets go of its picture too: a picture object still pointing at a copy counts as drawing it, and the
+    // store never frees what a card draws.
+    lv_image_set_src(w.picture, nullptr);
+    lv_obj_add_flag(w.picture, LV_OBJ_FLAG_HIDDEN);
+  }
+  // The icon's circle gives way to a picture in its place. Over a whole card the card's own drawing decides (a camera
+  // card hides it under its picture): a picture put on its card the moment it came (tile_picture_done) never shows the
+  // circle, which flashed the camera's icon through the picture at every refresh until the card was drawn again.
+  if (!background) set_hidden(w.circle, src != nullptr);
+  else if (!src) set_hidden(w.circle, false);
 #else
   (void) w; (void) t; (void) size; (void) x; (void) y;
 #endif
@@ -10251,13 +10278,20 @@ inline void tile_picture_done(size_t index, picture_loader::Outcome outcome) {
     ESP_LOGI("camera", "tile %u: %s", (unsigned) index, outcome == picture_loader::Outcome::NONE ? "no picture" : "the picture failed");
   else if (outcome == picture_loader::Outcome::LOADED)
     ESP_LOGI("camera", "tile %u: picture loaded", (unsigned) index);
+  else
+    ESP_LOGD("picture", "tile %u: shows the picture the store kept", (unsigned) index);
   if (shows(outcome) && index < model.count)
-    each_card([&](Widgets &w) { if (w.index == index && w.tile) tile_picture_place(w, model.tiles[index], w.art_size, w.art_x, w.art_y); });
+    each_card([&](Widgets &w) {
+      if (w.index != index || !w.tile) return;
+      tile_picture_place(w, model.tiles[index], w.art_size, w.art_x, w.art_y);
+      ESP_LOGD("picture", "tile %u: %s on its card %s", (unsigned) index, w.art_key.c_str(), on_glass(w) ? "on the glass" : "of a kept page");
+    });
   refresh_tile(index);
 }
 // The app's answer to a tile's question, found by the question's number: a link, or "" when it has no picture.
 inline void tile_picture_answer(uint32_t number, const std::string &url, uint32_t now) {
   const int index = tile_questions.answered(number);
+  ESP_LOGD("picture", "answer %u for tile %d: %s", (unsigned) number, index, url.empty() ? "no picture" : url.c_str());
   if (index >= 0) loader.answer(tile_picture::tag(static_cast<size_t>(index)), url, now);
 }
 // Every tile asks for its picture anew: another layout (what the store kept for the last one goes with forget_kept), or
@@ -10716,6 +10750,12 @@ inline void picture_done(picture_loader::Slot slot, bool ok, bool cached) {
     }
     if (!kept) { slot_key[s] = key; slot_at[s] = now; }
     if (src) picture_memory("after", key.substr(0, key.find('|')).c_str(), src->header.w * src->header.h);
+    // A tile's picture the store keeps needs its download no more: the slot's buffer goes now, not with the next
+    // picture of another size (one per tile, so most are). The full view keeps its own, which its next refresh reuses.
+    if (kept && slot == picture_loader::Slot::LIVE && hooks.release) {
+      hooks.release();
+      ESP_LOGD("picture", "the tiles' download let go of %s", key.c_str());
+    }
     loader.arrived(key, cached);
   }
   pictures_round();
@@ -10793,10 +10833,22 @@ inline void card_picture_wants() {
   const bool ahead = awake() && pictures_kept() && !prepare_busy();
   const bool tiles = tile_pictures_supported() && model.ready();
   each_card([&](Widgets &w) {
+#if LV_USE_IMAGE
+    // A hidden picture object draws nothing, so it holds no picture either (a card that shows another tile now).
+    if (w.picture && lv_obj_has_flag(w.picture, LV_OBJ_FLAG_HIDDEN) && lv_image_get_src(w.picture)) lv_image_set_src(w.picture, nullptr);
+#endif
     if (!w.tile || w.index >= model.count) return;
+    const auto &t = model.tiles[w.index];
+    // A tile that shows no picture any more (a track without one, a player turned off): its last one goes once nothing
+    // draws it, not when the store happens to need the room.
+    if (tiles && !t.pictured() && !w.art_key.empty()) {
+      ESP_LOGD("picture", "tile %u shows no picture now: %s goes", (unsigned) w.index, w.art_key.c_str());
+      loader.release(owners::tile(w.index));
+      picture_retire(w.art_key);
+      w.art_key.clear();
+    }
     const bool glass = seen && on_glass(w);
     if (!glass && !ahead) return;
-    const auto &t = model.tiles[w.index];
     if (w.extra_mode == "media" && !w.cover_entity.empty()) {
       if (t.entity != w.cover_entity || t.extra().media_picture != w.cover_mark) return;
       const size_t index = w.index;
@@ -10808,7 +10860,22 @@ inline void card_picture_wants() {
     }
   });
 }
+// Who wants a picture, in the log.
+inline const char *owner_name(const picture_loader::Owner &o) {
+  switch (o.kind) {
+    case picture_loader::Kind::ALERT: return "alert";
+    case picture_loader::Kind::VIEW: return "view";
+    case picture_loader::Kind::CARD: return "card";
+    case picture_loader::Kind::LIBRARY: return "library";
+    default: return "tile";
+  }
+}
 inline void loader_bind() {
+  // Every step of every picture, for a diagnosis (`logger: level: DEBUG`).
+  loader.log = [](const picture_loader::Owner &o, const std::string &key, const char *what, const std::string &detail) {
+    ESP_LOGD("picture", "%s %u %s: %s%s%s", owner_name(o), (unsigned) o.index, what, key.c_str(), detail.empty() ? "" : " -> ",
+             detail.c_str());
+  };
   loader.kept = [](const std::string &key, uint32_t &at) {
     if (pictures_kept()) if (auto *e = pictures.entry(key)) { at = e->stored_at; return true; }
     for (int s = 0; s < 3; ++s) if (slot_key[s] == key) { at = slot_at[s]; return true; }

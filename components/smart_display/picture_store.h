@@ -78,6 +78,8 @@ template <class Image> struct Store {
   std::function<void(void *)> release;
   // Whether a card (or an open card over the page) still draws a picture: put() makes room only with what none draws.
   std::function<bool(const Image *)> shown;
+  // Every copy kept, renewed, retired and freed, for a diagnosis (runtime_tiles.h logs it at DEBUG).
+  std::function<void(const char *what, const Entry &)> log;
   size_t budget = 0;         // bytes; 0 keeps nothing, so a board without the room stores no picture
   uint32_t uses = 0;
 
@@ -107,9 +109,10 @@ template <class Image> struct Store {
     if (e && e->bytes == from.data_size && std::memcmp(&e->image.header, &from.header, sizeof(from.header)) == 0) {
       std::memcpy(e->buffer, from.data, from.data_size);
       e->stored_at = now; e->used = ++uses;
+      note("renews", *e);
       return &e->image;
     }
-    if (e) e->retired = true;
+    if (e) { e->retired = true; note("retires (another size)", *e); }
     Entry *slot = nullptr;
     for (auto &c : entries) if (!c.buffer) { slot = &c; break; }
     if (!slot) slot = make_room();
@@ -121,6 +124,7 @@ template <class Image> struct Store {
     slot->image = from;
     slot->image.data = static_cast<decltype(from.data)>(buffer);
     slot->stored_at = now; slot->used = ++uses; slot->retired = false;
+    note("keeps", *slot);
     return &slot->image;
   }
   // Every slot taken (firmware 0.52.0): the picture that no card draws and was used longest ago makes way, one no longer
@@ -134,19 +138,19 @@ template <class Image> struct Store {
       if (!c.buffer || shown(&c.image)) continue;
       if (!oldest || (c.retired != oldest->retired ? c.retired : c.used < oldest->used)) oldest = &c;
     }
-    if (oldest) drop(*oldest);
+    if (oldest) drop(*oldest, "frees (making room)");
     return oldest;
   }
   // Frees what may go: copies that were replaced, then the pictures used longest ago while the store is over its
   // budget. `shown` says whether a card (or an open card over the page) still draws a picture.
   void collect(const std::function<bool(const Image *)> &shown) {
-    for (auto &e : entries) if (e.buffer && e.retired && !shown(&e.image)) drop(e);
+    for (auto &e : entries) if (e.buffer && e.retired && !shown(&e.image)) drop(e, "frees (retired, on no card)");
     while (size() > budget) {
       Entry *oldest = nullptr;
       for (auto &e : entries)
         if (e.buffer && !shown(&e.image) && (!oldest || e.used < oldest->used)) oldest = &e;
       if (!oldest) return;  // everything left is on a card: it stays until the card lets it go
-      drop(*oldest);
+      drop(*oldest, "frees (over the budget)");
     }
   }
   // The picture for `key` is the same as before (the app answered 304): kept as it is, as fresh as a new one.
@@ -156,7 +160,7 @@ template <class Image> struct Store {
   // The picture for `key` is no longer wanted (the camera full screen closed): it goes at the next collect once nothing
   // draws it, before any picture that is still wanted.
   void retire(const std::string &key) {
-    if (Entry *e = entry(key)) e->retired = true;
+    if (Entry *e = entry(key)) { e->retired = true; note("retires", *e); }
   }
   // The entry whose copy this is, also one already replaced (a card may still draw it), or nullptr.
   Entry *holder(const Image *image) {
@@ -172,12 +176,14 @@ template <class Image> struct Store {
   // Nothing kept is right any more (another layout, another look): what no card shows goes now, the rest as soon as
   // its card lets it go.
   void forget(const std::function<bool(const Image *)> &shown) {
-    for (auto &e : entries) if (e.buffer && !shown(&e.image)) drop(e);
+    for (auto &e : entries) if (e.buffer && !shown(&e.image)) drop(e, "frees (another layout)");
     for (auto &e : entries) if (e.buffer) e.retired = true;
   }
 
  private:
-  void drop(Entry &e) {
+  void note(const char *what, const Entry &e) const { if (log) log(what, e); }
+  void drop(Entry &e, const char *why = "frees") {
+    note(why, e);
     if (release) release(e.buffer);
     e = Entry{};
   }

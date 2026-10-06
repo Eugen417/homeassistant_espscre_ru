@@ -68,6 +68,8 @@ class Loader {
   std::function<void(Slot)> cancel;
   // A picture its owner moved on from: the store may let it go once nothing draws it.
   std::function<void(const std::string &key)> forget;
+  // Every step of every picture, for a diagnosis (runtime_tiles.h logs it at DEBUG): who, which picture, what happened.
+  std::function<void(const Owner &, const std::string &key, const char *what, const std::string &detail)> log;
 
   // ---- every round ----
   void begin() { for (auto &j : jobs_) j.seen = false; }
@@ -84,6 +86,7 @@ class Loader {
         if (it->first == owner) { job->want.key = it->second; last_.erase(it); break; }
     }
     if (job->want.key != w.key) {
+      note(*job, "wants", w.key);
       if (!job->want.key.empty() && forget) forget(job->want.key);
       if (job->phase == Phase::LOADING) stop(*job);
       const Owner keep = job->owner;
@@ -104,6 +107,7 @@ class Loader {
       if (it->first == owner) { if (forget) forget(it->second); last_.erase(it); break; }
     Job *job = find(owner);
     if (!job) return;
+    note(*job, "released");
     if (job->phase == Phase::LOADING) stop(*job);
     if (forget && !job->want.key.empty()) forget(job->want.key);
     jobs_.erase(jobs_.begin() + (job - jobs_.data()));
@@ -116,6 +120,7 @@ class Loader {
       // Not wanted this round: its download breaks off; the picture stays in the store for when it is wanted again, and
       // the owner's key is remembered, so a picture it moves on to later lets this one go.
       if (jobs_[i].phase == Phase::LOADING) stop(jobs_[i]);
+      note(jobs_[i], "not wanted now");
       remember(jobs_[i].owner, jobs_[i].want.key);
       jobs_.erase(jobs_.begin() + i);
     }
@@ -131,6 +136,7 @@ class Loader {
       // tile's cover of the same player would take each other's links.
       if (asking(job.want.tag, now, &job)) continue;
       if (should_ask(job, now)) {
+        note(job, job.phase == Phase::NEW ? "asks" : "asks again");
         job.phase = Phase::ASKED;
         job.asked_at = now ? now : 1;
         if (job.want.ask) job.want.ask();
@@ -138,7 +144,7 @@ class Loader {
     }
     // What is on the glass breaks off a download for a page out of sight.
     if (Job *active = loading()) {
-      if (active->want.rank == Rank::AHEAD && glass_waits) stop(*active);
+      if (active->want.rank == Rank::AHEAD && glass_waits) { note(*active, "breaks off for the glass"); stop(*active); }
       else return;
     }
     if (!may_load) return;
@@ -148,6 +154,7 @@ class Loader {
       if (should_load(job, now) && (!next || before(job, *next))) next = &job;
     }
     if (!next) return;
+    note(*next, next->kept_at ? "refreshes" : "loads", next->url);
     next->phase = Phase::LOADING;
     next->started_at = now ? now : 1;
     if (load) load(next->want.slot, next->url, next->want.key);
@@ -160,6 +167,7 @@ class Loader {
       if (job.want.tag != tag || job.phase != Phase::ASKED) continue;
       job.url = url;
       job.failures = 0;
+      note(job, url.empty() ? "answered: none" : "answered", url);
       if (url.empty()) {
         job.phase = Phase::NONE;
         job.none_at = now ? now : 1;
@@ -177,6 +185,7 @@ class Loader {
     Job *job = loading();
     if (!job || job->want.slot != slot) return {};
     job->finished_at = now ? now : 1;
+    note(*job, ok ? "loaded" : "load failed");
     if (ok) {
       job->phase = Phase::DONE;
       job->failures = 0;
@@ -266,6 +275,9 @@ class Loader {
     return std::any_of(jobs_.begin(), jobs_.end(), [&](const Job &j) {
       return &j != self && j.want.tag == tag && j.phase == Phase::ASKED && now - j.asked_at < camera_view::ASK_AGAIN_MS;
     });
+  }
+  void note(const Job &job, const char *what, const std::string &detail = {}) const {
+    if (log) log(job.owner, job.want.key, what, detail);
   }
   void stop(Job &job) {
     if (cancel) cancel(job.want.slot);
