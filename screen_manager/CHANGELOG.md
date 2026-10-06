@@ -1,10 +1,16 @@
 ## Unreleased
 
+- **Every page turns as quickly as the next.** A screen with PSRAM now keeps every page of its layout ready, not only
+  seven, so paging through a long layout no longer feels quick on one page and slow on the next. Opening a new layout
+  for the first time takes a little longer, while the screen prepares every page.
+
 - **Every picture on a page at its tile's full size (GitHub #183).** A camera, an album cover, a favourite and a map
   each load their own picture now, at their own pace. Before, the pictures of a page came as one image, so on a large
   screen every picture of the page came smaller with a dark edge as soon as a player on that page started to play, and
   every new song sent all the cameras of the page again. Now a new song replaces only its cover, and a page with
-  several cameras shows each one at the full size of its tile. The 10-inch and the other screens with 32 MB of memory
+  several cameras shows each one at the full size of its tile. A camera's picture is also newer: the app fetches it
+  just before the screen loads it, so it is a fraction of a second old instead of up to twice the refresh time you
+  chose. The 10-inch and the other screens with 32 MB of memory
   also show a camera over the whole page, the camera full screen and the screensaver at the glass's own pixels, no
   longer a little smaller in the middle.
 - **Try dev before a release (GitHub #180).** Add the repository with `#dev` at the end of its URL and the store

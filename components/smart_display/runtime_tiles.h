@@ -9988,6 +9988,37 @@ inline bool picture_shown(const lv_image_dsc_t *image) {
   return false;
 #endif
 }
+// Whether only cards out of sight draw this picture (a kept page's), none on the glass or open over it: over the budget
+// it may make way (picture_store::collect), and its page asks for it again when it comes back.
+inline bool picture_away(const lv_image_dsc_t *image) {
+#if LV_USE_IMAGE
+  const auto drawn = [&](Widgets &w) { return draws(w.picture, image) || (w.extra_mode == "media" && draws(w.parts[MEDIA_PICTURE], image)); };
+  for (auto &w : widgets) if (drawn(w)) return false;
+  if (draws(media_detail_picture, image) || draws(camera_picture, image) || draws(alert_picture, image) || media_library::draws(image))
+    return false;
+  bool kept = false;
+  for (auto *set : kept_sets) if (set) for (auto &w : *set) kept = kept || drawn(w);
+  return kept;
+#else
+  (void) image;
+  return false;
+#endif
+}
+// Takes a picture off the cards of pages out of sight: each draws itself again, and asks for it, when its page comes back.
+inline void picture_let_go(const lv_image_dsc_t *image) {
+#if LV_USE_IMAGE
+  for (auto *set : kept_sets) if (set) for (auto &w : *set) {
+    bool took = false;
+    for (lv_obj_t *picture : {w.picture, w.extra_mode == "media" ? w.parts[MEDIA_PICTURE] : nullptr})
+      if (draws(picture, image)) { lv_image_set_src(picture, nullptr); lv_obj_add_flag(picture, LV_OBJ_FLAG_HIDDEN); took = true; }
+    if (!took) continue;
+    if (w.extra_mode == "media") w.cover_shown.clear();
+    if (w.index < model.count) mark_tile(w.index);
+  }
+#else
+  (void) image;
+#endif
+}
 // What the store holds, in the log whenever it changes: how many pictures, how much of the budget.
 inline size_t pictures_logged_bytes = SIZE_MAX;
 inline unsigned pictures_logged_count = 0;
@@ -10008,7 +10039,7 @@ inline void covers_gone_by() {
 inline void pictures_collect() {
   if (!pictures_kept()) return;
   if (model.ready()) covers_gone_by();
-  pictures.collect(picture_shown);
+  pictures.collect(picture_shown, picture_away, picture_let_go);
   unsigned count = 0, retired = 0;
   std::string kinds;  // what it holds, by kind of picture: "cover cover live camera"
   for (const auto &e : pictures.entries) {
@@ -10830,7 +10861,9 @@ inline void tile_picture_want(Widgets &w, bool glass) {
 // track than it was drawn with asks once it is drawn again.
 inline void card_picture_wants() {
   const bool seen = tiles_seen() && !card_open() && !camera_root;
-  const bool ahead = awake() && pictures_kept() && !prepare_busy();
+  // Ahead only while the store has room to spare: over its budget a page out of sight lets its pictures go
+  // (picture_away), and fetching them ahead again would only send them round.
+  const bool ahead = awake() && pictures_kept() && !prepare_busy() && pictures.size() < pictures.budget / 4 * 3;
   const bool tiles = tile_pictures_supported() && model.ready();
   each_card([&](Widgets &w) {
 #if LV_USE_IMAGE

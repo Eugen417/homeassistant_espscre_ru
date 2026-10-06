@@ -162,5 +162,32 @@ int main() {
     for (auto &e : full.entries) drawn.insert(&e.image);
     assert(!full.put("one more", a, 23) && left == int(picture_store::ENTRIES));
   }
+  // Over the budget with every picture on a card (GitHub #183, every page kept): a picture only a page out of sight
+  // draws makes way, the one used longest ago first, after it was taken off its cards; the glass keeps its own.
+  {
+    int left = 0;
+    picture_store::Store<Image> kept;
+    kept.allocate = [&](size_t n) { ++left; return std::malloc(n); };
+    kept.release = [&](void *p) { --left; std::free(p); };
+    kept.budget = 250;
+    std::vector<uint8_t> pixels(100, 7);
+    Image a{{10, 5, 1}, 100, pixels.data()};
+    Image *glass = kept.put("glass", a, 1), *old_page = kept.put("old page", a, 2), *new_page = kept.put("new page", a, 3);
+    kept.find("new page");  // used later than the old page's
+    const auto shown = [](const Image *) { return true; };  // every picture is on some card
+    const auto away = [&](const Image *i) { return i != glass; };
+    std::vector<const Image *> taken;
+    kept.collect(shown, away, [&](const Image *i) { taken.push_back(i); });
+    assert(left == 2 && taken.size() == 1 && taken[0] == old_page && kept.find("glass") && kept.find("new page") && new_page);
+    // Within the budget again: nothing more goes. Without `away` nothing on a card ever goes, as before.
+    kept.collect(shown, away, [&](const Image *i) { taken.push_back(i); });
+    assert(left == 2 && taken.size() == 1);
+    kept.budget = 50;
+    kept.collect(shown);
+    assert(left == 2);
+    // Only the glass left over the budget: it stays.
+    kept.collect(shown, away, [&](const Image *i) { taken.push_back(i); });
+    assert(left == 1 && kept.find("glass") && taken.size() == 2);
+  }
   return 0;
 }

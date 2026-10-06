@@ -142,15 +142,26 @@ template <class Image> struct Store {
     return oldest;
   }
   // Frees what may go: copies that were replaced, then the pictures used longest ago while the store is over its
-  // budget. `shown` says whether a card (or an open card over the page) still draws a picture.
-  void collect(const std::function<bool(const Image *)> &shown) {
+  // budget. `shown` says whether a card (or an open card over the page) still draws a picture. Over the budget with
+  // every picture on a card, `away` says which only a card out of sight draws (a kept page's, GitHub #183): the one of
+  // those used longest ago goes, after `let_go` took it off its cards, which ask for it again when their page comes
+  // back. What the glass shows always stays.
+  void collect(const std::function<bool(const Image *)> &shown, const std::function<bool(const Image *)> &away = {},
+               const std::function<void(const Image *)> &let_go = {}) {
     for (auto &e : entries) if (e.buffer && e.retired && !shown(&e.image)) drop(e, "frees (retired, on no card)");
     while (size() > budget) {
       Entry *oldest = nullptr;
       for (auto &e : entries)
         if (e.buffer && !shown(&e.image) && (!oldest || e.used < oldest->used)) oldest = &e;
-      if (!oldest) return;  // everything left is on a card: it stays until the card lets it go
-      drop(*oldest, "frees (over the budget)");
+      bool held = false;
+      if (!oldest && away) {
+        for (auto &e : entries)
+          if (e.buffer && away(&e.image) && (!oldest || e.used < oldest->used)) oldest = &e;
+        held = oldest != nullptr;
+      }
+      if (!oldest) return;  // everything left is on the glass: it stays until its card lets it go
+      if (held && let_go) let_go(&oldest->image);
+      drop(*oldest, held ? "frees (over the budget, from a page out of sight)" : "frees (over the budget)");
     }
   }
   // The picture for `key` is the same as before (the app answered 304): kept as it is, as fresh as a new one.

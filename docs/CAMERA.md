@@ -89,7 +89,8 @@ cut square with the tile's rounded corners, delivered as described below.
   question's number, by which the screen finds the tile. Every app since 0.3.8 answers this question, so a new
   screen works with an older app too.
 - **Each at its own pace.** A camera tile loads its next picture when its own pace has passed, 5 to 30 seconds. The
-  app fetches a camera again only when the quickest of its tiles is due, and serves the last snapshot meanwhile. A new
+  app fetches the camera just before that load, at the pace of the quickest of its tiles (as for the full view below),
+  so the picture on a tile is a fraction of a second old when it comes, not a whole pace. A new
   track replaces the cover of its tile and sends no camera again; a page of covers alone loads once per track. The
   picture comes whole every time, never as a 304. Nobody loading means nothing fetched, as with the camera full screen.
 - **No picture smaller for another.** The size cap (below) holds for each picture alone, so a page of five 2 × 2
@@ -204,12 +205,15 @@ The screen never talks to Home Assistant about images, and it never holds a Home
    `no connection to` the link's address. The full screen, the alert and the cover are 24-bit; live tile
    pictures go to firmware 0.3.3+ in 8-bit (see above).
 
-While a camera is open, the screen loads its link every four seconds, one image at a time. The app
-serves the last snapshot at once and starts fetching the next one, so each load gets a picture one
-load younger: the picture changes at the screen's steady pace. (A fetch on its own clock next to the
-screen's made the picture change after 1.5 s one time and 6 s the next.) A slow camera makes the
-images older, never the screen slower, and nothing queues up. Nobody loading means nothing fetched.
-A link that nobody loads for two minutes stops working; an alert's picture stays for half an hour.
+While a camera is open, the screen loads its link every four seconds, one image at a time. Each load sets the
+camera's next fetch for just before the next load: four seconds on, less the time the camera took to answer last
+time and half a second (`camera_feed.CameraFeed.ahead`), so the next load finds a snapshot a fraction of a second old
+and the picture changes at the screen's steady pace. A load whose fetch is still on its way waits up to 1.5 seconds
+for it, then takes the last snapshot. (Firmware before 0.52.0 got the snapshot fetched at the load before, a picture
+four seconds old; a fetch on its own clock next to the screen's made the picture change after 1.5 s one time and 6 s
+the next.) A slow camera makes the images older, never the screen slower, and nothing queues up. Nobody loading means
+nothing fetched, beyond the one fetch the last load set. A link that nobody loads for two minutes stops working; an
+alert's picture stays for half an hour.
 
 **Why BMP.** ESPHome decodes a BMP piece by piece while it downloads (16 KB per round of its main
 loop since firmware 0.2.73, 4 KB before). A JPEG of the full screen took 0.6 s in one piece on the

@@ -108,6 +108,9 @@ class Rules(unittest.TestCase):
             self.assertEqual(camera_feed.picture_cap(request), (camera_feed.PICTURE_MAX_SIDE, camera_feed.PICTURE_MAX_BYTES))
             self.assertEqual(camera_feed.box({'board': 'jc8012p4a1'}, 'full', camera_feed.picture_cap(request)), (1024, 640))
         self.assertEqual(camera_feed.picture_cap({'cap': str(64 << 20)}), (camera_feed.PICTURE_LARGE_SIDE, camera_feed.PICTURE_LARGE_BYTES))
+        # The app's rhythm of the full view is the firmware's (camera_view::REFRESH_MS): it fetches just before each load.
+        view = (ROOT / 'components/smart_display/camera_view.h').read_text()
+        self.assertIn(f'constexpr uint32_t REFRESH_MS = {camera_feed.FULL_VIEW_SECONDS * 1000};', view)
         # The firmware asks it only for a picture of the whole glass (camera_request), never on a board of 8 MB.
         self.assertIn('const bool larger = size <= 0 && cap.bytes > picture_store::MAX_BYTES;', TILES)
 
@@ -383,7 +386,22 @@ class Feed(unittest.IsolatedAsyncioTestCase):
             if isinstance(answer, Exception):
                 raise answer
             return answer
-        return camera_feed.CameraFeed(fetch, clock=clock), clock
+
+        # The feed's waits (a fetch ahead's): recorded, and over when the test says so (wake), never in real seconds.
+        self.sleeps = []
+
+        async def sleep(delay):
+            gate = asyncio.Event()
+            self.sleeps.append((delay, gate))
+            await gate.wait()
+        return camera_feed.CameraFeed(fetch, clock=clock, sleep=sleep), clock
+
+    async def wake(self):
+        """The waits are over: the fetches ahead start."""
+        for _, gate in self.sleeps:
+            gate.set()
+        self.sleeps.clear()
+        await self.settle()
 
     async def settle(self):
         """Let the fetch a load started run before counting fetches: whether it already ran when serve() returns
@@ -405,28 +423,51 @@ class Feed(unittest.IsolatedAsyncioTestCase):
         clock.now += camera_feed.LINK_SECONDS + 1
         self.assertEqual((await feed.serve(token))[0], 404)
 
-    async def test_each_load_fetches_the_next_picture_and_nothing_is_fetched_between_loads(self):
+    async def test_each_load_gets_the_snapshot_fetched_just_before_it(self):
+        # GitHub #183: a load sets the next fetch for just before the next load (its pace, less the time the camera
+        # takes and a margin), so a picture is a fraction of a second old, not a whole pace. Before, a load got the
+        # snapshot fetched at the load before it.
         first, second, third = picture('JPEG', (640, 360)), picture('PNG', (640, 360)), picture('BMP', (640, 360))
         feed, clock = self.feed([first, second, third])
         token = feed.link('camera.max', (480, 480))
         _, one, tag_one = await feed.serve(token)
         await self.settle()
-        self.assertEqual(self.fetched, ['camera.max'] * 2, 'the first picture, and the next one started at once')
-        await asyncio.sleep(0.05)
-        self.assertEqual(len(self.fetched), 2, 'nobody loads, nothing is fetched')
-        clock.now += 4
+        self.assertEqual(self.fetched, ['camera.max'], 'the first picture, waited for')
+        self.assertEqual([round(delay, 2) for delay, _ in self.sleeps],
+                         [camera_feed.FULL_VIEW_SECONDS - 0 - camera_feed.AHEAD_MARGIN], 'the next fetch, set for later')
+        # Until just before the next load nothing is fetched; then the fetch ahead goes.
+        clock.now += 3.5
+        await self.wake()
+        self.assertEqual(len(self.fetched), 2)
+        clock.now += 0.5
         _, two, tag_two = await feed.serve(token, tag_one)
         await self.settle()
-        self.assertNotEqual(tag_two, tag_one, 'the picture fetched after the last load')
-        self.assertEqual(len(self.fetched), 3)
-        # Two screens loading while the next picture is on its way share that one fetch.
+        self.assertNotEqual(tag_two, tag_one, 'the snapshot of just now')
+        self.assertEqual(len(self.fetched), 2, 'no second fetch for the same moment')
+        # A slow camera: the load waits a moment for the fetch on its way, and two screens loading share that fetch.
         self.gate = asyncio.Event()
-        await feed.serve(token, tag_two)
-        await feed.serve(token, tag_two)
+        clock.now += 3.5
+        await self.wake()
+        self.assertEqual(len(self.fetched), 3)
+        loads = [asyncio.ensure_future(feed.serve(token, tag_two)) for _ in range(2)]
         await self.settle()
-        self.assertEqual(len(self.fetched), 4)
         self.gate.set()
+        three = [await load for load in loads]
+        self.assertEqual(len(self.fetched), 3)
+        self.assertTrue(all(answer[2] not in (tag_one, tag_two) for answer in three), 'both got the new snapshot')
+
+    async def test_a_tile_at_its_pace_is_fetched_just_before_its_load_and_the_quickest_tile_sets_it(self):
+        feed, clock = self.feed([picture('JPEG', (640, 360)), picture('PNG', (640, 360)), picture('BMP', (640, 360))])
+        await feed.live_one('camera.drive', 15, 1)
         await self.settle()
+        self.assertEqual([round(delay, 2) for delay, _ in self.sleeps], [15 - camera_feed.AHEAD_MARGIN])
+        # A quicker tile of the same camera sets it sooner; a slower one changes nothing.
+        await feed.live_one('camera.drive', 5, 1)
+        await feed.live_one('camera.drive', 30, 1)
+        await self.settle()
+        pending = [round(delay, 2) for delay, gate in self.sleeps if not gate.is_set()]
+        self.assertIn(5 - camera_feed.AHEAD_MARGIN, pending)
+        self.assertEqual(len(self.fetched), 1)
 
     async def test_a_camera_that_fails_is_asked_again_after_a_pause(self):
         feed, clock = self.feed([ConnectionError('500'), ConnectionError('500'), picture('JPEG', (640, 360))])
@@ -443,7 +484,8 @@ class Feed(unittest.IsolatedAsyncioTestCase):
             clock.now += 10
             self.assertEqual((await feed.serve(token))[0], 200)
             await self.settle()
-        self.assertEqual(len(self.fetched), 4, 'the good picture, then the next one')
+        self.assertEqual(len(self.fetched), 3, 'the good picture; the next one waits for its moment')
+        self.assertTrue(self.sleeps, 'a fetch ahead is set')
 
     async def test_an_alert_gets_a_snapshot_of_its_own_moment(self):
         first, second = picture('JPEG', (640, 360)), picture('PNG', (640, 360))
@@ -883,7 +925,7 @@ class LiveTiles(unittest.TestCase):
         # that is not shown waits for a screen in use.
         tiles = TILES.split('inline void card_picture_wants() {', 1)[1].split('\n}\n', 1)[0]
         self.assertIn('const bool seen = tiles_seen() && !card_open() && !camera_root;', tiles)
-        self.assertIn('const bool ahead = awake() && pictures_kept() && !prepare_busy();', tiles)
+        self.assertIn('const bool ahead = awake() && pictures_kept() && !prepare_busy() && pictures.size() < pictures.budget / 4 * 3;', tiles)
         page = tiles
         card = TILES.split('inline void card_cover_want() {', 1)[1].split('\n}\n', 1)[0]
         self.assertIn('!tiles_seen()', card)

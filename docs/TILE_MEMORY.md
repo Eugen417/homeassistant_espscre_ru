@@ -22,8 +22,8 @@ over 24 pages. A board's numbers reach the add-on and the editor through `screen
 `max_pages`), which is what a save is held to.
 
 Pages beyond nine take two digits in a navigation tile (`screen.page_10` to `screen.page_32`). A pager shows dots up to
-eight pages and "3 / 12" past that. Seven pages are kept whole beside the one on the glass, whatever the ceiling
-(docs/KEPT_PAGES.md): more would only make the first opening of a layout slower.
+eight pages and "3 / 12" past that. Every page beside the one on the glass is kept whole, up to the ceiling and
+as far as the PSRAM goes (docs/KEPT_PAGES.md).
 
 ## The top bar
 
