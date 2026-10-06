@@ -36,6 +36,9 @@ struct View {
 };
 
 static lv_timer_t *timer = nullptr;
+// The energy cards that exist, on the glass or kept with a page off it (kept_pages.h). A kept page comes back on the
+// glass without being drawn again, so nothing would wake a timer that rested: it rests only when no card exists.
+static int views = 0;
 constexpr uint32_t FRAME_MS = 40;  // 25 frames a second: a dot moves at most a few pixels a frame
 
 static lv_color_t paint(ec::Paint p) {
@@ -193,24 +196,23 @@ static void advance(Widgets &w, uint32_t now) {
   }
 }
 
-// The dots' timer: only cards on the glass, only while the screen is awake; it rests when no card runs.
+// The dots' timer: it moves only cards on the glass, only while the screen is awake, and rests when no card exists.
 static void tick(lv_timer_t *) {
   if (!rt::awake()) return;
   // A card open over the page hides the dots: nothing under it is drawn again.
   if (rt::detail_root && !lv_obj_has_flag(rt::detail_root, LV_OBJ_FLAG_HIDDEN)) return;
   const uint32_t now = esphome::millis();
-  bool any = false;
   for (auto &w : rt::widgets) {
     if (!w.energy || w.extra_mode != "energy" || !w.extra || lv_obj_has_flag(w.extra, LV_OBJ_FLAG_HIDDEN) || !w.parts[0]) continue;
     if (w.tile && lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN)) continue;
     if (w.energy->scene.flows.empty()) continue;
-    any = true;
     advance(w, now);
   }
-  if (!any && timer) lv_timer_pause(timer);
+  if (!views && timer) lv_timer_pause(timer);
 }
 
 void release(Widgets &w) {
+  if (w.energy) --views;
   delete w.energy;
   w.energy = nullptr;
 }
@@ -232,7 +234,7 @@ static bool reading(const ec::Data &data, const std::string &entity, Sensor &out
 
 void render(Widgets &w, const Tile &t, int width, int height) {
   rt::begin_extra(w, "energy", width, height);
-  if (!w.energy) w.energy = new View();
+  if (!w.energy) { w.energy = new View(); ++views; }
   View &view = *w.energy;
   auto *&canvas = w.parts[0];
   if (!canvas) {

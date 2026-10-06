@@ -35,7 +35,8 @@
   Assistant's Power sources graph shows them.
 - **The energy card's dots run smoothly.** A dot's place was worked out from the time since the card started, so every
   new value made it jump, worse the longer the screen ran and most on a battery that reports often (discussion #104).
-  A new value now changes how fast a dot runs, not where it is.
+  A new value now changes how fast a dot runs, not where it is. Back on the card's page after another page, the dots
+  stood still until the next value came in; they run again at once.
 
 ## 0.4.83 (firmware 0.51.0)
 
