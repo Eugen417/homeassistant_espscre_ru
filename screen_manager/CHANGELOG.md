@@ -1,5 +1,7 @@
 ## Unreleased
 
+- **A picture on a tile in the editor keeps its rounded bottom corners.** The shade under a camera or favourite name
+  had an invalid corner rule, and some browsers let a picture overflow the tile's corners.
 - **A new track without a flash on the media card** ([#177](https://github.com/MaxGramser/homeassistant_espscreen/issues/177)).
   The card changes its words and its bar at once, and its cover and colour together, in one go, once the new cover is
   here. Until then it keeps the cover and colour of the track before. Before, the card was drawn again on a black

@@ -288,7 +288,7 @@ a:hover { text-decoration: underline; }
 .tiles { display: grid; grid-template-columns: repeat(var(--screen-columns, 2), minmax(0, 1fr)); grid-template-rows: repeat(var(--screen-rows, 3), minmax(0, 1fr)); gap: 8px; min-height: 0; }
 /* manipulation, not pan-y (app 0.2.78): on a phone the row of pages scrolls sideways, also when the swipe starts on a
    tile. The hold before a drag and the blocked touchmove during one still keep the page from scrolling. */
-.tile { position: relative; background: #fff; border: 1px solid #dcdcdc; border-radius: 12px; padding: 8px 9px; display: flex; flex-direction: column; justify-content: space-between; gap: 4px; min-height: 0; cursor: pointer; text-align: left; overflow: hidden; color: #1b1b1b; touch-action: manipulation; }
+.tile { position: relative; background: #fff; border: 1px solid #dcdcdc; border-radius: 12px; padding: 8px 9px; display: flex; flex-direction: column; justify-content: space-between; gap: 4px; min-height: 0; cursor: pointer; text-align: left; overflow: hidden; isolation: isolate; color: #1b1b1b; touch-action: manipulation; }
 .tile:hover { border-color: #b9c4d3; }
 .tile.chosen { outline: 2px solid var(--kind-tile); outline-offset: 1px; }
 .tile.wide { grid-column: span var(--screen-wide-span, 2); flex-direction: row; align-items: center; gap: 8px; }
