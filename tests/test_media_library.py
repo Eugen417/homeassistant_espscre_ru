@@ -101,6 +101,11 @@ class TheLibrary(unittest.TestCase):
         started = ('spotify://album', 'spotify:album:' + '2'.zfill(22))
         flags = [e[2] & media_library.PLAYING for e in media_library.entries(folder, media_library.Shelf(), PLAYER, {}, started)]
         self.assertEqual(flags, [0, 0, media_library.PLAYING])
+        # A start Spotify dropped leaves the player paused with nothing: nothing of it plays.
+        self.assertTrue(media_library.holds_media({'state': 'playing', 'attributes': {}}))
+        self.assertTrue(media_library.holds_media({'state': 'paused', 'attributes': {'media_title': 'OFFLINE'}}))
+        self.assertFalse(media_library.holds_media({'state': 'paused', 'attributes': {'source': 'Laptop'}}))
+        self.assertFalse(media_library.holds_media({'state': 'idle', 'attributes': {'media_title': 'OFFLINE'}}))
 
     def test_pages_stay_under_the_message_limit(self):
         # The longest titles a folder can bring, in letters of two bytes.

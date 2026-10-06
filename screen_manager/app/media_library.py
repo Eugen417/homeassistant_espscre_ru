@@ -292,6 +292,14 @@ class Shelf:
         return found[1] if found and found[0] == entity else None
 
 
+def holds_media(state):
+    """Whether a player has something to play or pause: playing, or paused with a song. A start Spotify took and then
+    dropped leaves it paused with nothing (a single song, September 2026), and nothing of it is marked as playing."""
+    state = state or {}
+    attrs = state.get('attributes') or {}
+    return state.get('state') == 'playing' or (state.get('state') == 'paused' and bool(attrs.get('media_content_id') or attrs.get('media_title')))
+
+
 def playing_now(item, attrs, started=None):
     """Whether this item is what the player plays now: the one this app started last, while that still plays, or an
     album or playlist whose name the player reports. Spotify names no playlist it does not own since February 2026, so

@@ -1893,7 +1893,7 @@ class Manager:
                 LOG.info('The library of %s did not open (%s)', entity, type(error).__name__)
                 failed = True
         attrs = self.ha.states.get(entity, {}).get('attributes') or {}
-        started = self.started.get(entity) if self.ha.states.get(entity, {}).get('state') in ('playing', 'paused') else None
+        started = self.started.get(entity) if media_library.holds_media(self.ha.states.get(entity)) else None
         items = media_library.entries(folder, shelf, entity, attrs, started)
         all_pages = media_library.pages(items)
         await self.send_auxiliary(inbox, media_library.message(entity, token, folder['title'], page, all_pages, len(items), failed),
@@ -2489,7 +2489,7 @@ class Manager:
             if favorite:
                 play=options.get('play') or {}
                 state_now=states.get(tile['entity'],{}).get('state')
-                started=self.started.get(tile['entity']) if state_now in ('playing','paused') else None
+                started=self.started.get(tile['entity']) if media_library.holds_media(states.get(tile['entity'])) else None
                 word=screen_t(f"addon.screen.media.{play.get('class') or 'music'}") if (play.get('class') or 'music') in FAVORITE_KINDS else ''
                 message.setdefault('x',{}).update(media_library.favorite_extras(play,options.get('speaker'),attributes if state_now in ('playing','paused') else {},started,word))
         # Home Assistant's word where the screen would show the raw state (firmware 0.2.58+ shows it).
