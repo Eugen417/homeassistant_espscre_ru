@@ -1,5 +1,12 @@
 ## Unreleased
 
+- **A Spotify link makes a favourite.** Paste a link from the Spotify app (Share > Copy link) under the library in a
+  favourite's picker and it becomes a favourite like any other, with its cover and name. That reaches what Home
+  Assistant's library never lists, such as Discover Weekly, Release Radar and the Daily Mixes. It works on a Spotify
+  player and on a speaker whose library lists your Spotify account, such as a Sonos.
+- **Choosing what a favourite plays works again.** The editor refused every choice with "Invalid or unsupported page
+  settings", so a new favourite could not be saved. It also no longer offers a small slider or a tap action on a
+  favourite, which the app drops anyway.
 - **A slider you can see on a lamp that is off.** An off light or fan shows only the grey track on its tile, so a
   finger dragging it moved nothing you could see until you let go. Now a faint fill and handle in the tile's colour
   follow the finger, and letting go turns the lamp on at that level as before.

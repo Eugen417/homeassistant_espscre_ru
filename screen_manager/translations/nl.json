@@ -786,7 +786,10 @@
         "storage": "Feedback staat uit: de bewaarde gegevens zijn door een andere versie van Tessera geschreven."
       },
       "media": {
-        "browse": "{name} gaf zijn bibliotheek niet."
+        "browse": "{name} gaf zijn bibliotheek niet.",
+        "link_invalid": "Dit is geen Spotify-link. Kopieer er een in de Spotify-app met Delen > Link kopiëren.",
+        "link_short": "Een spotify.link-adres verwijst alleen door. Open het in je browser en kopieer het lange adres waar het heen gaat.",
+        "link_player": "{name} speelt geen Spotify-links af."
       },
       "allow_actions": {
         "not_allowed": "Home Assistant laat deze app zijn integraties niet wijzigen. Doe het in Home Assistant zelf, onder Instellingen → Apparaten & diensten.",
@@ -1849,7 +1852,10 @@
         "open": "{name} openen",
         "speaker": "Speaker",
         "speaker_now": "Waar hij speelt",
-        "speaker_hint": "Waar hij start. \"Waar hij speelt\" vraagt op het scherm om een speaker als de speler nergens speelt."
+        "speaker_hint": "Waar hij start. \"Waar hij speelt\" vraagt op het scherm om een speaker als de speler nergens speelt.",
+        "link": "Of plak een Spotify-link",
+        "link_hint": "Een link of URI uit de Spotify-app, via Delen > Link kopiëren: een playlist, album, artiest, nummer of podcast.",
+        "link_add": "Toevoegen"
       },
       "energy": {
         "hint": "Het vermogen van het huis op dit moment, getekend zoals de Energie-weergave van Home Assistant het tekent: zon, net, batterij en je apparaten, uit de Energie-instellingen van Home Assistant. Een tik op een cirkel opent de geschiedenis van die sensor.",

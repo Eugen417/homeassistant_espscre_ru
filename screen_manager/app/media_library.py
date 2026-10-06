@@ -405,6 +405,74 @@ def favorite_of(item):
     return play
 
 
+# ---- a favourite from a Spotify link (app 0.4.84) ----
+#
+# Home Assistant's library of a Spotify account holds at most 48 items a folder and none of what Spotify makes itself
+# (Discover Weekly, Release Radar, Daily Mix): Spotify withholds those playlists from new developer apps since November
+# 2024, but plays them. A link from Spotify's own app (Share > Copy link) becomes the same favourite an item of the
+# library is, with the content id and type Home Assistant's media browser would send for that player: a bare URI for
+# the Spotify account itself (spotify/media_player.py strips `spotify://` from the type), and the account's address
+# around it for a player whose library lists the account (sonos/media_player.py: spotify_uri_from_media_browser_url).
+
+# Spotify's word for a kind of thing -> Home Assistant's media class (FAVORITE_KINDS).
+SPOTIFY_KINDS = {'playlist': 'playlist', 'album': 'album', 'artist': 'artist', 'track': 'track', 'show': 'podcast', 'episode': 'episode'}
+_KIND = '(' + '|'.join(SPOTIFY_KINDS) + ')'
+SPOTIFY_LINK = re.compile(r'(?:https?://)?open\.spotify\.com/(?:intl-[a-z]{2}(?:-[a-z]{2,4})?/|embed/)?' + _KIND +
+                          r'/([0-9A-Za-z]{22})(?:[/?#].*)?', re.IGNORECASE)
+SPOTIFY_URI = re.compile(r'spotify:' + _KIND + r':([0-9A-Za-z]{22})')
+# A short link only says where to go next; following it would mean a redirect to any host, so it is refused.
+SPOTIFY_SHORT = re.compile(r'(?:https?://)?(?:spotify\.link|spoti\.fi)/\S*', re.IGNORECASE)
+SPOTIFY_PREFIX = 'spotify://'
+OEMBED = 'https://open.spotify.com/oembed'
+OEMBED_SECONDS = 8
+OEMBED_BYTES = 64 * 1024
+
+
+def spotify_link(text):
+    """(kind, id) of a Spotify link or URI as Spotify's app copies it, or None."""
+    text = (text or '').strip()
+    found = SPOTIFY_LINK.fullmatch(text) or SPOTIFY_URI.fullmatch(text)
+    return (found.group(1).lower(), found.group(2)) if found else None
+
+
+def spotify_short(text):
+    """Whether this is a short spotify.link address, which names nothing until it is followed."""
+    return bool(SPOTIFY_SHORT.fullmatch((text or '').strip()))
+
+
+def spotify_entry(items):
+    """The account a player's library top lists (a Sonos lists `spotify://<config entry>`), or None. The first, in Home
+    Assistant's order, where it lists more than one."""
+    for item in items or ():
+        content_id = item.get('id') if isinstance(item, dict) else None
+        if isinstance(content_id, str) and content_id.startswith(SPOTIFY_PREFIX) and \
+                re.fullmatch(r'[^/:]+', content_id[len(SPOTIFY_PREFIX):]):
+            return content_id[len(SPOTIFY_PREFIX):]
+    return None
+
+
+def spotify_item(kind, spotify_id, entry=None, title='', thumb=None):
+    """The item a favourite of a Spotify link plays, as item_of keeps one: for the account itself (`entry` None) or for a
+    player that lists the account with that entry."""
+    uri = f'spotify:{kind}:{spotify_id}'
+    return {'title': short(title, TITLE_LIMIT), 'id': f'{SPOTIFY_PREFIX}{entry}/{uri}' if entry else uri,
+            'type': SPOTIFY_PREFIX + kind, 'play': True, 'expand': False, 'thumb': thumb,
+            'icon': CLASS_ICONS[SPOTIFY_KINDS[kind]], 'class': SPOTIFY_KINDS[kind]}
+
+
+def oembed_card(raw):
+    """(title, picture address) of Spotify's oEmbed answer; None for what it lacks."""
+    try:
+        answer = json.loads(raw)
+    except (TypeError, ValueError):
+        return None, None
+    if not isinstance(answer, dict):
+        return None, None
+    title, thumb = answer.get('title'), answer.get('thumbnail_url')
+    return (title.strip() if isinstance(title, str) and title.strip() else None,
+            thumb if isinstance(thumb, str) and thumb.startswith('https://') else None)
+
+
 def preview_jpeg(raw, side=256):
     """A picture for the editor: at most `side` pixels, JPEG."""
     from PIL import Image, ImageOps

@@ -786,7 +786,10 @@
         "storage": "A visszajelzés ki van kapcsolva: a mentett adatait a Tessera egy másik verziója írta."
       },
       "media": {
-        "browse": "{name} nem adta meg a könyvtárát."
+        "browse": "{name} nem adta meg a könyvtárát.",
+        "link_invalid": "Ez nem Spotify-link. Másolj egyet a Spotify alkalmazásban a Megosztás > Link másolása paranccsal.",
+        "link_short": "A spotify.link cím csak továbbirányít. Nyisd meg a böngészőben, és másold ki a hosszú címet, ahová visz.",
+        "link_player": "{name} nem játszik le Spotify-linkeket."
       },
       "allow_actions": {
         "not_allowed": "A Home Assistant nem engedi, hogy ez az alkalmazás módosítsa az integrációit. Tedd meg magában a Home Assistantban: Beállítások → Eszközök és szolgáltatások.",
@@ -1849,7 +1852,10 @@
         "open": "{name} megnyitása",
         "speaker": "Hangszóró",
         "speaker_now": "Ahol éppen szól",
-        "speaker_hint": "Ahol indul. Az „Ahol éppen szól” a képernyőn kér hangszórót, ha a lejátszó sehol sem szól."
+        "speaker_hint": "Ahol indul. Az „Ahol éppen szól” a képernyőn kér hangszórót, ha a lejátszó sehol sem szól.",
+        "link": "Vagy illessz be egy Spotify-linket",
+        "link_hint": "Link vagy URI a Spotify alkalmazásból, a Megosztás > Link másolása útján: lejátszási lista, album, előadó, dal vagy podcast.",
+        "link_add": "Hozzáadás"
       },
       "energy": {
         "hint": "A ház teljesítménye most, úgy rajzolva, ahogy a Home Assistant saját Energia nézete rajzolja: nap, hálózat, akkumulátor és az eszközeid, a Home Assistant Energia beállításaiból. Egy kör megérintése megnyitja annak az érzékelőnek az előzményeit.",

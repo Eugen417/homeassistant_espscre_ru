@@ -786,7 +786,10 @@
         "storage": "Opinie są wyłączone: zapisane dane pochodzą z innej wersji Tessera."
       },
       "media": {
-        "browse": "{name} nie udostępnił swojej biblioteki."
+        "browse": "{name} nie udostępnił swojej biblioteki.",
+        "link_invalid": "To nie jest link do Spotify. Skopiuj go w aplikacji Spotify przez Udostępnij > Kopiuj link.",
+        "link_short": "Adres spotify.link tylko przekierowuje. Otwórz go w przeglądarce i skopiuj długi adres, do którego prowadzi.",
+        "link_player": "{name} nie odtwarza linków do Spotify."
       },
       "allow_actions": {
         "not_allowed": "Home Assistant nie pozwala tej aplikacji zmieniać swoich integracji. Zrób to w samym Home Assistant, w sekcji Ustawienia → Urządzenia oraz usługi.",
@@ -1849,7 +1852,10 @@
         "open": "Otwórz {name}",
         "speaker": "Głośnik",
         "speaker_now": "Tam, gdzie gra",
-        "speaker_hint": "Gdzie startuje. „Tam, gdzie gra” prosi na ekranie o głośnik, gdy odtwarzacz nigdzie nie gra."
+        "speaker_hint": "Gdzie startuje. „Tam, gdzie gra” prosi na ekranie o głośnik, gdy odtwarzacz nigdzie nie gra.",
+        "link": "Albo wklej link do Spotify",
+        "link_hint": "Link lub URI z aplikacji Spotify, przez Udostępnij > Kopiuj link: playlista, album, wykonawca, utwór lub podcast.",
+        "link_add": "Dodaj"
       },
       "energy": {
         "hint": "Moc domu w tej chwili, narysowana tak, jak rysuje ją widok Energia w Home Assistant: słońce, sieć, bateria i twoje urządzenia, z ustawień Energii w Home Assistant. Dotknięcie koła otwiera historię tego czujnika.",

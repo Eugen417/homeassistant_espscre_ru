@@ -786,7 +786,10 @@
         "storage": "Il feedback è disattivato: i dati salvati sono stati scritti da un'altra versione di Tessera."
       },
       "media": {
-        "browse": "{name} non ha risposto con la sua libreria."
+        "browse": "{name} non ha risposto con la sua libreria.",
+        "link_invalid": "Questo non è un link di Spotify. Copiane uno nell’app Spotify con Condividi > Copia link.",
+        "link_short": "Un indirizzo spotify.link rimanda soltanto altrove. Aprilo nel browser e copia l’indirizzo lungo a cui porta.",
+        "link_player": "{name} non riproduce link di Spotify."
       },
       "allow_actions": {
         "not_allowed": "Home Assistant non permette a questa app di modificare le sue integrazioni. Fallo in Home Assistant, in Impostazioni → Dispositivi e servizi.",
@@ -1849,7 +1852,10 @@
         "open": "Apri {name}",
         "speaker": "Altoparlante",
         "speaker_now": "Dove suona",
-        "speaker_hint": "Dove inizia. «Dove suona» chiede un altoparlante sullo schermo quando il lettore non suona da nessuna parte."
+        "speaker_hint": "Dove inizia. «Dove suona» chiede un altoparlante sullo schermo quando il lettore non suona da nessuna parte.",
+        "link": "Oppure incolla un link di Spotify",
+        "link_hint": "Un link o un URI dall’app Spotify, con Condividi > Copia link: una playlist, un album, un artista, un brano o un podcast.",
+        "link_add": "Aggiungi"
       },
       "energy": {
         "hint": "La potenza della casa in questo momento, disegnata come la disegna la vista Energia di Home Assistant: solare, rete, batteria e i tuoi dispositivi, dalle impostazioni Energia di Home Assistant. Un tocco su un cerchio apre la cronologia di quel sensore.",

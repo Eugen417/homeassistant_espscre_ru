@@ -786,7 +786,10 @@
         "storage": "Los comentarios están desactivados: sus datos guardados los escribió otra versión de Tessera."
       },
       "media": {
-        "browse": "{name} no respondió con su biblioteca."
+        "browse": "{name} no respondió con su biblioteca.",
+        "link_invalid": "Esto no es un enlace de Spotify. Copia uno en la app de Spotify con Compartir > Copiar enlace.",
+        "link_short": "Una dirección spotify.link solo redirige. Ábrela en el navegador y copia la dirección larga a la que lleva.",
+        "link_player": "{name} no reproduce enlaces de Spotify."
       },
       "allow_actions": {
         "not_allowed": "Home Assistant no deja que esta aplicación cambie sus integraciones. Hazlo en el propio Home Assistant, en Configuración → Dispositivos y servicios.",
@@ -1849,7 +1852,10 @@
         "open": "Abrir {name}",
         "speaker": "Altavoz",
         "speaker_now": "Donde suena",
-        "speaker_hint": "Dónde empieza. «Donde suena» pide un altavoz en la pantalla cuando el reproductor no suena en ninguno."
+        "speaker_hint": "Dónde empieza. «Donde suena» pide un altavoz en la pantalla cuando el reproductor no suena en ninguno.",
+        "link": "O pega un enlace de Spotify",
+        "link_hint": "Un enlace o URI de la app de Spotify, con Compartir > Copiar enlace: una playlist, un álbum, un artista, una canción o un podcast.",
+        "link_add": "Añadir"
       },
       "energy": {
         "hint": "La potencia de la casa en este momento, dibujada como la dibuja la vista de Energía de Home Assistant: solar, red, batería y tus dispositivos, desde los ajustes de Energía de Home Assistant. Un toque en un círculo abre el historial de ese sensor.",

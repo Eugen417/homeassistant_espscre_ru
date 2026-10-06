@@ -1800,6 +1800,40 @@ class Manager:
         self.browsable[entity] = (time.monotonic(), True)
         return folder
 
+    async def spotify_route(self, entity, top=None):
+        """How a favourite of this player plays a Spotify link (app 0.4.84): '' for a Spotify account itself, the account's
+        config entry for a player whose library lists one (a Sonos), None for a player that plays no Spotify link. `top`
+        is the library's top when it was just read."""
+        if self.platform_lookup(entity) in speakers.SOURCE_SPEAKERS:
+            return ''
+        if top is None:
+            try:
+                top = await self.read_folder(entity, None)
+            except (ClientError, ConnectionError, TimeoutError, OSError, ValueError):
+                return None
+        return media_library.spotify_entry(top['items'])
+
+    async def spotify_card(self, kind, spotify_id):
+        """(title, picture) of a Spotify item from Spotify's public oEmbed, without signing in. Not an official API: a
+        favourite works without it, with the word of its kind for a name and the icon of its kind."""
+        url = f'https://open.spotify.com/{kind}/{spotify_id}'
+        try:
+            async with self.ha.session.get(media_library.OEMBED, params={'url': url}, allow_redirects=False,
+                                           timeout=ClientTimeout(total=media_library.OEMBED_SECONDS)) as response:
+                response.raise_for_status()
+                raw = bytearray()
+                async for chunk in response.content.iter_chunked(16384):
+                    raw += chunk
+                    if len(raw) > media_library.OEMBED_BYTES:
+                        raise ValueError('answer too large')
+        except Exception as error:
+            LOG.info('Spotify did not describe %s %s (%s)', kind, spotify_id, type(error).__name__)
+            return None, None
+        title, thumb = media_library.oembed_card(bytes(raw))
+        if thumb and not await HomeAssistant._allow_media_url(thumb):
+            thumb = None
+        return title, thumb
+
     def player_request(self, request):
         """(inbox, screen, entity, action) of a library request from a screen with that player on its layout, or None."""
         if not isinstance(request, dict):
@@ -3912,7 +3946,36 @@ def create_app(manager, development=False):
             items.append({'item': number, 'title': raw['title'], 'play': raw['play'], 'expand': raw['expand'], 'icon': raw['icon'],
                           'picture': f'api/media/picture?entity={entity}&item={number}' if raw['thumb'] else None,
                           'favorite': media_library.favorite_of(raw) if raw['play'] else None})
-        return web.json_response({'title': folder['title'], 'folder': token or 0, 'items': items})
+        answer = {'title': folder['title'], 'folder': token or 0, 'items': items}
+        # A player that plays a Spotify link (app 0.4.84): the editor offers a field for one, knowing no brand itself.
+        if not token and await manager.spotify_route(entity, folder) is not None:
+            answer['spotify_link'] = True
+        return web.json_response(answer)
+
+    async def media_link(request):
+        """A Spotify link or URI as one item of the library (app 0.4.84), in the shape media_browse gives an item: its
+        title and picture from Spotify's oEmbed, its id and type as Home Assistant's media browser sends them for this
+        player."""
+        entity = request.query.get('entity', '')
+        if not entity.startswith('media_player.') or entity not in manager.ha.states:
+            raise web.HTTPNotFound()
+        text = request.query.get('link', '')
+        if media_library.spotify_short(text):
+            return web.json_response({'error': t('addon.errors.media.link_short')}, status=400)
+        found = media_library.spotify_link(text)
+        if not found:
+            return web.json_response({'error': t('addon.errors.media.link_invalid')}, status=400)
+        entry = await manager.spotify_route(entity)
+        if entry is None:
+            name = manager.ha.states.get(entity, {}).get('attributes', {}).get('friendly_name') or entity
+            return web.json_response({'error': t('addon.errors.media.link_player', name=name)}, status=400)
+        kind, spotify_id = found
+        title, thumb = await manager.spotify_card(kind, spotify_id)
+        raw = media_library.spotify_item(kind, spotify_id, entry or None, title or t(f'addon.screen.media.{media_library.SPOTIFY_KINDS[kind]}'), thumb)
+        number = manager.shelves.setdefault('', media_library.Shelf()).token(entity, raw)
+        return web.json_response({'item': number, 'title': raw['title'], 'play': True, 'expand': False, 'icon': raw['icon'],
+                                  'picture': f'api/media/picture?entity={entity}&item={number}' if raw['thumb'] else None,
+                                  'favorite': media_library.favorite_of(raw)})
 
     async def media_picture(request):
         """An item's picture for the editor, prepared: an item of the library it browsed, or what a saved favourite
@@ -4233,6 +4296,7 @@ def create_app(manager, development=False):
     app.router.add_get('/api/camera-preview', camera_preview)
     app.router.add_get('/api/media/browse', media_browse)
     app.router.add_get('/api/media/picture', media_picture)
+    app.router.add_get('/api/media/link', media_link)
     app.router.add_post('/api/firmware-preview', firmware_preview)
     app.router.add_post('/api/firmware-preview/import', import_document)
     app.router.add_post('/api/firmware-preview/action', firmware_preview_action)

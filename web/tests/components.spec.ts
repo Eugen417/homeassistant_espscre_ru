@@ -8,6 +8,7 @@ import AppSettingsView from "../src/components/AppSettingsView.vue";
 import CommandPalette from "../src/components/CommandPalette.vue";
 import Library from "../src/components/Library.vue";
 import ChoiceField from "../src/components/ChoiceField.vue";
+import FavoritePicker from "../src/components/FavoritePicker.vue";
 import DevicePage from "../src/components/DevicePage.vue";
 import InstallerView from "../src/components/InstallerView.vue";
 import Sidebar from "../src/components/Sidebar.vue";
@@ -1480,5 +1481,45 @@ describe("ChoiceField: the choice under the pointer is drawn on its tile first (
     const field = mount(ChoiceField, { props: { choices: long, value: "c" } });
     expect(field.find(".seg").exists()).toBe(false);
     expect(field.find(".choice-field .choice-text").text()).toBe("A value");
+  });
+});
+
+describe("a favourite from a pasted link (app 0.4.84)", () => {
+  const DW = "37i9dQZEVXcEU0pQ6tFj16";
+  const favorite = { id: `spotify:playlist:${DW}`, type: "spotify://playlist", title: "Discover Weekly", class: "playlist" };
+  function serve(linkable: boolean) {
+    const asked: string[] = [];
+    vi.stubGlobal("fetch", vi.fn((path: string) => {
+      asked.push(path);
+      if (path.startsWith("api/media/browse")) return Promise.resolve(new Response(JSON.stringify({ title: "Media Library", folder: 0, items: [], ...(linkable ? { spotify_link: true } : {}) })));
+      if (path.includes("link=nonsense")) return Promise.resolve(new Response(JSON.stringify({ error: "This is not a Spotify link." }), { status: 400 }));
+      return Promise.resolve(new Response(JSON.stringify({ item: 7, title: "Discover Weekly", play: true, expand: false, icon: "F0CB8", picture: "api/media/picture?entity=media_player.spotify&item=7", favorite })));
+    }));
+    return asked;
+  }
+  it("offers the field only where the add-on says the player takes one", async () => {
+    serve(false);
+    const picker = mount(FavoritePicker, { props: { entity: "media_player.tv" } });
+    await flushPromises();
+    expect(picker.find(".picker-link").exists()).toBe(false);
+  });
+  it("reads the link through the add-on and chooses what it answers like an item of the library", async () => {
+    const asked = serve(true);
+    const picker = mount(FavoritePicker, { props: { entity: "media_player.spotify" } });
+    await flushPromises();
+    await picker.find(".picker-link input").setValue("nonsense");
+    await picker.find(".picker-link").trigger("submit");
+    await flushPromises();
+    expect(picker.find(".picker-link .help.warn").text()).toBe("This is not a Spotify link.");
+    const link = `https://open.spotify.com/playlist/${DW}?si=x`;
+    await picker.find(".picker-link input").setValue(link);
+    expect(picker.find(".picker-link .help.warn").exists()).toBe(false);
+    await picker.find(".picker-link").trigger("submit");
+    await flushPromises();
+    expect(asked.at(-1)).toBe(`api/media/link?entity=media_player.spotify&link=${encodeURIComponent(link)}`);
+    expect(picker.find(".linked .name").text()).toBe("Discover Weekly");
+    expect(picker.find(".linked img").attributes("src")).toBe("api/media/picture?entity=media_player.spotify&item=7");
+    await picker.find(".linked .pick").trigger("click");
+    expect(picker.emitted("pick")).toEqual([[favorite]]);
   });
 });

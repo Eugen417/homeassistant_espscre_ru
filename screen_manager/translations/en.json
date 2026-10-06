@@ -786,7 +786,10 @@
         "storage": "Feedback is off: its saved data was written by another version of Tessera."
       },
       "media": {
-        "browse": "{name} did not answer with its library."
+        "browse": "{name} did not answer with its library.",
+        "link_invalid": "This is not a Spotify link. Copy one in the Spotify app with Share > Copy link.",
+        "link_short": "A spotify.link address only points elsewhere. Open it in your browser and copy the long address it goes to.",
+        "link_player": "{name} does not play Spotify links."
       },
       "allow_actions": {
         "not_allowed": "Home Assistant doesn't let this app change its integrations. Do it in Home Assistant itself, under Settings → Devices & services.",
@@ -1849,7 +1852,10 @@
         "open": "Open {name}",
         "speaker": "Speaker",
         "speaker_now": "Where it plays",
-        "speaker_hint": "Where it starts. \"Where it plays\" asks for a speaker on the screen when the player plays nowhere."
+        "speaker_hint": "Where it starts. \"Where it plays\" asks for a speaker on the screen when the player plays nowhere.",
+        "link": "Or paste a Spotify link",
+        "link_hint": "A link or URI from the Spotify app, through Share > Copy link: a playlist, album, artist, song or podcast.",
+        "link_add": "Add"
       },
       "energy": {
         "hint": "The power of the house right now, drawn the way Home Assistant's own Energy view draws it: solar, grid, battery and your devices, from the Energy settings in Home Assistant. A tap on a circle opens that sensor's history.",
