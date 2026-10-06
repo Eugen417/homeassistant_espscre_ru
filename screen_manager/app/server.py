@@ -3147,7 +3147,9 @@ class Manager:
         width, height = box
         # A finger on a marker (firmware 0.21.0+): that one in the middle, closer in, with its card over the bottom.
         focus = request.get('focus') if request.get('focus') in map_card.shown(tile, self.ha.states, self.registry_index()) else ''
-        render = self.map_render(tile, camera_feed.shape_of(screen), camera_feed.live_dark(request), full=True, focus=focus)
+        # Zoomed and moved by the screen's own keys (dev): the same picture drawn around another middle.
+        move = map_card.move_of(request.get('move'))
+        render = self.map_render(tile, camera_feed.shape_of(screen), camera_feed.live_dark(request), full=True, focus=focus, move=move)
         extra = {'compact': camera_feed.compact_pictures(screen), 'atlas': (width, height, ((0, 0, width, height, 0, 0),)),
                  'modes': [('fill', False)], 'renders': [render]}
         url = ''
@@ -3209,7 +3211,7 @@ class Manager:
     # The maps kept drawn: a page's maps in both looks and the page before it.
     MAP_RENDERS_KEPT = 12
 
-    def map_render(self, tile, shape, dark, full=False, focus=None):
+    def map_render(self, tile, shape, dark, full=False, focus=None, move=None):
         """(mark, draw) of one saved map tile for CameraFeed.live: the mark is its movement mark and the look, `draw`
         reads Home Assistant's states and asks for the streets when it runs. A drawn card is kept by mark, frame and
         look, so two screens in different looks each keep their own, and one whose streets did not all come is not."""
@@ -3221,7 +3223,8 @@ class Manager:
         def mark():
             # Without streets to be had it is another picture, so the one with streets replaces it when they come back.
             streets = '' if self.map_source.available() or not map_card.wants_streets(tile) else '-'
-            return f'{map_card.fingerprint(tile, self.ha.states, self.registry_index())}{look}{streets}{"f" if full else ""}{focus or ""}'
+            moved = '@%d,%s,%s' % move if move else ''
+            return f'{map_card.fingerprint(tile, self.ha.states, self.registry_index())}{look}{streets}{"f" if full else ""}{focus or ""}{moved}'
 
         async def draw(width, height):
             key = (mark(), width, height, board.scale, board.label)
@@ -3230,12 +3233,12 @@ class Manager:
                 self.map_hits[key[:3]] = self.map_renders[key].info.get('hits', [])
                 return self.map_renders[key]
             registry = self.registry_index()
-            view = map_card.view_for(tile, self.ha.states, (width, height), board, registry, full, focus)
+            view = map_card.view_for(tile, self.ha.states, (width, height), board, registry, full, focus, move)
             wanted = view.tiles() if map_card.wants_streets(tile) else []
             streets = await self.map_source.tiles(wanted)
             photos = await self.map_photos(map_card.pictures_wanted(tile, self.ha.states, registry))
             image = await asyncio.get_running_loop().run_in_executor(
-                None, lambda: map_card.render_tile(tile, self.ha.states, (width, height), board, dark, streets, registry, photos, full, focus))
+                None, lambda: map_card.render_tile(tile, self.ha.states, (width, height), board, dark, streets, registry, photos, full, focus, move))
             # Where its markers are, for a full view's finger (answer_map_full): kept as long as the picture is.
             self.map_hits[key[:3]] = image.info.get('hits', [])
             while len(self.map_hits) > self.MAP_RENDERS_KEPT:

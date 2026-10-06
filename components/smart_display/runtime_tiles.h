@@ -1,4 +1,5 @@
 #pragma once
+#include <cmath>
 #include <cstring>
 #include "runtime_model.h"
 #ifdef ESP_SCREEN_HOST
@@ -10086,6 +10087,24 @@ inline MapSheet map_sheet;
 inline std::string map_focus;
 inline bool map_pinned = false;  // opened focused on its person: the focus is the view, not a step into it
 inline lv_obj_t *map_card_obj = nullptr;
+// A map's full view moved by its own keys (dev): whole zoom steps from the view the app frames, and its middle moved by
+// x, y pixels of that framed zoom, so a step out and back in lands on the same place. Asked for with the picture
+// (`move`); the picture on the glass shows `map_move_shown` until the next one comes.
+struct MapMove {
+  int zoom = 0;
+  float x = 0, y = 0;
+  bool operator==(const MapMove &o) const { return zoom == o.zoom && x == o.x && y == o.y; }
+  bool none() const { return *this == MapMove{}; }
+  std::string text() const {
+    if (none()) return "";
+    char out[48];
+    snprintf(out, sizeof(out), "%d,%.2f,%.2f", zoom, x, y);
+    return out;
+  }
+};
+constexpr int MAP_ZOOM_OUT = -8, MAP_ZOOM_IN = 5;
+inline MapMove map_move, map_move_shown;
+inline lv_obj_t *map_zoom_keys = nullptr, *map_pad = nullptr;  // + and - at the right, the four arrows at the left
 inline void camera_map_sheet(const MapSheet &next);
 inline void camera_request(const std::string &entity, int size = 0, uint32_t background = 0);
 inline void camera_release();
@@ -10365,8 +10384,9 @@ inline void camera_request(const std::string &entity, int size, uint32_t backgro
   const bool map = size <= 0 && camera_map_index >= 0;
   // The screensaver's picture (firmware 0.29.0+): the full view's request with what it shows, "camera" or "media".
   const bool saver = size <= 0 && saver_camera;
-  const std::string keys[] = {"inbox", "entity", "size", "bg", "session", "rev", "view", "idx", "dark", "focus"}, values[] = {inbox, entity, size_text, background_text, protocol_key(transfer.lease), layout_rev, std::to_string(size > 0 ? ++cover_view_id : ++camera_view_id), std::to_string(camera_map_index), theme::dark ? "1" : "0", map_focus};
-  const int count = map ? 10 : 7;
+  // `move` (dev): the zoom steps and the move of the map's own keys, "" for the view the app frames.
+  const std::string keys[] = {"inbox", "entity", "size", "bg", "session", "rev", "view", "idx", "dark", "focus", "move"}, values[] = {inbox, entity, size_text, background_text, protocol_key(transfer.lease), layout_rev, std::to_string(size > 0 ? ++cover_view_id : ++camera_view_id), std::to_string(camera_map_index), theme::dark ? "1" : "0", map_focus, map_move.text()};
+  const int count = map ? 11 : 7;
   // A board that takes larger pictures than the cap every screen takes says how large (picture_cap, GitHub #183): the
   // full view, a map's and the screensaver's picture come at its own pixels. An older app reads the keys it knows.
   const auto cap = picture_cap();
@@ -10413,10 +10433,12 @@ inline void camera_close() {
   if (!camera_root) return;
   lv_obj_delete(camera_root);
   camera_root = camera_picture = camera_note = camera_back = camera_title = camera_spinner = map_card_obj = nullptr;
+  map_zoom_keys = map_pad = nullptr;
   saver_first = saver_second = nullptr;  // they went with the view
   saver_keys = {};
   map_focus.clear();
   map_pinned = false;
+  map_move = map_move_shown = MapMove{};
   map_sheet = MapSheet{};
   camera_release_due = true;
   // Its picture goes with it (the next collect, once nothing draws it), and a download on its way breaks off.
@@ -10431,11 +10453,12 @@ inline void camera_close() {
 // an icon at the left, the name, the value at the right), and the one picked as the top bar's name, as a deeper card
 // names what it shows. Every word and icon comes ready from the app, from Home Assistant.
 inline std::string camera_name;  // the tile's own name, the top bar's when nobody is picked
+inline void map_keys_place();
 inline void map_sheet_draw() {
   if (map_card_obj) { lv_obj_delete(map_card_obj); map_card_obj = nullptr; }
   const bool picked = camera_root && !map_focus.empty() && map_sheet.focus == map_focus && !map_sheet.title.empty();
   if (camera_title) lv_label_set_text(camera_title, (picked ? map_sheet.title : camera_name).c_str());
-  if (!picked || map_sheet.rows.empty() || !effects_page::row_font) return;
+  if (!picked || map_sheet.rows.empty() || !effects_page::row_font) { map_keys_place(); return; }
   const auto m = effects_page::screen_metrics();
   const int side = (overlay_card::screen_width() - m.width) / 2, w = m.width - 2 * m.pad;
   // As many rows as the lower half of the glass holds, which the app left free under the one picked.
@@ -10462,6 +10485,7 @@ inline void map_sheet_draw() {
     lv_obj_set_width(value, w * 2 / 5 - m.inset);
     lv_obj_set_pos(value, w * 3 / 5, (m.row_h - text_h) / 2);
   }
+  map_keys_place();
 }
 
 inline void camera_map_sheet(const MapSheet &next) {
@@ -10472,13 +10496,120 @@ inline void camera_map_sheet(const MapSheet &next) {
   map_sheet_draw();
 }
 
+// The picture on the glass shows what the keys asked for at once (dev): the one there moved and scaled to the place
+// asked for, around the middle of the glass, until the app's picture of it comes (view_done).
+inline void map_preview() {
+#if LV_USE_IMAGE
+  if (!camera_picture) return;
+  const auto *src = static_cast<const lv_image_dsc_t *>(lv_image_get_src(camera_picture));
+  if (!src) return;
+  const float f = std::ldexp(1.0f, map_move.zoom - map_move_shown.zoom), shown = std::ldexp(1.0f, map_move_shown.zoom);
+  const float dx = (map_move.x - map_move_shown.x) * shown * f, dy = (map_move.y - map_move_shown.y) * shown * f;
+  lv_image_set_pivot(camera_picture, src->header.w / 2, src->header.h / 2);
+  lv_image_set_scale(camera_picture, (uint32_t) std::max(16.0f, std::min(4096.0f, 256.0f * f)));
+  lv_obj_align(camera_picture, LV_ALIGN_CENTER, (int32_t) -dx, (int32_t) -dy);
+#endif
+}
 // Focus a marker (or everyone again with ""): the card goes at once, the new picture and card come with the answer.
+// Another focus is another view: the keys' move starts again from it.
 inline void map_focus_on(const std::string &entity) {
   map_focus = entity;
+  map_move = map_move_shown = MapMove{};
+  map_preview();
   map_sheet.focus.clear();
   map_sheet_draw();
   // Another focus is another picture (camera_want): asked for at once.
   pictures_round();
+}
+
+// A round key of the full view: the back key, and a map's zoom and arrows (dev), in the back key's colours.
+inline lv_obj_t *view_key(lv_obj_t *parent, int size, const char *glyph) {
+  auto *key = lv_obj_create(parent);
+  lv_obj_remove_style_all(key);
+  lv_obj_set_size(key, size, size);
+  lv_obj_add_flag(key, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_remove_flag(key, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_style_radius(key, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_bg_opa(key, LV_OPA_COVER, 0);
+  lv_obj_set_style_bg_color(key, theme::color(theme::KEY), 0);
+  lv_obj_set_style_bg_color(key, theme::color(theme::KEY_PRESSED), LV_STATE_PRESSED);
+  auto *label = lv_label_create(key);
+  if (mini_icon_font) lv_obj_set_style_text_font(label, mini_icon_font, 0);
+  lv_obj_set_style_text_color(label, theme::color(theme::INK), 0);
+  lv_label_set_text(label, glyph);
+  lv_obj_center(label);
+  return key;
+}
+// The sizes of the full view's top bar, which the map's keys share.
+struct ViewBar { int key, x, y, gap; };
+inline ViewBar view_bar() {
+  const bool large = ui::large();
+  return {ui::px(large ? 60 : 40), ui::px(large ? 16 : 10), ui::px(large ? 16 : 8), ui::px(large ? 10 : 6)};
+}
+// A map's own keys on its full view (dev): + and - at the bottom right, as the volume keys stand, and four arrows at
+// the bottom left that move the map a centimetre of glass each. Each tap asks for the picture of the new view at once.
+enum MapKey : int { MK_IN, MK_OUT, MK_UP, MK_DOWN, MK_LEFT, MK_RIGHT };
+inline void map_key_event(lv_event_t *e) {
+  if (!camera_root || camera_map_index < 0) return;
+  const int k = (int) (intptr_t) lv_event_get_user_data(e);
+  if (k == MK_IN || k == MK_OUT) {
+    const int zoom = std::max(MAP_ZOOM_OUT, std::min(MAP_ZOOM_IN, map_move.zoom + (k == MK_IN ? 1 : -1)));
+    if (zoom == map_move.zoom) return;
+    map_move.zoom = zoom;
+  } else {
+    // A centimetre of glass in pixels of the framed zoom.
+    const float step = ui::mm(10) / std::ldexp(1.0f, map_move.zoom);
+    if (k == MK_UP) map_move.y -= step;
+    else if (k == MK_DOWN) map_move.y += step;
+    else if (k == MK_LEFT) map_move.x -= step;
+    else map_move.x += step;
+  }
+  map_preview();
+  pictures_round();
+}
+inline void map_keys_create() {
+  const auto b = view_bar();
+  auto group = [](int w, int h) {
+    auto *box = lv_obj_create(camera_root);
+    lv_obj_remove_style_all(box);
+    lv_obj_set_size(box, w, h);
+    lv_obj_remove_flag(box, static_cast<lv_obj_flag_t>(LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE));  // a finger beside a key is on the map
+    return box;
+  };
+  auto key = [&](lv_obj_t *box, int x, int y, const char *glyph, int k) {
+    auto *obj = view_key(box, b.key, glyph);
+    lv_obj_set_pos(obj, x, y);
+    lv_obj_add_event_cb(obj, map_key_event, LV_EVENT_SHORT_CLICKED, (void *) (intptr_t) k);
+  };
+  map_zoom_keys = group(b.key, 2 * b.key + b.gap);
+  key(map_zoom_keys, 0, 0, tile_controls::glyph::PLUS, MK_IN);
+  key(map_zoom_keys, 0, b.key + b.gap, tile_controls::glyph::MINUS, MK_OUT);
+  // A cross of round keys, the arrows of a remote's ring (render_remote_keypad).
+  const int step = b.key + b.gap / 2;
+  map_pad = group(2 * step + b.key, 2 * step + b.key);
+  key(map_pad, step, 0, "\U000F0143", MK_UP);
+  key(map_pad, 0, step, "\U000F0141", MK_LEFT);
+  key(map_pad, 2 * step, step, "\U000F0142", MK_RIGHT);
+  key(map_pad, step, 2 * step, "\U000F0140", MK_DOWN);
+  map_keys_place();
+}
+// Over the bottom of the map, clear of its attribution; above a picked one's card, or hidden where there is no room.
+inline void map_keys_place() {
+  if (!camera_root || !map_zoom_keys || !map_pad) return;
+  const auto b = view_bar();
+  const int top = b.y + b.key + b.gap;
+  int bottom = overlay_card::screen_height() - b.y - ui::mm(3);
+  if (map_card_obj) { lv_obj_update_layout(map_card_obj); bottom = lv_obj_get_y(map_card_obj) - b.gap; }
+  const int width = overlay_card::screen_width();
+  auto place = [&](lv_obj_t *box, int x) {
+    const int h = lv_obj_get_height(box);
+    if (bottom - h < top) { lv_obj_add_flag(box, LV_OBJ_FLAG_HIDDEN); return; }
+    lv_obj_remove_flag(box, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_pos(box, x, bottom - h);
+    lv_obj_move_foreground(box);
+  };
+  place(map_zoom_keys, width - b.x - lv_obj_get_width(map_zoom_keys));
+  place(map_pad, b.x);
 }
 
 inline void camera_open(const std::string &entity, const std::string &name, int map_index, const std::string &focus) {
@@ -10497,35 +10628,27 @@ inline void camera_open(const std::string &entity, const std::string &name, int 
   lv_obj_set_size(camera_root, lv_pct(100), lv_pct(100));
   lv_obj_remove_flag(camera_root, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_add_flag(camera_root, LV_OBJ_FLAG_CLICKABLE);  // nothing reaches the tiles below
-  lv_obj_set_style_bg_color(camera_root, theme::color(theme::CAMERA_PAGE), 0);
+  // A map stands on the page behind the tiles (dev): light grey in the light look, black in the dark, so the edge a
+  // moved map leaves until its next picture comes is the page and not a black band. A camera stays on black.
+  const bool on_page = map_index >= 0;
+  lv_obj_set_style_bg_color(camera_root, theme::color(on_page ? theme::PAGE : theme::CAMERA_PAGE), 0);
   lv_obj_set_style_bg_opa(camera_root, LV_OPA_COVER, 0);
   camera_note = lv_label_create(camera_root);
   if (detail_font) lv_obj_set_style_text_font(camera_note, detail_font, 0);
-  lv_obj_set_style_text_color(camera_note, theme::color(theme::CAMERA_NOTE), 0);
+  lv_obj_set_style_text_color(camera_note, theme::color(on_page ? theme::MUTED : theme::CAMERA_NOTE), 0);
   lv_obj_center(camera_note);
   camera_note_text("");
-  // The starting screen's spinner, its ring dark on the black page in both looks.
+  // The starting screen's spinner, its ring dark on the black page in both looks, a map's the page's own track.
   camera_spinner = spinner_create(camera_root, ui::px(large ? 48 : 32), ui::px(large ? 5 : 4));
   if (camera_spinner) {
-    lv_obj_set_style_arc_color(camera_spinner, theme::color(theme::CAMERA_TRACK), LV_PART_MAIN);
+    lv_obj_set_style_arc_color(camera_spinner, theme::color(on_page ? theme::TRACK : theme::CAMERA_TRACK), LV_PART_MAIN);
     lv_obj_center(camera_spinner);
   }
   // The same top bar as a tile's card: a round back arrow at the left, the name centred.
-  const int bar = ui::px(large ? 60 : 40), bar_x = ui::px(large ? 16 : 10), bar_y = ui::px(large ? 16 : 8);
-  camera_back = lv_obj_create(camera_root);
-  lv_obj_remove_style_all(camera_back);
+  const auto vb = view_bar();
+  const int bar = vb.key, bar_x = vb.x, bar_y = vb.y;
+  camera_back = view_key(camera_root, bar, "\U000F004D");
   lv_obj_set_pos(camera_back, bar_x, bar_y);
-  lv_obj_set_size(camera_back, bar, bar);
-  lv_obj_add_flag(camera_back, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_set_style_radius(camera_back, LV_RADIUS_CIRCLE, 0);
-  lv_obj_set_style_bg_opa(camera_back, LV_OPA_COVER, 0);
-  lv_obj_set_style_bg_color(camera_back, theme::color(theme::KEY), 0);
-  lv_obj_set_style_bg_color(camera_back, theme::color(theme::KEY_PRESSED), LV_STATE_PRESSED);
-  auto *arrow = lv_label_create(camera_back);
-  if (mini_icon_font) lv_obj_set_style_text_font(arrow, mini_icon_font, 0);
-  lv_obj_set_style_text_color(arrow, theme::color(theme::INK), 0);
-  lv_label_set_text(arrow, "\U000F004D");
-  lv_obj_center(arrow);
   lv_obj_add_event_cb(camera_back, [](lv_event_t *) {
     // A map focused on someone goes back to everyone first (firmware 0.21.0+); then the key closes the view.
     if (!map_focus.empty() && !map_pinned) { map_focus_on(""); return; }
@@ -10536,7 +10659,8 @@ inline void camera_open(const std::string &entity, const std::string &name, int 
   if (map_index >= 0) lv_obj_add_event_cb(camera_root, [](lv_event_t *) {
     lv_point_t point;
     lv_indev_t *input = lv_indev_active();
-    if (!input || !camera_picture) return;
+    // The markers are where the picture on the glass has them only once it shows what the keys asked for.
+    if (!input || !camera_picture || !(map_move == map_move_shown)) return;
     lv_indev_get_point(input, &point);
     lv_area_t area;
     lv_obj_get_coords(camera_picture, &area);
@@ -10574,6 +10698,7 @@ inline void camera_open(const std::string &entity, const std::string &name, int 
     lv_obj_set_style_max_width(camera_title, width - 2 * (bar_x + bar + 8), 0);
     lv_obj_set_size(camera_title, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_align(camera_title, LV_ALIGN_TOP_MID, 0, bar_y);
+    map_keys_create();
   }
   ESP_LOGI("camera", "open %s", entity.c_str());
   // Asked for now rather than on the next tick (firmware 0.2.73+): the answer is most of the wait.
@@ -10681,7 +10806,7 @@ inline void camera_show(lv_obj_t *parent, lv_obj_t *&picture, lv_image_dsc_t *so
 // and colour are part of it, so another track is another picture).
 inline std::string camera_key() {
   std::string key = "camera|" + camera.entity;
-  if (camera_map_index >= 0) key += "|" + map_focus + (theme::dark ? "|dark" : "");
+  if (camera_map_index >= 0) key += "|" + map_focus + (theme::dark ? "|dark" : "") + (map_move.none() ? "" : "|" + map_move.text());
   // The cover's colour only shows beside a cover on long glass (saver_view::shape): on square glass it is no new picture.
   if (saver_camera) {
     key += "|saver|" + saver_now.picture;
@@ -10719,6 +10844,12 @@ inline void view_done(picture_loader::Outcome outcome) {
     lv_obj_move_foreground(camera_title);
     // A map's card (firmware 0.21.0+) may have come before its first picture: it lies over the map as the bar does.
     if (map_card_obj) lv_obj_move_foreground(map_card_obj);
+    map_keys_place();
+  }
+  // A map's picture of the view its keys asked for (dev): it shows that view as it is, unmoved.
+  if (camera_map_index >= 0 && camera_picture) {
+    map_move_shown = map_move;
+    map_preview();
   }
   saver_follow_pending();
 }
