@@ -319,6 +319,8 @@ inline void history_received();
 // Camera images full screen and on an alert (firmware 0.2.57+, the Guition binds them; see the end of this file).
 inline void camera_open(const std::string &entity, const std::string &name, int map_index = -1, const std::string &focus = "");
 inline void live_tick(uint32_t now);
+// Whether the page on the glass still waits for its first strip (defined with the strip, further down).
+inline bool live_pending();
 inline void camera_answer(const std::string &view, const std::string &entity, const std::string &url);
 inline bool camera_supported();
 // The media card's album cover (firmware 0.2.64+): the card or a tile over the whole page says which cover it shows,
@@ -10062,7 +10064,10 @@ inline size_t cover_none_next = 0;
 // The screen is idle and a media card on a kept page lacks its cover: fetch it now, one at a time, so the page shows it
 // the moment it comes back (firmware 0.3.2+). Not while pages are being prepared.
 inline bool cover_prefetch() {
-  if (!pictures_kept() || prepare_busy()) return false;
+  // The page on the glass first (firmware 0.52.0): its strip of covers and cameras before a cover for a page that is
+  // not seen. Before, a cover fetched ahead went first after a few quick page turns, and the page someone turned to
+  // waited a second or more for its own picture.
+  if (!pictures_kept() || prepare_busy() || live_pending()) return false;
   for (auto *set : kept_sets) {
     if (!set) continue;
     for (const auto &w : *set) {
@@ -10111,6 +10116,8 @@ inline void cover_tick(uint32_t now) {
   // A cover on the glass loads while the tiles are seen, a dimmed screen too (firmware 0.40.0+); one fetched ahead for
   // another page waits for a screen in use.
   if (cover_wish.owner == CoverOwner::PREFETCH ? !awake() : !tiles_seen()) return;
+  // One fetched ahead waits while the page on the glass waits for its strip (cover_prefetch).
+  if (cover_wish.owner == CoverOwner::PREFETCH && !cover.loading && live_pending()) return;
   // A cover kept from before is on the card already: nothing to fetch until the track changes.
   if (pictures_kept() && pictures.entry(cover_key(cover_wish))) return;
   if (!cover.open()) cover.open(cover_wish.entity, true);
@@ -10153,6 +10160,7 @@ inline std::string live_have;   // the list the strip on screen holds, "" for a 
 inline ImageHooks camera_live;
 inline bool live_supported() { return static_cast<bool>(camera_live.load); }
 inline bool card_open() { return detail_root && !lv_obj_has_flag(detail_root, LV_OBJ_FLAG_HIDDEN); }
+inline bool live_pending() { return live.open() && !live.animation_ready(); }
 // The n-th item of a comma list, or -1 when it is not in it.
 inline int list_index(const std::string &list, const std::string &item) {
   int n = 0;

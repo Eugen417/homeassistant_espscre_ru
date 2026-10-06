@@ -12,6 +12,9 @@
   sixteen of them there was no place left for a new picture: the media card stood on its empty square, and a camera or a
   library page could not keep its picture either. A cover the card or a tile has moved on from now goes, and when every
   place is taken the picture used longest ago that is not on the glass makes way.
+- **The page you turn to first.** After a few quick page turns, a cover fetched ahead for a page out of sight could go
+  before the picture of the page on the glass, which then waited a second or more for its covers. The page you see
+  now always loads first.
 - **Air around the knobs.** The volume knob at 0 or 100 % no longer touches the volume keys beside it, and the knob of
   the track's bar keeps clear of the times.
 - **The play key's triangle stands in the middle** of its key, where it sat a few pixels to the left.
