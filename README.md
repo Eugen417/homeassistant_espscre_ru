@@ -18,8 +18,11 @@
   <a href="https://tessera-maxgramser.on-forge.com/community/share?type=installation">My screen works</a>
 </p>
 
-<p align="center">
-  <a href="https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FMaxGramser%2Fhomeassistant_espscreen"><img src="https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg" alt="Add the Tessera repository to your Home Assistant"></a>
+
+<h1 align="center">Версия с русским языком.</h1>
+
+<p align="center"> 
+  <a href="https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FEugen417%2Fhomeassistant_espscre_ru"><img src="https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg" alt="Add the Tessera repository to your Home Assistant"></a> 
 </p>
 
 <p align="center"><sub>Tessera is not in the standard App store. This button adds its repository to your Home Assistant. After that, Tessera Screen Manager is in the store like any other app.</sub></p>
