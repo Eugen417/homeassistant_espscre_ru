@@ -1339,6 +1339,23 @@ inline void commit_slider(unsigned i,int raw,bool tilt=false){
 inline lv_point_t slider_press{0,0};inline int slider_press_value=0;inline bool slider_press_beside=false,slider_press_moved=false,slider_press_held=false;
 // The card a strip belongs to, for a press beside the strip that turns out to be the card's tap or hold.
 inline lv_obj_t *strip_card(lv_obj_t *slider){for(auto &w:widgets)if(w.slider==slider)return w.tile;return nullptr;}
+// An off light or fan shows only the track (slider_bar), so a finger dragging it would move nothing it can see: while it
+// drags, the fill and the handle follow it as a ghost in the tile's colour, and letting go paints the card as it is then,
+// solid when the light went on (the wish in commit_slider) or bare again when nothing went out.
+inline lv_obj_t *ghost_slider=nullptr;
+inline void ghost_show(lv_obj_t *slider){
+  if(ghost_slider==slider || lv_obj_get_style_bg_opa(slider,LV_PART_INDICATOR)!=LV_OPA_TRANSP)return;
+  for(auto &w:widgets)if((w.slider==slider || w.control_slider==slider) && w.index<model.count){
+    set_color(slider,LV_STYLE_BG_COLOR,lv_color_hex(theme::state(tile_controls::accent(model.tiles[w.index]))),LV_PART_INDICATOR);
+    set_number(slider,LV_STYLE_BG_OPA,LV_OPA_30,LV_PART_INDICATOR);
+    set_number(slider,LV_STYLE_BG_OPA,LV_OPA_60,LV_PART_KNOB);
+    ghost_slider=slider;return;}
+}
+inline void ghost_end(lv_obj_t *slider){
+  if(ghost_slider!=slider)return;
+  ghost_slider=nullptr;
+  for(auto &w:widgets)if(w.slider==slider || w.control_slider==slider){w.cached_active=-1;refresh_tile(w.index);return;}
+}
 inline void slider_event(lv_event_t *e){
   auto *slider=lv_event_get_target_obj(e);auto code=lv_event_get_code(e);
   if(code==LV_EVENT_PRESSED){captured_slider=slider;slider_changed=false;slider_press_moved=false;slider_press_beside=false;slider_press_held=false;
@@ -1366,8 +1383,11 @@ inline void slider_event(lv_event_t *e){
   // The range reaches below zero only to draw the round end at 0 (slider_handle).
   if(code==LV_EVENT_VALUE_CHANGED && lv_slider_get_value(slider)<0)lv_slider_set_value(slider,0,LV_ANIM_OFF);
   if(code==LV_EVENT_VALUE_CHANGED && captured_slider==slider)slider_changed=true;
-  if(code==LV_EVENT_PRESS_LOST && captured_slider==slider){captured_slider=nullptr;slider_changed=false;}
+  if(code==LV_EVENT_VALUE_CHANGED && captured_slider==slider && (!slider_press_beside || slider_press_moved))ghost_show(slider);
+  if(code==LV_EVENT_PRESS_LOST && captured_slider==slider){captured_slider=nullptr;slider_changed=false;ghost_end(slider);}
   if(code==LV_EVENT_RELEASED && captured_slider==slider){
+    // The ghost ends after everything below, the send included, whichever way the release goes.
+    struct GhostEnd{lv_obj_t *slider;~GhostEnd(){ghost_end(slider);}} ghost{slider};
     unsigned index=(uintptr_t)lv_event_get_user_data(e);bool tilt=false;
     // A slider among a card's own parts (the media tile's volume) belongs to the tile the slot shows now.
     for(auto &w:widgets)if(w.slider==slider || w.control_slider==slider || (w.extra && lv_obj_get_parent(slider)==w.extra)){index=w.index;tilt=w.extra_mode=="cover_tilt"&&w.parts[3]==slider;break;}

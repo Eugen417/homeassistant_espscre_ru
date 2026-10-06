@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **A slider you can see on a lamp that is off.** An off light or fan shows only the grey track on its tile, so a
+  finger dragging it moved nothing you could see until you let go. Now a faint fill and handle in the tile's colour
+  follow the finger, and letting go turns the lamp on at that level as before.
 - **A picture on a tile in the editor keeps its rounded bottom corners.** The shade under a camera or favourite name
   had an invalid corner rule, and some browsers let a picture overflow the tile's corners.
 - **A new track without a flash on the media card** ([#177](https://github.com/MaxGramser/homeassistant_espscreen/issues/177)).
