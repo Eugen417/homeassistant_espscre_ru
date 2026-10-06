@@ -63,9 +63,12 @@ what plays, with the title, the artist and the album, a progress bar and the key
   or on a media tile over the whole page (firmware 0.46.0): the title, the bar and the keys stand together in the
   middle and take the room, with shuffle and repeat where they fit. Before, an empty square with the player's icon
   stood where a cover never came.
-- One picture loads at a time. An alert closes an open card and its cover. Under a media tile of
-  size *Full page* the alert's picture goes first: the tile's cover waits until the alert's picture
-  is there, and a cover already on its way finishes before the alert's picture starts.
+- One picture loads at a time, the most urgent first (see "One route for every picture" below). An alert closes an
+  open card and its cover. Under a media tile of size *Full page* the alert's picture goes first: a cover already on
+  its way finishes, and the tile's cover follows the alert's picture.
+- A new track keeps the card's cover and colour until the next cover is here, then changes both at once. A media tile
+  over a whole page on a kept page has its next cover fetched ahead while the screen is in use, after everything on
+  the glass.
 
 ## A live picture on a camera tile
 
@@ -91,9 +94,9 @@ cut square with the tile's rounded corners, delivered as described below.
   ESPHome's `http_request` logs a 304 as a failed request and raises its error flag, which a page of
   slow cameras would do every 15 s. Nobody loading means nothing fetched, as with the camera full
   screen.
-- **After the other pictures.** The strip waits for the alert's picture, a cover on its way and the
-  camera full screen (one picture loads at a time), and does not load under an open card, under a finger or
-  while the pages are turning. In standby it keeps loading while the tiles are seen (firmware 0.40.0+,
+- **After the other pictures.** The strip comes after the alert's picture, the camera full screen and an open card's
+  cover (one picture loads at a time, the most urgent first), and before a cover fetched ahead for a page out of
+  sight, which breaks off for it. It does not load under an open card, under a finger or while the pages are turning. In standby it keeps loading while the tiles are seen (firmware 0.40.0+,
   `runtime_tiles::tiles_seen`): no screensaver over them, the clock included, and the glass at 5 % or more. A
   screensaver or a darker glass stops it until the screen wakes. Dark mode (other colours behind the corners) or a
   changed tile asks for a new picture. On a board with PSRAM (firmware 0.3.2+, `picture_store.h`) a kept
@@ -235,14 +238,40 @@ Guition it comes in about 1.8 s (2.8 s with 4 KB).
   wait on its Wi-Fi less often while an image comes in: a loop held over 50 ms in one of eleven
   opens, against five of twelve with power save.
 
+## One route for every picture
+
+Every picture on a screen goes the same way (firmware 0.52.0, `components/smart_display/picture_loader.h`): the
+camera full screen and the screensaver, an alert's picture, the media card's cover, a player's library, the page's
+strip, and the cover of a media tile over a whole page (on the glass, and fetched ahead for a kept page). Each of them
+only says, every quarter second, what it wants to see: a key that names the picture, the download slot it comes
+through, how much it matters, and how the app is asked for it. One loader decides for all of them:
+
+- **The store says what is there.** Whether a picture is had is read from the store every round, never from a flag an
+  owner keeps, so a picture that left the store (to make room) is asked for again at once.
+- **One download at a time, the most urgent first:** an alert, the full view and the screensaver, the media card, the
+  library, the page on the glass, and last a cover fetched ahead for a page out of sight. Something on the glass breaks
+  off a download for a page out of sight; a download nobody wants any more breaks off too. Pages turned fast, a card
+  opened and closed before its picture came: nothing is left behind, and the page that stays loads first.
+- **Asking is free, loading waits.** Asking the app is an event and goes at once; a download waits for the finger to
+  leave the glass and the pages to stand still. A cover fetched ahead asks only once nothing on the glass waits.
+- **One rule for cleaning up.** A picture its owner moved on from (another track, another focus on a map, a page whose
+  covers changed) goes once nothing draws it, and so does the cover of a track its player no longer plays. What an
+  owner still holds stays, so a page that comes back has its pictures at once; when the store is full, by bytes or by
+  places, the picture used longest ago that nothing draws makes way (`picture_store.h`). The screen's log says what
+  the store holds whenever that changes (`store: 5 pictures, 578 of 1196 KB (cover cover live cover live), 0 to go`).
+
 ## For developers
 
 - `screen_manager/app/camera_feed.py`: fetching, sizing, links and the port; `encode_live` and `CameraFeed.live`
   make the strip for a page's live tiles (`Manager.answer_live` in `server.py` checks the tiles against the layout).
 - `components/smart_display/camera_view.h`: when to ask for a link and when to load again
   (`tests/test_camera_view.cpp`).
-- `components/smart_display/runtime_tiles.h`: the full-screen view, the alert picture, the live tiles
-  (`live_tick`, `live_place`) and the `camera` message.
+- `components/smart_display/picture_loader.h`: the one route every picture goes (`tests/test_picture_loader.cpp`
+  drives it through fast page turns, cards closed before their picture, priorities, pictures that left the store,
+  refreshes, answers without a picture and failures).
+- `components/smart_display/runtime_tiles.h`: what each picture wants (`pictures_round` and the `*_want` functions
+  beside it), the full-screen view, the alert picture, the live tiles (`page_want`, `live_place`), the store
+  (`picture_of`, `pictures_collect`) and the `camera` message.
 - `components/smart_display/picture_fetch.h` and `picture_fetch.cpp`: the download beside the main loop, one task per
   picture, and the BMP decoder (`tests/test_picture_fetch.cpp` checks the link, the answer's head and the decoder).
 - `packages/features/camera.yaml` (included by every board with camera pictures): the three pictures bound to their

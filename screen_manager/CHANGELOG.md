@@ -14,9 +14,14 @@
   sixteen of them there was no place left for a new picture: the media card stood on its empty square, and a camera or a
   library page could not keep its picture either. A cover the card or a tile has moved on from now goes, and when every
   place is taken the picture used longest ago that is not on the glass makes way.
-- **The page you turn to first.** After a few quick page turns, a cover fetched ahead for a page out of sight could go
-  before the picture of the page on the glass, which then waited a second or more for its covers. The page you see
-  now always loads first.
+- **One way for every picture.** The camera full screen, the screensaver, an alert's picture, the media card's cover,
+  a player's library, the page's covers and cameras, and the covers fetched ahead for other pages now all go one way:
+  each says what it wants to see, and one part of the screen decides what loads, in what order, and when to stop.
+  What is on the glass loads first, an alert before everything; a picture nobody wants any more stops loading at
+  once, so turning pages fast or closing a card before its picture came leaves nothing behind. Whether a picture is
+  there is read from the screen's picture memory every time, so a picture that had to make room is fetched again
+  right away instead of waited for. Pictures nobody will show again (the cover of a track that ended, the last frame
+  of a closed camera) go once they are off the glass.
 - **Air around the knobs.** The volume knob at 0 or 100 % no longer touches the volume keys beside it, and the knob of
   the track's bar keeps clear of the times.
 - **The play key's triangle stands in the middle** of its key, where it sat a few pixels to the left.

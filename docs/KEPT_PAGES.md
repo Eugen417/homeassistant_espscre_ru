@@ -70,8 +70,9 @@ is a fifth of the PSRAM, at most 1.5 MB. Two more rules:
 
 - **No download starts between two quick page turns** (`camera_view::SETTLE_MS`, 800 ms after the last turn), so a
   picture never lands in the middle of someone paging through.
-- **Covers are fetched ahead** while the screen is idle, one at a time, for the media cards on kept pages
-  (`cover_prefetch`), and put on those cards straight away.
+- **Covers are fetched ahead** while the screen is in use, for the media cards on kept pages, after everything on the
+  glass and broken off for it (`tile_cover_wants`, docs/CAMERA.md "One route for every picture"), and put on those cards
+  straight away.
 
 ## Never walk the PSRAM heap while the glass is lit
 

@@ -156,8 +156,9 @@ class Rules(unittest.TestCase):
         # The profile binds the three pictures (firmware 0.49.0+: downloaded beside the main loop, picture_fetch) and hands
         # finished ones to their cards on the main loop; the CYD has none, so it never opens a camera.
         for needle in ('picture_fetch::bind(picture_fetch::full(),', 'picture_fetch::bind(picture_fetch::thumb(),',
-                       'picture_fetch::bind(picture_fetch::live(),', 'runtime_tiles::camera_loaded(false, cached);',
-                       'runtime_tiles::camera_loaded(true, cached);', 'runtime_tiles::live_loaded(cached);', 'runtime_tiles::live_failed();',
+                       'picture_fetch::bind(picture_fetch::live(),', 'runtime_tiles::picture_done(picture_loader::Slot::FULL, ok, cached);',
+                       'runtime_tiles::picture_done(picture_loader::Slot::THUMB, ok, cached);',
+                       'runtime_tiles::picture_done(picture_loader::Slot::LIVE, ok, cached);',
                        'runtime_tiles::camera_full.load = ', 'runtime_tiles::camera_thumb.load = ', 'runtime_tiles::camera_live.load = ',
                        "- lambda: 'picture_fetch::tick();'", 'runtime_tiles::camera_tick();', 'runtime_tiles::alert_prepare();',
                        'runtime_tiles::alert_clear();', 'runtime_tiles::camera_close();', 'id: alert_image_frame'):
@@ -180,13 +181,18 @@ class Rules(unittest.TestCase):
         # the spinner turns until the first picture or a note is there.
         opened = TILES.split('inline void camera_open(const std::string &entity, const std::string &name, int map_index, const std::string &focus) {', 1)[1].split('\n}\n', 1)[0]
         self.assertIn('camera_spinner = spinner_create(camera_root,', opened)
+        # Opened, it says what it wants at once (one round of the picture route, firmware 0.52.0): the loader asks then.
+        self.assertTrue(opened.rstrip().endswith('pictures_round();'))
         # pictures_awake: awake, or the screensaver's picture in standby (firmware 0.29.0+).
-        self.assertIn('if (pictures_awake() && fresh() && camera.should_ask(now)) {', opened)
+        want = TILES.split('inline void camera_want() {', 1)[1].split('\n}\n', 1)[0]
+        self.assertIn('if (!camera_root || !camera.open() || !pictures_awake()) return;', want)
+        # The answer starts the download in the same round, not on the next tick.
         answer = TILES.split('inline void camera_answer(const std::string &view, const std::string &entity, const std::string &url) {', 1)[1].split('\n}\n', 1)[0]
-        self.assertIn('if (pictures_awake() && camera.should_load(now)) camera_load(now);', answer)
-        # Never under a finger, from the answer or from the tick.
-        load = TILES.split('inline void camera_load(uint32_t now) {', 1)[1].split('\n}\n', 1)[0]
-        self.assertIn('lv_indev_get_state(input) == LV_INDEV_STATE_PRESSED) return;', load)
+        self.assertTrue(answer.rstrip().endswith('pictures_round();'))
+        # Never under a finger, and not while the pages turn: the round tells the loader whether it may load.
+        round_ = TILES.split('inline void pictures_round() {', 1)[1].split('\n}\n', 1)[0]
+        self.assertIn('const bool pressed = input && lv_indev_get_state(input) == LV_INDEV_STATE_PRESSED;', round_)
+        self.assertIn('loader.end(now, !pressed && camera_view::settled(now, last_turn_ms));', round_)
         note = TILES.split('inline void camera_note_text(const char *text) {', 1)[1].split('\n}\n', 1)[0]
         self.assertIn('lv_obj_delete(camera_spinner);', note)
         self.assertNotIn('Loading image', TILES)
@@ -195,20 +201,24 @@ class Rules(unittest.TestCase):
         # Firmware 0.13.0: a download that broke off halfway made online_image free the buffer the view still drew, and
         # every part of the glass drawn again after that (a tile below going unavailable) came out black. The view draws
         # the store's copy, which the store keeps while it is on the glass and lets go of once the view closes.
-        loaded = TILES.split('inline void camera_loaded(bool thumb, bool cached) {', 1)[1].split('\n}\n', 1)[0]
-        full = loaded.split('if (!camera.loading) return;', 1)[1]
-        self.assertIn('if (!cached && pictures_kept() && src && src->data) {', full)
-        self.assertIn('if (auto *kept = pictures.put(camera_key(camera.entity), *src, esphome::millis())) src = kept;', full)
+        # Every download goes into the store under its picture's key (picture_done, firmware 0.52.0); a 304 keeps the copy.
+        done = TILES.split('inline void picture_done(picture_loader::Slot slot, bool ok, bool cached) {', 1)[1].split('\n}\n', 1)[0]
+        self.assertIn('if (cached && pictures.entry(key)) { pictures.touch(key, now); kept = true; }', done)
+        self.assertIn('pictures.put(key, *src, now,', done)
         # A picture the store has no room for is drawn from the download, and says so in the log.
-        self.assertIn('ESP_LOGW("camera", "no room to keep the picture of %s"', full)
-        self.assertIn('camera_show(camera_root, camera_picture, src, !cached);', full)
+        self.assertIn('ESP_LOGW("picture", "no room to keep %s", key.c_str());', done)
+        self.assertIn('if (!kept) { slot_key[s] = key; slot_at[s] = now; }', done)
+        view = TILES.split('inline void view_done(picture_loader::Outcome outcome) {', 1)[1].split('\n}\n', 1)[0]
+        self.assertIn('lv_image_dsc_t *src = picture_of(camera_key());', view)
+        self.assertIn('camera_show(camera_root, camera_picture, src, outcome == picture_loader::Outcome::LOADED);', view)
         self.assertNotIn('camera_show(camera_root, camera_picture, camera_full.source()', TILES)
         shown = TILES.split('inline bool picture_shown(const lv_image_dsc_t *image) {', 1)[1].split('\n}\n', 1)[0]
         self.assertIn('on(camera_picture);', shown)
+        self.assertIn('on(alert_picture);', shown)
         closed = TILES.split('inline void camera_close() {', 1)[1].split('\n}\n', 1)[0]
-        self.assertIn('pictures.retire(camera_key(camera.entity));', closed)
-        # Retired before the camera is forgotten, or the key would name no camera.
-        self.assertLess(closed.index('pictures.retire('), closed.index('camera = camera_view::Feed{};'))
+        self.assertIn('loader.release(owners::VIEW);', closed)
+        # Let go before the camera is forgotten, or the key would name no camera.
+        self.assertLess(closed.index('loader.release('), closed.index('camera = ViewPicture{};'))
 
 
 @unittest.skipUnless(HAS_AIOHTTP, 'Run using .venv-portal/bin/python for server tests')
@@ -850,14 +860,17 @@ class LiveTiles(unittest.TestCase):
         """GitHub #161 (firmware 0.40.0): a dimmed screen without a screensaver still shows its tiles, so their pictures
         keep loading there. The rule itself is camera_view::tiles_seen (tests/test_camera_view.cpp); the firmware asks
         it everywhere a picture on the tiles loads, and the backlight goes by the same standby level."""
-        live_tick = TILES.split('inline void live_tick(uint32_t now) {', 1)[1].split('\n}', 1)[0]
-        self.assertIn('if (!live.open() || camera_root || card_open() || !tiles_seen()) return;', live_tick)
+        page = TILES.split('inline void page_want() {', 1)[1].split('\n}\n', 1)[0]
+        self.assertIn('if (live_wish.entities.empty() || camera_root || card_open() || !tiles_seen()) return;', page)
         waiting = TILES.split('inline bool live_waiting(const Tile &t) {', 1)[1].split('\n}', 1)[0]
         self.assertIn('!tiles_seen()', waiting)
         # A cover on the glass follows the tiles; one fetched ahead for a page that is not shown waits for a screen in use.
-        cover_tick = TILES.split('inline void cover_tick(uint32_t now) {', 1)[1].split('\n}', 1)[0]
-        self.assertIn('if (cover_wish.owner == CoverOwner::PREFETCH ? !awake() : !tiles_seen()) return;', cover_tick)
-        self.assertNotIn('if (!awake()) return;', live_tick + cover_tick)
+        tiles = TILES.split('inline void tile_cover_wants() {', 1)[1].split('\n}\n', 1)[0]
+        self.assertIn('const bool seen = tiles_seen() && !card_open() && !camera_root;', tiles)
+        self.assertIn('const bool ahead = awake() && pictures_kept() && !prepare_busy();', tiles)
+        card = TILES.split('inline void card_cover_want() {', 1)[1].split('\n}\n', 1)[0]
+        self.assertIn('!tiles_seen()', card)
+        self.assertNotIn('if (!awake()) return;', page + tiles + card)
         # Any screensaver covers the tiles, the clock (saver_root) as much as a camera or a cover (saver_camera).
         self.assertIn('camera_view::tiles_seen(awake(), saver_root || saver_camera, standby_level())', TILES)
         core = (ROOT / 'packages/core.yaml').read_text()

@@ -128,6 +128,10 @@ template <class Image> struct Store {
       drop(*oldest);
     }
   }
+  // The picture for `key` is the same as before (the app answered 304): kept as it is, as fresh as a new one.
+  void touch(const std::string &key, uint32_t now) {
+    if (Entry *e = entry(key)) { e->stored_at = now; e->used = ++uses; }
+  }
   // The picture for `key` is no longer wanted (the camera full screen closed): it goes at the next collect once nothing
   // draws it, before any picture that is still wanted.
   void retire(const std::string &key) {
