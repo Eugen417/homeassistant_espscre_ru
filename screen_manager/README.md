@@ -15,8 +15,8 @@ to a CYD, Guition or Waveshare screen without reflashing. Includes installation 
 per-device YAML, and support for multiple screens.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/docs/images/photo-guition-page-2.jpg" width="47%" alt="A Guition 4-inch screen with tiles from Home Assistant">
-  <img src="https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/docs/images/editor.png" width="51%" alt="Tessera in Home Assistant: the screens, the top bar and the tiles of the selected screen">
+  <img src="https://raw.githubusercontent.com/Eugen417/homeassistant_espscre_ru/main/docs/images/photo-guition-page-2.jpg" width="47%" alt="A Guition 4-inch screen with tiles from Home Assistant">
+  <img src="https://raw.githubusercontent.com/Eugen417/homeassistant_espscre_ru/main/docs/images/editor.png" width="51%" alt="Tessera in Home Assistant: the screens, the top bar and the tiles of the selected screen">
 </p>
 
 Open **Tessera** in the sidebar after installation. See **Documentation** for the first install.
@@ -25,4 +25,4 @@ The app uses Home Assistant Ingress and needs no login or token of its own.
 - [Website](https://tessera-maxgramser.on-forge.com): what Tessera is, screenshots, and which screens work.
 - [Quick start](https://tessera-maxgramser.on-forge.com/docs/quick-start) and [Supported screens](https://tessera-maxgramser.on-forge.com/screens).
 - [Community](https://tessera-maxgramser.on-forge.com/community): tell others which screen you have and what works.
-- [Source on GitHub](https://github.com/MaxGramser/homeassistant_espscreen): open source (AGPL-3.0), no subscription.
+- [Source on GitHub](https://github.com/Eugen417/homeassistant_espscre_ru): open source (AGPL-3.0), no subscription.

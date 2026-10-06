@@ -263,7 +263,7 @@ class OnTheManager(unittest.TestCase):
         # still takes the layout its editor drew on three columns.
         ha = fake_ha(shape='unavailable', board='unavailable')
         (Path(self.tmp) / 'hall.yaml').write_text('esphome:\n  name: hall\n  friendly_name: Hall screen\n'
-                                                 'packages:\n  display:\n    url: https://github.com/MaxGramser/homeassistant_espscreen\n'
+                                                 'packages:\n  display:\n    url: https://github.com/Eugen417/homeassistant_espscre_ru\n'
                                                  '    files: [packages/waveshare43.yaml]\n    ref: main\n'
                                                  'api:\n  encryption:\n    key: "Y2hlY2stYnVpbGQtcGxhY2Vob2xkZXIta2V5LTMyYnk="\n')
         import os
@@ -291,7 +291,7 @@ class OnTheManager(unittest.TestCase):
         ha = fake_ha(shape='unavailable', board='unavailable')
         (Path(self.tmp) / 'hall.yaml').write_text('substitutions:\n  LVGL_ROTATION: "90"\n'
                                                   'esphome:\n  name: hall\n  friendly_name: Hall screen\n'
-                                                  'packages:\n  display:\n    url: https://github.com/MaxGramser/homeassistant_espscreen\n'
+                                                  'packages:\n  display:\n    url: https://github.com/Eugen417/homeassistant_espscre_ru\n'
                                                   '    files: [packages/waveshare43.yaml]\n    ref: main\n'
                                                   'api:\n  encryption:\n    key: "Y2hlY2stYnVpbGQtcGxhY2Vob2xkZXIta2V5LTMyYnk="\n')
         import os

@@ -1,6 +1,6 @@
 # Waveshare ESP32-S3-Touch-LCD-7B, experimental
 
-Added in app 0.4.14, on the shared firmware 0.9.0, for [issue #25](https://github.com/MaxGramser/homeassistant_espscreen/issues/25).
+Added in app 0.4.14, on the shared firmware 0.9.0, for [issue #25](https://github.com/Eugen417/homeassistant_espscre_ru/issues/25).
 This is the **ESP32-S3-Touch-LCD-7B**: a 7-inch 1024 x 600 IPS panel over RGB, GT911 capacitive touch, 8 MB octal
 PSRAM and 16 MB flash. It is not the 800 x 480 ESP32-S3-Touch-LCD-7 without the "B" ([its own page](WAVESHARE7.md)),
 which has another expander chip. Physical acceptance has not been performed.

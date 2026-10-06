@@ -13,7 +13,7 @@ const ISSUES: FeedbackIssue[] = ["display", "touch", "connection", "installation
 // the bug report on GitHub (app 0.4.13), filled in with what this page knows (app 0.4.78). GitHub fills an issue form's
 // text fields from the link, not its dropdowns. Nothing is sent there; the owner opens and posts it themselves, under
 // their own name, so they can be asked about it. Issues are written in English, whatever the editor speaks.
-const REPORT = "https://github.com/MaxGramser/homeassistant_espscreen/issues/new";
+const REPORT = "https://github.com/Eugen417/homeassistant_espscre_ru/issues/new";
 const ISSUE_WORDS: Record<FeedbackIssue, string> = { display: "Screen", touch: "Touch", connection: "Connection", installation: "Installation", other: "Other" };
 
 const fb = computed(() => props.screen.feedback!);

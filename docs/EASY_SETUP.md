@@ -49,7 +49,7 @@ Then continue with step 3. Or add it by hand:
 1. Open **Settings → Apps → Install app** (on older HA versions:
    **Settings → Add-ons → Add-on Store**).
 2. Open the menu in the top right → **Repositories** and add:
-   `https://github.com/MaxGramser/homeassistant_espscreen`.
+   `https://github.com/Eugen417/homeassistant_espscre_ru`.
 3. Install and start **Tessera Screen Manager**. Turn on **Start on boot**
    and **Show in sidebar**. Open **Tessera** in the sidebar.
 

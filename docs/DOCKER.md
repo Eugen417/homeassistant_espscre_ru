@@ -6,7 +6,7 @@ the ESPHome CLI included. On Home Assistant OS, follow the
 [normal installation](../README.md#installing-from-home-assistant) instead.
 
 This route is new. If something doesn't work on your setup, please
-[open an issue](https://github.com/MaxGramser/homeassistant_espscreen/issues).
+[open an issue](https://github.com/Eugen417/homeassistant_espscre_ru/issues).
 
 ## What you need
 
@@ -15,7 +15,7 @@ This route is new. If something doesn't work on your setup, please
   is usual with Docker Desktop on Windows or macOS, works too: see
   [Home Assistant on a bridge network](#home-assistant-on-a-bridge-network).
 - Docker with Compose on the same host. Compose pulls a ready image from the GitHub Container Registry
-  (`ghcr.io/maxgramser/homeassistant_espscreen`, for amd64 and arm64), so no `git` is needed, which also makes
+  (`ghcr.io/Eugen417/homeassistant_espscre_ru`, for amd64 and arm64), so no `git` is needed, which also makes
   it work in Synology Container Manager.
 - The ESPHome integration in Home Assistant, which Tessera adds every screen to by itself. ESPHome Device Builder
   is optional: the ESPHome CLI is already in this image.

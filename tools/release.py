@@ -48,7 +48,7 @@ CORE_PY = 'screen_manager/app/core.py'
 WORK = 'dev'
 RELEASES = 'main'
 CANDIDATE = 'release-candidate'
-REPOSITORY = 'MaxGramser/homeassistant_espscreen'
+REPOSITORY = 'Eugen417/homeassistant_espscre_ru'
 # The CI jobs a release waits for (.github/workflows/ci.yml).
 CI_JOBS = ('checks', 'firmware (add-on)', 'firmware (min_version)')
 

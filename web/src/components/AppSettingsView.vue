@@ -43,7 +43,7 @@ async function install() {
 // ---- Language & region (app 0.2.90): one place for every screen ----
 // The screen language ("auto" is Home Assistant's), the time format and the number format. An add-on without them
 // shows no card.
-const GUIDE = "https://github.com/MaxGramser/homeassistant_espscreen/blob/main/docs/TRANSLATING.md";
+const GUIDE = "https://github.com/Eugen417/homeassistant_espscre_ru/blob/main/docs/TRANSLATING.md";
 const STYLES: NumberStyle[] = ["point", "comma", "space"];
 const lang = computed(() => state.inventory.language);
 // Home Assistant's language as the list has it: the same one, else its base language.

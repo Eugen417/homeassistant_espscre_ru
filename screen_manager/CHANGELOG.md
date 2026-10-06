@@ -20,7 +20,7 @@
 
 ## 0.4.82 (firmware 0.51.0)
 
-- **No more "999 %" right after a screen starts** ([#169](https://github.com/MaxGramser/homeassistant_espscreen/issues/169)).
+- **No more "999 %" right after a screen starts** ([#169](https://github.com/Eugen417/homeassistant_espscre_ru/issues/169)).
   A screen measures how much memory it has for tiles, and it used to take its first measurement the moment Tessera said
   hello, before its tiles were there. That minute is the busiest one: Home Assistant sends every state at once and the
   cards are built, so the screen has some 25 KB less than a minute later. The screen reports the lowest of its last five
@@ -177,7 +177,7 @@
 
 ## 0.4.75 (firmware 0.45.0)
 
-- **A Big number card's number stays inside its card in the editor** ([#167](https://github.com/MaxGramser/homeassistant_espscreen/issues/167)).
+- **A Big number card's number stays inside its card in the editor** ([#167](https://github.com/Eugen417/homeassistant_espscre_ru/issues/167)).
   The editor drew a page in sizes of its own: a frame of 10 pixels, gaps of 8 and a page bar of 24, on every board.
   On a 4-inch Guition with three rows and more than one page that left a card 65 pixels high where the screen's card,
   at the editor's scale, is 73, and a Big number card stacked its icon, its name and its number in sizes of its own
@@ -285,7 +285,7 @@
 ## 0.4.70 (firmware 0.43.0)
 
 - **The weather card's full view keeps its own text sizes**
-  ([#52](https://github.com/MaxGramser/homeassistant_espscreen/issues/52)). The card borrowed its small text from the
+  ([#52](https://github.com/Eugen417/homeassistant_espscre_ru/issues/52)). The card borrowed its small text from the
   first tile on the page, in whatever size that tile showed at the moment. With a large value there (a sensor shown as
   Large value), the hours, the conditions, the rain and the low temperatures came out twice as large as the rest of
   the card, the rain amounts ended in dots, and the lows stood larger than the highs. Where a large number had grown
@@ -303,7 +303,7 @@
 
 ## 0.4.69 (firmware 0.42.0)
 
-- **Humidifiers and dehumidifiers as tiles** ([#128](https://github.com/MaxGramser/homeassistant_espscreen/issues/128)).
+- **Humidifiers and dehumidifiers as tiles** ([#128](https://github.com/Eugen417/homeassistant_espscre_ru/issues/128)).
   A `humidifier` entity is now in the library, a dehumidifier on a smart plug with Home Assistant's Generic hygrostat
   too. It works like a thermostat in percent, with Home Assistant's own words, icons and colour:
   - The tile says what it is doing and the humidity it measures ("Drying · 68%", "Humidifying · 38%", "Off · 52%"). When
@@ -346,7 +346,7 @@
 ## 0.4.67 (firmware 0.40.0)
 
 - **A live camera tile keeps refreshing on a dimmed screen**
-  ([#161](https://github.com/MaxGramser/homeassistant_espscreen/issues/161)). When Auto standby dimmed a screen and the
+  ([#161](https://github.com/Eugen417/homeassistant_espscre_ru/issues/161)). When Auto standby dimmed a screen and the
   screensaver had nothing to show (say only a music player is chosen and nothing plays), the dimmed tiles stayed on the
   glass, but their camera pictures stopped loading: the picture stood still and the camera looked broken. Now the
   pictures on the tiles keep loading as long as the tiles are seen: in standby without a screensaver over them, at a
@@ -361,7 +361,7 @@
 
 ## 0.4.66 (firmware 0.39.1 for tab5)
 
-- **Wi-Fi on the M5Stack Tab5 after a cold start** ([#150](https://github.com/MaxGramser/homeassistant_espscreen/pull/150)).
+- **Wi-Fi on the M5Stack Tab5 after a cold start** ([#150](https://github.com/Eugen417/homeassistant_espscre_ru/pull/150)).
   The Tab5's Wi-Fi is an ESP32-C6 beside the ESP32-P4, and it gets its power from an output of the board's second I/O
   expander (0x44). The firmware never switched that output on, so the C6 only had power when an earlier firmware had
   left it on, and after the battery was off the screen stopped at "esp_wifi_init failed: ESP_FAIL". The firmware now
@@ -374,7 +374,7 @@
 ## 0.4.65 (firmware 0.39.0)
 
 - **A build on a machine with little memory finishes instead of being killed**
-  ([#162](https://github.com/MaxGramser/homeassistant_espscreen/issues/162)). Compiling a screen's firmware takes well
+  ([#162](https://github.com/Eugen417/homeassistant_espscre_ru/issues/162)). Compiling a screen's firmware takes well
   over a gigabyte for its largest file, and on a Raspberry Pi or a small virtual machine with Home Assistant beside it
   that is more than is free: Linux stopped a compiler ("Killed signal terminated program cc1plus") and the build failed
   with nothing wrong in the code. Now the app reads how much memory is free before a build and runs only as many
@@ -392,14 +392,14 @@
 
 ## 0.4.64 (firmware 0.39.0)
 
-- **New board: the M5Stack Tab5** ([#79](https://github.com/MaxGramser/homeassistant_espscreen/issues/79), PR
-  [#150](https://github.com/MaxGramser/homeassistant_espscreen/pull/150)), the 5-inch 1280 x 720 tablet with an ESP32-P4,
+- **New board: the M5Stack Tab5** ([#79](https://github.com/Eugen417/homeassistant_espscre_ru/issues/79), PR
+  [#150](https://github.com/Eugen417/homeassistant_espscre_ru/pull/150)), the 5-inch 1280 x 720 tablet with an ESP32-P4,
   in its ST7121 variant (the factory log says "Detected ST7121 touch controller"). Three rows of three tiles, or four
   rows when you choose that in New screen, camera tiles and pictures, the Wi-Fi hotspot with its QR code, and the
   battery's voltage and level as sensors in Home Assistant. Other Tab5 variants are not covered yet: check the factory
   log first ([docs/TAB5.md](docs/TAB5.md)). It needs ESPHome 2026.7 or newer, which the app has. Thanks to
   @Heronimonimo, who built and tested it on his own Tab5.
-- **The Waveshare 4B dims over the whole range** ([#158](https://github.com/MaxGramser/homeassistant_espscreen/issues/158)).
+- **The Waveshare 4B dims over the whole range** ([#158](https://github.com/Eugen417/homeassistant_espscre_ru/issues/158)).
   Everything under about 74 % brightness was dark, so night and standby brightness turned the screen off instead of
   dimming it. On this board GPIO4 is not a switch for the LEDs but the analog dim input of their driver (an AP3032),
   behind a filter, and the driver stops altogether once that level passes about 1.78 V. At the 5 kHz it ran (as
@@ -407,10 +407,10 @@
   runs at 300 kHz, the dimmest step stays just inside the range where the driver runs steadily, a brightness of 0 is
   still dark, and the light no longer applies ESPHome's gamma, which pressed everything under 30 % onto the dimmest step.
   Thanks to @EythorE for the schematic reading and the measurements on a real panel.
-- **A diabetes icon** for a tile or the top bar ([#156](https://github.com/MaxGramser/homeassistant_espscreen/issues/156),
-  PR [#160](https://github.com/MaxGramser/homeassistant_espscreen/pull/160)), `mdi:diabetes`, under Other in the icon
+- **A diabetes icon** for a tile or the top bar ([#156](https://github.com/Eugen417/homeassistant_espscre_ru/issues/156),
+  PR [#160](https://github.com/Eugen417/homeassistant_espscre_ru/pull/160)), `mdi:diabetes`, under Other in the icon
   picker. Thanks to @Heronimonimo.
-- **A power key on the media card, and volume keys** ([#146](https://github.com/MaxGramser/homeassistant_espscreen/issues/146)).
+- **A power key on the media card, and volume keys** ([#146](https://github.com/Eugen417/homeassistant_espscre_ru/issues/146)).
   A player that Home Assistant can turn off (a TV, an AV receiver, a speaker with a power switch) has its power key at
   the top right of the card, where every other card keeps its keys, and only then: Spotify and other players that
   cannot be turned off show none. A player whose state Home Assistant only assumes gets both power keys, as in Home
@@ -432,7 +432,7 @@
 
 ## 0.4.63 (firmware 0.38.0)
 
-- **The starting screen says what it is doing, step by step** ([#130](https://github.com/MaxGramser/homeassistant_espscreen/issues/130)).
+- **The starting screen says what it is doing, step by step** ([#130](https://github.com/Eugen417/homeassistant_espscre_ru/issues/130)).
   Connecting to Wi-Fi and the network's name, getting an address, waiting for Home Assistant, waiting for Tessera,
   loading tiles 12/40, preparing pages. Under each step stands what the screen knows of it: the network, its signal in
   dBm and the address, and how long the step has taken once it takes more than a few seconds. Everything comes from
@@ -485,7 +485,7 @@
 
 ## 0.4.62 (firmware 0.37.0)
 
-- **A tile on a Hue room no longer jumps back after a tap** ([#159](https://github.com/MaxGramser/homeassistant_espscreen/issues/159)).
+- **A tile on a Hue room no longer jumps back after a tap** ([#159](https://github.com/Eugen417/homeassistant_espscre_ru/issues/159)).
   Tap a Hue room off and its tile went off, on and off again within a second. The Hue bridge reports the room's lamps
   at once and the room itself about a second later. Each lamp made the app send the room's tile again, still saying
   "on", and the screen took that as the answer to the tap. Now the tile works like the switch on Home Assistant's own
@@ -501,7 +501,7 @@
 
 ## 0.4.61 (firmware 0.36.0)
 
-- **The memory budget is a warning, no longer a rule** ([#157](https://github.com/MaxGramser/homeassistant_espscreen/issues/157)).
+- **The memory budget is a warning, no longer a rule** ([#157](https://github.com/Eugen417/homeassistant_espscre_ru/issues/157)).
   Since 0.4.58 the app refused a layout that needed more memory than the screen said it had for tiles. One CYD measured
   far less room than the screens the budget was worked out on, so even a working layout of 23 tiles, and in the end any
   tile at all, was refused. Now a save always goes through. The meter beside the tile count stays, and adding a tile that
@@ -515,7 +515,7 @@
 
 ## 0.4.60 (firmware 0.36.0)
 
-- **Every character on your keyboard shows on the screen** ([#147](https://github.com/MaxGramser/homeassistant_espscreen/issues/147)).
+- **Every character on your keyboard shows on the screen** ([#147](https://github.com/Eugen417/homeassistant_espscre_ru/issues/147)).
   The screens drew letters in every European language but missed a few plain ones, so an artist called "bbno$" lost its
   dollar sign on the media card. Every text on the screen (card titles, tile names, values, the top bar, the media card)
   now also draws ``# $ * = ^ ~ | ` [ ] { } \`` and `– × © ® ™ ¢ ¥ §`.
@@ -532,7 +532,7 @@
 ## 0.4.59 (firmware 0.35.0)
 
 - **Five to eight rows on the 10.1-inch Guition**, thanks to Jeroen Peters
-  ([@Heronimonimo](https://github.com/Heronimonimo), [#151](https://github.com/MaxGramser/homeassistant_espscreen/pull/151),
+  ([@Heronimonimo](https://github.com/Heronimonimo), [#151](https://github.com/Eugen417/homeassistant_espscre_ru/pull/151),
   GitHub #125). New screen asks how many rows a page has when you build any of the three JC8012P4A1 variants: five, as
   before, or six, seven or eight, for up to forty tiles on a page instead of twenty-five. The tiles get lower with every
   row, from 23.5 mm high with five rows to 14.0 mm with eight, and every card still fits. A screen you already have
@@ -795,7 +795,7 @@
   Home Assistant's own icon for it, and the pill keeps the speakers. Spotify's sources stay speakers, since they are
   the Spotify Connect devices. A screen on older firmware keeps the menu it had.
 - **Credit.** Playing speakers together, a volume per speaker and Spotify on a Sonos follow the media player work of
-  @woozer in [#87](https://github.com/MaxGramser/homeassistant_espscreen/pull/87). Thank you!
+  @woozer in [#87](https://github.com/Eugen417/homeassistant_espscre_ru/pull/87). Thank you!
 
 ## 0.4.44 (firmware 0.25.0)
 
@@ -841,7 +841,7 @@
   library, favourites, an alert camera and a camera full screen while covers load, and on the CYD 47 tiles through
   restarts and resets. The CYD image is 92.9 % of its slot, 25 KB more than firmware 0.23.0.
 - **Credit.** Seeking through a track, the speaker at the top of the card and the cover-led player follow the media
-  player work of @woozer in [#87](https://github.com/MaxGramser/homeassistant_espscreen/pull/87). Thank you!
+  player work of @woozer in [#87](https://github.com/Eugen417/homeassistant_espscre_ru/pull/87). Thank you!
 
 ## 0.4.41 (firmware 0.23.0)
 
@@ -1298,8 +1298,8 @@ thanks @woozer).
   browser, with the same editor and the same preview.
 - How it works: the shared firmware and LVGL are compiled to WebAssembly and ship with the add-on, fed the same packets
   a screen gets. Built by [@woozer](https://github.com/woozer) in
-  [#74](https://github.com/MaxGramser/homeassistant_espscreen/pull/74) (virtual screens and the browser firmware) and
-  [#81](https://github.com/MaxGramser/homeassistant_espscreen/pull/81) (album art and live updates); this release
+  [#74](https://github.com/Eugen417/homeassistant_espscre_ru/pull/74) (virtual screens and the browser firmware) and
+  [#81](https://github.com/Eugen417/homeassistant_espscre_ru/pull/81) (album art and live updates); this release
   brings it up to firmware 0.11.0 (the Tessera logo in the top bar now shows in the preview too), onto the home page and
   into Preview, and in Hungarian.
 - New firmware number for every board, but nothing changes on a screen: the firmware's files were only rearranged so the
@@ -1346,7 +1346,7 @@ The home button in the top bar is the Tessera logo, and the starting screen says
 ESP Screens speaks Hungarian (GitHub #69, thanks @webguruadam).
 
 - **Magyar.** The screens, the editor and the app's messages in Hungarian, translated by hand by
-  [@webguruadam](https://github.com/webguruadam) in [#69](https://github.com/MaxGramser/homeassistant_espscreen/pull/69):
+  [@webguruadam](https://github.com/webguruadam) in [#69](https://github.com/Eugen417/homeassistant_espscre_ru/pull/69):
   all texts, with the terms of Home Assistant's own Hungarian and the calendar and numbers as Hungary writes them
   (`szept. 27., V`, `12 345,6`). The words for states (on, off, heating, the weather) are Home Assistant's own, and the
   thirteen texts added after the pull request was made (automation tiles, the bedside clock, reporting a problem) were
@@ -1385,7 +1385,7 @@ Safer album covers (GitHub #77, thanks @EmanueleBenedettini).
   such as a camera's proxy or a path that walks out of the player's proxy, is refused. Until now a media player whose
   state named such an address could have the app fetch it with the token. Contributed by
   [@EmanueleBenedettini](https://github.com/EmanueleBenedettini) in
-  [#77](https://github.com/MaxGramser/homeassistant_espscreen/pull/77).
+  [#77](https://github.com/Eugen417/homeassistant_espscre_ru/pull/77).
 - **Covers come through Home Assistant.** A player whose picture lies on the internet or on a server in the house
   (Cast, HEOS or WiiM, for example) hands out Home Assistant's proxy beside the picture's own address, and the app now
   takes the proxy: Home Assistant fetches the picture itself, and the app only talks to Home Assistant. A universal
@@ -1705,7 +1705,7 @@ The 10.1-inch Guition JC8012P4A1 V3, experimental (GitHub #52).
 A ready Docker image, so a Docker install no longer needs git.
 
 - **Docker image.** GitHub now builds the app's image for amd64 and arm64 on every change to main and publishes
-  it as `ghcr.io/maxgramser/homeassistant_espscreen`. `docker/compose.yaml` pulls it instead of building from Git,
+  it as `ghcr.io/Eugen417/homeassistant_espscre_ru`. `docker/compose.yaml` pulls it instead of building from Git,
   which also makes it work in Synology Container Manager (GitHub #32). Thanks to @sriramsv (#53).
 - No new firmware in this release: update the app; the screens stay as they are.
 
@@ -2259,7 +2259,7 @@ The controls of a double-width card stand where the cards above and below have t
 
 A fourth screen: the 10.1-inch Guition JC8012P4A1, the first ESP32-P4 board and the first one of this size.
 
-- **The 10.1-inch Guition JC8012P4A1.** 1280 x 800 on a MIPI-DSI panel, a grid of five by four, twenty tiles on a page and three pages. It is the first board added entirely by the recipe of 0.2.94: it brings its hardware and its glass, and the screens' own software - the tiles, the cards, the settings, the top bar, the languages - is the same firmware every other board runs. Choose it in **New screen**. The hardware of this board was worked out and checked on the real panel by [Micha Okkerman](https://github.com/michamichamicha) in [pull request #14](https://github.com/MaxGramser/homeassistant_espscreen/pull/14); ESPHome has since learned this panel and its touch chip itself, so nothing of the board needs code of our own any more.
+- **The 10.1-inch Guition JC8012P4A1.** 1280 x 800 on a MIPI-DSI panel, a grid of five by four, twenty tiles on a page and three pages. It is the first board added entirely by the recipe of 0.2.94: it brings its hardware and its glass, and the screens' own software - the tiles, the cards, the settings, the top bar, the languages - is the same firmware every other board runs. Choose it in **New screen**. The hardware of this board was worked out and checked on the real panel by [Micha Okkerman](https://github.com/michamichamicha) in [pull request #14](https://github.com/Eugen417/homeassistant_espscre_ru/pull/14); ESPHome has since learned this panel and its touch chip itself, so nothing of the board needs code of our own any more.
 - **New, and not yet through our own acceptance test.** We do not have this panel on the bench: the firmware compiles, every page and card was rendered at this size, and the hardware comes from a build that ran on a real screen, but board and software have not stood on one desk together. The editor marks it as new. Tell us how it goes.
 - **It asks for a newer ESPHome than the other boards.** Its touch panel is newer than the ESPHome the packages build with, so this board alone states ESPHome 2026.8.0 as its minimum; the CYD, the 4-inch Guition and the Waveshare keep building on 2026.6.2. It also needs a panel with pre-v3 silicon (`chip revision: v1.3` or lower in the boot log), which is what these panels have shipped with; the two kinds of silicon are not binary compatible.
 - No firmware change for the boards that were already there: a CYD, a 4-inch Guition or a Waveshare keeps firmware 0.2.80 and has nothing to update.

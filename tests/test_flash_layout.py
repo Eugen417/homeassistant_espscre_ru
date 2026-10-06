@@ -171,7 +171,7 @@ esphome:
 
 packages:
   display:
-    url: https://github.com/MaxGramser/homeassistant_espscreen
+    url: https://github.com/Eugen417/homeassistant_espscre_ru
     ref: main
     files: [packages/BOARD.yaml]
     refresh: 0s
@@ -248,7 +248,7 @@ class AScreenFromBefore(unittest.TestCase):
             'an old ota block': OLD.replace('BOARD', 'cyd').replace('  - platform: esphome\n    password: "kitchen-ota"\n', '  password: "kitchen-ota"\n'),
             'two of ours': OLD.replace('BOARD', 'cyd').replace('    password: "kitchen-ota"\n', '    password: "kitchen-ota"\n  - platform: esphome\n    port: 3233\n'),
             'platform not first': OLD.replace('BOARD', 'cyd').replace('  - platform: esphome\n    password: "kitchen-ota"\n', '  - password: "kitchen-ota"\n    platform: esphome\n'),
-            'not a screen of ours': OLD.replace('url: https://github.com/MaxGramser/homeassistant_espscreen', 'url: https://example.org/other').replace('BOARD', 'cyd'),
+            'not a screen of ours': OLD.replace('url: https://github.com/Eugen417/homeassistant_espscre_ru', 'url: https://example.org/other').replace('BOARD', 'cyd'),
         }
         with tempfile.TemporaryDirectory() as tmp:
             firmware = Firmware(tmp, tmp)
