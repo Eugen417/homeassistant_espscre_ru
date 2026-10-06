@@ -15,6 +15,9 @@ namespace ec = energy_card;
 // A dot: its place on its line and a picture of it at that sub-pixel place, so it runs smoothly and stays in the
 // middle of a line LVGL draws on whole pixels (an object can only stand on whole pixels).
 struct Dot {
+  // How far along its line, 0..1, and when it was last moved: a new value changes the pace, never the place.
+  float phase = 0;
+  uint32_t moved = 0;
   float cx = -1e6f, cy = -1e6f;
   int x0 = 0, y0 = 0, size = 0;
   uint32_t color = 0;
@@ -27,7 +30,6 @@ struct View {
   std::string widest;  // the widest number this card showed: a car passing 10 kW makes room once, not back and forth
   int width = 0, height = 0;
   std::vector<Dot> dots;
-  uint32_t started = 0;
   std::array<const lv_font_t *, ec::FACES> faces{};
   lv_color_t ground{};  // the card's own colour, which the circles are filled with
   bool told = false;    // the host build logged where the circles stand
@@ -170,11 +172,16 @@ static void advance(Widgets &w, uint32_t now) {
   if (!view || !canvas || view->dots.size() != view->scene.flows.size()) return;
   lv_area_t a;
   lv_obj_get_coords(canvas, &a);
-  const float seconds = (now - view->started) / 1000.f;
   for (size_t i = 0; i < view->dots.size(); ++i) {
     auto &flow = view->scene.flows[i];
     auto &dot = view->dots[i];
-    const ec::P p = ec::along(flow.path, std::fmod(seconds / flow.seconds, 1.f));
+    // Each dot moves on by the time since its last frame at its line's pace now. Its place worked out from the time
+    // since the card started instead jumped at every new value: after an hour a pace a hundredth of a second shorter
+    // moves it a whole line. A pause (the screen asleep, the card off the glass) resumes where it stopped.
+    const float dt = dot.moved ? std::min(0.2f, (now - dot.moved) / 1000.f) : 0.f;
+    dot.moved = now;
+    dot.phase = std::fmod(dot.phase + dt / flow.seconds, 1.f);
+    const ec::P p = ec::along(flow.path, dot.phase);
     if (std::fabs(p.x - dot.cx) < 0.05f && std::fabs(p.y - dot.cy) < 0.05f) continue;
     if (!dot.pixels.empty()) {
       lv_area_t old{a.x1 + dot.x0, a.y1 + dot.y0, a.x1 + dot.x0 + dot.size - 1, a.y1 + dot.y0 + dot.size - 1};
@@ -282,10 +289,7 @@ void render(Widgets &w, const Tile &t, int width, int height) {
   view.scene = std::move(sc);
   view.told = false;
   // The dots keep running where they were: only a new set of lines starts them over.
-  if (changed || view.dots.size() != view.scene.flows.size()) {
-    view.dots.assign(view.scene.flows.size(), Dot{});
-    if (!view.started) view.started = esphome::millis();
-  }
+  if (changed || view.dots.size() != view.scene.flows.size()) view.dots.assign(view.scene.flows.size(), Dot{});
   for (size_t i = 0; i < view.dots.size(); ++i) {
     view.dots[i].color = lv_color_to_u32(paint(view.scene.flows[i].paint)) & 0xFFFFFF;
     view.dots[i].cx = -1e6f;  // repainted below at its place now

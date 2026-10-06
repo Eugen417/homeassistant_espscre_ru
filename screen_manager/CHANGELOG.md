@@ -27,6 +27,15 @@
 - **The play key's triangle stands in the middle** of its key, where it sat a few pixels to the left.
 - The card stands on one colour from its cover. The app has sent one colour since the bands of #135; the card's code
   for a colour at the top and another at the bottom is gone.
+- **The energy card shows the grid on Home Assistant 2025.12 to 2026.2.** Those versions keep a grid's power sensor in
+  a list of its own, which the card did not read, so the grid was missing (discussion #104). It now adds them up as
+  Home Assistant's own live view did then.
+- **A tap on solar or the grid with more than one sensor opens their sum** (#180). Two solar arrays or two grid
+  connections had no single sensor to open. The card now opens the history of all of them added up, the way Home
+  Assistant's Power sources graph shows them.
+- **The energy card's dots run smoothly.** A dot's place was worked out from the time since the card started, so every
+  new value made it jump, worse the longer the screen ran and most on a battery that reports often (discussion #104).
+  A new value now changes how fast a dot runs, not where it is.
 
 ## 0.4.83 (firmware 0.51.0)
 

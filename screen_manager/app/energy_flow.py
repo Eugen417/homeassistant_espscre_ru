@@ -3,7 +3,8 @@
 Everything here follows Home Assistant's frontend, so the card never asks a person to set anything up:
 - what the house has comes from the Energy settings (`energy/get_prefs`): a power sensor (`stat_rate`) per grid
   connection, solar array and battery, the battery's charge (`stat_soc`) and the measured devices
-  (`device_consumption`). Home Assistant rewrites inverted and two-sensor setups to one `stat_rate` itself;
+  (`device_consumption`). Home Assistant rewrites inverted and two-sensor setups to one `stat_rate` itself. Before
+  2026.3 a grid kept its power sensors in a list of its own (`power`), which the frontend of then added up;
 - a power sensor's value in W is `getPowerFromState` (the number, scaled by its unit's SI prefix);
 - the split of the moment is `_computePowerData` of hui-power-sankey-card.ts, step for step;
 - a device's name is `computeEnergyLabel`: its display name in the Energy settings, else the sensor's name.
@@ -63,24 +64,102 @@ class Moment:
     grid_to_battery: float = 0.0
     battery_to_home: float = 0.0
     battery_to_grid: float = 0.0
-    # The sensors behind the circles, for a tap that opens one (none for the house: Home Assistant has none either).
+    # The sensors behind the circles, for a tap that opens one (none for the house: Home Assistant has none either);
+    # a source with several sensors names their sum (SUMS).
     solar_entity: str = ''
     grid_entity: str = ''
     battery_entity: str = ''
     devices: list[Device] = field(default_factory=list)
 
 
+def rates(source: dict) -> list[str]:
+    """A source's power sensors: its `stat_rate`, or on a Home Assistant before 2026.3 (core #162200) a grid's
+    `power` list, each entry with a `stat_rate` of its own, as hui-power-sankey-card.ts of that time read them."""
+    if source.get('stat_rate'):
+        return [source['stat_rate']]
+    if source.get('type') == 'grid' and isinstance(source.get('power'), list):
+        return [p['stat_rate'] for p in source['power'] if isinstance(p, dict) and p.get('stat_rate')]
+    return []
+
+
 def sources(prefs: dict, kind: str) -> list[dict]:
-    return [s for s in (prefs or {}).get('energy_sources') or [] if s.get('type') == kind and s.get('stat_rate')]
+    return [s for s in (prefs or {}).get('energy_sources') or [] if s.get('type') == kind and rates(s)]
+
+
+# A source with more than one power sensor (two solar arrays, two grid connections) has no single sensor behind its
+# circle. A tap opens what Home Assistant's "Power sources" graph shows for it instead: the sum of all of them
+# (power-sources-graph-data.ts). The key travels as a sensor id, which every firmware with the card takes; the add-on
+# alone knows it.
+SUMS = {'solar': 'sensor.screen_energy_solar_power', 'grid': 'sensor.screen_energy_grid_power',
+        'battery': 'sensor.screen_energy_battery_power'}
+
+
+def source_entity(prefs: dict, kind: str) -> str:
+    """The sensor behind a source's circle: its one power sensor, the sum's key for several, '' for none."""
+    ids = [e for s in sources(prefs, kind) for e in rates(s)]
+    return ids[0] if len(ids) == 1 else SUMS[kind] if ids else ''
+
+
+def sums(prefs: dict) -> dict[str, list[str]]:
+    """The summed sources of this house: key -> the power sensors it adds up."""
+    out = {}
+    for kind, key in SUMS.items():
+        ids = [e for s in sources(prefs, kind) for e in rates(s)]
+        if len(ids) > 1:
+            out[key] = ids
+    return out
+
+
+def summed_state(states: dict[str, dict], ids: list[str]) -> dict | None:
+    """The sum now in W, as a state dict; None when none of the sensors has a number."""
+    values = [power_w(states.get(e)) for e in ids]
+    values = [v for v in values if v is not None]
+    if not values:
+        return None
+    return {'state': f'{round(sum(values), 1):g}', 'attributes': {'unit_of_measurement': 'W'}}
+
+
+def scale(state: dict | None) -> float:
+    """The factor that turns a sensor's numbers into W (its unit's SI prefix), for its history."""
+    unit = ((state or {}).get('attributes') or {}).get('unit_of_measurement') or ''
+    return SI_PREFIX[unit[0]] if len(unit) > 1 and unit[0] in SI_PREFIX else 1.0
+
+
+def summed_changes(series: list[list[tuple[float, float | None]]]) -> list[tuple[float, float | None]]:
+    """Several sensors' changes as the changes of their sum: at each moment the sum of what each sensor last said.
+    A sensor that has said nothing yet, or has no number, counts as nothing; no sensor with a number gives None."""
+    events = sorted((t, i, v) for i, changes in enumerate(series) for t, v in changes)
+    last: dict[int, float] = {}
+    out = []
+    for t, i, v in events:
+        if v is None:
+            last.pop(i, None)
+        else:
+            last[i] = v
+        out.append((t, sum(last.values()) if last else None))
+    return out
+
+
+def summed_rows(rows: list[list[dict]]) -> list[dict]:
+    """Several sensors' statistics rows (already in W) as rows of their sum, period by period, as
+    power-sources-graph-data.ts adds up the means that share a moment. Highs and lows of a sum are not the sum of
+    highs and lows, so a summed row carries its mean only."""
+    by_start: dict[float, float] = {}
+    for entity_rows in rows:
+        for row in entity_rows:
+            mean = row.get('mean')
+            if isinstance(row.get('start'), (int, float)) and isinstance(mean, (int, float)):
+                by_start[row['start']] = by_start.get(row['start'], 0.0) + mean
+    return [{'start': start, 'mean': mean} for start, mean in sorted(by_start.items())]
 
 
 def related_entities(prefs: dict) -> list[str]:
     """Every entity whose state changes the card: the power sensors, the batteries' charge, the devices."""
     out = []
     for source in (prefs or {}).get('energy_sources') or []:
-        for key in ('stat_rate', 'stat_soc'):
-            if source.get(key) and source[key] not in out:
-                out.append(source[key])
+        for entity_id in rates(source) + ([source['stat_soc']] if source.get('stat_soc') else []):
+            if entity_id not in out:
+                out.append(entity_id)
     for device in (prefs or {}).get('device_consumption') or []:
         if device.get('stat_rate') and device['stat_rate'] not in out:
             out.append(device['stat_rate'])
@@ -101,15 +180,12 @@ def moment(prefs: dict, states: dict[str, dict]) -> Moment:
     m = Moment()
     solar_sources, grid_sources, battery_sources = sources(prefs, 'solar'), sources(prefs, 'grid'), sources(prefs, 'battery')
     m.has_solar, m.has_grid, m.has_battery = bool(solar_sources), bool(grid_sources), bool(battery_sources)
-    m.solar_entity = solar_sources[0]['stat_rate'] if len(solar_sources) == 1 else ''
-    m.grid_entity = grid_sources[0]['stat_rate'] if len(grid_sources) == 1 else ''
-    m.battery_entity = battery_sources[0]['stat_rate'] if len(battery_sources) == 1 else ''
+    m.solar_entity, m.grid_entity, m.battery_entity = (source_entity(prefs, k) for k in ('solar', 'grid', 'battery'))
 
     # _computePowerData, collecting: solar only counts when it produces; grids add up per direction; batteries net.
     solar = sum(max(watts(s['stat_rate']), 0.0) for s in solar_sources)
     from_grid = to_grid = 0.0
-    for s in grid_sources:
-        value = watts(s['stat_rate'])
+    for value in (watts(e) for s in grid_sources for e in rates(s)):
         if value > 0:
             from_grid += value
         elif value < 0:
@@ -214,8 +290,10 @@ def payload(prefs: dict, states: dict[str, dict], glyph=None, home_name: str = '
         out['c'] = int(round(min(max(m.soc, 0.0), 100.0)))
     entities = [m.solar_entity, m.grid_entity, m.battery_entity]
     if any(entities):
+        summed = sums(prefs)
         out['e'] = entities
-        out['u'] = [_reading(states.get(e)) if e else ['', ''] for e in entities]
+        out['u'] = [_reading(summed_state(states, summed[e]) if e in summed else states.get(e)) if e else ['', '']
+                    for e in entities]
     # The biggest eight, in the order of the Energy settings: Home Assistant groups the smallest devices and keeps the
     # others where its settings list them, and so does the card with the room it has.
     devices = []

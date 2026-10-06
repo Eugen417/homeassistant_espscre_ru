@@ -71,6 +71,57 @@ class Split(unittest.TestCase):
         self.check('odd-two_arrays', solar=5500, to_grid=2900, to_battery=900, home=1700,
                    solar_to_home=1700, solar_to_grid=2900, solar_to_battery=900)
 
+    def test_grid_power_list_before_2026_3(self):
+        # Home Assistant 2025.12 to 2026.2 kept a grid's power sensors in `power` (GitHub discussion #104: the grid
+        # was missing). Its frontend added them up per direction, and so does the card.
+        prefs, states = load('full-evening')
+        prefs = json.loads(json.dumps(prefs))
+        grid = next(s for s in prefs['energy_sources'] if s['type'] == 'grid')
+        rate = grid.pop('stat_rate')
+        grid['power'] = [{'stat_rate': rate}]
+        legacy = energy_flow.moment(prefs, states)
+        self.assertTrue(legacy.has_grid)
+        self.assertAlmostEqual(legacy.grid_to_home, 450, places=3)
+        self.assertEqual(legacy.grid_entity, rate)
+        self.assertIn(rate, energy_flow.related_entities(prefs))
+        self.assertTrue(energy_flow.has_power({'energy_sources': [{'type': 'grid', 'power': [{'stat_rate': rate}]}]}))
+
+
+class Sums(unittest.TestCase):
+    """A source with several power sensors opens their sum, as Home Assistant's "Power sources" graph (GitHub #180)."""
+    def test_two_arrays_open_their_sum(self):
+        prefs, states = load('odd-two_arrays')
+        m = energy_flow.moment(prefs, states)
+        self.assertEqual(m.solar_entity, energy_flow.SUMS['solar'])
+        self.assertEqual(len(energy_flow.sums(prefs)[m.solar_entity]), 2)
+        x = energy_flow.payload(prefs, states)
+        self.assertEqual(x['e'][0], energy_flow.SUMS['solar'])
+        self.assertEqual(x['u'][0], ['5500', 'W'])  # 3.1 kW + 2.4 kW of sun
+        self.assertNotIn(x['e'][1], energy_flow.SUMS.values())  # one grid sensor: that sensor itself
+
+    def test_two_grid_connections_sum_signed(self):
+        prefs = {'energy_sources': [{'type': 'grid', 'stat_rate': 'sensor.a'}, {'type': 'grid', 'stat_rate': 'sensor.b'}]}
+        states = {'sensor.a': {'state': '1.2', 'attributes': {'unit_of_measurement': 'kW'}},
+                  'sensor.b': {'state': '-300', 'attributes': {'unit_of_measurement': 'W'}}}
+        self.assertEqual(energy_flow.moment(prefs, states).grid_entity, energy_flow.SUMS['grid'])
+        self.assertEqual(energy_flow.payload(prefs, states)['u'][1], ['900', 'W'])
+
+    def test_summed_changes(self):
+        a = [(0, 100.0), (10, 200.0), (30, None)]
+        b = [(5, 50.0), (20, -40.0)]
+        self.assertEqual(energy_flow.summed_changes([a, b]),
+                         [(0, 100.0), (5, 150.0), (10, 250.0), (20, 160.0), (30, -40.0)])
+        self.assertEqual(energy_flow.summed_changes([[(0, None)]]), [(0, None)])
+
+    def test_summed_rows(self):
+        rows = energy_flow.summed_rows([[{'start': 0, 'mean': 1.0}, {'start': 3600, 'mean': 2.0}],
+                                        [{'start': 3600, 'mean': 3.0}, {'start': 7200, 'mean': None}]])
+        self.assertEqual(rows, [{'start': 0, 'mean': 1.0}, {'start': 3600, 'mean': 5.0}])
+
+    def test_scale(self):
+        self.assertEqual(energy_flow.scale({'state': '1', 'attributes': {'unit_of_measurement': 'kW'}}), 1000)
+        self.assertEqual(energy_flow.scale(None), 1.0)
+
 
 class Devices(unittest.TestCase):
     def test_biggest_first_names_and_icons_from_home_assistant(self):

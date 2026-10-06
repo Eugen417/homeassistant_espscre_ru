@@ -2017,11 +2017,13 @@ class Manager:
             return
         # A tile's own entity, or a sensor an energy card on the layout opens from its circles (app 0.4.77).
         shown = {tile['entity'] for tile in layout['tiles']}
+        summed = {}
         if ENERGY_TILE in shown:
-            shown |= set(energy_flow.related_entities(self.energy_prefs()))
+            summed = energy_flow.sums(self.energy_prefs())
+            shown |= set(energy_flow.related_entities(self.energy_prefs())) | set(summed)
         if entity not in shown:
             return
-        what = history_card.kind(entity, self.ha.states.get(entity))
+        what = 'line' if entity in summed else history_card.kind(entity, self.ha.states.get(entity))
         action = self.transport(inbox, screen)
         if what is None or not action:
             return
@@ -2055,6 +2057,9 @@ class Manager:
         entity without statistics); states from their changes. A fetch that fails raises, so nothing is kept."""
         start, end = history_card.window(hours)
         tz = getattr(self.ha, 'time_zone', None)
+        summed = energy_flow.sums(self.energy_prefs()).get(entity)
+        if summed:
+            return await self.summed_history(entity, summed, hours, start, end, tz)
         attrs = (self.ha.states.get(entity) or {}).get('attributes') or {}
         if what == 'timeline':
             return history_card.timeline(entity, hours, await self.ha.state_changes(entity, hours), start, end, tz, attrs,
@@ -2066,6 +2071,23 @@ class Manager:
             return history_card.line(entity, hours, means, start, end, tz, entry, unit, extreme)
         changes = [(moment, header_bar.numeric(value)) for moment, value in await self.ha.state_changes(entity, hours)]
         return history_card.line(entity, hours, changes, start, end, tz, entry, unit)
+
+    async def summed_history(self, key, entities, hours, start, end, tz):
+        """An energy source with several power sensors, as Home Assistant's "Power sources" graph shows it: their sum in
+        W (power-sources-graph-data.ts), from the hourly statistics for a day or a week, from the changes for an hour."""
+        scales = [energy_flow.scale(self.ha.states.get(e)) for e in entities]
+        if hours > 1:
+            rows = [[{**row, 'mean': row['mean'] * k} for row in await self.ha.statistic_rows(e, hours)
+                     if isinstance(row.get('mean'), (int, float))] for e, k in zip(entities, scales)]
+            summed = energy_flow.summed_rows(rows)
+            if summed:
+                means, extreme = history_card.statistic_changes(summed, 3600)
+                return history_card.line(key, hours, means, start, end, tz, None, 'W', extreme)
+        series = []
+        for e, k in zip(entities, scales):
+            changes = [(moment, header_bar.numeric(value)) for moment, value in await self.ha.state_changes(e, hours)]
+            series.append([(moment, None if value is None else value * k) for moment, value in changes])
+        return history_card.line(key, hours, energy_flow.summed_changes(series), start, end, tz, None, 'W')
 
     def registry_index(self):
         """Entity registry by id (display precision, entity category); rebuilt only when HA delivers a new registry."""
