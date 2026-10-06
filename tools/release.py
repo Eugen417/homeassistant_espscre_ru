@@ -320,16 +320,18 @@ def prepare(args):
         'Read the CHANGELOG section once more: it is what Home Assistant shows under the update.',
         *(['The firmware number changed, so the editor\'s preview is stale: sh web/wasm/build.sh, then cd web && '
            'npm run build (docs/RELEASING.md, "Firmware preview").'] if firmware else []),
-        'tools/check.sh, and the firmware builds the plan below names.',
+        'tools/check.sh (the firmware of every board is built by CI on the release commit, step 5).',
         f'Commit as "Release {version} (firmware {release["firmware"]}): <what it brings>" and push to {here}.',
-        'tools/release.py ci: every board on both ESPHome versions in CI, about an hour; the upgrade test can run meanwhile.',
+        'tools/release.py ci: every board on both ESPHome versions with the flash budget, in CI, about an hour; the '
+        'upgrade test can run meanwhile.',
         'tools/release.py candidate, then the upgrade test (docs/TESTING.md, "6. The upgrade").',
         'Write the GitHub release notes in English in a file, then tools/release.py publish --notes <file> --yes.',
     ]
     print('\nNext:')
     for number, step in enumerate(steps, 1):
         print(f'{number}. {step}')
-    print('\n' + affected_boards.plan(reach, new, affected_boards.read_at(_base)))
+    print('\nThe firmware plan (CI builds it in step 5; locally only a board you want to look at):\n')
+    print(affected_boards.plan(reach, new, affected_boards.read_at(_base)))
     return 0
 
 

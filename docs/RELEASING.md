@@ -55,10 +55,11 @@ does the steps that can go wrong by hand, and refuses when something is missing.
    `FIRMWARE_VERSION`, or a board file's own), and `screen_manager/app/boards.json`. docs/BOARD_RELEASES.md explains the
    numbers. Read the CHANGELOG section once more: it is what Home Assistant shows under the update, with concrete test
    results. With a new firmware number, rebuild the preview (below, "Firmware preview").
-3. **Check everything** (below, "The checks of a release"): `tools/check.sh` and the firmware builds the plan names,
-   and the renders when the release changes what screens draw. Only compatible changes go out (docs/PAGES.md,
-   "Updating at different times"). This is where a week of work on dev meets every check at once; what fails is fixed
-   here, in the release.
+3. **Check everything** (below, "The checks of a release"): `tools/check.sh` on the release's working tree, and the
+   renders when the release changes what screens draw. The firmware of every board, on both ESPHome versions and with
+   the flash budget, is built by CI on the release commit (step 4), so a laptop does not have to. Only compatible
+   changes go out (docs/PAGES.md, "Updating at different times"). This is where a week of work on dev meets every check
+   at once; what fails is fixed here, in the release.
 4. **Commit and push to dev**: `Release X.Y.Z (firmware A.B.C): what it brings`. `tests/test_release_lint.py` holds
    `config.yaml`'s version, the first CHANGELOG heading and the firmware it names, keeps the CHANGELOG headings unique
    and newest first, holds the firmware numbers to core and board (a shared release the next X.Y.0, a board fix a
