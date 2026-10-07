@@ -186,7 +186,8 @@
       "hours": "{n} óra",
       "hours_minutes": "{h} ó {m}",
       "wifi": "Wi-Fi",
-      "tessera": "Tessera"
+      "tessera": "Tessera",
+      "plugins": "Bővítmények"
     },
     "tile": {
       "tap_to_open": "Megnyitás",

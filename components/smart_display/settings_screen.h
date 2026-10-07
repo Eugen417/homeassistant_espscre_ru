@@ -5,6 +5,7 @@
 #include <iterator>
 #include <cstdio>
 #include <string>
+#include <vector>
 #include "battery_status.h"
 #include "screen_settings.h"
 #include "screen_text.h"
@@ -97,7 +98,27 @@ struct Row {
   Shown shown = nullptr;              // absent rows: the quarter turns on glass that is not square
   Shown enabled = nullptr;            // greyed out while the switch it depends on is off
   uint8_t opens = 0;                  // page rows: the page they open
+  // A row of a plugin (docs/PLUGINS.md, plugin_host.cpp): its own words instead of a key (`words`, `confirm_words`) and
+  // its own reader, writer, action and text with a context, since a plugin's row reads an entity of its own.
+  const char *words = nullptr, *confirm_words = nullptr;
+  void *ctx = nullptr;
+  int32_t (*read_ctx)(void *) = nullptr;
+  void (*write_ctx)(void *, int32_t) = nullptr;
+  void (*run_ctx)(void *) = nullptr;
+  std::string (*text_ctx)(void *) = nullptr;
 };
+// Every reader of a row asks through these, so Tessera's rows and a plugin's are drawn and tapped the same way.
+inline bool readable(const Row &row) { return row.read || row.read_ctx; }
+inline bool writable(const Row &row) { return row.write || row.write_ctx; }
+inline int32_t get(const Row &row) { return row.read ? row.read() : row.read_ctx ? row.read_ctx(row.ctx) : 0; }
+inline void put(const Row &row, int32_t value) {
+  if (row.write) row.write(value);
+  else if (row.write_ctx) row.write_ctx(row.ctx, value);
+}
+inline void act(const Row &row) {
+  if (row.run) row.run();
+  else if (row.run_ctx) row.run_ctx(row.ctx);
+}
 
 constexpr Row page_row(uint16_t label, const char *icon, uint8_t opens, Shown shown = nullptr) {
   Row r{}; r.kind = Kind::page; r.label = label; r.icon = icon; r.opens = opens; r.shown = shown; return r;
@@ -128,7 +149,8 @@ constexpr Row choice(uint16_t label, Read read, Write write, uint16_t option_key
   Row r{}; r.kind = Kind::choice; r.label = label; r.read = read; r.write = write;
   r.option_keys = option_keys; r.option_count = count; r.shown = shown; return r;
 }
-inline const char *label_text(const Row &row) { return screen_text::tr(row.label); }
+inline const char *label_text(const Row &row) { return row.words ? row.words : screen_text::tr(row.label); }
+inline const char *confirm_text(const Row &row) { return row.confirm_words ? row.confirm_words : screen_text::tr(row.confirm); }
 constexpr Row info(uint16_t label, Text text) {
   Row r{}; r.kind = Kind::info; r.label = label; r.text = text; return r;
 }
@@ -247,19 +269,19 @@ inline std::string moment_text(int32_t minutes, bool clock_24h) {
 // What the right-hand side of a row says. A toggle draws a switch instead, its text is for the tests.
 inline std::string value_text(const Row &row) {
   switch (row.kind) {
-    case Kind::toggle: return screen_text::tr(row.read && row.read() ? screen_text::txt::ha_on : screen_text::txt::ha_off);
+    case Kind::toggle: return screen_text::tr(get(row) ? screen_text::txt::ha_on : screen_text::txt::ha_off);
     case Kind::number: {
-      int value = row.read ? (int) row.read() : 0;
+      int value = (int) get(row);
       return strcmp(row.unit, "%") == 0 ? screen_text::percent(value) : std::to_string(value) + row.unit;
     }
-    case Kind::duration: return duration_text(row.read ? row.read() : 0);
-    case Kind::moment: return moment_text(row.read ? row.read() : 0, screen_settings::current.clock_24h != 0);
+    case Kind::duration: return duration_text(get(row));
+    case Kind::moment: return moment_text(get(row), screen_settings::current.clock_24h != 0);
     case Kind::choice: {
-      int32_t index = row.read ? row.read() : 0;
+      int32_t index = get(row);
       if (index < 0 || index >= row.option_count) return "";
       return row.option_keys != NO_TEXT ? screen_text::tr(row.option_keys + index) : row.options[index];
     }
-    case Kind::info: return row.text ? row.text() : "";
+    case Kind::info: return row.text ? row.text() : row.text_ctx ? row.text_ctx(row.ctx) : "";
     default: return "";
   }
 }
@@ -270,6 +292,8 @@ struct Page {
   uint16_t title;
   const Row *rows;
   uint8_t count;
+  uint8_t parent = 0;              // where Back goes: the menu, or for a plugin's page the list of plugins
+  const char *words = nullptr;     // a plugin's page: its title in its own words
 };
 
 // How many rows fit, and whether the page therefore needs its pager. Reserving the pager only when it
@@ -396,11 +420,18 @@ inline constexpr Row about_rows[] = {
          screen_text::txt::settings_tap_again_to_restart),
 };
 
+// The plugins' pages (docs/PLUGINS.md): built once at the start from what each plugin adds (plugin_host.cpp), after the
+// table's own pages. The first is the list of plugins, each opening its own page.
+inline std::vector<Page> plugin_pages;
+inline bool has_plugin_pages() { return !plugin_pages.empty(); }
+constexpr uint8_t PLUGINS_PAGE = 5;  // the first page after the table's own (PAGE_COUNT, checked below)
+
 inline constexpr Row menu_rows[] = {
   page_row(screen_text::txt::settings_brightness, "\U000F0599", 1),
   page_row(screen_text::txt::settings_night, "\U000F0594", 2, [] { return can_standby; }),
   page_row(screen_text::txt::settings_screen, "\U000F0379", 3),
   page_row(screen_text::txt::settings_this_screen, "\U000F02FD", 4),
+  page_row(screen_text::txt::settings_plugins, "\U000F0A66", PLUGINS_PAGE, has_plugin_pages),
 };
 
 inline constexpr Page pages[] = {
@@ -411,6 +442,13 @@ inline constexpr Page pages[] = {
   {screen_text::txt::settings_this_screen, about_rows, (uint8_t) std::size(about_rows)},
 };
 constexpr uint8_t PAGE_COUNT = (uint8_t) std::size(pages);
+static_assert(PLUGINS_PAGE == PAGE_COUNT, "the plugins' pages follow the table's own");
+inline uint8_t page_total() { return (uint8_t) (PAGE_COUNT + plugin_pages.size()); }
+inline const Page &page_at(uint8_t index) {
+  return index < PAGE_COUNT || index - PAGE_COUNT >= plugin_pages.size() ? pages[index < PAGE_COUNT ? index : 0]
+                                                                        : plugin_pages[index - PAGE_COUNT];
+}
+inline const char *page_title(const Page &page) { return page.words ? page.words : screen_text::tr(page.title); }
 
 }  // namespace settings_screen
 
@@ -581,7 +619,7 @@ inline lv_obj_t *pill(lv_obj_t *parent, int x, int y, int w, int h, bool on) {
 inline void move_knob(Drawn &d, const Row &row) {
   if (!d.knob) return;
   auto *track = lv_obj_get_parent(d.knob);
-  bool on = row.read && row.read();
+  bool on = get(row) != 0;
   // Setting a style always repaints, so only a real change sets it; lv_obj_set_x checks by itself.
   const lv_color_t color = theme::color(on ? theme::ACCENT : theme::TOGGLE_OFF);
   if (!lv_color_eq(lv_obj_get_style_bg_color(track, LV_PART_MAIN), color)) lv_obj_set_style_bg_color(track, color, 0);
@@ -595,7 +633,7 @@ inline void move_knob(Drawn &d, const Row &row) {
 // The board runs it after a change from Home Assistant too, so a text is only set when it differs.
 inline void refresh() {
   if (!root) return;
-  const Page &page = pages[current_page];
+  const Page &page = page_at(current_page);
   for (uint8_t i = 0; i < drawn_count; ++i) {
     Drawn &d = drawn[i];
     const Row &row = page.rows[d.row];
@@ -608,12 +646,12 @@ inline void refresh() {
     bool live = live_row(row);
     const lv_opa_t opa = live ? LV_OPA_COVER : LV_OPA_50;
     if (d.card && lv_obj_get_style_opa(d.card, LV_PART_MAIN) != opa) lv_obj_set_style_opa(d.card, opa, 0);
-    if (d.minus && row.read) {
-      bool off = !live || at_end(row, row.read(), -1);
+    if (d.minus && readable(row)) {
+      bool off = !live || at_end(row, get(row), -1);
       if (off) lv_obj_add_state(d.minus, LV_STATE_DISABLED); else lv_obj_remove_state(d.minus, LV_STATE_DISABLED);
     }
-    if (d.plus && row.read) {
-      bool off = !live || at_end(row, row.read(), 1);
+    if (d.plus && readable(row)) {
+      bool off = !live || at_end(row, get(row), 1);
       if (off) lv_obj_add_state(d.plus, LV_STATE_DISABLED); else lv_obj_remove_state(d.plus, LV_STATE_DISABLED);
     }
   }
@@ -644,35 +682,37 @@ inline void step_event(lv_event_t *event) {
     repeats = 0;
   }
   int data = (int) (intptr_t) lv_event_get_user_data(event);
-  const Page &page = pages[current_page];
+  const Page &page = page_at(current_page);
   uint8_t index = (uint8_t) (data >> 1);
   if (index >= page.count) return;
   const Row &row = page.rows[index];
-  if (!row.read || !row.write || !live_row(row)) return;
-  int32_t value = row.read();
+  if (!readable(row) || !writable(row) || !live_row(row)) return;
+  int32_t value = get(row);
   int32_t next = stepped(row, value, data & 1 ? 1 : -1, held);
   if (next == value) return;
-  row.write(next);
+  put(row, next);
   refresh();
 }
 inline void row_event(lv_event_t *event) {
   if (!steady(tap_limit)) return;
   int index = (int) (intptr_t) lv_event_get_user_data(event);
-  const Page &page = pages[current_page];
+  const Page &page = page_at(current_page);
   if (index < 0 || index >= page.count) return;
   const Row &row = page.rows[index];
   if (!live_row(row)) return;
   if (row.kind == Kind::page) { current_page = row.opens; first_row = 0; forget_confirm(); draw(); return; }
-  if (row.kind == Kind::toggle && row.read && row.write) { row.write(row.read() ? 0 : 1); refresh(); return; }
-  if (row.kind == Kind::choice && row.read && row.write && row.option_count) {
-    row.write((row.read() + 1) % row.option_count);
+  if (row.kind == Kind::toggle && readable(row) && writable(row)) { put(row, get(row) ? 0 : 1); refresh(); return; }
+  if (row.kind == Kind::choice && readable(row) && writable(row) && row.option_count) {
+    put(row, (get(row) + 1) % row.option_count);
     refresh();
     return;
   }
   if (row.kind == Kind::action) {
     // Nothing on this page is worth a dialog, except the one row that takes the screen away for ten
     // seconds: it asks once, in place, and forgets the question after five.
-    if (confirm_row == index) { forget_confirm(); if (row.run) row.run(); return; }
+    // A plugin's action without a question runs at once; one with a question asks first, as Restart does.
+    if (row.confirm == NO_TEXT && !row.confirm_words) { act(row); refresh(); return; }
+    if (confirm_row == index) { forget_confirm(); act(row); return; }
     forget_confirm();
     confirm_row = index;
     confirm_timer = lv_timer_create([](lv_timer_t *) { forget_confirm(); draw(); }, 5000, nullptr);
@@ -684,7 +724,7 @@ inline void close();
 inline void back_event(lv_event_t *) {
   forget_confirm();
   if (current_page == 0) { close(); return; }
-  current_page = 0;
+  current_page = page_at(current_page).parent;
   first_row = 0;
   draw();
 }
@@ -704,7 +744,7 @@ inline void draw() {
   lv_obj_clean(root);
   drawn_count = 0;
 
-  const Page &page = pages[current_page];
+  const Page &page = page_at(current_page);
   // Rows a screen does not have (the quarter turns on glass that is not square) leave the table out of sight entirely.
   std::array<uint8_t, 12> shown{};
   uint8_t count = 0;
@@ -723,7 +763,7 @@ inline void draw() {
   lv_obj_center(arrow);
   lv_obj_add_event_cb(back, back_event, LV_EVENT_SHORT_CLICKED, nullptr);
   const lv_font_t *heading = title_font ? title_font : row_font;
-  auto *title = text(root, screen_text::tr(page.title), heading, theme::INK, LV_TEXT_ALIGN_CENTER);
+  auto *title = text(root, page_title(page), heading, theme::INK, LV_TEXT_ALIGN_CENTER);
   lv_obj_set_width(title, m.width - 2 * (m.pad + m.bar + 8));
   lv_obj_set_pos(title, m.pad + m.bar + 8, m.bar_y + (m.bar - lv_font_get_line_height(heading)) / 2);
 
@@ -764,7 +804,7 @@ inline void draw() {
       lv_obj_set_pos(glyph, left, (m.row_h - icon_h) / 2);
       left += icon_h + (ui::px(m.large ? 12 : 8));
     }
-    d.label = text(d.card, screen_text::tr(asking ? row.confirm : row.label), row_font,
+    d.label = text(d.card, asking ? confirm_text(row) : label_text(row), row_font,
                    asking ? theme::ON_ACCENT : theme::INK);
     lv_obj_set_pos(d.label, left, (m.row_h - label_h) / 2);
 
@@ -776,7 +816,7 @@ inline void draw() {
       lv_obj_set_pos(chevron, right - icon_h, (m.row_h - icon_h) / 2);
       lv_obj_set_width(d.label, right - icon_h - left - 6);
     } else if (row.kind == Kind::toggle) {
-      d.knob = pill(d.card, right - m.switch_w, (m.row_h - m.switch_h) / 2, m.switch_w, m.switch_h, row.read && row.read());
+      d.knob = pill(d.card, right - m.switch_w, (m.row_h - m.switch_h) / 2, m.switch_w, m.switch_h, get(row) != 0);
       lv_obj_set_width(d.label, right - m.switch_w - left - 6);
     } else if (row.kind == Kind::number || row.kind == Kind::duration || row.kind == Kind::moment) {
       int y = (m.row_h - m.pill_h) / 2, value_w = ui::px(m.large ? 116 : 74);
@@ -850,7 +890,7 @@ inline void hide_hold_bar() {
 
 inline void open(uint8_t page = 0) {
   hide_hold_bar();
-  current_page = page < PAGE_COUNT ? page : 0;
+  current_page = page < page_total() ? page : 0;
   first_row = 0;
   forget_confirm();
   if (before_open) before_open();

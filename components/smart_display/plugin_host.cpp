@@ -68,6 +68,58 @@ uint16_t Plugin::memory(const std::string &tile) const {
   return 1024;
 }
 
+SettingsPage &SettingsPage::toggle(const char *label, std::function<bool()> read, std::function<void(bool)> write) {
+  Item item{Item::TOGGLE};
+  item.label = label ? label : "";
+  item.read = [read]() { return read && read() ? 1 : 0; };
+  item.write = [write](int on) { if (write) write(on != 0); };
+  items.push_back(std::move(item));
+  return *this;
+}
+SettingsPage &SettingsPage::number(const char *label, int low, int high, int step, const char *unit,
+                                   std::function<int()> read, std::function<void(int)> write) {
+  Item item{Item::NUMBER};
+  item.label = label ? label : "";
+  item.low = low; item.high = high; item.step = step > 0 ? step : 1;
+  item.unit = unit ? unit : "";
+  item.read = std::move(read); item.write = std::move(write);
+  items.push_back(std::move(item));
+  return *this;
+}
+SettingsPage &SettingsPage::choice(const char *label, std::vector<std::string> options, std::function<int()> read,
+                                   std::function<void(int)> write) {
+  Item item{Item::CHOICE};
+  item.label = label ? label : "";
+  item.options = std::move(options);
+  item.read = std::move(read); item.write = std::move(write);
+  items.push_back(std::move(item));
+  return *this;
+}
+SettingsPage &SettingsPage::action(const char *label, const char *icon, std::function<void()> run, const char *confirm) {
+  Item item{Item::ACTION};
+  item.label = label ? label : "";
+  item.icon = icon ? icon : "";
+  item.confirm = confirm ? confirm : "";
+  item.run = std::move(run);
+  items.push_back(std::move(item));
+  return *this;
+}
+SettingsPage &SettingsPage::info(const char *label, std::function<std::string()> text) {
+  Item item{Item::INFO};
+  item.label = label ? label : "";
+  item.text = std::move(text);
+  items.push_back(std::move(item));
+  return *this;
+}
+SettingsPage &SettingsPage::card(const char *label, const char *icon, const char *card) {
+  Item item{Item::CARD};
+  item.label = label ? label : "";
+  item.icon = icon ? icon : "";
+  item.card = card ? card : "";
+  items.push_back(std::move(item));
+  return *this;
+}
+
 uint32_t epoch() { return rt::now_epoch(); }
 
 LocalTime local_time(uint32_t when) {
@@ -416,7 +468,100 @@ bool tap_action(size_t index) {
   return false;
 }
 
-void ready() { for (auto *p : tessera::plugins()) p->on_ready(); }
+// ---- The plugins' pages on the settings page ----
+// Built once: the rows point into these, so nothing here moves afterwards.
+struct SettingsStore {
+  std::vector<std::unique_ptr<tessera::SettingsPage>> pages;   // what each plugin added
+  std::vector<std::unique_ptr<std::vector<settings_screen::Row>>> rows;
+  std::vector<std::unique_ptr<std::vector<const char *>>> options;
+  std::vector<std::pair<tessera::Plugin *, std::string>> cards;  // a card row: its plugin and card
+};
+static SettingsStore &settings_store() {
+  static SettingsStore store;
+  return store;
+}
+
+static void build_settings() {
+  auto &store = settings_store();
+  std::vector<std::pair<tessera::Plugin *, tessera::SettingsPage *>> added;
+  for (auto *p : tessera::plugins()) {
+    auto page = std::make_unique<tessera::SettingsPage>();
+    if (!p->settings(*page) || page->items.empty()) continue;
+    if (page->title.empty()) page->title = *p->text("name") ? p->text("name") : p->plugin_id();
+    if (page->icon.empty()) page->icon = "\U000F0A66";
+    added.push_back({p, page.get()});
+    store.pages.push_back(std::move(page));
+  }
+  if (added.empty()) return;
+  using settings_screen::Row;
+  using settings_screen::Kind;
+  // The list of plugins: one row per plugin, opening its page.
+  auto list = std::make_unique<std::vector<Row>>();
+  for (size_t i = 0; i < added.size(); ++i) {
+    Row row{};
+    row.kind = Kind::page;
+    row.words = added[i].second->title.c_str();
+    row.icon = added[i].second->icon.c_str();
+    row.opens = static_cast<uint8_t>(settings_screen::PLUGINS_PAGE + 1 + i);
+    list->push_back(row);
+  }
+  settings_screen::plugin_pages.push_back({screen_text::txt::settings_plugins, list->data(),
+                                           static_cast<uint8_t>(std::min<size_t>(list->size(), 12)), 0, nullptr});
+  store.rows.push_back(std::move(list));
+  for (auto &[plugin, page] : added) {
+    auto rows = std::make_unique<std::vector<Row>>();
+    for (auto &item : page->items) {
+      Row row{};
+      row.words = item.label.c_str();
+      row.ctx = &item;
+      using Item = tessera::SettingsPage::Item;
+      switch (item.kind) {
+        case Item::TOGGLE: row.kind = Kind::toggle; break;
+        case Item::NUMBER:
+          row.kind = Kind::number; row.low = item.low; row.high = item.high; row.step = item.step;
+          row.unit = item.unit.c_str();
+          break;
+        case Item::CHOICE: {
+          row.kind = Kind::choice;
+          auto words = std::make_unique<std::vector<const char *>>();
+          for (auto &option : item.options) words->push_back(option.c_str());
+          row.options = words->data();
+          row.option_count = static_cast<uint8_t>(std::min<size_t>(words->size(), 255));
+          store.options.push_back(std::move(words));
+          break;
+        }
+        case Item::ACTION:
+        case Item::CARD:
+          row.kind = Kind::action;
+          row.icon = item.icon.c_str();
+          if (!item.confirm.empty()) row.confirm_words = item.confirm.c_str();
+          break;
+        case Item::INFO: row.kind = Kind::info; break;
+      }
+      if (item.kind == Item::CARD) {
+        store.cards.push_back({plugin, item.card});
+        item.run = [plugin = plugin, card = item.card]() {
+          settings_screen::close();
+          tessera::open_card(plugin->plugin_id(), card.c_str());
+        };
+      }
+      row.read_ctx = [](void *c) -> int32_t { auto *i = static_cast<Item *>(c); return i->read ? i->read() : 0; };
+      row.write_ctx = [](void *c, int32_t v) { auto *i = static_cast<Item *>(c); if (i->write) i->write(v); };
+      row.run_ctx = [](void *c) { auto *i = static_cast<Item *>(c); if (i->run) i->run(); };
+      row.text_ctx = [](void *c) -> std::string { auto *i = static_cast<Item *>(c); return i->text ? i->text() : ""; };
+      rows->push_back(row);
+      if (rows->size() == 12) break;   // what one page draws (settings_screen::draw)
+    }
+    settings_screen::plugin_pages.push_back({0, rows->data(), static_cast<uint8_t>(rows->size()),
+                                             settings_screen::PLUGINS_PAGE, page->title.c_str()});
+    store.rows.push_back(std::move(rows));
+  }
+}
+
+void ready() {
+  build_settings();
+  for (auto *p : tessera::plugins()) p->on_ready();
+}
 void tick(uint32_t now_ms, bool dimmed) {
   static bool was_dimmed = false;
   if (dimmed != was_dimmed) {

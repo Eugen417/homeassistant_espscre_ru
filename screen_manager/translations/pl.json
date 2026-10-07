@@ -186,7 +186,8 @@
       "hours": "{n} godz.",
       "hours_minutes": "{h} godz. {m}",
       "wifi": "Wi-Fi",
-      "tessera": "Tessera"
+      "tessera": "Tessera",
+      "plugins": "Wtyczki"
     },
     "tile": {
       "tap_to_open": "Otwórz",

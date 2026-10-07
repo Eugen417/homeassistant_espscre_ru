@@ -180,7 +180,9 @@ int main() {
     for (uint8_t i = 0; i < page.count; ++i) {
       const Row &row = page.rows[i];
       assert(row.label != NO_TEXT && *label_text(row));
-      if (row.kind == Kind::page) assert(row.opens > 0 && row.opens < PAGE_COUNT && *row.icon);
+      // The Plugins row opens the plugins' pages after the table's own, and only shows while a plugin added one.
+      if (row.kind == Kind::page && row.opens == PLUGINS_PAGE) assert(row.shown == has_plugin_pages && *row.icon);
+      else if (row.kind == Kind::page) assert(row.opens > 0 && row.opens < PAGE_COUNT && *row.icon);
       if (row.kind == Kind::toggle || row.kind == Kind::choice || row.kind == Kind::number ||
           row.kind == Kind::duration || row.kind == Kind::moment)
         assert(row.read && row.write);
@@ -302,4 +304,23 @@ int main() {
   dimmable = false; can_standby = false;  assert(features() == "battery");
   battery_status::level = nullptr;
   dimmable = dimmable_before; can_standby = standby_before;
+
+  // ---- a plugin's rows (docs/PLUGINS.md): their own words, read and written through their context ----
+  {
+    static int32_t level = 3;
+    Row row{};
+    row.kind = Kind::number; row.words = "Volume"; row.low = 0; row.high = 10; row.step = 1; row.unit = "";
+    row.ctx = &level;
+    row.read_ctx = [](void *c) -> int32_t { return *static_cast<int32_t *>(c); };
+    row.write_ctx = [](void *c, int32_t v) { *static_cast<int32_t *>(c) = v; };
+    assert(std::string(label_text(row)) == "Volume" && readable(row) && writable(row));
+    put(row, stepped(row, get(row), 1));
+    assert(level == 4 && value_text(row) == "4");
+    assert(!has_plugin_pages() && page_total() == PAGE_COUNT && &page_at(PLUGINS_PAGE) == &pages[0]);
+    plugin_pages.push_back({screen_text::txt::settings_plugins, &row, 1, 0, nullptr});
+    plugin_pages.push_back({0, &row, 1, PLUGINS_PAGE, "Audio"});
+    assert(has_plugin_pages() && page_total() == PAGE_COUNT + 2);
+    assert(std::string(page_title(page_at(PLUGINS_PAGE + 1))) == "Audio" && page_at(PLUGINS_PAGE + 1).parent == PLUGINS_PAGE);
+    plugin_pages.clear();
+  }
 }

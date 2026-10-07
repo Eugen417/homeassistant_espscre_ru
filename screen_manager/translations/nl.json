@@ -186,7 +186,8 @@
       "hours": "{n} u",
       "hours_minutes": "{h} u {m}",
       "wifi": "Wifi",
-      "tessera": "Tessera"
+      "tessera": "Tessera",
+      "plugins": "Plugins"
     },
     "tile": {
       "tap_to_open": "Tik om te openen",

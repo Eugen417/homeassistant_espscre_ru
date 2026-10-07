@@ -195,6 +195,7 @@ GROUPS = (
 # Glyphs the firmware draws itself (weather conditions, sun, checkmark, direct controls) that the picker does not offer.
 FIXED = (
     ('alert-circle-outline', 'F05D6'),
+    ('puzzle-outline', 'F0A66'),  # a plugin: the settings page's Plugins row, a plugin tile's placeholder
     # A remote's keypad (firmware 0.22.0): the ring's arrows up and down beside chevron-left/-right, Back, Home,
     # Play/Pause and the volume keys.
     ('chevron-up', 'F0143'),

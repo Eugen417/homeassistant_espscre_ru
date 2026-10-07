@@ -98,6 +98,40 @@ struct TapContext {
   int tile;                  // its index in the layout
 };
 
+// The rows a plugin adds to the screen's settings page (hold the top bar): Settings > Plugins > the plugin's page,
+// drawn exactly as Tessera's own rows. A value lives where the plugin keeps it, usually an ESPHome entity of its
+// plugin.yaml (a switch, a number, a select), so Home Assistant and the app show and change the same thing.
+class SettingsPage {
+ public:
+  struct Item {
+    enum Kind : uint8_t { TOGGLE, NUMBER, CHOICE, ACTION, INFO, CARD } kind;
+    std::string label, confirm, icon, card;
+    int low = 0, high = 0, step = 1;
+    std::string unit;
+    std::vector<std::string> options;
+    std::function<int()> read;
+    std::function<void(int)> write;
+    std::function<void()> run;
+    std::function<std::string()> text;
+  };
+  // A switch: on or off.
+  SettingsPage &toggle(const char *label, std::function<bool()> read, std::function<void(bool)> write);
+  // A number between low and high in steps, with - and + keys and a unit straight after it ("%", " min").
+  SettingsPage &number(const char *label, int low, int high, int step, const char *unit, std::function<int()> read,
+                       std::function<void(int)> write);
+  // One of a few words; a tap takes the next.
+  SettingsPage &choice(const char *label, std::vector<std::string> options, std::function<int()> read,
+                       std::function<void(int)> write);
+  // A row that does something on a tap; with `confirm` it asks once ("Tap again to ...") as Restart does.
+  SettingsPage &action(const char *label, const char *icon, std::function<void()> run, const char *confirm = nullptr);
+  // A line that only says something ("Version 1.1.0").
+  SettingsPage &info(const char *label, std::function<std::string()> text);
+  // A row that opens a card of this plugin (by its id in the manifest).
+  SettingsPage &card(const char *label, const char *icon, const char *card);
+  std::string title, icon;   // the page's title (the plugin's name when left empty) and its row's icon
+  std::vector<Item> items;
+};
+
 class Plugin;
 struct CardType {
   Plugin *plugin;
@@ -132,6 +166,8 @@ class Plugin {
   virtual void on_standby(bool dark) {}
   // An update of the firmware starts: let go of large buffers.
   virtual void before_update() {}
+  // Rows on the screen's settings page. Called once when the interface is up; true when the plugin added some.
+  virtual bool settings(SettingsPage &page) { return false; }
 
   // A tile type of this plugin, by its id in the manifest. Call it in setup(). `make` returns a new card; the core
   // deletes it.
