@@ -1466,7 +1466,8 @@
       "offline": "Offline · wijzigingen worden bewaard",
       "tabs": {
         "layout": "Indeling",
-        "settings": "Scherminstellingen"
+        "settings": "Scherminstellingen",
+        "plugins": "Plugins"
       },
       "sent": "Opgeslagen · naar scherm verstuurd",
       "all_saved": "Alles opgeslagen",
@@ -2852,7 +2853,7 @@
     },
     "plugins": {
       "title": "Plugins",
-      "intro": "Extra's voor je schermen: hardware op het bordje, of iets wat een scherm extra kan. Een plugin wordt in de firmware van het scherm gebouwd, dus alleen de schermen waar je hem aan toevoegt dragen hem mee.",
+      "intro": "Extra's voor je schermen: hardware op het bordje, of iets wat een scherm extra kan. Een plugin wordt in de firmware van een scherm gebouwd, dus je kiest per scherm welke het krijgt.",
       "example": "Voorbeeldplugins: de echte lijst komt met de plugin-index",
       "search": "Zoek op naam, maker of wat hij doet",
       "filter": "Toon",
@@ -2860,9 +2861,8 @@
         "all": "Alle",
         "tessera": "Van Tessera",
         "community": "Community",
-        "installed": "Op dit scherm"
+        "in_use": "In gebruik"
       },
-      "for": "Voor",
       "from_tessera": "Van Tessera",
       "by": "Door {maker}",
       "label": {
@@ -2873,7 +2873,11 @@
       "state": {
         "building": "Wordt gebouwd…",
         "installed": "Geïnstalleerd",
-        "update": "Update {version}"
+        "update": "Update {version}",
+        "test_on": "Test op {name}",
+        "updates": "Update op {n} scherm | Update op {n} schermen",
+        "on_screens": "Op {n} scherm | Op {n} schermen",
+        "fits_none": "Past op geen van je schermen"
       },
       "source": {
         "link": "Via een link",
@@ -2941,7 +2945,9 @@
       "room": {
         "title": "Ruimte op {screen}",
         "small": "{kb} KB extra: de firmware gaat van {before} naar {after} van zijn ruimte.",
-        "large": "{kb} KB, ruim binnen de ruimte van dit scherm."
+        "large": "{kb} KB, ruim binnen de ruimte van dit scherm.",
+        "title_all": "Ruimte",
+        "per_screen": "{kb} KB op elk scherm waar hij op komt. Bij een bordje met 4 MB staat hierboven of er ruimte voor is."
       },
       "works": {
         "title": "Werkt op:",
@@ -2950,8 +2956,8 @@
       },
       "source_code": "Broncode",
       "issues": "Probleem melden",
-      "example_install": "Voorbeeld: {name} op {screen}. Met de plugin-index zet Tessera hem in de YAML van het scherm en bouwt.",
-      "removed": "{name} verwijderd. Het scherm verliest hem bij de volgende build.",
+      "example_install": "Voorbeeld: {name} op {screens}. Met de plugin-index zet Tessera hem in de YAML van elk scherm en bouwt.",
+      "removed": "{name} verwijderd van {screens}. Het scherm verliest hem bij de volgende build.",
       "add_link": "Toevoegen met link",
       "link": {
         "title": "Toevoegen met een link",
@@ -2972,7 +2978,30 @@
         "fetch": "Plugin lezen",
         "test": "Als test toevoegen aan {screen}",
         "example": "Voorbeeld: met de plugin-index leest Tessera de beschrijving van de plugin via deze link.",
-        "not_found": "Geen pluginbeschrijving gevonden op deze link."
+        "not_found": "Geen pluginbeschrijving gevonden op deze link.",
+        "on_screen": "Op scherm"
+      },
+      "none_in_use": "Nog geen van je schermen heeft een plugin.",
+      "screen_update": "Versie {from}, update naar {to}",
+      "screen_version": "Versie {version}",
+      "on_screens": "Op welke schermen",
+      "apply": {
+        "add": "Toevoegen aan {n} scherm | Toevoegen aan {n} schermen",
+        "remove": "Verwijderen van {n} scherm | Verwijderen van {n} schermen",
+        "both": "Toepassen op {n} scherm | Toepassen op {n} schermen",
+        "none": "Toepassen"
+      },
+      "update_all": "{n} scherm bijwerken naar {version} | {n} schermen bijwerken naar {version}",
+      "tab": {
+        "intro": "De plugins die {screen} draait, en wat er nog bij kan. Elke wijziging bouwt nieuwe firmware voor dit scherm.",
+        "all": "Alle plugins",
+        "here": "Op dit scherm",
+        "add": "Toevoegen",
+        "misfits": "Past niet op dit scherm ({n}) | Passen niet op dit scherm ({n})"
+      },
+      "pending": {
+        "add": "Wordt toegevoegd als je toepast",
+        "remove": "Wordt verwijderd als je toepast"
       }
     }
   }

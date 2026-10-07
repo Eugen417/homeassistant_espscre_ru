@@ -62,7 +62,7 @@ export const state = reactive({
   dirty: false,
   busy: false,
   saved: 0,
-  tab: "layout" as "layout" | "settings",
+  tab: "layout" as "layout" | "settings" | "plugins",
   // The tile itself, not its entity: several tiles can go to the same page (firmware 0.2.65).
   selectedTile: null as Tile | null,
   inspector: null as Inspector | null,

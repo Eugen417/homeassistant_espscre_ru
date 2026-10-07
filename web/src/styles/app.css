@@ -1326,8 +1326,6 @@ section.advanced code { font-size: 11.5px; }
 .plugins-list { width: 100%; max-width: 1040px; margin: 0 auto; padding: 40px 32px 48px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-content: start; min-width: 0; }
 .plugins-example { display: flex; align-items: center; gap: 8px; justify-self: start; padding: 6px 12px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 500; }
 .plugins-example .ui-icon { font-size: 15px; }
-.plugins-for { display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: 12.5px; color: var(--muted); }
-.plugins-for select { width: auto; min-width: 170px; height: 34px; font-size: 13px; color: var(--ink); }
 .plugin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .plugins.with-detail .plugin-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 .plugin-card { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto 1fr auto; column-gap: 12px; row-gap: 10px; align-items: start; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); text-align: left; transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s, opacity 0.15s; }
@@ -1406,11 +1404,49 @@ section.advanced code { font-size: 11.5px; }
   .plugins .setup-steps-spacer { display: none; }
   .plugins .pick-search { min-width: 0; flex-basis: 100%; }
   .plugins .pick-tools .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
-  .plugins-for { margin-left: 0; width: 100%; }
-  .plugins-for select { flex: 1; }
   .plugins.with-detail .plugins-frame { grid-template-columns: minmax(0, 1fr); }
   .plugin-detail { position: fixed; inset: 0 0 0 auto; top: 0; height: 100%; width: 100%; z-index: 30; box-shadow: var(--shadow); }
   .plugin-detail-inner { width: 100%; }
   .plugin-detail.drawer-enter-from, .plugin-detail.drawer-leave-to { width: 100%; opacity: 1; transform: translateX(100%); }
   .plugin-detail.drawer-enter-active, .plugin-detail.drawer-leave-active { transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1); }
+}
+
+/* The Plugins page's details: a box per screen. What does not fit stays in the list, a step back, with its reason. */
+.pd-label { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.pd-screens { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.pd-screens li { display: flex; align-items: center; gap: 8px; border-radius: 9px; }
+.pd-screens label { flex: 1; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; padding: 7px 8px; border-radius: 9px; cursor: pointer; }
+.pd-screens li:not(.off) label:hover { background: var(--surface); }
+.pd-screens input { margin: 0; }
+.pd-screen-words { display: grid; min-width: 0; }
+.pd-screen-words b { font-weight: 550; font-size: 13px; }
+.pd-screen-words small { font-size: 11.5px; }
+.pd-screen-words small.pd-pending { color: var(--accent); font-weight: 500; }
+.pd-screens li.off label { cursor: default; }
+.pd-screens li.off b { color: var(--muted); font-weight: 500; }
+.pd-screens .spin { margin-right: 8px; }
+
+/* A screen's Plugins tab: the same cards in three groups, the details on the right as on the Plugins page. */
+.screen-plugins { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); overflow: hidden; }
+.screen-plugins.with-detail { grid-template-columns: minmax(0, 1fr) auto; }
+.sp-list { min-height: 0; overflow: auto; padding: 22px; display: grid; gap: 22px; align-content: start; grid-template-columns: minmax(0, 1fr); }
+.sp-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.sp-intro { color: var(--ink-2); font-size: 13px; max-width: 620px; }
+.sp-actions { display: flex; align-items: center; gap: 14px; }
+.sp-actions .btn.link .ui-icon { margin: 0 0 0 2px; }
+.sp-group { display: grid; gap: 10px; }
+.sp-group h3, .sp-misfits summary { font-size: 12px; font-weight: 600; color: var(--muted); }
+.sp-misfits summary { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; list-style: none; width: fit-content; }
+.sp-misfits summary::-webkit-details-marker { display: none; }
+.sp-misfits summary .ui-icon { font-size: 16px; transition: transform 0.15s; }
+.sp-misfits[open] summary .ui-icon { transform: rotate(90deg); }
+.sp-misfits[open] summary { margin-bottom: 10px; }
+/* On the grey of a screen's tabs a card that does not fit keeps its outline, only quieter. */
+.screen-plugins .plugin-card.misfit:not(.chosen) { background: color-mix(in srgb, var(--surface) 50%, transparent); border-color: var(--line); }
+.sp-empty { color: var(--muted); font-size: 12.5px; padding: 4px 0; }
+.screen-plugins .plugin-detail { position: relative; top: 0; height: 100%; }
+@media (max-width: 860px) {
+  .sp-list { padding: 16px; }
+  .screen-plugins.with-detail { grid-template-columns: minmax(0, 1fr); }
+  .screen-plugins .plugin-detail { position: fixed; inset: 0 0 0 auto; height: 100%; }
 }
