@@ -526,7 +526,8 @@ class Plugins:
             return 'api'
         if manifest['boards'] != 'any' and core.board_of(screen) not in manifest['boards']:
             return 'board'
-        if manifest['requires']['psram'] and not core.able(screen, 'pictures') and not screen.get('pictures'):
+        # PSRAM: a board that draws camera pictures has it (features/camera.yaml is for PSRAM boards only).
+        if manifest['requires']['psram'] and not screen.get('pictures') and not core.SHAPES.get(core.board_of(screen), {}).get('camera'):
             return 'psram'
         if self.blocked(entry):
             return 'blocked'

@@ -138,6 +138,26 @@ class Manifest(unittest.TestCase):
         self.assertIn(f'PLACEHOLDER_BYTES = {core.PLUGIN_PLACEHOLDER_BYTES};', host)
 
 
+class Boards(unittest.TestCase):
+    """A plugin for one board's hardware (P4 panel audio) is offered to that board's screens only, and to a screen
+    whose core is too old for its API to none."""
+
+    def test_a_board_plugin_fits_its_board_only(self):
+        import plugins as plugin_service
+        entry = type('Entry', (), {'manifest': pm.check(manifest(boards=['wavesharep4'], api='0.3',
+                                                                 requires={'psram': True}), ENGLISH)})()
+        service = type('Service', (), {'blocked': lambda self, entry: False})()
+        fits = lambda screen: plugin_service.Plugins.fits(service, entry, screen)  # noqa: E731
+        self.assertIsNone(fits({'board': 'wavesharep4', 'pictures': True}))
+        self.assertEqual(fits({'board': 'guition', 'pictures': True}), 'board')
+        self.assertEqual(fits({'board': 'waveshare4b', 'pictures': True}), 'board')
+        # PSRAM comes from the board when the screen says nothing about it (a KeyError before).
+        self.assertIsNone(fits({'board': 'wavesharep4'}))
+        entry.manifest = pm.check(manifest(requires={'psram': True}), ENGLISH)
+        self.assertEqual(fits({'board': 'cyd'}), 'psram')
+        self.assertIsNone(fits({'board': 'guition'}))
+
+
 class Map(unittest.TestCase):
     ANSWER = {'30003025': {'passes': {
         'b': {'line': '7', 'to': 'Slotermeer', 'when': '2026-10-07T17:30:00', 'state': 'DRIVING'},
