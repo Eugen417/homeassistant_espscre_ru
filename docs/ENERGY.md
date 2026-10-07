@@ -48,7 +48,14 @@ LVGL object that draws in its draw event, so a card costs one object however man
 - The dots run on their own timer, 25 frames a second. Each frame redraws only the pixels a dot leaves and enters. A
   dot is a small alpha picture placed to the sub-pixel, so it stays in the middle of its line while it moves.
 - Each dot keeps its own place on its line and moves on by the time since its last frame, at its line's pace now. A
-  new value changes how fast a dot runs, never where it is.
+  new value changes how fast a dot runs, never where it is: a dot belongs to its line, so a line that stays keeps its
+  dot, and only a new line starts one.
+- A new value is painted in place (docs/CARD_PARTS.md): while every circle, line and turn stays where it was, only the
+  words that changed and the house's ring are drawn again. The form, fonts and places the card chose are kept
+  (`ChoiceCache`) until its shape changes (its size, its sources, its devices' names) or a number outgrows the room it
+  was given. The search behind that choice took about 300 ms on an ESP32-S3 and held the whole screen at every value;
+  a new value now takes a few milliseconds. `tests/test_energy_card.cpp` proves a kept choice draws what a fresh
+  search draws.
 - Nothing runs while the screen sleeps, while the card is off the glass, or while a card is open over it.
 
 The card is responsive the way every card is: it takes the richest form and the largest of the board's fonts that fit.

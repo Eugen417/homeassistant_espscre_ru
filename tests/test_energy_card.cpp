@@ -249,6 +249,38 @@ int main() {
     const Circle *found = hit(sc, solar->c.x + 2, solar->c.y - 3, ui::mm(7));
     assert(found && found->entity == "sensor.inverter_solar_power");
   }
+  // A card keeps its choice while its shape stays (ChoiceCache): every new value draws what a fresh search draws, and a
+  // number that outgrows its room, or another device, asks again.
+  for (const Board &b : BOARDS) {
+    const Measure m = measure(b);
+    for (const auto &size : b.sizes) {
+      if (!size.name) continue;
+      ChoiceCache cache;
+      std::string widest;
+      for (int i = 0; i < 40; ++i) {
+        Data d = i < 20 ? noon() : night_car();
+        d.from_battery = 15 + i % 5;
+        d.home += i * 37;
+        if (i == 30) d.devices.pop_back();
+        if (i % 7 == 3) d.from_grid = 11400 + i;  // past the room it had
+        for (float v : {d.solar_w, d.from_grid, d.to_grid, d.from_battery, d.to_battery, d.home}) {
+          const std::string s = power(v, '.');
+          if (widest.empty() || m.width(SMALL, s) > m.width(SMALL, widest)) widest = s;
+        }
+        const Scene fresh = build(d, m, size.w, size.h, W(), widest), kept = build(d, m, size.w, size.h, W(), widest, &cache);
+        bool same = fresh.ok == kept.ok && fresh.d == kept.d && fresh.vertical == kept.vertical && fresh.step == kept.step &&
+                    fresh.devices == kept.devices && fresh.texts.size() == kept.texts.size() && fresh.circles.size() == kept.circles.size();
+        for (size_t t = 0; same && t < fresh.texts.size(); ++t)
+          same = fresh.texts[t].s == kept.texts[t].s && fresh.texts[t].x == kept.texts[t].x && fresh.texts[t].y == kept.texts[t].y &&
+                 fresh.texts[t].face == kept.texts[t].face;
+        for (size_t c = 0; same && c < fresh.circles.size(); ++c)
+          same = fresh.circles[c].c.x == kept.circles[c].c.x && fresh.circles[c].c.y == kept.circles[c].c.y && fresh.circles[c].d == kept.circles[c].d;
+        if (!same) std::printf("FAIL kept choice differs: %s %s, moment %d\n", b.name, size.name, i);
+        assert(same);
+        ++checks;
+      }
+    }
+  }
   std::printf("energy card: %d checks passed\n", checks);
   return 0;
 }

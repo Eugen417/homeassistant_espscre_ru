@@ -74,7 +74,11 @@
 - **The energy card's dots run smoothly.** A dot's place was worked out from the time since the card started, so every
   new value made it jump, worse the longer the screen ran and most on a battery that reports often (discussion #104).
   A new value now changes how fast a dot runs, not where it is. Back on the card's page after another page, the dots
-  stood still until the next value came in; they run again at once.
+  stood still until the next value came in; they run again at once. A slow dot (a few W) now reaches the end of its
+  line too: every new value used to send it back to the start.
+- **A new value on the energy card no longer holds the screen.** At every value the card searched its whole layout
+  again, about a third of a second in which the screen stood still. It now keeps its layout until its shape changes
+  and draws only the numbers that changed, in a few milliseconds.
 
 ## 0.4.83 (firmware 0.51.0)
 
