@@ -11041,7 +11041,9 @@ inline void card_picture_wants() {
     }
     const bool glass = seen && on_glass(w);
     if (!glass && !ahead) return;
-    if (w.extra_mode == "media" && !w.cover_entity.empty()) {
+    // A slot keeps the parts of the media card it drew last while it shows another tile (hide_extra), so the card's
+    // cover is only this tile's while those parts are on it: a cover or camera tile in that slot asks for its own.
+    if (w.extra_mode == "media" && !w.cover_entity.empty() && w.extra && !lv_obj_has_flag(w.extra, LV_OBJ_FLAG_HIDDEN)) {
       if (t.entity != w.cover_entity || t.extra().media_picture != w.cover_mark) return;
       const size_t index = w.index;
       loader.want(owners::tile(index), cover_picture({w.cover_entity, w.cover_mark, w.cover_size, w.cover_ground},
