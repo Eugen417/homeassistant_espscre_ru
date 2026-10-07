@@ -1633,7 +1633,8 @@
         "updates": "Update auf {n} Bildschirm | Update auf {n} Bildschirmen",
         "on_screens": "Auf {n} Bildschirm | Auf {n} Bildschirmen",
         "fits_none": "Passt auf keinen deiner Bildschirme",
-        "failed": "Erstellen fehlgeschlagen"
+        "failed": "Erstellen fehlgeschlagen",
+        "queued": "Wartet, bis es dran ist"
       },
       "source": {
         "link": "Über einen Link",

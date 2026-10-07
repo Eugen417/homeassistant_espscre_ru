@@ -1633,7 +1633,8 @@
         "updates": "Frissítés {n} kijelzőn | Frissítés {n} kijelzőn",
         "on_screens": "{n} kijelzőn | {n} kijelzőn",
         "fits_none": "Egyik kijelződre sem jó",
-        "failed": "A fordítás nem sikerült"
+        "failed": "A fordítás nem sikerült",
+        "queued": "Sorára vár"
       },
       "source": {
         "link": "Hivatkozásból",

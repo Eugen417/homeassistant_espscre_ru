@@ -1633,7 +1633,8 @@
         "updates": "Aktualizacja na {n} ekranie | Aktualizacja na {n} ekranach | Aktualizacja na {n} ekranach",
         "on_screens": "Na {n} ekranie | Na {n} ekranach | Na {n} ekranach",
         "fits_none": "Nie pasuje do żadnego z Twoich ekranów",
-        "failed": "Kompilacja nie powiodła się"
+        "failed": "Kompilacja nie powiodła się",
+        "queued": "Czeka na swoją kolej"
       },
       "source": {
         "link": "Z linku",

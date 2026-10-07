@@ -2905,7 +2905,8 @@
         "updates": "Update on {n} screen | Update on {n} screens",
         "on_screens": "On {n} screen | On {n} screens",
         "fits_none": "Fits none of your screens",
-        "failed": "Build failed"
+        "failed": "Build failed",
+        "queued": "Waits its turn"
       },
       "source": {
         "link": "From a link",

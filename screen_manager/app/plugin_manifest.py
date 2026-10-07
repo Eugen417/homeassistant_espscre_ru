@@ -676,5 +676,9 @@ def permission_hash(manifest):
     """What a person agreed to, as one short fingerprint: when an update asks for more, it differs."""
     import hashlib
     import json
-    data = {'permissions': manifest['permissions'], 'attributes': sorted(manifest['attributes'])}
+    # The rights of plugin API 0.1 always count; a kind of right added since counts only when the plugin asks for it,
+    # so a new kind in this app never makes every installed plugin ask again.
+    first = ('read_entities', 'home_assistant_actions', 'network')
+    permissions = {key: value for key, value in manifest['permissions'].items() if key in first or value}
+    data = {'permissions': permissions, 'attributes': sorted(manifest['attributes'])}
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()[:16]

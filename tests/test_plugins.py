@@ -58,6 +58,16 @@ class Manifest(unittest.TestCase):
                     pm.check(yaml.safe_load((folder / 'tessera-plugin.yaml').read_text()),
                              json.loads((folder / 'translations' / 'en.json').read_text()))
 
+    def test_a_new_kind_of_right_does_not_ask_everyone_again(self):
+        import hashlib
+        out = pm.check(manifest(), ENGLISH)
+        # The fingerprint as plugin API 0.1 made it, before ha_commands existed: an installed plugin keeps its consent.
+        before = {'permissions': {'read_entities': [], 'home_assistant_actions': [], 'network': ['api.example.org']},
+                  'attributes': ['cloud']}
+        self.assertEqual(pm.permission_hash(out), hashlib.sha256(json.dumps(before, sort_keys=True).encode()).hexdigest()[:16])
+        asking = pm.check(manifest(permissions={'network': ['api.example.org'], 'ha_commands': ['history/history_during_period']}), ENGLISH)
+        self.assertNotEqual(pm.permission_hash(asking), pm.permission_hash(out))
+
     def test_a_preview_names_fields_of_its_data(self):
         def with_preview(preview):
             data = manifest()

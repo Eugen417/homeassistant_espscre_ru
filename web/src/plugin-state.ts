@@ -28,7 +28,7 @@ export const plugins = reactive({
   // whose build is running, the plugins file of a screen with its own YAML, and the lists of choices it fetched.
   running: {} as Record<string, { id: string; version: string; tiles: string[] }[]>,
   secrets: {} as Record<string, Record<string, boolean>>,
-  jobs: {} as Record<string, { add: string[]; remove: string[] }>,
+  jobs: {} as Record<string, { add: string[]; remove: string[]; state?: string }>,
   files: {} as Record<string, { file: string; content: string; line: string }>,
   choices: {} as Record<string, { value: string; label: Texts }[]>,
   // What the add-on drew of a tile's data, by plugin tile and its options (previewFor), and when it was asked.
@@ -226,7 +226,9 @@ export const labelOf = (plugin: Plugin) => plugin.label
 // ---- One line of state: for one screen (its tab), or over all screens (the page) ----
 export type Status = { kind: "installed" | "update" | "building" | "test" | "misfit" | "failed" | ""; label: string };
 export function statusOn(plugin: Plugin, screen: Screen): Status {
-  if (buildingOn(screen, plugin.id)) return { kind: "building", label: t("editor.plugins.state.building") };
+  // A screen in the add-on's build queue waits its turn; one at a time builds (docs/PLUGINS.md).
+  if (buildingOn(screen, plugin.id))
+    return { kind: "building", label: t(plugins.jobs[screen.id]?.state === "queued" ? "editor.plugins.state.queued" : "editor.plugins.state.building") };
   const have = installedOn(screen, plugin.id);
   if (have?.state === "failed") return { kind: "failed", label: t("editor.plugins.state.failed") };
   if (have && have.source !== "index") return { kind: "test", label: t(`editor.plugins.source.${have.source}`) };

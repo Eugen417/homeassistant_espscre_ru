@@ -2905,7 +2905,8 @@
         "updates": "Update op {n} scherm | Update op {n} schermen",
         "on_screens": "Op {n} scherm | Op {n} schermen",
         "fits_none": "Past op geen van je schermen",
-        "failed": "Bouwen mislukt"
+        "failed": "Bouwen mislukt",
+        "queued": "Wacht op zijn beurt"
       },
       "source": {
         "link": "Via een link",
