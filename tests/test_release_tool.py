@@ -167,6 +167,9 @@ class TheCandidate(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             clone = Path(folder) / 'clone'
             subprocess.run(['git', 'clone', '--quiet', '--shared', '--no-checkout', str(ROOT), str(clone)], check=True)
+            # A commit wants a name: CI's runner has none of its own, where the maintainer's machine does.
+            for key, value in (('user.name', 'Release test'), ('user.email', 'release-test@example.invalid')):
+                subprocess.run(['git', 'config', key, value], cwd=clone, check=True)
             head = release.git('rev-parse', 'HEAD', cwd=clone)
             commit, pointed = release.candidate_commit(head, cwd=clone)
             self.assertEqual(release.git('rev-parse', f'{commit}^', cwd=clone), head)
