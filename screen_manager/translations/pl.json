@@ -1794,7 +1794,10 @@
       "from_fetch": "Opcje pochodzą z własnego źródła danych wtyczki, przez Tessera.",
       "on_screen": "Na ekranie",
       "sizes": "Od {min} do {max}; przeciągnij krawędź kafelka, aby zmienić jego rozmiar.",
-      "placeholder": "Edytor pokazuje symbol zastępczy: to, co rysuje wtyczka, widać na samym ekranie."
+      "placeholder": "Edytor pokazuje symbol zastępczy: to, co rysuje wtyczka, widać na samym ekranie.",
+      "now": "teraz",
+      "minutes": "{n} min",
+      "live": "Edytor rysuje go z danych wtyczki; ekran rysuje go sam i odlicza czas według własnego zegara."
     },
     "memory": {
       "label": "Pamięć na kafelki",

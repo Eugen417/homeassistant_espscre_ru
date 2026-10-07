@@ -67,7 +67,7 @@ function openPlugin() { closeInspector(); state.tab = "plugins"; }
 
     <Section :title="t('editor.plugin_tile.on_screen')">
       <p class="hint">{{ t("editor.plugin_tile.sizes", { min: size(kind.tile.min), max: size(kind.tile.max) }) }}</p>
-      <p class="hint">{{ t("editor.plugin_tile.placeholder") }}</p>
+      <p class="hint">{{ t(kind.tile.preview ? "editor.plugin_tile.live" : "editor.plugin_tile.placeholder") }}</p>
     </Section>
   </div>
   <div class="dr-foot">

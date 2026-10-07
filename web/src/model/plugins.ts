@@ -21,6 +21,8 @@ export type PluginTileOption = {
 export type PluginTile = {
   id: string; name: Texts; icon?: string; min: string; max: string; memory: number;
   entity?: string[]; options?: PluginTileOption[]; example?: Texts;
+  // The add-on draws a preview of it from its data (api/plugins/<id>/preview/<tile>): the manifest names one.
+  preview?: boolean;
 };
 export type PluginSource = "index" | "link" | "branch" | "folder";
 export type PluginLabel = "tessera" | "community" | "test";

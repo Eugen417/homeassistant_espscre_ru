@@ -3064,7 +3064,10 @@
       "from_fetch": "The choices come from the plugin's own data source, through Tessera.",
       "on_screen": "On the screen",
       "sizes": "From {min} to {max}; drag an edge of the tile to change its size.",
-      "placeholder": "The editor shows a placeholder: what the plugin draws appears on the screen itself."
+      "placeholder": "The editor shows a placeholder: what the plugin draws appears on the screen itself.",
+      "now": "now",
+      "minutes": "{n} min",
+      "live": "The editor draws it from the plugin's own data; the screen draws it itself and counts down on its own clock."
     }
   }
 }

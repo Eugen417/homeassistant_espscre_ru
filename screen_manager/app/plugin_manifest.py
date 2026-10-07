@@ -39,6 +39,9 @@ LICENSES = ('MIT', 'Apache-2.0', 'BSD-2-Clause', 'BSD-3-Clause', 'ISC', 'MPL-2.0
             'LGPL-3.0-or-later', 'GPL-3.0-or-later', 'AGPL-3.0-or-later', 'AGPL-3.0-only', 'GPL-3.0-only', 'Unlicense',
             '0BSD', 'CC0-1.0')
 
+# How the editor draws a tile with data (it cannot run the plugin's C++): the first item's fields in a badge, a title
+# and a value, or a countdown to a moment. Templates name fields as {field}.
+PREVIEW = ('badge', 'title', 'value', 'countdown')
 MAX_TILES = 8
 MAX_OPTIONS = 12
 MAX_FETCHES = 8
@@ -482,7 +485,7 @@ def check(manifest, english=None):
     for i, item in enumerate(_list(manifest.get('tiles'), 'tiles', MAX_TILES)):
         where = f'tiles[{i}]'
         item = _object(item, where, {'id', 'name', 'icon', 'sizes', 'memory', 'entity', 'data', 'options',
-                                     'example'}, ('id', 'name', 'sizes', 'memory'))
+                                     'example', 'preview'}, ('id', 'name', 'sizes', 'memory'))
         tile = {'id': _id(item['id'], f'{where}.id'), 'name': _text_key(item['name'], f'{where}.name', keys)}
         icon = item.get('icon', out['icon'])
         if not isinstance(icon, str) or not MDI.match(icon):
@@ -518,6 +521,16 @@ def check(manifest, english=None):
                 choice_lists.add(option['options_from'])
         if 'example' in item:
             tile['example'] = _text_key(item['example'], f'{where}.example', keys)
+        if 'preview' in item:
+            if 'data' not in tile:
+                raise ManifestError(f'{where}.preview', 'a preview is drawn from the tile\'s data: it needs "data"')
+            preview = _object(item['preview'], f'{where}.preview', set(PREVIEW))
+            for key, value in preview.items():
+                if not isinstance(value, str) or not 0 < len(value) <= 64:
+                    raise ManifestError(f'{where}.preview.{key}', 'a text of at most 64 characters')
+            if 'value' in preview and 'countdown' in preview:
+                raise ManifestError(f'{where}.preview', 'either "value" or "countdown"')
+            tile['preview'] = dict(preview)
         option_ids_of[tile['id']] = {option['id'] for option in options}
         tiles.append(tile)
     _unique(tiles, 'tiles')
@@ -537,6 +550,17 @@ def check(manifest, english=None):
         if fetch['id'] not in choice_lists and 'fields' not in fetch['map']:
             raise ManifestError(f'fetch.{fetch["id"]}.map', 'a fetch a tile shows maps "fields"')
     out['fetch'] = fetches
+    for i, tile in enumerate(tiles):
+        if 'preview' not in tile:
+            continue
+        fields = (next(f for f in fetches if f['id'] == tile['data'])['map'].get('fields') or {})
+        for key, value in tile['preview'].items():
+            names = [value] if key == 'countdown' else PLACEHOLDER.findall(value)
+            for name in names:
+                if name not in fields:
+                    raise ManifestError(f'tiles[{i}].preview.{key}', f'"{name}" is no field of the fetch {tile["data"]}')
+            if key == 'countdown' and fields[value]['as'] != 'epoch':
+                raise ManifestError(f'tiles[{i}].preview.countdown', f'"{value}" must be a field with "as: epoch"')
     for name in sorted(fetch_ids - {f['id'] for f in fetches}):
         raise ManifestError('fetch', f'"{name}" is used but not described')
 

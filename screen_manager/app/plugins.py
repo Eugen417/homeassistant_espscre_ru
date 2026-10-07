@@ -302,7 +302,8 @@ class Plugins:
                                 'min': tile['min'], 'max': tile['max'], 'memory': tile['memory'],
                                 'entity': tile['entity'], 'data': tile.get('data'),
                                 'options': [option(o) for o in tile['options']],
-                                'example': words(tile.get('example'))} for tile in manifest['tiles']]},
+                                'example': words(tile.get('example')), 'preview': bool(tile.get('preview'))}
+                               for tile in manifest['tiles']]},
             'source': entry.source, 'label': entry.label, 'status': entry.status, 'blocked': self.blocked(entry),
             'fits_api': pm.api_fits(manifest['api']), 'api': manifest['api'],
         }
@@ -596,6 +597,27 @@ class Plugins:
         if cached['data'] is None:
             return {'choices': [], 'wait': 'failed', 'error': cached['error']}
         return {'choices': plugin_fetch.apply_choices(fetch['map'], cached['data'], clean)}
+
+    async def preview(self, plugin, tile_id, options):
+        """What the editor draws for a plugin tile (it cannot run the plugin's C++): the manifest's `preview` filled in
+        from the tile's data, for its first items: [{badge, title, value, at}], `at` a moment the editor counts down to."""
+        entry = self.known(plugin)
+        kind = entry.tile(tile_id) if entry else None
+        if not kind or not kind.get('preview'):
+            raise ValueError(t('addon.errors.plugins.request'))
+        chosen = self.values_of(entry, kind, options)
+        data = await self.tile_data(entry, kind, chosen)
+        if not data or 'wait' in data:
+            return {'items': [], 'wait': (data or {}).get('wait', 'asking')}
+        rows = data.get('items') if isinstance(data.get('items'), list) else [data]
+        spec, out = kind['preview'], []
+        fill = lambda text, row: pm.PLACEHOLDER.sub(lambda m: '' if row.get(m.group(1)) is None else str(row.get(m.group(1))), text).strip()
+        for row in rows[:6]:
+            item = {key: fill(spec[key], row) for key in ('badge', 'title', 'value') if key in spec}
+            if 'countdown' in spec:
+                item['at'] = row.get(spec['countdown'])
+            out.append(item)
+        return {'items': out, **({'stale': True} if data.get('stale') else {})}
 
     def plugin_tiles(self):
         """Every plugin tile on a screen's pages: [(inbox, tile)]."""

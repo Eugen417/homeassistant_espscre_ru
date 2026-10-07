@@ -1794,7 +1794,10 @@
       "from_fetch": "Die Auswahl kommt aus der eigenen Datenquelle des Plugins, über Tessera.",
       "on_screen": "Auf dem Bildschirm",
       "sizes": "Von {min} bis {max}; zieh an einem Rand der Kachel, um ihre Größe zu ändern.",
-      "placeholder": "Der Editor zeigt einen Platzhalter: Was das Plugin zeichnet, erscheint auf dem Bildschirm selbst."
+      "placeholder": "Der Editor zeigt einen Platzhalter: Was das Plugin zeichnet, erscheint auf dem Bildschirm selbst.",
+      "now": "jetzt",
+      "minutes": "{n} Min.",
+      "live": "Der Editor zeichnet sie aus den eigenen Daten des Plugins; der Bildschirm zeichnet sie selbst und zählt mit seiner eigenen Uhr herunter."
     },
     "memory": {
       "label": "Speicher für Kacheln",

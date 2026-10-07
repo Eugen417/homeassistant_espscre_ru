@@ -1794,7 +1794,10 @@
       "from_fetch": "Les choix viennent de la propre source de données du plugin, via Tessera.",
       "on_screen": "Sur l'écran",
       "sizes": "De {min} à {max} ; faites glisser un bord de la tuile pour changer sa taille.",
-      "placeholder": "L'éditeur affiche un espace réservé : ce que le plugin dessine apparaît sur l'écran lui-même."
+      "placeholder": "L'éditeur affiche un espace réservé : ce que le plugin dessine apparaît sur l'écran lui-même.",
+      "now": "maintenant",
+      "minutes": "{n} min",
+      "live": "L'éditeur la dessine avec les données du plugin ; l'écran la dessine lui-même et décompte avec sa propre horloge."
     },
     "memory": {
       "label": "Mémoire pour les tuiles",

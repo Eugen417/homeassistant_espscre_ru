@@ -5,7 +5,7 @@ import { reactive } from "vue";
 import { getJson, send } from "./api";
 import { t } from "./i18n";
 import { choiceKey, choicesOf, EXAMPLE_INDEX, EXAMPLE_INSTALLED, fit, knowTileTypes, pluginTileId, testPlugin, text, type Installed, type Plugin,
-  type PluginTileOption, type Texts } from "./model/plugins";
+  type PluginTileOption, type Texts, pluginTileOf, pluginDefaults} from "./model/plugins";
 import { pluginTiles } from "./model/page-validation";
 import { computed, watch } from "vue";
 import { copyText, state, toast } from "./store";
@@ -31,6 +31,8 @@ export const plugins = reactive({
   jobs: {} as Record<string, { add: string[]; remove: string[] }>,
   files: {} as Record<string, { file: string; content: string; line: string }>,
   choices: {} as Record<string, { value: string; label: Texts }[]>,
+  // What the add-on drew of a tile's data, by plugin tile and its options (previewFor), and when it was asked.
+  previews: {} as Record<string, { items: PreviewRow[]; at: number }>,
   folders: { path: "", errors: {} as Record<string, string> },
 });
 
@@ -39,7 +41,8 @@ export const plugins = reactive({
 export const pluginsEnabled = computed(() => import.meta.env.DEV || state.inventory.editor_features?.plugins === true);
 // The layout model, the memory price and the tile card ask the model's register for a plugin tile; it follows the index.
 watch(() => plugins.index, (index) => knowTileTypes(index), { immediate: true });
-watch(pluginsEnabled, (on) => { pluginTiles.enabled = on; }, { immediate: true });
+// The plugins load as soon as they are on, not when the Plugins page opens: a page with a plugin tile needs its type.
+watch(pluginsEnabled, (on) => { pluginTiles.enabled = on; if (on) loadPlugins(); }, { immediate: true });
 
 type Payload = {
   plugins: Plugin[]; installed: Record<string, Installed[]>; running: typeof plugins.running; secrets: typeof plugins.secrets;
@@ -85,6 +88,27 @@ export function choicesFor(plugin: Plugin, option: PluginTileOption, values: Rec
       .finally(() => asking.delete(key));
   }
   return plugins.choices[key] || [];
+}
+
+// A plugin tile's look in the mockup (the editor cannot run its C++): the manifest's `preview` filled in by the add-on
+// from the tile's data, its first rows; asked again once a minute while a page shows it.
+export type PreviewRow = { badge?: string; title?: string; value?: string; at?: number };
+const drawing = new Set<string>();
+export function previewFor(entity: string, options: Record<string, unknown> | undefined): PreviewRow[] | null {
+  const kind = pluginTileOf(entity);
+  if (plugins.example || !kind?.tile.preview) return null;
+  const values = { ...pluginDefaults(kind.tile), ...(options || {}) };
+  const key = `${entity}|${JSON.stringify(values)}`;
+  const known = plugins.previews[key];
+  if ((!known || Date.now() - known.at > 60000) && !drawing.has(key)) {
+    drawing.add(key);
+    const query = new URLSearchParams(Object.entries(values).filter(([, v]) => v !== "" && v !== undefined).map(([k, v]) => [k, String(v)])).toString();
+    getJson<{ items: PreviewRow[] }>(`plugins/${kind.plugin.id}/preview/${kind.tile.id}${query ? `?${query}` : ""}`)
+      .then((data) => { plugins.previews[key] = { items: data.items || [], at: Date.now() }; })
+      .catch(() => { plugins.previews[key] = { items: [], at: Date.now() }; })
+      .finally(() => drawing.delete(key));
+  }
+  return known ? known.items : null;
 }
 
 export const realScreens = () => state.inventory.screens.filter((screen) => !screen.virtual);
@@ -181,7 +205,9 @@ export function statusOverall(plugin: Plugin): Status {
   const screens = realScreens();
   if (screens.some((screen) => buildingOn(screen, plugin.id))) return { kind: "building", label: t("editor.plugins.state.building") };
   const on = screens.filter((screen) => installedOn(screen, plugin.id));
-  if (labelOf(plugin) === "test") return { kind: "test", label: t("editor.plugins.state.test_on", { name: on.map((s) => s.name).join(", ") }) };
+  // A test names its screen when it is on one; on more it counts them, so the line fits the card beside its chip.
+  if (labelOf(plugin) === "test") return { kind: "test", label: on.length === 1 ? t("editor.plugins.state.test_on", { name: on[0].name })
+    : on.length ? t("editor.plugins.state.on_screens", { n: on.length }, on.length) : "" };
   const updates = on.filter((screen) => installedOn(screen, plugin.id)!.version !== plugin.version).length;
   if (updates) return { kind: "update", label: t("editor.plugins.state.updates", { n: updates }, updates) };
   if (on.length) return { kind: "installed", label: t("editor.plugins.state.on_screens", { n: on.length }, on.length) };

@@ -58,6 +58,17 @@ class Manifest(unittest.TestCase):
                     pm.check(yaml.safe_load((folder / 'tessera-plugin.yaml').read_text()),
                              json.loads((folder / 'translations' / 'en.json').read_text()))
 
+    def test_a_preview_names_fields_of_its_data(self):
+        def with_preview(preview):
+            data = manifest()
+            data['tiles'][0]['preview'] = preview
+            return data
+        self.assertEqual(pm.check(with_preview({'badge': '{line}', 'countdown': 'at'}), ENGLISH)['tiles'][0]['preview'],
+                         {'badge': '{line}', 'countdown': 'at'})
+        for wrong in ({'title': '{nowhere}'}, {'countdown': 'line'}, {'value': '{line}', 'countdown': 'at'}, {'colour': 'x'}):
+            with self.subTest(wrong), self.assertRaises(pm.ManifestError):
+                pm.check(with_preview(wrong), ENGLISH)
+
     def test_mistakes_say_where(self):
         cases = [
             (manifest(colour='red'), 'unknown field'),

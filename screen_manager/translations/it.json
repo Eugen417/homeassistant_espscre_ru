@@ -1794,7 +1794,10 @@
       "from_fetch": "Le scelte vengono dalla fonte di dati del plugin stesso, tramite Tessera.",
       "on_screen": "Sullo schermo",
       "sizes": "Da {min} a {max}; trascina un bordo del riquadro per cambiarne le dimensioni.",
-      "placeholder": "L'editor mostra un segnaposto: ciò che il plugin disegna appare sullo schermo stesso."
+      "placeholder": "L'editor mostra un segnaposto: ciò che il plugin disegna appare sullo schermo stesso.",
+      "now": "ora",
+      "minutes": "{n} min",
+      "live": "L'editor la disegna con i dati del plugin; lo schermo la disegna da sé e fa il conto alla rovescia con il proprio orologio."
     },
     "memory": {
       "label": "Memoria per i riquadri",

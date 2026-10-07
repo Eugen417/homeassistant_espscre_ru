@@ -6,7 +6,9 @@
 import { computed, ref } from "vue";
 import { t } from "../i18n";
 import { text, type Plugin } from "../model/plugins";
-import { allTests, installedOn, loadPlugins, plugins, realScreens, statusOverall } from "../plugin-state";
+import { allTests, installedOn, labelOf, loadPlugins, plugins, realScreens, statusOverall } from "../plugin-state";
+// The folder as Home Assistant shows it (config/...), not as the app's container mounts it (/homeassistant/...).
+const folderShown = (path: string) => path.replace(/^\/(homeassistant|config)\//, "config/");
 import { go } from "../store";
 import PluginCard from "./PluginCard.vue";
 import PluginDetail from "./PluginDetail.vue";
@@ -20,7 +22,7 @@ const query = ref("");
 const everything = computed(() => [...plugins.index, ...allTests()]);
 const inUse = (plugin: Plugin) => realScreens().some((screen) => installedOn(screen, plugin.id));
 const keep = (plugin: Plugin, key: (typeof FILTERS)[number]) => key === "all" || (key === "tessera" ? plugin.tessera
-  : key === "community" ? !plugin.tessera && plugins.index.some((p) => p.id === plugin.id) : inUse(plugin));
+  : key === "community" ? labelOf(plugin) === "community" : inUse(plugin));
 const shown = computed(() => {
   const words = query.value.toLocaleLowerCase().split(/\s+/).filter(Boolean);
   return everything.value.filter((plugin) => keep(plugin, filter.value) && words.every((word) =>
@@ -65,7 +67,7 @@ function close() { panel.value = null; openId.value = null; }
           {{ t("editor.plugins.make") }}
           <a href="https://github.com/MaxGramser/tessera-plugins/tree/main/template" target="_blank" rel="noopener">{{ t("editor.plugins.template") }}</a>
         </p>
-        <p v-if="!plugins.example && plugins.folders.path" class="plugins-make" id="plugins-folder">{{ t("editor.plugins.folder_note", { path: plugins.folders.path }) }}</p>
+        <p v-if="!plugins.example && plugins.folders.path" class="plugins-make" id="plugins-folder">{{ t("editor.plugins.folder_note", { path: folderShown(plugins.folders.path) }) }}</p>
         <p v-for="(why, folder) in plugins.folders.errors" :key="folder" class="pd-misfit plugins-folder-error"><Icon name="information-outline" />{{ t("editor.plugins.folder_error", { folder, why }) }}</p>
       </section>
 

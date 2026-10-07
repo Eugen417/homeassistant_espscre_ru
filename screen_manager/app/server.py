@@ -4332,6 +4332,11 @@ def create_app(manager, development=False):
         app.router.add_get('/api/screens/{inbox}/plugins/file', plugins_file)
         app.router.add_put('/api/plugins/{plugin}/secrets/{input}', plugins_secret)
         app.router.add_get('/api/plugins/{plugin}/choices/{fetch}', plugins_choices)
+
+        async def plugins_preview(request):
+            options = {key: value for key, value in request.query.items() if key != 'language'}
+            return web.json_response(await manager.plugins.preview(request.match_info['plugin'], request.match_info['tile'], options))
+        app.router.add_get('/api/plugins/{plugin}/preview/{tile}', plugins_preview)
     app.router.add_get('/', index)
     app.router.add_get('/api/inventory', inventory)
     app.router.add_get('/api/capabilities', capabilities)

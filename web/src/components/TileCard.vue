@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { pluginTileOf, text as pluginText } from "../model/plugins";
+import { previewFor } from "../plugin-state";
 import { editorLayout } from "../store";
 const { grid: editorGrid } = editorLayout;
 
@@ -62,6 +63,24 @@ const energyTile = computed(() => props.tile.entity === "screen.energy");
 // A plugin's tile (design): the editor cannot draw what the plugin draws on the glass, so it shows a placeholder with the
 // tile's icon, its name, one line of what it shows, and the plugin it comes from.
 const pluginTile = computed(() => pluginTileOf(props.tile.entity));
+// With data, it looks like the glass: the add-on fills in the manifest's preview (a line's number, where it goes, and
+// the minutes to the next departure), and the mockup counts down on the editor's clock as the screen does on its own.
+const pluginRows = computed(() => (pluginTile.value && !props.placeholder ? previewFor(props.tile.entity, props.tile.options?.plugin) : null));
+const pluginRow = computed(() => {
+  const rows = pluginRows.value || [];
+  const seconds = state.now / 1000;
+  return rows.find((row) => row.at === undefined || row.at + 30 >= seconds) || null;
+});
+function countdown(at: number) {
+  const left = at - state.now / 1000;
+  if (left < 60) return t("editor.plugin_tile.now");
+  if (left >= 3600) return clockText(clock24.value, new Date(at * 1000));
+  return t("editor.plugin_tile.minutes", { n: Math.floor(left / 60) });
+}
+const pluginValue = computed(() => {
+  const row = pluginRow.value;
+  return !row ? "" : row.at !== undefined ? countdown(row.at) : row.value || "";
+});
 const energy = energyPaints();
 const bedsideKeys = computed(() => props.keys ?? keysOf(state.layout, props.tile));
 // As many places as the add-on lets this clock hold (page-rules.json, keyHolders).
@@ -416,6 +435,12 @@ async function onKey(e: KeyboardEvent) {
             <button v-else type="button" class="key-empty" :title="t('editor.page.cell.title')" @click.stop="markKey(place.key)"><span>+</span></button>
           </span>
         </span>
+      </span>
+    </template>
+    <template v-else-if="pluginTile && pluginRow">
+      <span class="plugin-live" :class="{ compact: shape.columns === 1 && shape.rows === 1 }">
+        <span class="plugin-live-head"><b v-if="pluginRow.badge" class="plugin-live-badge">{{ pluginRow.badge }}</b><span class="plugin-live-title">{{ pluginRow.title || name }}</span></span>
+        <span class="plugin-live-value">{{ pluginValue }}</span>
       </span>
     </template>
     <template v-else-if="pluginTile">

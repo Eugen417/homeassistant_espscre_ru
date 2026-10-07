@@ -3064,7 +3064,10 @@
       "from_fetch": "De keuzes komen uit de eigen gegevensbron van de plugin, via Tessera.",
       "on_screen": "Op het scherm",
       "sizes": "Van {min} tot {max}; sleep aan een rand van de tegel om de maat te wijzigen.",
-      "placeholder": "De editor toont een plaatshouder: wat de plugin tekent, zie je op het scherm zelf."
+      "placeholder": "De editor toont een plaatshouder: wat de plugin tekent, zie je op het scherm zelf.",
+      "now": "nu",
+      "minutes": "{n} min",
+      "live": "De editor tekent hem met de eigen data van de plugin; het scherm tekent hem zelf en telt af op zijn eigen klok."
     }
   }
 }

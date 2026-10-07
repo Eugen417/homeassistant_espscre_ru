@@ -1794,7 +1794,10 @@
       "from_fetch": "Las opciones vienen de la propia fuente de datos del plugin, a través de Tessera.",
       "on_screen": "En la pantalla",
       "sizes": "De {min} a {max}; arrastra un borde del mosaico para cambiar su tamaño.",
-      "placeholder": "El editor muestra un marcador de posición: lo que dibuja el plugin aparece en la propia pantalla."
+      "placeholder": "El editor muestra un marcador de posición: lo que dibuja el plugin aparece en la propia pantalla.",
+      "now": "ahora",
+      "minutes": "{n} min",
+      "live": "El editor la dibuja con los datos del plugin; la pantalla la dibuja ella misma y cuenta atrás con su propio reloj."
     },
     "memory": {
       "label": "Memoria para mosaicos",
