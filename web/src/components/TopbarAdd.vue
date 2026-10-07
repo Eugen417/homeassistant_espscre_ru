@@ -6,6 +6,7 @@ import { BUILTIN_ICONS, clockText, dateText, glyph, itemKey, STATUS_CODES } from
 import { addTopbarItem, clock24, closeInspector, currentScreen, iconNamed, openBar, screenLanguage, state, topbarItems, topbarMax } from "../store";
 import type { HeaderItem } from "../types";
 import EntityItemPicker from "./EntityItemPicker.vue";
+import { barItemsFor, pluginsEnabled } from "../plugin-state";
 import InspectorHead from "./ui/InspectorHead.vue";
 
 const taken = computed(() => new Set(topbarItems().map(itemKey)));
@@ -20,6 +21,9 @@ const samples = computed(() => ({
 // What adding a built-in item puts in the bar: the Wi-Fi signal and the battery start as their icon alone, always shown.
 const builtinItem = (type: string): HeaderItem => (type === "wifi" || type === "battery" ? { type, content: "icon", show: "always" } : { type });
 // The battery only on a screen that has one (firmware 0.41.0): its hello said so, or its board has one.
+// The items of the plugins this screen runs (docs/PLUGINS.md).
+const fromPlugins = computed(() => (pluginsEnabled.value ? barItemsFor(currentScreen.value) : []));
+const pluginItem = (item: string): HeaderItem => ({ type: "plugin", item });
 const builtins = computed(() => (state.inventory.header?.builtin || []).filter((b) => b.type !== "battery" || currentScreen.value?.battery));
 </script>
 
@@ -33,6 +37,15 @@ const builtins = computed(() => (state.inventory.header?.builtin || []).filter((
         <button v-for="b in builtins" :key="b.type" type="button" class="option" :disabled="taken.has(itemKey(builtinItem(b.type)))" @click="addTopbarItem(builtinItem(b.type))">
           <span class="mdi">{{ glyph(STATUS_CODES[b.type] || iconNamed(BUILTIN_ICONS[b.type])?.cp || "F0150") }}</span>
           <span class="tx"><strong>{{ b.label }}</strong><small>{{ taken.has(itemKey(builtinItem(b.type))) ? t("editor.topbar.add.added") : samples[b.type] }}</small></span>
+        </button>
+      </div>
+    </div>
+ <div v-if="fromPlugins.length" class="f">
+      <span class="f-label">{{ t("editor.topbar.add.plugins") }}</span>
+      <div class="options">
+        <button v-for="p in fromPlugins" :key="p.item" type="button" class="option" :disabled="taken.has(itemKey(pluginItem(p.item)))" @click="addTopbarItem(pluginItem(p.item))">
+          <span class="mdi">{{ glyph(p.icon) }}</span>
+          <span class="tx"><strong>{{ p.label }}</strong><small>{{ taken.has(itemKey(pluginItem(p.item))) ? t("editor.topbar.add.added") : p.example || p.plugin }}</small></span>
         </button>
       </div>
     </div>

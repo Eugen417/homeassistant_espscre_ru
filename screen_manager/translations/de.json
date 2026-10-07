@@ -2202,7 +2202,8 @@
         "entity": "Eine Entität",
         "search": "Nach Name, Bereich oder Entität suchen, z. B. Temperatur oder Tür",
         "search_label": "Entität für die Kopfleiste suchen",
-        "none_found": "Keine Entitäten gefunden."
+        "none_found": "Keine Entitäten gefunden.",
+        "plugins": "Aus Plugins"
       },
       "left": "Links",
       "left_hint": "Titel und Startseiten-Schaltfläche: in den Seiteneinstellungen",
@@ -2214,7 +2215,8 @@
       "link_hint": "Erscheint nur, solange Home Assistant oder Tessera fehlt, damit du auf einen Blick siehst, warum Werte fehlen.",
       "battery_hint": "Der Bildschirm liest seinen eigenen Akku, daher bleibt dieses Element in der Leiste, wenn Home Assistant weg ist. Das Symbol folgt dem Ladestand so, wie Home Assistant ihn zeichnet, mit einem Blitz während des Ladens.",
       "battery_show_hint": "Nur wenn niedrig hält die Leiste frei, bis der Akku bei 20 % oder weniger ist.",
-      "status_firmware": "Dieses Element erscheint ab Firmware {version}. Bis zu diesem Update lässt der Bildschirm es weg."
+      "status_firmware": "Dieses Element erscheint ab Firmware {version}. Bis zu diesem Update lässt der Bildschirm es weg.",
+      "plugin_item": "Zeigt, was sein Plugin sagt, nur solange es etwas zu sagen hat. Auf einem Bildschirm ohne dieses Plugin bleibt es weg."
     },
     "screen_settings": {
       "groups": {

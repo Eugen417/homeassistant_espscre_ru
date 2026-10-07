@@ -33,7 +33,19 @@ std::vector<TapAction> &tap_actions() {
   return list;
 }
 
+std::vector<BarItemType> &bar_items() {
+  static std::vector<BarItemType> list;
+  return list;
+}
+
 Plugin::Plugin() { plugins().push_back(this); }
+
+void Plugin::add_bar_item(const char *id, std::function<BarItem()> read) {
+  std::string key = std::string("plugin:") + plugin_id() + "." + id;
+  for (auto &item : bar_items())
+    if (item.key == key) { item.read = std::move(read); return; }
+  bar_items().push_back({this, id, std::move(key), std::move(read)});
+}
 
 void Plugin::add_card(const char *id, std::function<Card *()> make, bool wide) {
   std::string key = std::string("plugin:") + plugin_id() + "." + id;
@@ -558,7 +570,20 @@ static void build_settings() {
   }
 }
 
+static header_bar::Shown bar_item(const std::string &key) {
+  header_bar::Shown shown;
+  for (const auto &item : tessera::bar_items())
+    if (item.key == key && item.read) {
+      const tessera::BarItem now = item.read();
+      shown.shown = now.shown && (now.icon || !now.text.empty());
+      shown.icon = now.icon && rt::has_icon_glyph(now.icon) ? now.icon : 0;
+      shown.text = now.text.substr(0, header_bar::TEXT_BYTES);
+    }
+  return shown;
+}
+
 void ready() {
+  header_bar::plugin_item = bar_item;
   build_settings();
   for (auto *p : tessera::plugins()) p->on_ready();
 }
@@ -585,6 +610,9 @@ void hello(JsonObject root) {
     auto tiles = item["tiles"].to<JsonArray>();
     for (const auto &type : tessera::tile_types())
       if (type.plugin == p) tiles.add(type.id);
+    auto bar = item["bar"].to<JsonArray>();
+    for (const auto &entry : tessera::bar_items())
+      if (entry.plugin == p) bar.add(entry.id);
     auto taps = item["taps"].to<JsonArray>();
     for (const auto &action : tessera::tap_actions())
       if (action.plugin == p) taps.add(action.id);

@@ -119,6 +119,14 @@ export function tapActionsFor(screen: Screen | undefined, domain: string): [stri
       .map((action) => [`plugin:${plugin.id}.${action.id}`, text(action.label)] as [string, string]));
 }
 
+// The top bar items of the plugins this screen runs: [{ item, label, icon, example }].
+export function barItemsFor(screen: Screen | undefined) {
+  if (!screen || screen.virtual || plugins.example) return [];
+  return plugins.index.filter((plugin) => installedOn(screen, plugin.id)).flatMap((plugin) =>
+    (plugin.bar_items || []).map((bar) => ({ item: `plugin:${plugin.id}.${bar.id}`, label: text(bar.label), icon: bar.icon,
+      example: bar.example ? text(bar.example) : "", plugin: text(plugin.name) })));
+}
+
 export const realScreens = () => state.inventory.screens.filter((screen) => !screen.virtual);
 // The tile types a screen can place: those of the plugins it runs (the library's Plugins group). A preview screen has none.
 export function tilesOn(screen: Screen | undefined) {

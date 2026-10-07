@@ -1143,6 +1143,13 @@ def validate_header(data, most=HEADER_MAX_ITEMS):
             contents, shows = (WIFI_CONTENTS, WIFI_SHOWS) if kind == 'wifi' else (BATTERY_CONTENTS, BATTERY_SHOWS)
             if clean['content'] not in contents or clean['show'] not in shows:
                 raise ValueError(t('addon.errors.top_bar.invalid_setting'))
+        elif kind == 'plugin':
+            # A plugin's item (docs/PLUGINS.md): it says itself what it shows, and shows nothing on a screen without it.
+            if set(item) != {'type', 'item'}:
+                raise ValueError(t('addon.errors.top_bar.unknown_setting'))
+            if not plugin_tile(item.get('item')):
+                raise ValueError(t('addon.errors.top_bar.invalid_setting'))
+            clean = {'type': 'plugin', 'item': item['item']}
         elif kind == 'entity':
             if set(item) - {'type', 'entity', 'content', 'icon', 'show'}:
                 raise ValueError(t('addon.errors.top_bar.unknown_setting'))

@@ -23,6 +23,8 @@ static bool parse_bar_item(JsonVariant value, header_bar::Item &item) {
     item.only_weak = (item.kind == header_bar::Kind::wifi || item.kind == header_bar::Kind::battery) &&
                      value["a"].is<unsigned>() && value["a"].as<unsigned>() == 1;
     if (item.kind == header_bar::Kind::ago && item.epoch == 0) return false;
+    // A plugin's item names itself: plugin:<plugin>.<item> (docs/PLUGINS.md).
+    if (item.kind == header_bar::Kind::plugin && !plugin_entity(item.text)) return false;
     return true;
 }
 static bool parse_bar(JsonVariant items, header_bar::Bar &out) {

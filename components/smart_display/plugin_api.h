@@ -132,7 +132,19 @@ class SettingsPage {
   std::vector<Item> items;
 };
 
+// What an item of a plugin in the top bar shows now: an icon of Tessera's set and a short text, or nothing.
+struct BarItem {
+  bool shown = false;
+  uint32_t icon = 0;         // a codepoint of Tessera's icon set (0xF00E7), 0 for none
+  std::string text;          // a few words ("Tomorrow: paper"), "" for an icon alone
+};
+
 class Plugin;
+struct BarItemType {
+  Plugin *plugin;
+  std::string id, key;       // the item's id in the manifest, and plugin:<plugin>.<item>
+  std::function<BarItem()> read;
+};
 struct CardType {
   Plugin *plugin;
   std::string id, key;       // the card's id in the manifest, and plugin:<plugin>.<card>
@@ -177,6 +189,9 @@ class Plugin {
   // A tap action for tiles of Home Assistant's own (manifest `tap_actions`): a tile whose tap is set to it in the
   // editor runs `run` on a short tap instead of its own action.
   void add_tap_action(const char *id, std::function<void(const TapContext &)> run);
+  // An item for the top bar (manifest `bar_items`), placed on a page's bar in the editor. `read` says what it shows now;
+  // the screen asks again every few seconds and draws the bar again when that changed.
+  void add_bar_item(const char *id, std::function<BarItem()> read);
   // Set by the code generation (smart_display.register_plugin() in the plugin's __init__.py), from the plugin's
   // manifest and its translations/<language>.json (part "screen", in the language the screen is built with).
   void set_identity(const char *id, const char *version) { id_ = id; version_ = version; }
@@ -199,6 +214,7 @@ std::vector<TileType> &tile_types();
 const TileType *tile_type(const std::string &entity);
 std::vector<CardType> &card_types();
 std::vector<TapAction> &tap_actions();
+std::vector<BarItemType> &bar_items();
 
 // ---- What the core offers a plugin ----
 // The screen's clock: seconds since 1970, 0 until Home Assistant set it.

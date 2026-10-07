@@ -28,7 +28,7 @@ PLACEHOLDER = re.compile(r'\{([a-z][a-z0-9_]*)\}')
 TEXT_KEY = re.compile(r'^[a-z][a-z0-9_]{0,47}$')
 
 TOP = {'id', 'version', 'api', 'icon', 'maintainer', 'license', 'requires', 'boards', 'flash_kb', 'permissions',
-       'attributes', 'privacy', 'inputs', 'parts', 'tiles', 'fetch', 'cards', 'tap_actions'}
+       'attributes', 'privacy', 'inputs', 'parts', 'tiles', 'fetch', 'cards', 'tap_actions', 'bar_items'}
 ATTRIBUTES = ('cloud', 'commercial', 'ai-developed', 'experimental')
 INPUT_KINDS = ('secret', 'text', 'gpio')
 OPTION_KINDS = ('text', 'choice', 'number', 'toggle')
@@ -601,6 +601,17 @@ def check(manifest, english=None):
                      'domains': domains, 'card': item.get('card')})
     _unique(taps, 'tap_actions')
     out['tap_actions'] = taps
+    bar = []
+    for i, item in enumerate(_list(manifest.get('bar_items'), 'bar_items', 4)):
+        where = f'bar_items[{i}]'
+        item = _object(item, where, {'id', 'label', 'icon', 'example'}, ('id', 'label'))
+        icon = item.get('icon', out['icon'])
+        if not isinstance(icon, str) or not MDI.match(icon):
+            raise ManifestError(f'{where}.icon', 'a Material Design Icons name')
+        bar.append({'id': _id(item['id'], f'{where}.id'), 'label': _text_key(item['label'], f'{where}.label', keys),
+                    'icon': icon, 'example': _text_key(item['example'], f'{where}.example', keys) if 'example' in item else None})
+    _unique(bar, 'bar_items')
+    out['bar_items'] = bar
 
     out['text_keys'] = sorted(keys)
     if english is not None:

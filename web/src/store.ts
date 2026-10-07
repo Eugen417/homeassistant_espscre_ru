@@ -10,7 +10,7 @@ import { energyFits, frameOf, pillMetrics, uiScale } from "./model/ui-scale";
 import { createLayout, dimensions, type Size, versionAtLeast } from "./model/layout";
 import { measuring, memoryCrossing, memoryUse } from "./model/memory";
 import { validPreviewShape, type PreviewProfile } from "./model/preview";
-import { pluginTileOf, text as pluginText } from "./model/plugins";
+import { barItemOf, pluginTileOf, text as pluginText } from "./model/plugins";
 import renderer from "./wasm/renderer.json";
 import type { BoardChoice, Capability, ChildTile, FeedbackView, ChangelogSection, EntityAction, HeaderItem, Inventory, Layout, SaverKind, Screen, ScreensaverChoice, Tile, PageLayout, PageTile, PageDocument, PageGrid, PageWorkspace } from "./types";
 
@@ -1634,6 +1634,7 @@ export function loadTopbarPreview(delay = 150) {
 }
 export function topbarLabel(item: HeaderItem) {
   if (item.type === "entity") return entityName(item.entity!);
+  if (item.type === "plugin") return barItemOf(item.item)?.label || item.item || "";
   return state.inventory.header?.builtin.find((b) => b.type === item.type)?.label || item.type;
 }
 // What the item shows right now: { icon, text, color, shown }. Entities wait for the add-on's preview.
@@ -1647,6 +1648,8 @@ export function topbarView(item: HeaderItem): ItemView {
   if (item.type === "link") return { icon: LINK_GLYPH, text: "", shown: false };
   // The battery (firmware 0.41.0): three quarters and not charging, as the firmware's preview draws it.
   if (item.type === "battery") return batteryView(item, SAMPLE_BATTERY, false, (n) => `${n}${t("screen.number.percent", {}, { locale: screenLanguage.value })}`);
+  // A plugin's item (docs/PLUGINS.md): the screen asks the plugin what it shows; the mockup shows its example.
+  if (item.type === "plugin") { const known = barItemOf(item.item); return { icon: known?.icon || "F0A66", text: known?.example || "", shown: true }; }
   const p = state.topbarPreviews[itemKey(item)];
   if (!p) return { icon: item.icon === "none" ? null : iconNamed(item.icon)?.cp || automaticIcon(item.entity!), text: item.content === "icon" ? "" : "…", shown: true, loading: true };
   return { icon: p.i || null, text: p.k === "ago" ? agoText(p.e, Math.floor(state.now / 1000), screenLanguage.value) : p.t, color: p.c ? `#${p.c}` : null, shown: p.shown };

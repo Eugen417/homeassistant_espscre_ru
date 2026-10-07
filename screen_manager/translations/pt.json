@@ -2202,7 +2202,8 @@
         "entity": "Uma entidade",
         "search": "Procure por nome, divisão ou entidade, p. ex. temperatura ou porta",
         "search_label": "Procurar uma entidade para a barra superior",
-        "none_found": "Nenhuma entidade encontrada."
+        "none_found": "Nenhuma entidade encontrada.",
+        "plugins": "De plugins"
       },
       "left": "Esquerda",
       "left_hint": "Título e botão de início: nas definições da página",
@@ -2214,7 +2215,8 @@
       "link_hint": "Só aparece enquanto falta o Home Assistant ou o Tessera, para perceber de relance porque faltam valores.",
       "battery_hint": "O ecrã lê a sua própria bateria, por isso este item fica na barra quando o Home Assistant não está disponível. O ícone segue o nível como o Home Assistant o desenha, com um raio enquanto carrega.",
       "battery_show_hint": "Só quando fraca deixa a barra livre até a bateria estar a 20 % ou menos.",
-      "status_firmware": "Este item aparece a partir do firmware {version}. Até essa atualização, o ecrã omite-o."
+      "status_firmware": "Este item aparece a partir do firmware {version}. Até essa atualização, o ecrã omite-o.",
+      "plugin_item": "Mostra o que o seu plugin diz, só quando tem algo a dizer. Num ecrã sem esse plugin não aparece."
     },
     "screen_settings": {
       "groups": {

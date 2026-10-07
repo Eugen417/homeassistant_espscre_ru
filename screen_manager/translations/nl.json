@@ -2001,7 +2001,8 @@
         "entity": "Een entiteit",
         "search": "Zoek op naam, ruimte of entiteit, bijv. temperatuur of deur",
         "search_label": "Zoek een entiteit voor de bovenbalk",
-        "none_found": "Geen entiteiten gevonden."
+        "none_found": "Geen entiteiten gevonden.",
+        "plugins": "Van plugins"
       },
       "left": "Links",
       "left_hint": "Titel en thuisknop: in de pagina-instellingen",
@@ -2013,7 +2014,8 @@
       "link_hint": "Verschijnt alleen als Home Assistant of Tessera weg is, zodat je in één oogopslag ziet waarom waarden ontbreken.",
       "battery_hint": "Het scherm leest zijn eigen accu, dus dit item blijft in de balk als Home Assistant weg is. Het icoon volgt het niveau zoals Home Assistant het tekent, met een bliksemschicht tijdens het laden.",
       "battery_show_hint": "Alleen als laag houdt de balk leeg tot de accu op 20 % of minder staat.",
-      "status_firmware": "Dit item verschijnt vanaf firmware {version}. Tot die update laat het scherm het weg."
+      "status_firmware": "Dit item verschijnt vanaf firmware {version}. Tot die update laat het scherm het weg.",
+      "plugin_item": "Toont wat de plugin zegt, alleen als hij iets te zeggen heeft. Op een scherm zonder die plugin blijft het weg."
     },
     "screen_settings": {
       "groups": {

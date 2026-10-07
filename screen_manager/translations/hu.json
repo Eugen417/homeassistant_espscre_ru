@@ -2202,7 +2202,8 @@
         "entity": "Egy entitás",
         "search": "Keresés név, helyiség vagy entitás szerint, pl. hőmérséklet vagy ajtó",
         "search_label": "Entitás keresése a felső sávhoz",
-        "none_found": "Nincs találat."
+        "none_found": "Nincs találat.",
+        "plugins": "Bővítményekből"
       },
       "left": "Bal oldal",
       "left_hint": "Cím és kezdőlap gomb: az oldal beállításaiban",
@@ -2214,7 +2215,8 @@
       "link_hint": "Csak akkor jelenik meg, amikor a Home Assistant vagy a Tessera nem elérhető, így egy pillantással látod, miért hiányoznak értékek.",
       "battery_hint": "A kijelző maga olvassa az akkumulátorát, így ez az elem a sávon marad, amikor a Home Assistant nem elérhető. Az ikon úgy követi a töltöttséget, ahogy a Home Assistant rajzolja, töltés közben villámmal.",
       "battery_show_hint": "A Csak ha alacsony üresen hagyja a sávot, amíg az akkumulátor 20 % vagy kevesebb nem lesz.",
-      "status_firmware": "Ez az elem a(z) {version} firmware-től jelenik meg. A frissítésig a kijelző kihagyja."
+      "status_firmware": "Ez az elem a(z) {version} firmware-től jelenik meg. A frissítésig a kijelző kihagyja.",
+      "plugin_item": "Azt mutatja, amit a bővítménye mond, csak amíg van mit mondania. Egy képernyőn e bővítmény nélkül nem jelenik meg."
     },
     "screen_settings": {
       "groups": {

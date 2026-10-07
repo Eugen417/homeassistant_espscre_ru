@@ -2001,7 +2001,8 @@
         "entity": "An entity",
         "search": "Search by name, room, or entity, e.g. temperature or door",
         "search_label": "Search for an entity for the top bar",
-        "none_found": "No entities found."
+        "none_found": "No entities found.",
+        "plugins": "From plugins"
       },
       "left": "Left",
       "left_hint": "Title and home button: in the page settings",
@@ -2013,7 +2014,8 @@
       "link_hint": "Appears only while Home Assistant or Tessera is away, so you can tell at a glance why values are missing.",
       "battery_hint": "The screen reads its own battery, so this item stays in the bar when Home Assistant is away. The icon follows the level the way Home Assistant draws it, with a lightning bolt while it charges.",
       "battery_show_hint": "Only when low keeps the bar clear until the battery is at 20 % or less.",
-      "status_firmware": "This item shows from firmware {version}. Until that update, the screen leaves it out."
+      "status_firmware": "This item shows from firmware {version}. Until that update, the screen leaves it out.",
+      "plugin_item": "Shows what its plugin says, only while it has something to say. On a screen without that plugin it stays away."
     },
     "screen_settings": {
       "groups": {

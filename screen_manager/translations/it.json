@@ -2202,7 +2202,8 @@
         "entity": "Un'entità",
         "search": "Cerca per nome, area o entità, es. temperatura o porta",
         "search_label": "Cerca un'entità per la barra superiore",
-        "none_found": "Nessuna entità trovata."
+        "none_found": "Nessuna entità trovata.",
+        "plugins": "Dai plugin"
       },
       "left": "Sinistra",
       "left_hint": "Titolo e pulsante Home: nelle impostazioni della pagina",
@@ -2214,7 +2215,8 @@
       "link_hint": "Compare solo mentre Home Assistant o Tessera manca, così vedi subito perché mancano dei valori.",
       "battery_hint": "Lo schermo legge la propria batteria, quindi questo elemento resta nella barra quando Home Assistant non c'è. L'icona segue il livello come la disegna Home Assistant, con un fulmine durante la ricarica.",
       "battery_show_hint": "Solo se scarica lascia la barra libera finché la batteria non è al 20 % o meno.",
-      "status_firmware": "Questo elemento compare dal firmware {version}. Fino a quell'aggiornamento, lo schermo lo omette."
+      "status_firmware": "Questo elemento compare dal firmware {version}. Fino a quell'aggiornamento, lo schermo lo omette.",
+      "plugin_item": "Mostra ciò che dice il suo plugin, solo quando ha qualcosa da dire. Su uno schermo senza quel plugin non compare."
     },
     "screen_settings": {
       "groups": {

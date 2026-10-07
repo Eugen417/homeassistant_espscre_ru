@@ -9741,7 +9741,7 @@ inline void tick() {
       std::string now_said;
       for(size_t i=0;i<bar->count;++i){
         const auto kind=bar->items[i].kind;
-        if(kind!=header_bar::Kind::wifi && kind!=header_bar::Kind::battery)continue;
+        if(kind!=header_bar::Kind::wifi && kind!=header_bar::Kind::battery && kind!=header_bar::Kind::plugin)continue;
         const auto now_shown=header_bar::device_item(bar->items[i],device);
         now_said+=std::to_string(now_shown.shown)+':'+std::to_string(now_shown.icon)+':'+now_shown.text+'\x1f';
       }

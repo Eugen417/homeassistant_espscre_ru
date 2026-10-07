@@ -38,9 +38,14 @@ export function validatePageShape(layout: PageLayout) {
     for (const control of bar.leading) fields(control, ['id', 'kind']);
     const seen = new Set<string>();
     for (const item of bar.trailing) {
-      fields(item, ['id', 'type', 'entity', 'content', 'icon', 'show'], ['id', 'type']);
+      fields(item, ['id', 'type', 'entity', 'content', 'icon', 'show', 'item'], ['id', 'type']);
       let key: string;
-      if (rules.headerBuiltin.includes(item.type) || item.type === rules.headerLink) {
+      if (item.type === 'plugin' && pluginTiles.enabled) {
+        // A plugin's item (docs/PLUGINS.md): it says itself what it shows.
+        fields(item, ['id', 'type', 'item'], ['id', 'type', 'item']);
+        if (!/^plugin:[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/.test(String(item.item))) fail();
+        key = JSON.stringify(['plugin', item.item]);
+      } else if (rules.headerBuiltin.includes(item.type) || item.type === rules.headerLink) {
         fields(item, ['id', 'type']); key = item.type;
       } else if (item.type === rules.headerWifi || item.type === rules.headerBattery) {
         // The screen's own Wi-Fi item (firmware 0.38.0) and its battery (firmware 0.41.0): what each shows beside its

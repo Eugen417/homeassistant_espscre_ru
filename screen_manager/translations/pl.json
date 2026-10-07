@@ -2202,7 +2202,8 @@
         "entity": "Encja",
         "search": "Szukaj po nazwie, obszarze lub encji, np. temperatura albo drzwi",
         "search_label": "Szukaj encji dla górnego paska",
-        "none_found": "Nie znaleziono encji."
+        "none_found": "Nie znaleziono encji.",
+        "plugins": "Z wtyczek"
       },
       "left": "Lewa strona",
       "left_hint": "Tytuł i przycisk strony głównej: w ustawieniach strony",
@@ -2214,7 +2215,8 @@
       "link_hint": "Pojawia się tylko, gdy brakuje Home Assistant lub Tessera, żeby od razu było widać, dlaczego brakuje wartości.",
       "battery_hint": "Ekran sam odczytuje swoją baterię, więc ten element zostaje na pasku, gdy Home Assistant jest niedostępny. Ikona pokazuje poziom tak, jak rysuje go Home Assistant, z błyskawicą podczas ładowania.",
       "battery_show_hint": "Tylko gdy słaba zostawia pasek pusty, dopóki bateria nie spadnie do 20 % lub mniej.",
-      "status_firmware": "Ten element pojawia się od firmware {version}. Do tej aktualizacji ekran go pomija."
+      "status_firmware": "Ten element pojawia się od firmware {version}. Do tej aktualizacji ekran go pomija.",
+      "plugin_item": "Pokazuje to, co mówi jego wtyczka, tylko gdy ma coś do powiedzenia. Na ekranie bez tej wtyczki się nie pojawia."
     },
     "screen_settings": {
       "groups": {

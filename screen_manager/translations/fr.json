@@ -2202,7 +2202,8 @@
         "entity": "Une entité",
         "search": "Rechercher par nom, pièce ou entité, p. ex. température ou porte",
         "search_label": "Rechercher une entité pour la barre supérieure",
-        "none_found": "Aucune entité trouvée."
+        "none_found": "Aucune entité trouvée.",
+        "plugins": "Des plugins"
       },
       "left": "Gauche",
       "left_hint": "Titre et bouton d’accueil : dans les réglages de la page",
@@ -2214,7 +2215,8 @@
       "link_hint": "N'apparaît que si Home Assistant ou Tessera est absent, pour voir d'un coup d'œil pourquoi des valeurs manquent.",
       "battery_hint": "L'écran lit sa propre batterie : cet élément reste dans la barre quand Home Assistant est absent. L'icône suit le niveau comme Home Assistant la dessine, avec un éclair pendant la charge.",
       "battery_show_hint": "Seulement si faible laisse la barre libre jusqu’à ce que la batterie soit à 20 % ou moins.",
-      "status_firmware": "Cet élément apparaît à partir du firmware {version}. D'ici là, l'écran l'omet."
+      "status_firmware": "Cet élément apparaît à partir du firmware {version}. D'ici là, l'écran l'omet.",
+      "plugin_item": "Affiche ce que dit son plugin, seulement quand il a quelque chose à dire. Sur un écran sans ce plugin, il reste absent."
     },
     "screen_settings": {
       "groups": {

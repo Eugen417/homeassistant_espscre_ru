@@ -31,7 +31,8 @@ export type ChildTile = {
 // A key of a bedside clock (app 0.4.12) is a tile like any other without a cell: it names the tile it stands under
 // (`in`, that tile's entity) and its place there (`key`, from 0), and its slot is -1.
 export type Tile = { id?: string; entity: string; name: string; slot: number; options?: TileOptions; in?: string; key?: number };
-export type HeaderItem = { id?: string; type: string; entity?: string; content?: string; icon?: string; show?: string };
+// `item`: a plugin's item (type "plugin"), plugin:<plugin>.<item> (docs/PLUGINS.md).
+export type HeaderItem = { id?: string; type: string; entity?: string; content?: string; icon?: string; show?: string; item?: string };
 // `pages`: the most pages the screen takes, when the grid is the screen's (model/pages.ts pageLimit).
 // What a screen says about the memory inside its chip (firmware 0.34.0+, components/smart_display/tile_memory.h), in
 // bytes: the room it has for tiles and what the tiles on it take now, and what the tile catalogue's prices need from the

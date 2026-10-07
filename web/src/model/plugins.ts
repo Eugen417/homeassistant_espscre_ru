@@ -59,6 +59,7 @@ export type Plugin = {
   // Its cards and its tap actions for tiles of Home Assistant's own (the add-on's payload; docs/PLUGINS.md).
   cards?: { id: string; name: Texts }[];
   tap_actions?: { id: string; label: Texts; domains: string[] }[];
+  bar_items?: { id: string; label: Texts; icon: string; example?: Texts | null }[];
   adds: {
     tiles?: PluginTile[];
     tap_actions?: { label: Texts; domains: string[] }[];
@@ -85,8 +86,16 @@ const tileTypes = new Map<string, { plugin: Plugin; tile: PluginTile }>();
 export function knowTileTypes(index: Plugin[]) {
   tileTypes.clear();
   for (const plugin of index) for (const tile of plugin.adds.tiles || []) tileTypes.set(pluginTileId(plugin.id, tile.id), { plugin, tile });
+  barTypes.clear();
+  for (const plugin of index) for (const bar of plugin.bar_items || []) barTypes.set(`plugin:${plugin.id}.${bar.id}`, { plugin, ...bar });
 }
 export const pluginTileOf = (entity: string) => tileTypes.get(entity);
+// A plugin's top bar item by its key (plugin:<plugin>.<item>), from the same index.
+const barTypes = new Map<string, { plugin: Plugin; label: Texts; icon: string; example?: Texts | null }>();
+export function barItemOf(key: string | undefined) {
+  const known = key ? barTypes.get(key) : undefined;
+  return known ? { label: text(known.label), icon: known.icon, example: known.example ? text(known.example) : "", plugin: text(known.plugin.name) } : null;
+}
 // The choices an option takes from a fetch. Example answers until the add-on runs the plugin's fetches.
 export const EXAMPLE_FETCH: Record<string, { value: string; label: Texts }[]> = {
   "bus.lines": [

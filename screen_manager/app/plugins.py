@@ -311,6 +311,8 @@ class Plugins:
                                for tile in manifest['tiles']]},
             'cards': [{'id': c['id'], 'name': words(c['name'])} for c in manifest['cards']],
             'tap_actions': [{'id': a['id'], 'label': words(a['label']), 'domains': a['domains']} for a in manifest['tap_actions']],
+            'bar_items': [{'id': b['id'], 'label': words(b['label']), 'icon': glyph(b['icon']), 'example': words(b['example'])}
+                          for b in manifest['bar_items']],
             'source': entry.source, 'label': entry.label, 'status': entry.status, 'blocked': self.blocked(entry),
             'fits_api': pm.api_fits(manifest['api']), 'api': manifest['api'],
         }

@@ -277,7 +277,7 @@ public:
       Part p;
       p.item = i;
       if (item.kind == Kind::analog) { p.dial = true; p.width = dial; }
-      else if (item.kind == Kind::wifi || item.kind == Kind::link || item.kind == Kind::battery) {
+      else if (item.kind == Kind::wifi || item.kind == Kind::link || item.kind == Kind::battery || item.kind == Kind::plugin) {
         const auto own = header_bar::device_item(item, view.device);
         if (!own.shown) continue;
         const lv_font_t *font = header_icon_font;
