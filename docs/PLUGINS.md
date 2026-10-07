@@ -44,7 +44,12 @@ editor's development server (`core.plugins_enabled()`). The stable app has no Pl
    `tessera::Tile` when the card shows another tile, size or options, `on_state` when the data changed, `on_theme` when
    the look did. The once-a-second gate in `tick()` calls `on_tick` for every plugin card on the glass, and a short tap
    goes to `on_tap` through the same guard as every tile's. `end_extra` and `release_kept` delete the object.
-7. **A tile whose plugin this screen lacks** is a plain card: its icon, its name and "Plugin missing"
+7. **In the editor** a plugin tile is drawn from its data when its manifest has a `preview`: the add-on fills in the
+   first rows (`GET api/plugins/<id>/preview/<tile>`, `Plugins.preview`) and the mockup counts down to a moment on the
+   editor's clock, so a page in the editor looks like the glass. Without a preview it shows the icon, the name and the
+   manifest's `example`. The editor loads the plugins as soon as they are on, so a page with a plugin tile knows its
+   type before the Plugins page was opened.
+8. **A tile whose plugin this screen lacks** is a plain card: its icon, its name and "Plugin missing"
    (`screen.plugin.missing`). Never an error, never a restart.
 
 ## A plugin on a screen
@@ -57,8 +62,10 @@ editor's development server (`core.plugins_enabled()`). The stable app has no Pl
   `refresh: never`. A plugin from a test folder (`tessera-plugins/<id>/` beside the ESPHome folder) is an `!include` and
   a local external component, by a path relative to the ESPHome folder, so the app, Device Builder and a shared folder
   build the same.
-- Adding or removing writes `plugins.json`, the plugins file, and starts the screen's own build and update
-  (`firmware.start`, action install). A screen without a profile in the app gets the file and the line to paste.
+- Adding or removing writes `plugins.json` and the plugins file, and puts the screen in the queue for its own build and
+  update (`firmware.start`, action install). The queue builds one screen at a time, in the order asked, each when the
+  app's build slot is free, so ticking three screens on the Plugins page builds them one after the other. A screen
+  without a profile in the app gets the file and the line to paste.
 - Removing a screen removes its plugins and, when no screen uses a plugin any more, its secrets.
 
 ## The fetch loop
