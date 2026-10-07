@@ -142,6 +142,10 @@ change to its board file, run `tools/generate_cells.py` and `tools/generate_boar
 
 What else a new board touches (the Sunton 8048S070, the Waveshare 7B and the JC8012P4A1 V2 each did):
 
+- The names an Override YAML and a plugin hang on (docs/PROFILES.md, "What an override may rely on"): `my_display`,
+  `ts_touch`, `gpio_backlight_pwm`, and `touch_bus` for the I2C bus of the touch panel. `tools/check_packages.py` fails
+  a board that calls its bus otherwise.
+
 - `tools/i18n.py` `LINT_KEEP`: the board file's `DEVICE_FRIENDLY_NAME` ("My <Name>") is English in the firmware's
   YAML, and `tools/i18n.py lint` fails until it is listed there.
 - `screen_manager/app/claude_skill.py` `DESCRIPTION` names the boards from the catalog, and must stay at 200

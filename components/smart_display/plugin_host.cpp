@@ -123,6 +123,10 @@ SettingsPage &SettingsPage::action(const char *label, const char *icon, std::fun
   items.push_back(std::move(item));
   return *this;
 }
+SettingsPage &SettingsPage::active(std::function<bool()> running) {
+  if (!items.empty() && items.back().kind == Item::ACTION) items.back().active = std::move(running);
+  return *this;
+}
 SettingsPage &SettingsPage::info(const char *label, std::function<std::string()> text) {
   Item item{Item::INFO};
   item.label = label ? label : "";
@@ -634,6 +638,7 @@ static void build_settings() {
       own->write = [](void *c, int32_t v) { auto *i = static_cast<Item *>(c); if (i->write) i->write(v); };
       own->run = [](void *c) { auto *i = static_cast<Item *>(c); if (i->run) i->run(); };
       if (item.text) own->text = [](void *c) -> std::string { return static_cast<Item *>(c)->text(); };
+      if (item.active) own->active = [](void *c) { return static_cast<Item *>(c)->active(); };
       row.own = own.get();
       store.owns.push_back(std::move(own));
       rows->push_back(row);

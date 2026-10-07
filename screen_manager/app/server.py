@@ -3634,6 +3634,8 @@ def create_app(manager, development=False):
             # for it again when the integration is removed and re-added, or the screen is paired with another HA.
             profile, _ = manager.updates.resolve(screen, profiles)
             screen['api_key'] = (profiles.get(profile) or {}).get('api_key') if profile else None
+            # Its last image against its slot on a 4 MB board: what the editor says is left for a plugin (PLUGINS.md).
+            screen['firmware_image'] = manager.firmware.image_room(profile, screen.get('flash')) if profile else None
             # What this screen looks like: what it reported itself, else the board package its profile builds
             # from (the YAML), else its board. The editor draws its mockup and places tiles on this grid.
             screen['package'] = manager.package_of(screen, profiles)

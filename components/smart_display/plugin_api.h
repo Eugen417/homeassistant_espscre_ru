@@ -115,6 +115,7 @@ class SettingsPage {
     std::function<void(int)> write;
     std::function<void()> run;
     std::function<std::string()> text;
+    std::function<bool()> active;
   };
   // A switch: on or off.
   SettingsPage &toggle(const char *label, std::function<bool()> read, std::function<void(bool)> write);
@@ -128,6 +129,9 @@ class SettingsPage {
   // it says how it is going on its right ("Playing", "3 s"), read again every second while the page shows (0.3).
   SettingsPage &action(const char *label, const char *icon, std::function<void()> run, const char *confirm = nullptr,
                        std::function<std::string()> text = nullptr);
+  // The action added last runs now while `running` says so: its row is lit in the accent, as a row that asks is, and a
+  // tap on it is the plugin's to stop it (0.3). `page.action(...).active([this] { return testing_; });`
+  SettingsPage &active(std::function<bool()> running);
   // A line that only says something ("Version 1.1.0").
   SettingsPage &info(const char *label, std::function<std::string()> text);
   // A row that opens a card of this plugin (by its id in the manifest).
@@ -186,8 +190,9 @@ class Plugin {
   virtual void on_cards_closed() {}
   // An alert is about to show (a doorbell), 0.2.
   virtual void on_alert() {}
-  // A tap the screen took, on a tile, a key or a button, after the touch filter: for a click or a buzz, 0.3. It runs
-  // inside the touch event: start a sound, never wait for one.
+  // A tap the screen took, after the touch filter: a tile, a key, a button, a row of the settings, Back or the pager,
+  // never the repeat of a key that is held. For a click or a buzz, 0.3. It runs inside the touch event: start a sound,
+  // never wait for one.
   virtual void on_touch() {}
   // Rows on the screen's settings page. Called once when the interface is up; true when the plugin added some.
   virtual bool settings(SettingsPage &page) { return false; }

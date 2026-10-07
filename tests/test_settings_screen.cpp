@@ -336,6 +336,12 @@ int main() {
     assert(value_text(action).empty());
     act(action);
     assert(playing && value_text(action) == "Playing");
+    // While it runs, its row is lit (plugin API 0.3).
+    assert(!busy_row(action));
+    test.active = [](void *c) { return *static_cast<bool *>(c); };
+    assert(busy_row(action));
+    playing = false;
+    assert(!busy_row(action));
     Own plain{};
     plain.words = "Restart";
     action.own = &plain;

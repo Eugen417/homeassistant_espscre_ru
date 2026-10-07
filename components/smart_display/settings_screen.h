@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include "battery_status.h"
+#include "screen_hooks.h"
 #include "screen_settings.h"
 #include "screen_text.h"
 #include "ui_scale.h"
@@ -91,6 +92,7 @@ struct Own {
   void (*write)(void *, int32_t) = nullptr;
   void (*run)(void *) = nullptr;
   std::string (*text)(void *) = nullptr;
+  bool (*active)(void *) = nullptr;   // an action that runs now (a test): its row is lit until it stops
 };
 struct Row {
   Kind kind = Kind::info;
@@ -295,6 +297,10 @@ inline std::string value_text(const Row &row) {
   }
 }
 inline bool visible_row(const Row &row) { return !row.shown || row.shown(); }
+// A plugin's action that is running (plugin API 0.3): lit in the accent, as a row that asks is, until it stops.
+inline bool busy_row(const Row &row) {
+  return row.kind == Kind::action && row.own && row.own->active && row.own->active(row.own->ctx);
+}
 inline bool live_row(const Row &row) { return !row.enabled || row.enabled(); }
 
 struct Page {
@@ -490,6 +496,7 @@ inline lv_timer_t *confirm_timer = nullptr;
 struct Drawn {
   lv_obj_t *card = nullptr, *value = nullptr, *knob = nullptr, *minus = nullptr, *plus = nullptr, *label = nullptr;
   uint8_t row = 0;
+  bool lit = false;   // drawn in the accent: a row that asks, or an action that runs
 };
 inline std::array<Drawn, 8> drawn{};
 inline uint8_t drawn_count = 0;
@@ -646,6 +653,11 @@ inline void refresh() {
   for (uint8_t i = 0; i < drawn_count; ++i) {
     Drawn &d = drawn[i];
     const Row &row = page.rows[d.row];
+    // An action that started or stopped running draws the page again, lit or not (a handful of rows).
+    if (row.kind == Kind::action && row.own && row.own->active && d.lit != (busy_row(row) || confirm_row == d.row)) {
+      draw();
+      return;
+    }
     if (d.value) {
       const std::string text = value_text(row);
       if (text != lv_label_get_text(d.value)) lv_label_set_text(d.value, text.c_str());
@@ -689,6 +701,7 @@ inline void step_event(lv_event_t *event) {
     held = repeats > REPEATS_BEFORE_FAST;
   } else {
     repeats = 0;
+    screen_hooks::run_touched();   // a tap, never a repeat of a key that is held (a plugin's click)
   }
   int data = (int) (intptr_t) lv_event_get_user_data(event);
   const Page &page = page_at(current_page);
@@ -709,6 +722,7 @@ inline void row_event(lv_event_t *event) {
   if (index < 0 || index >= page.count) return;
   const Row &row = page.rows[index];
   if (!live_row(row)) return;
+  screen_hooks::run_touched();
   if (row.kind == Kind::page) { current_page = row.opens; first_row = 0; forget_confirm(); draw(); return; }
   if (row.kind == Kind::toggle && readable(row) && writable(row)) { put(row, get(row) ? 0 : 1); refresh(); return; }
   if (row.kind == Kind::choice && readable(row) && writable(row) && row.option_count) {
@@ -731,6 +745,7 @@ inline void row_event(lv_event_t *event) {
 }
 inline void close();
 inline void back_event(lv_event_t *) {
+  screen_hooks::run_touched();
   forget_confirm();
   if (current_page == 0) { close(); return; }
   current_page = page_at(current_page).parent;
@@ -741,6 +756,7 @@ inline void pager_event(lv_event_t *event) {
   int direction = (int) (intptr_t) lv_event_get_user_data(event);
   int next = (int) first_row + direction;
   if (next < 0) return;
+  screen_hooks::run_touched();
   first_row = (uint8_t) next;
   forget_confirm();
   draw();
@@ -792,29 +808,31 @@ inline void draw() {
     bool tappable = row.kind == Kind::page || row.kind == Kind::toggle || row.kind == Kind::choice ||
                     row.kind == Kind::action;
     bool asking = row.kind == Kind::action && confirm_row == index;
+    bool lit = asking || busy_row(row);
+    d.lit = lit;
 
     d.card = plain(root, m.pad, m.rows_y + slot * (m.row_h + m.gap), m.width - 2 * m.pad, m.row_h);
     lv_obj_set_style_bg_opa(d.card, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(d.card, theme::color(asking ? theme::ACCENT : theme::CARD), 0);
+    lv_obj_set_style_bg_color(d.card, theme::color(lit ? theme::ACCENT : theme::CARD), 0);
     lv_obj_set_style_radius(d.card, m.radius, 0);
     lv_obj_set_style_border_width(d.card, 1, 0);
-    lv_obj_set_style_border_color(d.card, theme::color(asking ? theme::ACCENT : theme::LINE), 0);
+    lv_obj_set_style_border_color(d.card, theme::color(lit ? theme::ACCENT : theme::LINE), 0);
     if (tappable) {
       lv_obj_add_flag(d.card, LV_OBJ_FLAG_CLICKABLE);
-      lv_obj_set_style_bg_color(d.card, theme::color(asking ? theme::ACCENT_PRESSED : theme::CARD_PRESSED), LV_STATE_PRESSED);
+      lv_obj_set_style_bg_color(d.card, theme::color(lit ? theme::ACCENT_PRESSED : theme::CARD_PRESSED), LV_STATE_PRESSED);
       lv_obj_add_event_cb(d.card, row_event, LV_EVENT_SHORT_CLICKED, (void *) (intptr_t) index);
     }
 
     int left = m.inset;
     if (row.icon && *row.icon) {
-      auto *glyph = text(d.card, row.icon, icon_font ? icon_font : row_font, asking ? theme::ON_ACCENT : theme::ROW_ICON);
+      auto *glyph = text(d.card, row.icon, icon_font ? icon_font : row_font, lit ? theme::ON_ACCENT : theme::ROW_ICON);
       int icon_h = lv_font_get_line_height(icon_font ? icon_font : row_font);
       lv_obj_set_width(glyph, LV_SIZE_CONTENT);
       lv_obj_set_pos(glyph, left, (m.row_h - icon_h) / 2);
       left += icon_h + (ui::px(m.large ? 12 : 8));
     }
     d.label = text(d.card, asking ? confirm_text(row) : label_text(row), row_font,
-                   asking ? theme::ON_ACCENT : theme::INK);
+                   lit ? theme::ON_ACCENT : theme::INK);
     lv_obj_set_pos(d.label, left, (m.row_h - label_h) / 2);
 
     int right = m.width - 2 * m.pad - m.inset;  // free space from the right edge of the card
@@ -849,7 +867,7 @@ inline void draw() {
       lv_obj_set_width(d.label, right - value_w - left - 6);
     } else if (row.kind == Kind::info || (row.kind == Kind::action && row.own && row.own->text)) {
       // An action of a plugin may say how it is going on the right ("Playing"), as an info row does (plugin API 0.3).
-      d.value = text(d.card, value_text(row), row_font, asking ? theme::ON_ACCENT : theme::MUTED, LV_TEXT_ALIGN_RIGHT);
+      d.value = text(d.card, value_text(row), row_font, lit ? theme::ON_ACCENT : theme::MUTED, LV_TEXT_ALIGN_RIGHT);
       int value_w = (m.width - 2 * m.pad) / 2;
       lv_obj_set_width(d.value, value_w);
       lv_obj_set_pos(d.value, right - value_w, (m.row_h - label_h) / 2);

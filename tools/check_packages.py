@@ -29,6 +29,8 @@ PLACEHOLDER = re.compile(r'\$\{([A-Z_][A-Z0-9_]*)\}')
 FROM_ENTRY = {'FONT_DIR'}
 # Read by the tools rather than by the YAML: tools/generate_board_shapes.py hands them to the add-on (boards.json).
 READ_BY_TOOLS = {'CAMERA_FULL_W', 'CAMERA_FULL_H'}
+# Boards whose I2C bus keeps a name of its own instead of touch_bus (docs/PROFILES.md, "What an override may rely on").
+OWN_BUS_NAME = {'tab5'}
 # A block of a board file this long that another board file carries word for word is behaviour, not hardware.
 SHARED_BLOCK_LINES = 6
 
@@ -159,6 +161,20 @@ def main():
         for name in core_ids:
             if re.search(r'(?m)^\s+(?:- )?id: ' + name + '$', own):
                 fail(f'{path.relative_to(ROOT)} defines {name}, which packages/core.yaml owns for every board')
+
+    # The names a plugin and an Override YAML hang on (docs/PROFILES.md, "What an override may rely on"): a board with an
+    # I2C bus calls the one its touch panel is on `touch_bus`, so a plugin with a chip on that bus (the P4 panel's audio
+    # codecs) finds it on every board. The Tab5's bus carries a whole row of chips and keeps its own name.
+    for board, path in boards.items():
+        entry = profiles.PROFILES[list(boards).index(board)]
+        ids = []
+        for file in profiles.files(entry):
+            block = re.search(r'^i2c:\n(.*?)(?=^[a-zA-Z_]+:|\Z)', without_comments(file.read_text()), re.M | re.S)
+            if block:
+                ids += re.findall(r'(?m)^\s*(?:- )?id: ([a-z_0-9]+)$', block[1])
+        if ids and 'touch_bus' not in ids and board not in OWN_BUS_NAME:
+            fail(f'{path.relative_to(ROOT)}: its I2C bus is {ids}; a board names the one of its touch panel touch_bus, '
+                 f'the name plugins and Override YAML use (docs/PROFILES.md)')
 
     # The boot steps are the core's. ESPHome joins two on_boot lists but lets a list replace one trigger whole, so a
     # board's own on_boot threw away the core's boot block: the Waveshare 4B up to firmware 0.3.9 never took a layout.

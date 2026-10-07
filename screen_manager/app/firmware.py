@@ -123,6 +123,7 @@ class Firmware:
     # 2,031,616 bytes, and a firmware larger than this goes to a screen with the old table over a bridge
     # (docs/FLASH_LAYOUT.md).
     NARROW_SLOT = 0x1C0000
+    WIDE_SLOT = 2031616
     # The bridge of a screen: the smallest firmware that takes the wide table (`bridge`), written beside the screen's
     # own YAML while its flash is widened and removed after. No screen has a dot in its name, so no profile is hidden.
     BRIDGE_SUFFIX = '.bridge.yaml'
@@ -562,6 +563,15 @@ class Firmware:
         found = [path for pattern in self.OTA_IMAGES for path in build.glob(pattern)
                  if path.is_file() and not path.is_symlink()]
         return max(found, key=lambda path: path.stat().st_mtime_ns).stat().st_size if found else None
+
+    def image_room(self, name, word=None):
+        """{size, slot} of a 4 MB board's last build against the slot its screen has (`word`, the screen's Screen
+        flash), for the editor's room for a plugin (web/src/model/plugins.ts headroomKb); None for a board with more
+        flash, where a plugin fits without a thought, or before a build."""
+        if not self.wide_slots(name):
+            return None
+        size = self.image_size(name)
+        return {'size': size, 'slot': self.WIDE_SLOT if word in (None, 'wide') else self.NARROW_SLOT} if size else None
 
     def ota_port(self, name):
         """The port a profile's screen takes updates on: its own `ota:` item's, or ESPHome's 3232."""

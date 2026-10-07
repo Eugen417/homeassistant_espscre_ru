@@ -154,10 +154,13 @@ looks unused; don't remove it.
 ## What an override may rely on
 
 An owner's Override YAML hangs on names in these files, and it lives on the owner's own Home Assistant where no test of
-ours sees it. These stay, whichever file they move to:
+ours sees it. A plugin's `plugin.yaml` hangs on the same names (docs/PLUGINS.md). These stay, whichever file they move to:
 
 - on every board: `my_display` (the display), `ts_touch` (the touch panel), `gpio_backlight_pwm` (the output that drives
   the backlight) and `back_light` (the light on it); on the Waveshare 4.3, 5 and 7, `backlight_line` as well;
+- on every board with an I2C bus: `touch_bus`, the bus its touch panel is on, where a plugin finds the other chips on it
+  (the audio codecs of the Waveshare P4 panel). The M5Stack Tab5 calls its bus `tab5_bus`. `tools/check_packages.py`
+  keeps the name;
 - the substitutions a board offers for its hardware: `DISPLAY_MODEL`, `DISPLAY_DATA_RATE` and `DISPLAY_INVERT_COLORS`
   on the CYD, `BACKLIGHT_FREQUENCY` on the boards with a PWM backlight, and `BACKLIGHT_DIMMABLE`, `LVGL_ROTATION` and the
   `TOUCH_*` values on every board.

@@ -255,6 +255,20 @@ class LinkFolder(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(entry.ref, 'm' * 40)
 
 
+class ImageRoom(unittest.TestCase):
+    """The editor's room for a plugin on a 4 MB board comes from the screen's own last image and its slot."""
+
+    def test_the_slot_follows_the_screen_table(self):
+        firmware = Firmware.__new__(Firmware)
+        firmware.wide_slots = lambda name: name == 'cyd.yaml'
+        firmware.image_size = lambda name: 1_879_231
+        self.assertEqual(firmware.image_room('cyd.yaml', 'wide'), {'size': 1_879_231, 'slot': 2_031_616})
+        self.assertEqual(firmware.image_room('cyd.yaml', 'old'), {'size': 1_879_231, 'slot': 0x1C0000})
+        self.assertIsNone(firmware.image_room('guition.yaml', 'wide'))   # 16 MB: no meter
+        firmware.image_size = lambda name: None
+        self.assertIsNone(firmware.image_room('cyd.yaml'))               # not built here yet
+
+
 class Map(unittest.TestCase):
     ANSWER = {'30003025': {'passes': {
         'b': {'line': '7', 'to': 'Slotermeer', 'when': '2026-10-07T17:30:00', 'state': 'DRIVING'},

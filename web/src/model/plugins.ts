@@ -142,8 +142,8 @@ export function atLeast(version: string | undefined, wanted: string) {
 // The 4 MB boards (the classic ESP32: the CYD, its ILI9342 sibling, the Hosyond) run close to the top of their slot.
 // What a plugin may add there keeps the image under the 93 % line of docs/RELEASING.md: the CYD's 0.51.0 image is
 // 1,853,664 B of 2,031,616 B, which leaves 34 KB below it.
-// The add-on reports a screen's own last image and slot (firmware_image) once it builds plugins; until then the CYD's
-// numbers stand in for every 4 MB board.
+// The add-on reports a 4 MB screen's own last image and slot (firmware_image, Firmware.image_room); before its first
+// build the CYD's numbers stand in for every 4 MB board.
 export const SMALL_FLASH = { image: 1_853_664, slot: 2_031_616, ceiling: 0.93 };
 const SMALL_FLASH_BOARDS = ["cyd", "cyd9342", "hosyond40"];
 const imageOf = (screen: Screen) => screen.firmware_image
