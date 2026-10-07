@@ -1,24 +1,21 @@
-## Unreleased
+## 0.4.84 (firmware 0.52.0)
 
 - **Zoom and move a map full screen.** A map opened full screen has round + and - keys at the bottom right, like the
   volume keys, and four arrows at the bottom left that move it about a centimetre each. The map follows at once and
   sharpens when the new picture comes, with a small spinner at the top right while it is on its way. The keys are
   dark in the light look and light in the dark, and let the map show through a little. Behind a map that is still on
   its way is the page's own colour, not black.
-
 - **Every page turns as quickly as the next.** A screen with PSRAM now keeps every page of its layout ready, not only
   seven, so paging through a long layout no longer feels quick on one page and slow on the next. Opening a new layout
   for the first time takes a little longer, while the screen prepares every page.
-
 - **Every picture on a page at its tile's full size (GitHub #183).** A camera, an album cover, a favourite and a map
   each load their own picture now, at their own pace. Before, the pictures of a page came as one image, so on a large
   screen every picture of the page came smaller with a dark edge as soon as a player on that page started to play, and
   every new song sent all the cameras of the page again. Now a new song replaces only its cover, and a page with
   several cameras shows each one at the full size of its tile. A camera's picture is also newer: the app fetches it
   just before the screen loads it, so it is a fraction of a second old instead of up to twice the refresh time you
-  chose. The 10-inch and the other screens with 32 MB of memory
-  also show a camera over the whole page, the camera full screen and the screensaver at the glass's own pixels, no
-  longer a little smaller in the middle.
+  chose. The 10-inch and the other screens with 32 MB of memory also show a camera over the whole page, the camera
+  full screen and the screensaver at the glass's own pixels, no longer a little smaller in the middle.
 - **Try dev before a release (GitHub #180).** Add the repository with `#dev` at the end of its URL and the store
   offers a second Tessera that builds every screen from dev, with a Reinstall from dev button for each screen.
   docs/RELEASING.md, "Testing dev", says how it works and how to go back. The stable app is unchanged.
@@ -79,6 +76,11 @@
 - **A new value on the energy card no longer holds the screen.** At every value the card searched its whole layout
   again, about a third of a second in which the screen stood still. It now keeps its layout until its shape changes
   and draws only the numbers that changed, in a few milliseconds.
+- Checked with every Python, C++, editor, translation and WASM preview check, and rendered from the real firmware on
+  the CYD, the 4-inch Guition and the 10.1-inch Guition. Firmware builds on ESPHome 2026.9.0 for the CYD (91.5 % of
+  its slot, 17.7 KB more than 0.51.0), the CYD 9342 (91.5 %), the Hosyond 4-inch (94.3 %), the 4-inch and 10.1-inch
+  Guition, the Waveshare 7-inch and the bridge, and on 2026.6.2 for every board that allows it (the CYD 93.4 %, the
+  Hosyond 4-inch 96.1 %). The upgrade from 0.4.83 was tested on a CYD, a 4-inch Guition and a Waveshare 4.3-inch.
 
 ## 0.4.83 (firmware 0.51.0)
 
