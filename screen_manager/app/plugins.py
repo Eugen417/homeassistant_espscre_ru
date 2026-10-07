@@ -58,6 +58,12 @@ async def read_whole(response, limit):
     return bytes(raw)
 
 
+def board_name(key):
+    """How a person knows a board of boards.yaml: "Waveshare ESP32-P4-86-Panel-ETH-2RO"; the key for one this app lacks."""
+    catalog = core.SHAPES.get(key, {}).get('catalog') or {}
+    return ' '.join(part for part in (catalog.get('name'), catalog.get('model')) if part) or key
+
+
 def api_text():
     return f'{pm.PLUGIN_API[0]}.{pm.PLUGIN_API[1]}'
 
@@ -403,6 +409,7 @@ class Plugins:
             'icon': glyph(manifest['icon']), 'maintainer': manifest['maintainer'], 'tessera': entry.label == 'tessera',
             'version': entry.version, 'repo': entry.link(), 'license': manifest['license'],
             'kind': 'hardware' if gpio or manifest['boards'] != 'any' else 'behaviour', 'boards': manifest['boards'],
+            'board_names': None if manifest['boards'] == 'any' else [board_name(key) for key in manifest['boards']],
             'requires': {'psram': manifest['requires']['psram']}, 'flash_kb': manifest['flash_kb'],
             'permissions': {'home_assistant': manifest['permissions']['home_assistant_actions'] + manifest['permissions']['ha_commands'],
                             'network': manifest['permissions']['network'],

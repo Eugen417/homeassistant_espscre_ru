@@ -151,6 +151,9 @@ class Boards(unittest.TestCase):
         self.assertIsNone(fits({'board': 'wavesharep4', 'pictures': True}))
         self.assertEqual(fits({'board': 'guition', 'pictures': True}), 'board')
         self.assertEqual(fits({'board': 'waveshare4b', 'pictures': True}), 'board')
+        # The editor names the boards as people know them.
+        self.assertEqual(plugin_service.board_name('wavesharep4'), 'Waveshare ESP32-P4-86-Panel-ETH-2RO')
+        self.assertEqual(plugin_service.board_name('nonexistent'), 'nonexistent')
         # PSRAM comes from the board when the screen says nothing about it (a KeyError before).
         self.assertIsNone(fits({'board': 'wavesharep4'}))
         entry.manifest = pm.check(manifest(requires={'psram': True}), ENGLISH)
