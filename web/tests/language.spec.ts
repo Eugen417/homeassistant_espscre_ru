@@ -20,6 +20,7 @@ function language(extra: Partial<Languages> = {}): Languages {
       { code: "en-GB", name: "English (UK)", english: "English (UK)", checked: true },
       { code: "nl", name: "Nederlands", english: "Dutch", checked: true },
       { code: "de", name: "Deutsch", english: "German", checked: false },
+      { code: "ru", name: "Русский", english: "Russian", checked: false },
     ],
     ...extra,
   };
