@@ -10,6 +10,7 @@ import {
 import type { Screen } from "../types";
 import Icon from "./ui/Icon.vue";
 import TesseraMark from "./TesseraMark.vue";
+import { pluginsEnabled } from "../plugin-state";
 
 const hostFor = ref<string | null>(null);
 const host = ref("");
@@ -241,7 +242,7 @@ const pendingText = (p: { installed?: boolean; downloaded?: boolean; file: strin
     <div class="more">
       <!-- The firmware tool (build, USB, OTA, download) is for repairs, not for adding a screen, so it lives in Settings,
            the command palette and a screen's menu rather than here, where it read as the way in (app 0.3.27). -->
-      <button id="open-plugins" type="button" class="nav-item" :aria-current="route === '#plugins' ? 'true' : 'false'" @click="go('#plugins')"><Icon name="puzzle-outline"/><span class="txt">{{ t("editor.nav.plugins") }}</span></button>
+      <button v-if="pluginsEnabled" id="open-plugins" type="button" class="nav-item" :aria-current="route === '#plugins' ? 'true' : 'false'" @click="go('#plugins')"><Icon name="puzzle-outline"/><span class="txt">{{ t("editor.nav.plugins") }}</span></button>
       <button id="open-alerts" type="button" class="nav-item" :aria-current="route === '#alerts' ? 'true' : 'false'" @click="go('#alerts')"><span class="mdi">{{ glyph("F0594") }}</span><span class="txt">{{ t("editor.nav.alerts") }}</span></button>
       <button id="open-settings" type="button" class="nav-item" :aria-current="route === '#settings' ? 'true' : 'false'" @click="go('#settings')"><span class="mdi">{{ glyph("F0493") }}</span><span class="txt">{{ t("editor.nav.settings") }}</span></button>
     </div>

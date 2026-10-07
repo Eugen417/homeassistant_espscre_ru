@@ -2888,13 +2888,15 @@
         "board": "Not for this board",
         "psram": "Needs PSRAM",
         "firmware": "Needs newer firmware",
-        "flash": "Too large for this screen"
+        "flash": "Too large for this screen",
+        "pins": "No free pin"
       },
       "misfit": {
         "board": "This plugin is made for other boards than {screen}'s.",
         "psram": "This plugin needs a board with PSRAM, and {screen} has none.",
         "firmware": "{screen} needs a firmware update before it can take this plugin.",
-        "flash": "{screen} has room for about {kb} KB more, and this plugin is larger."
+        "flash": "{screen} has room for about {kb} KB more, and this plugin is larger.",
+        "pins": "{screen} has no free pin this plugin can use."
       },
       "none_installed": "No plugins on this screen yet.",
       "none_found": "No plugin matches “{query}”.",
@@ -2939,7 +2941,8 @@
         "ha": "Uses these Home Assistant commands",
         "ha_none": "Runs no Home Assistant actions",
         "network": "Connects to {hosts}",
-        "network_none": "Makes no connections outside Home Assistant"
+        "network_none": "Makes no connections outside Home Assistant",
+        "read": "Reads these entities from Home Assistant"
       },
       "warning": "A plugin runs on your screen with full access to it, including its Wi-Fi and the actions it may perform in Home Assistant. Only add plugins from makers you trust, or read the code first.",
       "room": {
@@ -3002,6 +3005,25 @@
       "pending": {
         "add": "Will be added when you apply",
         "remove": "Will be removed when you apply"
+      },
+      "setup": {
+        "on_screen": "{label} on {screen}",
+        "choose_pin": "Choose a pin",
+        "part_kb": "{kb} KB more"
+      },
+      "readme": {
+        "title": "Read me",
+        "package": "Download the Home Assistant package",
+        "package_example": "Example: with the plugin index, Tessera downloads the package from the plugin."
+      },
+      "english_only": "In English only",
+      "build_note": "Built with ESPHome Device Builder or on another computer? The plugin is in the screen's YAML; build it there as you always do.",
+      "attach": {
+        "row": "Attach once, in the screen's tab",
+        "text": "{screen} is built from its own YAML. Add this line to it once; after that Tessera keeps its plugins in their own file, and ESPHome Device Builder builds them as always, also after an update.",
+        "copy": "Copy the line",
+        "done": "I added it",
+        "file": "What Tessera writes in {file}"
       }
     }
   }

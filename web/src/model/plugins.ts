@@ -4,7 +4,12 @@
 import { editorLanguage } from "../i18n";
 import type { Screen } from "../types";
 
-type Texts = Record<string, string>;  // a plugin's own words per language, "en" always present
+// A plugin's own words per language, "en" always present. In its repo they live in translations/<language>.json, in two
+// parts like Tessera's own files: `screen` (built into the firmware in the screen's language) and `app` (what the editor
+// shows); its README is README.md with README.<language>.md beside it. The add-on hands the editor this per-language form.
+export type Texts = Record<string, string>;
+export type PluginInput = { id: string; kind: "secret" | "text" | "gpio"; label: Texts; hint?: Texts; scope: "all" | "screen" };
+export type PluginPart = { id: string; label: Texts; hint: Texts; flash_kb: number; default: boolean };
 export type PluginSource = "index" | "link" | "branch" | "folder";
 export type PluginKind = "hardware" | "behaviour";
 export type Plugin = {
@@ -23,7 +28,11 @@ export type Plugin = {
   board_names?: string[];             // how a person knows those boards; the add-on fills it from boards.json
   requires: { firmware?: string; psram?: boolean; free_gpio?: number };
   flash_kb: number;
-  permissions: { home_assistant: string[]; network: string[] };
+  permissions: { home_assistant: string[]; network: string[]; read_entities?: string[] };
+  readme: Texts;                      // markdown; the app shows it in the editor's language, else in English
+  languages: string[];                // the languages its own texts are complete in
+  inputs?: PluginInput[];             // what a person fills in when adding it: a key, a pin, a name
+  parts?: PluginPart[];               // optional parts, on or off per screen, each with its own room
   attributes: string[];               // cloud, commercial, ai-developed, experimental
   adds: {
     tiles?: { name: Texts; min: string; max: string }[];
@@ -37,11 +46,14 @@ export type Plugin = {
 export type Installed = { id: string; version: string; source: PluginSource; ref?: string };
 
 // The words in the editor's language, else English.
-export const text = (texts: Texts) => texts[editorLanguage()] ?? texts[editorLanguage().split("-")[0]] ?? texts.en ?? "";
+const own = (texts: Texts) => texts[editorLanguage()] ?? texts[editorLanguage().split("-")[0]];
+export const text = (texts: Texts) => own(texts) ?? texts.en ?? "";
+// Whether these words exist in the editor's language, or the page falls back to English and says so.
+export const inEditorLanguage = (texts: Texts) => own(texts) !== undefined;
 
 // ---- Does it fit this screen ----
 // The reasons a plugin is not offered for a screen, in the order a person can do something about them.
-export type Misfit = "board" | "psram" | "firmware" | "flash";
+export type Misfit = "board" | "psram" | "firmware" | "flash" | "pins";
 export type Fit = { ok: true } | { ok: false; reason: Misfit };
 
 const parts = (version: string) => version.replace(/^[^\d]*/, "").split(".").map((part) => Number.parseInt(part, 10) || 0);
@@ -57,41 +69,106 @@ export function atLeast(version: string | undefined, wanted: string) {
 // The 4 MB boards (the classic ESP32: the CYD, its ILI9342 sibling, the Hosyond) run close to the top of their slot.
 // What a plugin may add there keeps the image under the 93 % line of docs/RELEASING.md: the CYD's 0.51.0 image is
 // 1,853,664 B of 2,031,616 B, which leaves 34 KB below it.
+// The add-on reports a screen's own last image and slot (firmware_image) once it builds plugins; until then the CYD's
+// numbers stand in for every 4 MB board.
 export const SMALL_FLASH = { image: 1_853_664, slot: 2_031_616, ceiling: 0.93 };
-// The boards with 4 MB of flash (boards.yaml); the add-on will say this per board once it serves the index.
 const SMALL_FLASH_BOARDS = ["cyd", "cyd9342", "hosyond40"];
-const smallFlash = (screen: Screen) => Boolean(screen.board && SMALL_FLASH_BOARDS.includes(screen.board));
-export const headroomKb = () => Math.floor((SMALL_FLASH.slot * SMALL_FLASH.ceiling - SMALL_FLASH.image) / 1024);
+const imageOf = (screen: Screen) => screen.firmware_image
+  || (screen.board && SMALL_FLASH_BOARDS.includes(screen.board) ? { size: SMALL_FLASH.image, slot: SMALL_FLASH.slot } : null);
+// Only a slot this full is worth a meter: on 8 MB and more a plugin of a few hundred KB fits without a thought.
+const smallFlash = (screen: Screen) => { const image = imageOf(screen); return Boolean(image && image.slot <= 2_100_000); };
+export const headroomKb = (screen?: Screen) => {
+  const image = (screen && imageOf(screen)) || { size: SMALL_FLASH.image, slot: SMALL_FLASH.slot };
+  return Math.max(0, Math.floor((image.slot * SMALL_FLASH.ceiling - image.size) / 1024));
+};
+// Free pins per board for a plugin with its own wiring. Example values: boards.json gets a field for them, filled from
+// each board's docs (the CYD's CN1 connector, GitHub #189).
+export const FREE_PINS: Record<string, string[]> = { cyd: ["GPIO22", "GPIO27"], cyd9342: ["GPIO22", "GPIO27"] };
+export const freePins = (screen: Screen) => (screen.board && FREE_PINS[screen.board]) || [];
 
 export function fit(plugin: Plugin, screen: Screen | null): Fit {
   if (!screen) return { ok: true };
   if (plugin.boards !== "any" && !(screen.board && plugin.boards.includes(screen.board))) return { ok: false, reason: "board" };
   if (plugin.requires.psram && !screen.pictures) return { ok: false, reason: "psram" };
   if (plugin.requires.firmware && !atLeast(screen.firmware, plugin.requires.firmware.replace(/^>=\s*/, ""))) return { ok: false, reason: "firmware" };
-  if (smallFlash(screen) && plugin.flash_kb > headroomKb()) return { ok: false, reason: "flash" };
+  if ((plugin.requires.free_gpio || 0) > freePins(screen).length) return { ok: false, reason: "pins" };
+  if (smallFlash(screen) && plugin.flash_kb > headroomKb(screen)) return { ok: false, reason: "flash" };
   return { ok: true };
 }
 
 // What its image would take of the update slot on a 4 MB board, before and after: the meter in the details.
-export function flashShare(plugin: Plugin, screen: Screen | null) {
+export function flashShare(plugin: Plugin, screen: Screen | null, extra_kb = 0) {
   if (!screen || !smallFlash(screen)) return null;
-  const before = SMALL_FLASH.image / SMALL_FLASH.slot;
-  return { before, after: (SMALL_FLASH.image + plugin.flash_kb * 1024) / SMALL_FLASH.slot };
+  const image = imageOf(screen)!;
+  return { before: image.size / image.slot, after: (image.size + (plugin.flash_kb + extra_kb) * 1024) / image.slot };
 }
 
-// ---- Example index: shown until the add-on serves the real one, and marked as such on the page ----
+// ---- Example index: shown only while the plugins feature is an experiment, and marked as such on the page ----
+const HEATING_README_EN = `Edit the week programme of a thermostat on the screen. The programme lives in Home Assistant's own **Schedule helpers**, so the helpers page and the screen edit the same thing.
+
+## Set up
+
+1. Download the package with the button below this text.
+2. Put it in \`config/packages/\` of Home Assistant and restart Home Assistant. It adds a Schedule helper for every weekday and one for vacation.
+3. Add the plugin to a screen.
+4. On a thermostat tile, choose **Tap action → Edit schedule**, or place the **Week schedule** tile.
+
+## Good to know
+
+- Gaps in a day mean the heating is off.
+- The vacation timeline wins over the week until you switch it off.
+- A change made in Home Assistant while the screen edits is not overwritten: the screen asks again.`;
+const HEATING_README_NL = `Pas het weekprogramma van een thermostaat aan op het scherm. Het programma staat in de **Schedule-helpers** van Home Assistant zelf, dus de helperpagina en het scherm passen hetzelfde aan.
+
+## Instellen
+
+1. Download het pakket met de knop onder deze tekst.
+2. Zet het in \`config/packages/\` van Home Assistant en herstart Home Assistant. Het maakt een Schedule-helper voor elke weekdag en één voor vakantie.
+3. Voeg de plugin toe aan een scherm.
+4. Kies bij een thermostaattegel **Tikactie → Schema aanpassen**, of zet de tegel **Weekschema** op een pagina.
+
+## Goed om te weten
+
+- Een gat in een dag betekent: verwarming uit.
+- Het vakantieschema gaat voor de week tot je het uitzet.
+- Een wijziging in Home Assistant terwijl het scherm bewerkt, wordt niet overschreven: het scherm vraagt opnieuw.`;
+const BUS_README_EN = `A tile that shows when the next bus of your line leaves, with your walk to the stop already taken off.
+
+## Set up
+
+1. Ask for a free key at \`example-ov.nl/developers\`.
+2. Add the plugin to a screen and fill in the key. It stays in Tessera and never goes to the screen.
+3. Place the **Next bus** tile on a page. In the inspector, fill in your stop code (it is on the sign at the stop) and choose your line.
+4. Set **Walk to the stop** to the minutes you need. Buses you can no longer catch are skipped.
+
+## Good to know
+
+- Tessera asks for the departures once a minute, for all screens together.
+- Works on every board; on a CYD it takes 9 KB.`;
+const BUS_README_NL = `Een tegel die laat zien wanneer de volgende bus van je lijn vertrekt, met de reistijd naar de halte er al af.
+
+## Instellen
+
+1. Vraag een gratis sleutel aan op \`example-ov.nl/developers\`.
+2. Voeg de plugin toe aan een scherm en vul de sleutel in. Hij blijft in Tessera en gaat niet naar het scherm.
+3. Zet de tegel **Eerstvolgende bus** op een pagina. Vul in de inspector je haltecode in (die staat op het bordje bij de halte) en kies je lijn.
+4. Stel bij **Lopen naar de halte** in hoeveel minuten je nodig hebt. Bussen die je niet meer haalt, slaat de tegel over.
+
+## Goed om te weten
+
+- Tessera vraagt de vertrektijden één keer per minuut op, voor alle schermen samen.
+- Werkt op elk bordje; op een CYD kost hij 9 KB.`;
+
 export const EXAMPLE_INDEX: Plugin[] = [
   {
     id: "heating_schedule", icon: "F00ED", maintainer: "Tessera", tessera: true, version: "1.1.0",
     repo: "https://github.com/MaxGramser/homeassistant_espscreen/tree/main/plugins/heating_schedule", license: "AGPL-3.0",
-    kind: "behaviour", boards: "any", requires: { firmware: ">=0.50.0" }, flash_kb: 24,
+    kind: "behaviour", boards: "any", requires: { firmware: ">=0.50.0" }, flash_kb: 24, languages: ["en", "nl", "de", "fr", "es", "it", "pl", "pt", "hu"],
     permissions: { home_assistant: ["schedule/list", "schedule/update"], network: [] }, attributes: [],
     name: { en: "Heating schedule", nl: "Verwarmingsschema" },
     summary: { en: "Edit the week programme of a thermostat on the screen.", nl: "Pas het weekprogramma van een thermostaat aan op het scherm." },
-    description: {
-      en: "Drag the blocks of a day, set their temperature and save. The programme lives in Home Assistant's own Schedule helpers, so the helpers page and the screen edit the same thing. A Vacation timeline overrides the week until you switch it off.",
-      nl: "Sleep de blokken van een dag, kies hun temperatuur en bewaar. Het programma staat in de Schedule-helpers van Home Assistant zelf, dus de helperpagina en het scherm passen hetzelfde aan. Een vakantieschema gaat voor de week tot je het uitzet.",
-    },
+    description: { en: "Drag the blocks of a day, set their temperature and save.", nl: "Sleep de blokken van een dag, kies hun temperatuur en bewaar." },
+    readme: { en: HEATING_README_EN, nl: HEATING_README_NL },
     adds: {
       tiles: [{ name: { en: "Week schedule", nl: "Weekschema" }, min: "2×1", max: "4×2" }],
       tap_actions: [{ label: { en: "Edit schedule", nl: "Schema aanpassen" }, domains: ["climate"] }],
@@ -102,65 +179,76 @@ export const EXAMPLE_INDEX: Plugin[] = [
     id: "audio", icon: "F057E", maintainer: "Tessera", tessera: true, version: "0.3.0",
     repo: "https://github.com/MaxGramser/homeassistant_espscreen/tree/main/plugins/audio", license: "AGPL-3.0",
     kind: "hardware", boards: ["wavesharep4"], board_names: ["Waveshare ESP32-P4-86-Panel"], requires: { firmware: ">=0.50.0", psram: true }, flash_kb: 60,
+    languages: ["en", "nl", "de", "fr", "es", "it", "pl", "pt", "hu"],
     permissions: { home_assistant: [], network: [] }, attributes: [],
     name: { en: "Audio", nl: "Audio" },
     summary: { en: "The microphone and speaker of the Waveshare P4 86 panel.", nl: "De microfoon en luidspreker van het Waveshare P4 86-paneel." },
-    description: {
-      en: "Speaker volume, microphone mute, automatic gain and a tap sound, on the screen's settings page and in the editor. Tests for the speaker and the microphone come with it.",
-      nl: "Luidsprekervolume, microfoon dempen, automatische versterking en een tikgeluid, op de instellingenpagina van het scherm en in de editor. Met tests voor de luidspreker en de microfoon.",
+    description: { en: "Speaker volume, microphone mute, automatic gain and a tap sound.", nl: "Luidsprekervolume, microfoon dempen, automatische versterking en een tikgeluid." },
+    readme: {
+      en: "Speaker volume, microphone mute, automatic gain and a tap sound, on the screen's settings page and in the editor.\n\n## Hardware tests\n\nTurn on **Hardware tests** when you check a new panel: a tone, a five-second recording played back, and a wake word test. They take 440 KB; leave them off for everyday use.",
+      nl: "Luidsprekervolume, microfoon dempen, automatische versterking en een tikgeluid, op de instellingenpagina van het scherm en in de editor.\n\n## Hardwaretests\n\nZet **Hardwaretests** aan als je een nieuw paneel controleert: een toon, een opname van vijf seconden die wordt teruggespeeld, en een wekwoordtest. Ze kosten 440 KB; laat ze uit voor elke dag.",
     },
+    parts: [{ id: "tests", label: { en: "Hardware tests", nl: "Hardwaretests" }, hint: { en: "Tone, recording and wake word test", nl: "Toon, opname en wekwoordtest" }, flash_kb: 440, default: false }],
     adds: { settings: true },
+  },
+  {
+    id: "bus", icon: "F034E", maintainer: "example-maker", tessera: false, version: "1.0.0",
+    repo: "https://github.com/example-maker/tessera-bus", license: "MIT",
+    kind: "behaviour", boards: "any", requires: { firmware: ">=0.50.0" }, flash_kb: 9, languages: ["en", "nl"],
+    permissions: { home_assistant: [], network: ["api.example-ov.nl"] }, attributes: ["cloud"],
+    name: { en: "Next bus", nl: "Eerstvolgende bus" },
+    summary: { en: "When the next bus of your line leaves.", nl: "Wanneer de volgende bus van je lijn vertrekt." },
+    description: { en: "A tile with the next departures of one line at your stop, counting down on the screen.", nl: "Een tegel met de volgende vertrekken van één lijn bij je halte, die op het scherm aftelt." },
+    readme: { en: BUS_README_EN, nl: BUS_README_NL },
+    inputs: [{ id: "api_key", kind: "secret", scope: "all", label: { en: "API key", nl: "API-sleutel" }, hint: { en: "Stays in Tessera; never sent to a screen.", nl: "Blijft in Tessera; gaat nooit naar een scherm." } }],
+    adds: { tiles: [{ name: { en: "Next bus", nl: "Eerstvolgende bus" }, min: "1×1", max: "2×2" }] },
   },
   {
     id: "relays_86", icon: "F1A25", maintainer: "example-maker", tessera: false, version: "0.4.1",
     repo: "https://github.com/example-maker/tessera-relays-86", license: "MIT",
-    kind: "hardware", boards: ["wavesharep4"], board_names: ["Waveshare ESP32-P4-86-Panel"], requires: { firmware: ">=0.50.0" }, flash_kb: 4,
+    kind: "hardware", boards: ["wavesharep4"], board_names: ["Waveshare ESP32-P4-86-Panel"], requires: { firmware: ">=0.50.0" }, flash_kb: 4, languages: ["en"],
     permissions: { home_assistant: [], network: [] }, attributes: [],
-    name: { en: "Panel relays", nl: "Relais van het paneel" },
-    summary: { en: "The two relays of an 86 panel as switches in Home Assistant.", nl: "De twee relais van een 86-paneel als schakelaars in Home Assistant." },
-    description: {
-      en: "Each relay becomes a switch of the screen in Home Assistant, so a switch tile on any screen, or an automation, turns it on and off. Names and the state after a power cut are set in the editor.",
-      nl: "Elk relais wordt een schakelaar van het scherm in Home Assistant, zodat een schakelaartegel op elk scherm, of een automatisering, hem aan- en uitzet. Namen en de stand na een stroomstoring kies je in de editor.",
-    },
+    name: { en: "Panel relays" },
+    summary: { en: "The two relays of an 86 panel as switches in Home Assistant." },
+    description: { en: "Each relay becomes a switch of the screen in Home Assistant." },
+    readme: { en: "Each relay becomes a switch of the screen in Home Assistant, so a switch tile on any screen, or an automation, turns it on and off.\n\n## Set up\n\nAdd the plugin, then name the relays under **Screen settings**. Choose what they do after a power cut: off, on, or as they were." },
     adds: { settings: true },
   },
   {
     id: "ds18b20", icon: "F050F", maintainer: "example-maker", tessera: false, version: "1.2.0",
     repo: "https://github.com/example-maker/tessera-ds18b20", license: "MIT",
-    kind: "hardware", boards: "any", requires: { firmware: ">=0.50.0", free_gpio: 1 }, flash_kb: 6,
+    kind: "hardware", boards: "any", requires: { firmware: ">=0.50.0", free_gpio: 1 }, flash_kb: 6, languages: ["en"],
     permissions: { home_assistant: [], network: [] }, attributes: [],
-    name: { en: "Temperature probe", nl: "Temperatuursensor" },
-    summary: { en: "A DS18B20 on a free pin, as a sensor of the screen.", nl: "Een DS18B20 op een vrije pin, als sensor van het scherm." },
-    description: {
-      en: "Wire a DS18B20 to a free pin of the board and choose that pin here. The temperature becomes a sensor of the screen in Home Assistant, and a sensor tile shows it.",
-      nl: "Sluit een DS18B20 aan op een vrije pin van het bordje en kies die pin hier. De temperatuur wordt een sensor van het scherm in Home Assistant, en een sensortegel toont hem.",
-    },
+    name: { en: "Temperature probe" },
+    summary: { en: "A DS18B20 on a free pin, as a sensor of the screen." },
+    description: { en: "Wire a DS18B20 to a free pin and choose that pin here." },
+    readme: { en: "Wire a DS18B20 to a free pin of the board: data to the pin, with a 4.7 kΩ resistor to 3.3 V.\n\n## Set up\n\nChoose the pin when you add the plugin. The temperature becomes a sensor of the screen in Home Assistant, and a sensor tile shows it." },
+    inputs: [
+      { id: "pin", kind: "gpio", scope: "screen", label: { en: "Pin" }, hint: { en: "The pin the probe's data wire is on" } },
+      { id: "name", kind: "text", scope: "screen", label: { en: "Name" }, hint: { en: "How the sensor is called in Home Assistant" } },
+    ],
     adds: { inputs: true },
   },
   {
     id: "night_light", icon: "F0594", maintainer: "example-labs", tessera: false, version: "0.2.0",
     repo: "https://github.com/example-labs/tessera-night-light", license: "GPL-3.0",
-    kind: "behaviour", boards: "any", requires: { firmware: ">=0.50.0" }, flash_kb: 3,
+    kind: "behaviour", boards: "any", requires: { firmware: ">=0.50.0" }, flash_kb: 3, languages: ["en"],
     permissions: { home_assistant: [], network: [] }, attributes: ["ai-developed"],
-    name: { en: "Night light", nl: "Nachtlampje" },
-    summary: { en: "A warm, dim glow on the glass with one tap at night.", nl: "Een warme, zachte gloed op het scherm met één tik in de nacht." },
-    description: {
-      en: "A tile that turns the whole screen into a soft warm light until the next tap. Its colour and brightness are set in the editor.",
-      nl: "Een tegel die het hele scherm een zacht warm licht maakt tot de volgende tik. Kleur en helderheid kies je in de editor.",
-    },
-    adds: { tiles: [{ name: { en: "Night light", nl: "Nachtlampje" }, min: "1×1", max: "2×1" }], card: true },
+    name: { en: "Night light" },
+    summary: { en: "A warm, dim glow on the glass with one tap at night." },
+    description: { en: "A tile that turns the whole screen into a soft warm light until the next tap." },
+    readme: { en: "A tile that turns the whole screen into a soft warm light until the next tap. Its colour and brightness are set in the inspector." },
+    adds: { tiles: [{ name: { en: "Night light" }, min: "1×1", max: "2×1" }], card: true },
   },
   {
     id: "camera_module", icon: "F07AE", maintainer: "example-labs", tessera: false, version: "0.1.0",
     repo: "https://github.com/example-labs/tessera-camera-module", license: "MIT",
-    kind: "hardware", boards: ["esp32s3_ov2640"], board_names: ["ESP32-S3 + OV2640"], requires: { firmware: ">=0.50.0", psram: true }, flash_kb: 85,
+    kind: "hardware", boards: ["esp32s3_ov2640"], board_names: ["ESP32-S3 + OV2640"], requires: { firmware: ">=0.50.0", psram: true }, flash_kb: 85, languages: ["en"],
     permissions: { home_assistant: [], network: [] }, attributes: ["experimental"],
-    name: { en: "Camera module", nl: "Cameramodule" },
-    summary: { en: "An OV2640 on an ESP32-S3 board, with a preview to aim it.", nl: "Een OV2640 op een ESP32-S3-bordje, met een voorbeeld om hem te richten." },
-    description: {
-      en: "The camera becomes a camera entity in Home Assistant, which every camera tile shows. On the screen itself a preview helps you aim it; flip and resolution are settings.",
-      nl: "De camera wordt een camera-entiteit in Home Assistant, die elke camerategel toont. Op het scherm zelf helpt een voorbeeld om hem te richten; spiegelen en resolutie zijn instellingen.",
-    },
+    name: { en: "Camera module" },
+    summary: { en: "An OV2640 on an ESP32-S3 board, with a preview to aim it." },
+    description: { en: "The camera becomes a camera entity in Home Assistant." },
+    readme: { en: "The camera becomes a camera entity in Home Assistant, which every camera tile shows. On the screen itself a preview helps you aim it." },
     adds: { settings: true, card: true },
   },
 ];
@@ -180,4 +268,5 @@ export const testPlugin = (installed: Installed): Plugin => ({
   repo: installed.ref ? `https://${installed.ref.split("@")[0]}` : "", license: "", kind: "behaviour", boards: "any", requires: {},
   flash_kb: 0, permissions: { home_assistant: [], network: [] }, attributes: [],
   name: { en: installed.id.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()) }, summary: { en: "" }, description: { en: "" }, adds: {},
+  readme: { en: "" }, languages: [],
 });

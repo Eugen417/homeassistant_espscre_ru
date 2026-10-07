@@ -3537,7 +3537,8 @@ def create_app(manager, development=False):
     # rules allow stays under about 75 KB (app 0.2.78). The YAML override keeps its own 12 KB limit (firmware.py).
     # Named editor features. An experiment can sit behind SCREEN_EDITOR_ENV=development here and never changes
     # authentication or firmware capabilities; taller tiles left that stage in 0.3.1.
-    editor_features = {'tall_tiles': True}
+    # Plugins (design, docs: the plugins proposal) stay behind SCREEN_EDITOR_ENV=development until the add-on serves an index.
+    editor_features = {'tall_tiles': True, 'plugins': os.environ.get('SCREEN_EDITOR_ENV') == 'development'}
     app = web.Application(middlewares=[guard], client_max_size=128*1024)
     static = Path(__file__).parent / 'static'
 

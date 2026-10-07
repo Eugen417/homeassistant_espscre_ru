@@ -2888,13 +2888,15 @@
         "board": "Niet voor dit bordje",
         "psram": "Heeft PSRAM nodig",
         "firmware": "Heeft nieuwere firmware nodig",
-        "flash": "Te groot voor dit scherm"
+        "flash": "Te groot voor dit scherm",
+        "pins": "Geen vrije pin"
       },
       "misfit": {
         "board": "Deze plugin is gemaakt voor andere bordjes dan dat van {screen}.",
         "psram": "Deze plugin heeft een bordje met PSRAM nodig, en {screen} heeft dat niet.",
         "firmware": "{screen} heeft eerst een firmware-update nodig voordat deze plugin erop kan.",
-        "flash": "{screen} heeft nog ruimte voor ongeveer {kb} KB, en deze plugin is groter."
+        "flash": "{screen} heeft nog ruimte voor ongeveer {kb} KB, en deze plugin is groter.",
+        "pins": "{screen} heeft geen vrije pin die deze plugin kan gebruiken."
       },
       "none_installed": "Nog geen plugins op dit scherm.",
       "none_found": "Geen plugin gevonden voor “{query}”.",
@@ -2939,7 +2941,8 @@
         "ha": "Gebruikt deze Home Assistant-commando's",
         "ha_none": "Voert geen acties uit in Home Assistant",
         "network": "Maakt verbinding met {hosts}",
-        "network_none": "Maakt geen verbindingen buiten Home Assistant"
+        "network_none": "Maakt geen verbindingen buiten Home Assistant",
+        "read": "Leest deze entiteiten uit Home Assistant"
       },
       "warning": "Een plugin draait op je scherm met volledige toegang ertoe, ook tot de Wi-Fi en de acties die het scherm in Home Assistant mag uitvoeren. Voeg alleen plugins toe van makers die je vertrouwt, of lees eerst de code.",
       "room": {
@@ -3002,6 +3005,25 @@
       "pending": {
         "add": "Wordt toegevoegd als je toepast",
         "remove": "Wordt verwijderd als je toepast"
+      },
+      "setup": {
+        "on_screen": "{label} op {screen}",
+        "choose_pin": "Kies een pin",
+        "part_kb": "{kb} KB extra"
+      },
+      "readme": {
+        "title": "Lees mij",
+        "package": "Pakket voor Home Assistant downloaden",
+        "package_example": "Voorbeeld: met de plugin-index downloadt Tessera het pakket uit de plugin."
+      },
+      "english_only": "Alleen in het Engels",
+      "build_note": "Bouw je met ESPHome Device Builder of op een andere computer? De plugin staat in de YAML van het scherm; bouw hem daar zoals altijd.",
+      "attach": {
+        "row": "Eenmalig koppelen, in de tab van het scherm",
+        "text": "{screen} wordt gebouwd uit eigen YAML. Zet deze regel er één keer in; daarna houdt Tessera de plugins bij in een eigen bestand, en bouwt ESPHome Device Builder ze zoals altijd, ook na een update.",
+        "copy": "Regel kopiëren",
+        "done": "Ik heb hem toegevoegd",
+        "file": "Wat Tessera in {file} zet"
       }
     }
   }

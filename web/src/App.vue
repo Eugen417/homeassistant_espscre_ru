@@ -12,6 +12,7 @@ import FirmwareView from "./components/FirmwareView.vue";
 import AlertsView from "./components/AlertsView.vue";
 import OverrideView from "./components/OverrideView.vue";
 import PluginsView from "./components/PluginsView.vue";
+import { pluginsEnabled } from "./plugin-state";
 import { currentScreen, phone, route, state } from "./store";
 
 const view = computed(() => {
@@ -20,7 +21,7 @@ const view = computed(() => {
   if (route.value === "#firmware") return FirmwareView;
   if (route.value === "#alerts") return AlertsView;
   if (route.value === "#override") return OverrideView;
-  if (route.value === "#plugins") return PluginsView;
+  if (route.value === "#plugins" && pluginsEnabled.value) return PluginsView;
   // Nothing chosen is the overview of every screen (app 0.4.0); a house without screens starts with the first.
   if (currentScreen.value && state.layout) return ScreenView;
   return state.selected || !state.inventory.screens.length ? EmptyState : HomeView;

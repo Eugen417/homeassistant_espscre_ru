@@ -26,6 +26,18 @@ describe("plugins", () => {
     expect(atLeast(undefined, "0.50.0")).toBe(false);
   });
 
+  it("asks for a free pin where the plugin has its own wiring", () => {
+    expect(fit(plugin("ds18b20"), screen("cyd"))).toEqual({ ok: true });
+    expect(fit(plugin("ds18b20"), screen("guition"))).toEqual({ ok: false, reason: "pins" });
+  });
+
+  it("measures the room from the screen's own last build when the add-on reports it", () => {
+    const measured = screen("hosyond40", { firmware_image: { size: 1_880_000, slot: 2_031_616 } });
+    expect(headroomKb(measured)).toBe(9);
+    expect(fit(plugin("heating_schedule"), measured)).toEqual({ ok: false, reason: "flash" });
+    expect(fit(plugin("night_light"), measured)).toEqual({ ok: true });
+  });
+
   it("keeps a 4 MB board under the 93 % line of its slot", () => {
     expect(headroomKb()).toBe(34);
     expect(fit(plugin("heating_schedule"), screen("cyd"))).toEqual({ ok: true });

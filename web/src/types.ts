@@ -182,6 +182,8 @@ export type Screen = {
   orientation?: Orientation;
   // Whether its board draws pictures: camera tiles, an alert's snapshot, an album cover (app 0.2.94).
   pictures?: boolean;
+  // Plugins (design): the size of its last firmware image and its update slot, from the add-on's last build of it.
+  firmware_image?: { size: number; slot: number } | null;
   // Whether it has a battery the top bar can show (app 0.4.68, firmware 0.41.0): its hello said so, or its board has one.
   battery?: boolean;
 };
@@ -204,7 +206,7 @@ export type ChangelogSection = { app: string; firmware: string; boards?: string[
 export type Entity = { id: string; name: string; area?: string; device?: string; icon?: string; state?: string; tile?: boolean; screen_name?: string };
 export type IconInfo = { name: string; cp: string; label: string };
 export type Inventory = {
-  editor_features?: { tall_tiles?: boolean };
+  editor_features?: { tall_tiles?: boolean; plugins?: boolean };
   csrf?: string;
   connected?: boolean;
   screens: Screen[];

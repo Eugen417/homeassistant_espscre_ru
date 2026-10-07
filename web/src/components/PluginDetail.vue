@@ -1,14 +1,21 @@
 <script setup lang="ts">
-// The details of one plugin, in the column on the right: who made it, what it adds, what it may do, the room it takes,
-// and what to do with it. On the Plugins page (no `screen`) that is a checkbox per screen, ticked where it is on and
-// greyed out with its reason where it does not fit; in a screen's Plugins tab it is the one button for that screen.
+// The details of one plugin, in the column on the right: who made it, what to do with it, its README, what it adds,
+// what it may do and the room it takes. On the Plugins page (no `screen`) the action is a checkbox per screen, ticked
+// where it is on and greyed out with its reason where it does not fit; in a screen's Plugins tab it is the one button
+// for that screen. A screen with its own YAML gets the lines to paste instead of a button.
 import { computed, reactive, ref, watch } from "vue";
 import { editorLanguage, languageMarks, numberText, t, te } from "../i18n";
 import { boardTitle } from "../model/boards";
-import { fit, flashShare, headroomKb, text, type Plugin } from "../model/plugins";
+import { fit, flashShare, headroomKb, inEditorLanguage, text, type Plugin } from "../model/plugins";
 import { glyph } from "../model/topbar";
-import { addPlugin, buildingOn, installedOn, labelOf, realScreens, removePlugin, statusOn } from "../plugin-state";
+import {
+  addPlugin, attachLine, buildingOn, copyAttach, fileOf, installedOn, labelOf, markAttached, needsAttach, partsKb, pluginsFile, realScreens,
+  removePlugin, setupReady, statusOn,
+} from "../plugin-state";
+import { toast } from "../store";
 import type { Screen } from "../types";
+import PluginReadme from "./PluginReadme.vue";
+import PluginSetup from "./PluginSetup.vue";
 import Icon from "./ui/Icon.vue";
 
 const props = defineProps<{ plugin: Plugin; screen?: Screen | null }>();
@@ -22,15 +29,19 @@ const works = computed(() => props.plugin.boards === "any"
   ? t(props.plugin.requires.psram ? "editor.plugins.works.any_psram" : "editor.plugins.works.any")
   : (props.plugin.board_names || props.plugin.boards).join(", "));
 const domainName = (domain: string) => (te(`editor.domains.${domain}`) ? t(`editor.domains.${domain}`) : domain);
+// A plugin whose own words are not in the editor's language shows them in English and says so, once.
+const englishOnly = computed(() => !editorLanguage().startsWith("en") && !inEditorLanguage(props.plugin.readme));
 const trust = ref(false);
 watch(() => props.plugin.id, () => { trust.value = false; });
+const packageDownload = () => toast(t("editor.plugins.readme.package_example"));
 
 // ---- One screen (its Plugins tab) ----
 const here = computed(() => props.screen || null);
 const hereStatus = computed(() => (here.value ? statusOn(props.plugin, here.value) : null));
 const hereInstalled = computed(() => (here.value ? installedOn(here.value, props.plugin.id) : undefined));
 const hereFit = computed(() => (here.value ? fit(props.plugin, here.value) : { ok: true as const }));
-const hereFlash = computed(() => (here.value ? flashShare(props.plugin, here.value) : null));
+const hereFlash = computed(() => (here.value ? flashShare(props.plugin, here.value, partsKb(here.value, props.plugin)) : null));
+const hereAttach = computed(() => Boolean(here.value && needsAttach(here.value)));
 
 // ---- Every screen (the Plugins page): a box per screen, applied together ----
 const screens = computed(() => realScreens());
@@ -41,7 +52,7 @@ function reset() {
 }
 watch([() => props.plugin.id, () => screens.value.map((s) => s.id).join()], reset, { immediate: true });
 const has = (screen: Screen) => Boolean(installedOn(screen, props.plugin.id));
-const canTick = (screen: Screen) => !buildingOn(screen, props.plugin.id) && (has(screen) || fit(props.plugin, screen).ok);
+const canTick = (screen: Screen) => !buildingOn(screen, props.plugin.id) && !needsAttach(screen) && (has(screen) || fit(props.plugin, screen).ok);
 function rowLine(screen: Screen) {
   const have = installedOn(screen, props.plugin.id);
   if (buildingOn(screen, props.plugin.id)) return t("editor.plugins.state.building");
@@ -52,6 +63,7 @@ function rowLine(screen: Screen) {
   if (have) return t("editor.plugins.screen_version", { version: have.version });
   const result = fit(props.plugin, screen);
   if (!result.ok) return t(`editor.plugins.misfit_short.${result.reason}`);
+  if (needsAttach(screen)) return t("editor.plugins.attach.row");
   return screen.shape?.catalog ? boardTitle(screen.shape.catalog) : "";
 }
 const adding = computed(() => screens.value.filter((s) => wanted[s.id] && !has(s)));
@@ -90,13 +102,29 @@ watch(() => screens.value.map((s) => `${s.id}:${installedOn(s, props.plugin.id)?
       <em class="plugin-chip" :class="label">{{ t(`editor.plugins.label.${label}`) }}</em>
       <em v-if="label !== 'test'" class="plugin-chip">{{ t(`editor.plugins.kind.${plugin.kind}`) }}</em>
       <em v-for="mark in plugin.attributes" :key="mark" class="plugin-chip attribute">{{ t(`editor.plugins.attribute.${mark}`) }}</em>
+      <em v-if="englishOnly" class="plugin-chip attribute" id="plugin-english-only">{{ t("editor.plugins.english_only") }}</em>
     </p>
   </div>
   <p v-if="text(plugin.description)" class="pd-description">{{ text(plugin.description) }}</p>
 
+  <!-- In a screen's tab, for a screen with its own YAML that is not attached yet: one line, once. After that the add-on
+       keeps its plugins file and the screen is like any other; ESPHome Device Builder builds it as always. -->
+  <div v-if="here && hereAttach && !hereInstalled" class="pd-action" id="plugin-attach">
+    <p class="pd-note pd-attach-note"><Icon name="code-braces" /><span>{{ t("editor.plugins.attach.text", { screen: here.name }) }}</span></p>
+    <pre class="pd-yaml">{{ attachLine(here) }}</pre>
+    <div class="pd-buttons">
+      <button type="button" class="btn quiet" id="plugin-copy-line" @click="copyAttach(here)"><Icon name="content-copy" />{{ t("editor.plugins.attach.copy") }}</button>
+      <button type="button" class="btn primary" id="plugin-attached" @click="markAttached(here)">{{ t("editor.plugins.attach.done") }}</button>
+    </div>
+    <details class="pd-file">
+      <summary><Icon name="chevron-right" />{{ t("editor.plugins.attach.file", { file: fileOf(here) }) }}</summary>
+      <pre class="pd-yaml">{{ pluginsFile(here, plugin) }}</pre>
+    </details>
+  </div>
+
   <!-- In a screen's tab: the action for this screen, and what stands in its way. -->
-  <div v-if="here && hereStatus" class="pd-action" :class="hereStatus.kind">
-    <p v-if="!hereFit.ok && !hereInstalled" class="pd-misfit" id="plugin-misfit"><Icon name="information-outline" />{{ t(`editor.plugins.misfit.${hereFit.reason}`, { screen: here.name, kb: headroomKb() }) }}</p>
+  <div v-else-if="here && hereStatus" class="pd-action" :class="hereStatus.kind">
+    <p v-if="!hereFit.ok && !hereInstalled" class="pd-misfit" id="plugin-misfit"><Icon name="information-outline" />{{ t(`editor.plugins.misfit.${hereFit.reason}`, { screen: here.name, kb: headroomKb(here) }) }}</p>
     <template v-else-if="hereStatus.kind === 'test'">
       <p class="pd-note">{{ t("editor.plugins.test_note") }}</p>
       <button type="button" class="btn quiet" @click="removePlugin([here], plugin)">{{ t("editor.plugins.remove", { screen: here.name }) }}</button>
@@ -110,11 +138,13 @@ watch(() => screens.value.map((s) => `${s.id}:${installedOn(s, props.plugin.id)?
       </div>
     </template>
     <template v-else>
+      <PluginSetup :plugin="plugin" :screens="[here]" />
       <label v-if="label === 'community'" class="pd-trust" id="plugin-trust">
         <input type="checkbox" v-model="trust" />
         <span><b>{{ t("editor.plugins.trust.title") }}</b>{{ t("editor.plugins.trust.text") }}</span>
       </label>
-      <button type="button" class="btn primary pd-install" id="plugin-install" :disabled="label === 'community' && !trust" @click="addPlugin([here], plugin); trust = false">{{ t("editor.plugins.install", { screen: here.name }) }}</button>
+      <button type="button" class="btn primary pd-install" id="plugin-install" :disabled="(label === 'community' && !trust) || !setupReady(plugin, [here])" @click="addPlugin([here], plugin); trust = false">{{ t("editor.plugins.install", { screen: here.name }) }}</button>
+      <p class="pd-build-note">{{ t("editor.plugins.build_note") }}</p>
     </template>
   </div>
 
@@ -130,15 +160,23 @@ watch(() => screens.value.map((s) => `${s.id}:${installedOn(s, props.plugin.id)?
         <span v-if="buildingOn(s, plugin.id)" class="spin small" aria-hidden="true"></span>
       </li>
     </ul>
+    <PluginSetup :plugin="plugin" :screens="adding" />
     <label v-if="needsTrust" class="pd-trust" id="plugin-trust">
       <input type="checkbox" v-model="trust" />
       <span><b>{{ t("editor.plugins.trust.title") }}</b>{{ t("editor.plugins.trust.text") }}</span>
     </label>
     <div class="pd-buttons">
-      <button type="button" class="btn primary" id="plugin-apply" :disabled="!(adding.length || removing.length) || (needsTrust && !trust)" @click="apply">{{ applyText }}</button>
+      <button type="button" class="btn primary" id="plugin-apply" :disabled="!(adding.length || removing.length) || (needsTrust && !trust) || !setupReady(plugin, adding)" @click="apply">{{ applyText }}</button>
       <button v-if="updatable.length" type="button" class="btn quiet" id="plugin-update-all" @click="addPlugin(updatable, plugin)">{{ t("editor.plugins.update_all", { n: updatable.length, version: plugin.version }, updatable.length) }}</button>
     </div>
   </div>
+
+  <!-- The plugin's README: what to do in Home Assistant, where a key comes from. Its own words, safely shown. -->
+  <section v-if="text(plugin.readme)" class="pd-section" id="plugin-readme">
+    <h3>{{ t("editor.plugins.readme.title") }}</h3>
+    <PluginReadme :source="text(plugin.readme)" :repo="plugin.repo" />
+    <button v-if="plugin.adds.ha_package" type="button" class="btn quiet pd-package" id="plugin-package" @click="packageDownload"><Icon name="tray-arrow-down" />{{ t("editor.plugins.readme.package") }}</button>
+  </section>
 
   <section v-if="label !== 'test'" class="pd-section">
     <h3>{{ t("editor.plugins.adds.title") }}</h3>
@@ -159,6 +197,7 @@ watch(() => screens.value.map((s) => `${s.id}:${installedOn(s, props.plugin.id)?
         <b>{{ plugin.permissions.home_assistant.length ? t("editor.plugins.may.ha") : t("editor.plugins.may.ha_none") }}</b>
         <small v-if="plugin.permissions.home_assistant.length"><code v-for="kind in plugin.permissions.home_assistant" :key="kind">{{ kind }}</code></small>
       </span></li>
+      <li v-if="plugin.permissions.read_entities?.length"><Icon name="eye-outline" /><span><b>{{ t("editor.plugins.may.read") }}</b><small><code v-for="entity in plugin.permissions.read_entities" :key="entity">{{ entity }}</code></small></span></li>
       <li><Icon name="wifi-strength-off-outline" /><span><b>{{ plugin.permissions.network.length ? t("editor.plugins.may.network", { hosts: plugin.permissions.network.join(", ") }) : t("editor.plugins.may.network_none") }}</b></span></li>
     </ul>
     <p v-if="!plugin.tessera" class="pd-warning" id="plugin-warning">{{ t("editor.plugins.warning") }}</p>
@@ -171,9 +210,9 @@ watch(() => screens.value.map((s) => `${s.id}:${installedOn(s, props.plugin.id)?
         <i class="before" :style="{ width: hereFlash.before * 100 + '%' }"></i>
         <i class="added" :style="{ left: hereFlash.before * 100 + '%', width: Math.max(0.6, (hereFlash.after - hereFlash.before) * 100) + '%' }"></i>
       </div>
-      <p class="pd-room">{{ t("editor.plugins.room.small", { kb: kb(plugin.flash_kb), before: percent(hereFlash.before), after: percent(hereFlash.after) }) }}</p>
+      <p class="pd-room">{{ t("editor.plugins.room.small", { kb: kb(plugin.flash_kb + (here ? partsKb(here, plugin) : 0)), before: percent(hereFlash.before), after: percent(hereFlash.after) }) }}</p>
     </template>
-    <p v-else-if="here" class="pd-room">{{ t("editor.plugins.room.large", { kb: kb(plugin.flash_kb) }) }}</p>
+    <p v-else-if="here" class="pd-room">{{ t("editor.plugins.room.large", { kb: kb(plugin.flash_kb + partsKb(here, plugin)) }) }}</p>
     <p v-else class="pd-room">{{ t("editor.plugins.room.per_screen", { kb: kb(plugin.flash_kb) }) }}</p>
     <p class="pd-room"><span class="pd-works">{{ t("editor.plugins.works.title") }}</span> {{ works }}</p>
   </section>

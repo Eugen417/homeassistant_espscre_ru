@@ -1450,3 +1450,39 @@ section.advanced code { font-size: 11.5px; }
   .screen-plugins.with-detail { grid-template-columns: minmax(0, 1fr); }
   .screen-plugins .plugin-detail { position: fixed; inset: 0 0 0 auto; height: 100%; }
 }
+
+/* What a plugin asks for before it goes on: a key, a pin, a name, its optional parts. */
+.pd-setup { display: grid; gap: 12px; }
+.pd-setup .field { display: grid; gap: 5px; }
+.pd-setup .f-label { font-size: 12px; font-weight: 550; color: var(--ink-2); }
+.pd-setup input[type="text"], .pd-setup input[type="password"], .pd-setup select { height: 36px; font-size: 13px; }
+.pd-setup small { font-size: 11.5px; }
+.pd-part { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; cursor: pointer; font-size: 13px; }
+.pd-part input { margin-top: 3px; }
+.pd-part b { display: block; font-weight: 550; }
+.pd-part small { font-size: 11.5px; }
+.pd-build-note { color: var(--muted); font-size: 11.5px; line-height: 1.45; }
+.pd-note .ui-icon[class] { flex: none; }
+/* A screen with its own YAML: the lines to paste, in the code face, scrolling sideways on their own. */
+.pd-yaml { font-size: 11.5px; line-height: 1.5; white-space: pre; overflow-x: auto; overflow-wrap: normal; background: var(--surface); }
+/* A plugin's README: markdown's own elements only, in the column's rhythm. */
+.pd-readme { display: grid; gap: 10px; font-size: 13px; line-height: 1.55; color: var(--ink-2); min-width: 0; }
+.pd-readme > * { margin: 0; }
+.pd-readme h1, .pd-readme h2, .pd-readme h3 { font-size: 13px; font-weight: 600; color: var(--ink); margin-top: 4px; }
+.pd-readme ol, .pd-readme ul { padding-left: 20px; display: grid; gap: 4px; }
+.pd-readme strong { color: var(--ink); font-weight: 600; }
+.pd-readme code { font-size: 11.5px; }
+.pd-readme pre { font-size: 11.5px; }
+.pd-readme img { max-width: 100%; border-radius: 8px; border: 1px solid var(--line); }
+.pd-package { justify-self: start; }
+.pd-attach-note { align-items: flex-start; }
+.pd-attach-note .ui-icon { margin-top: 1px; color: var(--ink-2); }
+.pd-file summary { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; list-style: none; font-size: 12px; color: var(--muted); font-weight: 500; }
+.pd-file summary::-webkit-details-marker { display: none; }
+.pd-file summary .ui-icon { font-size: 15px; transition: transform 0.15s; }
+.pd-file[open] summary .ui-icon { transform: rotate(90deg); }
+.pd-file[open] summary { margin-bottom: 8px; }
+/* Code in the action box scrolls inside it; the box keeps the column's width. */
+.pd-action { grid-template-columns: minmax(0, 1fr); }
+.pd-action > *, .pd-file { min-width: 0; }
+.pd-yaml { max-width: 100%; }
