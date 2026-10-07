@@ -364,10 +364,15 @@ class Plugins:
             raise ValueError(t('addon.errors.plugins.link_invalid'))
         if wanted:
             sha = (await self._github(f'{api}/commits/{wanted}'))['sha']
-        elif tree_ref:
-            sha = (await self._github(f'{api}/commits/{tree_ref}'))['sha']
         else:
-            tag = (await self._github(f'{api}/releases/latest'))['tag_name']
+            # A link copied from GitHub (.../tree/main/<folder>) names the plugin's folder; what is built is still the
+            # newest release, which refresh_links follows. A repository without a release keeps the link's commit.
+            try:
+                tag = (await self._github(f'{api}/releases/latest'))['tag_name']
+            except ValueError:
+                if not tree_ref:
+                    raise
+                tag = tree_ref
             sha = (await self._github(f'{api}/commits/{tag}'))['sha']
         base = '' if path == '.' else path + '/'
         raw = lambda name: GITHUB_RAW.format(owner=owner, repo=repo, ref=sha, path=base + name)

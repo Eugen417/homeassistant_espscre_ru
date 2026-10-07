@@ -216,6 +216,45 @@ class Links(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(read, [('https://github.com/someone/tessera-bus', '.')])
 
 
+class LinkFolder(unittest.IsolatedAsyncioTestCase):
+    """A link copied from GitHub to a plugin's folder (.../tree/main/plugins/bus) builds the newest release of that
+    folder; a repository without a release keeps the link's own commit."""
+
+    async def test_the_folder_of_the_newest_release(self):
+        import yaml
+        import plugins as plugin_service
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        service = plugin_service.Plugins(type('Manager', (), {'page_senders': {}})(), Path(tmp.name) / 'data',
+                                         Path(tmp.name) / 'esphome')
+        released = {'v2.0.0': 'r' * 40, 'main': 'm' * 40}
+        release = {'tag_name': 'v2.0.0'}
+        asked = []
+
+        async def github(url, text=False):
+            asked.append(url)
+            if url.endswith('/releases/latest'):
+                if not release:
+                    raise ValueError('not found')
+                return release
+            if '/commits/' in url:
+                return {'sha': released[url.rsplit('/', 1)[1]]}
+            if url.endswith('tessera-plugin.yaml'):
+                return yaml.safe_dump(manifest())
+            if '/contents/' in url and 'translations' in url:
+                return [{'name': 'en.json'}]
+            if url.endswith('translations/en.json'):
+                return json.dumps(ENGLISH)
+            return []
+        service._github = github
+        entry = await service.resolve_link('https://github.com/someone/plugins/tree/main/plugins/bus')
+        self.assertEqual((entry.path, entry.ref, entry.label), ('plugins/bus', 'r' * 40, 'community'))
+        self.assertTrue(any(u.endswith(f"{'r' * 40}/plugins/bus/tessera-plugin.yaml") for u in asked))
+        release.clear()
+        entry = await service.resolve_link('https://github.com/someone/plugins/tree/main/plugins/bus')
+        self.assertEqual(entry.ref, 'm' * 40)
+
+
 class Map(unittest.TestCase):
     ANSWER = {'30003025': {'passes': {
         'b': {'line': '7', 'to': 'Slotermeer', 'when': '2026-10-07T17:30:00', 'state': 'DRIVING'},
