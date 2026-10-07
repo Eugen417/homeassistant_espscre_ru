@@ -6,6 +6,11 @@
   a template and docs to make your own. A plugin you are making shows up as a test when its folder is in
   `tessera-plugins/` beside the `esphome` folder. Only in the dev app while the plugin API is 0.x (docs/PLUGINS.md).
 - **Bus and train icons** for any tile.
+- **Waveshare ESP32-P4-86-Panel-ETH-2RO (experimental).** The 4-inch 720 × 720 wall panel on an ESP32-P4, with GT911
+  touch, a dimmable backlight and Wi-Fi through its ESP32-C6, as a new board in New screen. Its relays, Ethernet and
+  audio are not configured. New screen now gives a board with another chip or resolution its own card, so this one
+  stands apart from the Waveshare 4B. Thanks to @woozer, who made it work on the panel
+  ([#142](https://github.com/MaxGramser/homeassistant_espscreen/pull/142)).
 - **Room on the 4 MB boards.** The bedside clock on a Hosyond 4-inch draws its time with the large digits the screen
   already has, a little smaller than before, which frees about 40 KB of its nearly full flash. The CYD already did so.
 
