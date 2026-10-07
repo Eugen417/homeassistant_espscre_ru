@@ -64,7 +64,9 @@ jobs:
       # generate_host_ui.py has ESPHome generate the UI for an SDL display, and ESPHome checks for sdl2-config.
       - name: SDL2
         if: steps.stale.outputs.stale == 'true'
-        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev
+        uses: ./.github/actions/apt-install
+        timeout-minutes: 20
+        with: { command: "sdl2-config --version", packages: libsdl2-dev }
       - name: Emscripten
         if: steps.stale.outputs.stale == 'true'
         run: |

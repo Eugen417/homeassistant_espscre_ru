@@ -51,7 +51,9 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - name: clang
-        run: clang++ --version || (sudo apt-get update && sudo apt-get install -y clang)
+        uses: ./.github/actions/apt-install
+        timeout-minutes: 20
+        with: { command: "clang++ --version", packages: clang }
       - name: tools/check.sh
         run: bash tools/check.sh
         env:
@@ -104,7 +106,9 @@ jobs:
         run: python -m pip install "esphome==${{ steps.esphome.outputs.version }}"
       # ESPHome 2026.7+ builds with ESP-IDF itself and reuses what it compiled before when ccache is on the PATH.
       - name: ccache
-        run: ccache --version || (sudo apt-get update && sudo apt-get install -y ccache)
+        uses: ./.github/actions/apt-install
+        timeout-minutes: 20
+        with: { command: "ccache --version", packages: ccache }
       # ESP-IDF, its tools and ccache's cache (ESPHome 2026.7+ keeps them in ~/.cache/esphome) and PlatformIO's
       # toolchains (ESPHome before 2026.7): any older copy of the same ESPHome will do.
       - uses: actions/cache@v4

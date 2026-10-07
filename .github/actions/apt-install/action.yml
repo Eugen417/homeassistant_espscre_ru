@@ -1,0 +1,27 @@
+# Ubuntu packages a job needs that the runner may lack (clang, ccache, SDL2), installed so that a slow or broken package
+# mirror fails the step within minutes instead of holding the runner: on 2026-10-07 an `apt-get update` of the runner
+# hung for the whole of a job's time, two hours of the release CI and 45 minutes of the firmware preview. Each try is
+# bounded, a failed try waits and tries again, and three failed tries fail the step. A command that already exists
+# installs nothing.
+name: Install Ubuntu packages
+description: apt-get install with time limits and retries, skipped when the command is there
+inputs:
+  command:
+    description: a command that is there when the packages are, such as "ccache --version"
+    required: true
+  packages:
+    description: the packages, separated by spaces
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        if ${{ inputs.command }} >/dev/null 2>&1; then exit 0; fi
+        apt="sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30"
+        for try in 1 2 3; do
+          if timeout 300 $apt update && timeout 300 $apt install -y ${{ inputs.packages }}; then exit 0; fi
+          echo "::warning::apt-get try $try failed or took longer than five minutes"
+          sleep $((try * 20))
+        done
+        exit 1
