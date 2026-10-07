@@ -682,6 +682,9 @@ packages:
         if not next_top and not text.endswith('\n'):
             text += '\n'
         end = match.end() + next_top.start() if next_top else len(text)
+        # Right under the block's last line, before the blank lines that close it.
+        while end > match.end() and text[:end].endswith('\n\n'):
+            end -= 1
         addition = f'  {key}: !include {filename}\n'
         self._atomic_write(profile, text[:end] + addition + text[end:])
         self._names.pop(profile.name, None)

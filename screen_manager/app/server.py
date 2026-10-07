@@ -2262,7 +2262,7 @@ class Manager:
                 tile['slot'] = slot
         layout = validate_layout(layout, grid=grid)
         known = {e['id'] for e in entities} | set(BUILTIN)
-        if any(t['entity'] not in known for t in layout['tiles']):
+        if any(t['entity'] not in known and not plugin_tile(t['entity']) for t in layout['tiles']):
             raise ValueError(t('addon.errors.layout.entity_gone'))
         if any(item['type'] == 'entity' and item['entity'] not in known and item['entity'] not in self.ha.states for item in header_items(layout)):
             raise ValueError(t('addon.errors.top_bar.entity_gone'))

@@ -7,7 +7,7 @@ it does not import the server or keep another copy of a page document.
 import time
 import camera_feed
 import page_delivery
-from core import BUILTIN, CAMERA_DOMAINS, FREE_PAGES_MIN_FIRMWARE, board_of, firmware_features, page_target, state_message, version_text
+from core import plugin_tile, BUILTIN, CAMERA_DOMAINS, FREE_PAGES_MIN_FIRMWARE, board_of, firmware_features, page_target, state_message, version_text
 from i18n import t, shown, english
 from page_layout import (FORMAT as PAGE_FORMAT, LayoutError, bar_items, compile_tiles,
                          grid_of_record, grown, legacy_projection, screen_grid_of_record, validate_document)
@@ -102,7 +102,9 @@ def save_pages(manager, inbox, data):
     _, entities = manager.inventory()
     known = {e['id'] for e in entities} | set(BUILTIN)
     existing = {tile['entity'] for tile in manager.layouts.get(inbox, {}).get('tiles', [])}
-    if any(tile['entity'] not in known and tile['entity'] not in existing and not page_target(tile['entity']) for tile in flat['tiles']):
+    # A plugin's tile has no entity behind it: a plugin the screen lacks draws a placeholder, never an error.
+    if any(tile['entity'] not in known and tile['entity'] not in existing and not page_target(tile['entity'])
+           and not plugin_tile(tile['entity']) for tile in flat['tiles']):
         raise LayoutError(t('addon.errors.layout.entity_gone'))
     existing_headers = {item['entity'] for page in previous['layout']['pages'] for item in bar_items(page)
                         if item['type'] == 'entity'} if previous and previous['format'] == PAGE_FORMAT else set()
