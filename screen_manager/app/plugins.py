@@ -124,7 +124,9 @@ class Plugins:
         self.folders = {}           # id -> Entry, from tessera-plugins/<id>/
         self.folder_errors = {}     # folder name -> what is wrong with it
         self.snapshots = {}         # (id, ref) -> Entry of an installed release
-        self.jobs = {}              # inbox -> what the running build adds and removes
+        self.jobs = {}              # inbox -> what its waiting or running build adds and removes, and its state
+        self.queue = []             # the screens that wait for a build, in the order they were asked
+        self.worker = None
         self.http = None            # the session that reads the index: never the one that holds Home Assistant's token
         self._load_cached_index()
         self.scan_folders()
@@ -341,7 +343,7 @@ class Plugins:
                     secrets.setdefault(entry.id, {})[item['id']] = self.secrets.has(entry.id, item['id'])
         return {'api': api_text(), 'plugins': [self.editor_plugin(entry, language) for entry in listed.values()],
                 'installed': installed, 'running': self.running(), 'secrets': secrets,
-                'building': {inbox: job for inbox, job in self.jobs.items()},
+                'building': {inbox: {k: job[k] for k in ('add', 'remove', 'state') if k in job} for inbox, job in self.jobs.items()},
                 'index': {'at': self.index_state['at'], 'error': self.index_state['error']},
                 'folders': {'path': str(self.folder_root()), 'errors': self.folder_errors},
                 'fetch': self.fetcher.status()}
@@ -420,8 +422,6 @@ class Plugins:
         if not isinstance(adds, list) or not isinstance(removes, list) or len(adds) > 8 or len(removes) > 8:
             raise ValueError(t('addon.errors.plugins.request'))
         firmware = self.manager.firmware
-        if profile and firmware.task and not firmware.task.done():
-            raise ValueError(t('addon.errors.firmware.busy_wait'))
         self.scan_folders()
         changes = []
         for item in adds:
@@ -475,25 +475,47 @@ class Plugins:
         firmware.save_plugins(profile, text)
         if not host:
             return {'written': True, 'built': False}
-        firmware.start({'file': profile, 'action': 'install', 'target': host})
-        self.jobs[inbox] = {'add': [c['id'] for c in changes], 'remove': [r for r in removes if isinstance(r, str)],
-                            'started': int(time.time())}
-        asyncio.get_running_loop().create_task(self._follow(inbox, firmware.task, [c['id'] for c in changes]))
+        # One build at a time, in the order asked: ticking three screens on the Plugins page builds them one after the
+        # other. A screen asked again while it waits builds once, with everything asked for it.
+        job = self.jobs.get(inbox) if self.jobs.get(inbox, {}).get('state') == 'queued' else None
+        added = [c['id'] for c in changes]
+        if job:
+            job['add'] = sorted(set(job['add']) | set(added))
+            job['remove'] = sorted(set(job['remove']) | {r for r in removes if isinstance(r, str)})
+        else:
+            self.jobs[inbox] = {'add': added, 'remove': [r for r in removes if isinstance(r, str)], 'state': 'queued',
+                                'profile': profile, 'host': host, 'asked': int(time.time())}
+            self.queue.append(inbox)
+        if self.worker is None or self.worker.done():
+            self.worker = asyncio.get_running_loop().create_task(self._build_queue())
         self.manager.notify()
-        return {'written': True, 'built': True, 'job': dict(firmware.job or {})}
+        return {'written': True, 'built': True, 'queued': self.queue.index(inbox) if inbox in self.queue else 0}
 
-    async def _follow(self, inbox, task, added):
-        try:
-            await task
-        except Exception:
-            pass
-        job = self.manager.firmware.job or {}
-        ok = job.get('state') == 'success'
-        for plugin in added:
-            self.store.set_state(inbox, plugin, 'active' if ok else 'failed', None if ok else (job.get('error') or 'build'))
-        self.jobs.pop(inbox, None)
-        self.manager.notify()
-        self.manager.ha.changed.set()
+    async def _build_queue(self):
+        """Build the screens that wait, one at a time, each when the app's one build slot is free."""
+        firmware = self.manager.firmware
+        while self.queue:
+            while firmware.task and not firmware.task.done():
+                await asyncio.sleep(2)
+            inbox = self.queue.pop(0)
+            job = self.jobs.get(inbox)
+            if not job:
+                continue
+            job.update(state='building', started=int(time.time()))
+            self.manager.notify()
+            try:
+                firmware.start({'file': job['profile'], 'action': 'install', 'target': job['host']})
+                await firmware.task
+                ok = (firmware.job or {}).get('state') == 'success'
+                reason = None if ok else ((firmware.job or {}).get('error') or 'build')
+            except Exception as error:   # refused before it started (a file that went, an address that is wrong)
+                ok, reason = False, str(error)[:200]
+            for plugin in job['add']:
+                if self.store.get(inbox, plugin):
+                    self.store.set_state(inbox, plugin, 'active' if ok else 'failed', reason)
+            self.jobs.pop(inbox, None)
+            self.manager.notify()
+            self.manager.ha.changed.set()
 
     def file_for(self, inbox):
         screen = self.manager.screen(inbox)

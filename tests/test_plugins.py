@@ -288,5 +288,57 @@ class Sidecar(unittest.TestCase):
         self.assertFalse((self.firmware.root / 'kitchen.plugins.yaml').exists())
 
 
+class Queue(unittest.IsolatedAsyncioTestCase):
+    """Ticking several screens builds them one after the other, never two at once and never a refusal."""
+
+    async def test_screens_build_one_after_the_other(self):
+        import shutil
+        import plugins as plugin_service
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        config = Path(tmp.name) / 'esphome'
+        config.mkdir()
+        shutil.copytree(ROOT / 'tests' / 'fixtures' / 'plugins' / 'clock_words', Path(tmp.name) / 'tessera-plugins' / 'clock_words')
+        started, running = [], []
+
+        class FakeFirmware:
+            task = None
+            job = None
+
+            def save_plugins(self, profile, text):
+                (config / profile.replace('.yaml', '.plugins.yaml')).write_text(text)
+
+            def start(self, data):
+                assert not (self.task and not self.task.done()), 'two builds at once'
+                started.append(data['file'])
+
+                async def build():
+                    running.append(data['file'])
+                    await asyncio.sleep(0.01)
+                    self.job = {'state': 'success'}
+                self.task = asyncio.get_running_loop().create_task(build())
+
+        class FakeManager:
+            firmware = FakeFirmware()
+            ha = type('HA', (), {'changed': asyncio.Event(), 'dirty': set()})()
+            page_senders = {}
+
+            def screen(self, inbox):
+                return {'id': inbox, 'node': inbox, 'board': 'guition'}
+
+            def notify(self):
+                pass
+        FakeManager.updates = type('U', (), {'resolve': lambda self, screen: (screen['id'] + '.yaml', '10.0.0.1')})()
+        service = plugin_service.Plugins(FakeManager(), Path(tmp.name) / 'data', config)
+        for inbox in ('one', 'two', 'three'):
+            result = await service.apply(inbox, {'add': [{'id': 'clock_words', 'source': 'folder'}]})
+            self.assertTrue(result['built'])
+        await service.worker
+        self.assertEqual(started, ['one.yaml', 'two.yaml', 'three.yaml'])
+        self.assertEqual({i: service.store.get(i, 'clock_words')['state'] for i in ('one', 'two', 'three')},
+                         {'one': 'active', 'two': 'active', 'three': 'active'})
+        self.assertIn('../tessera-plugins/clock_words/plugin.yaml', (config / 'one.plugins.yaml').read_text())
+
+
 if __name__ == '__main__':
     unittest.main()
