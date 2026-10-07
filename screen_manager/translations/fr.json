@@ -816,7 +816,8 @@
         "link_not_found": "Aucun plugin trouvé ici : pas de version publiée, ou pas de tessera-plugin.yaml dans ce dossier.",
         "link_rate": "GitHub ne répond pas pour le moment (trop de demandes en une heure). Réessayez plus tard.",
         "folder": "Le dossier {folder} de tessera-plugins n'est pas encore un plugin : {why}",
-        "manifest": "La description du plugin n'est pas valide : {why}"
+        "manifest": "La description du plugin n'est pas valide : {why}",
+        "consent": "{name} demande d'autres droits qu'avant. Regardez ce qu'il peut faire maintenant et acceptez, puis mettez à jour."
       }
     },
     "status": {
@@ -1788,7 +1789,11 @@
       "rebuild": "Compiler de nouveau",
       "failed": "Le firmware de {screen} n'a pas pu être compilé avec ce plugin. Son journal se trouve dans Firmware et USB.",
       "retry": "Réessayer",
-      "privacy": "Confidentialité"
+      "privacy": "Confidentialité",
+      "consent": {
+        "title": "Cette mise à jour demande d'autres droits",
+        "agree": "J'accepte ce qu'il peut faire maintenant"
+      }
     },
     "plugin_tile": {
       "from": "Une tuile du plugin {plugin}",

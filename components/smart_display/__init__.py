@@ -100,6 +100,8 @@ async def register_plugin(var, component_file):
         offered = f"{PLUGIN_API[0]}.{PLUGIN_API[1]}"
         raise cv.Invalid(f"Plugin {manifest.get('id')} wants plugin API {wanted or '?'}; this firmware offers {offered}. "
                          "Update the plugin, or the screen's firmware.")
+    # The whole plugin API goes into this build only now that it has a plugin (plugin_host.cpp, USE_TESSERA_PLUGINS).
+    cg.add_define("USE_TESSERA_PLUGINS")
     cg.add(var.set_identity(str(manifest["id"]), str(manifest["version"])))
     for tile in manifest.get("tiles") or []:
         memory = tile.get("memory")

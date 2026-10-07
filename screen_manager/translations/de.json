@@ -816,7 +816,8 @@
         "link_not_found": "Dort wurde kein Plugin gefunden: kein Release oder keine tessera-plugin.yaml in diesem Ordner.",
         "link_rate": "GitHub antwortet gerade nicht (zu viele Anfragen in einer Stunde). Versuche es später erneut.",
         "folder": "Der Ordner {folder} in tessera-plugins ist noch kein Plugin: {why}",
-        "manifest": "Die Beschreibung des Plugins ist ungültig: {why}"
+        "manifest": "Die Beschreibung des Plugins ist ungültig: {why}",
+        "consent": "{name} verlangt andere Rechte als zuvor. Sieh dir an, was es jetzt darf, stimme zu und aktualisiere dann."
       }
     },
     "status": {
@@ -1788,7 +1789,11 @@
       "rebuild": "Neu erstellen",
       "failed": "Die Firmware für {screen} ließ sich mit diesem Plugin nicht erstellen. Das Protokoll findest du unter Firmware & USB.",
       "retry": "Noch einmal versuchen",
-      "privacy": "Datenschutz"
+      "privacy": "Datenschutz",
+      "consent": {
+        "title": "Diese Aktualisierung verlangt andere Rechte",
+        "agree": "Ich stimme zu, was es jetzt darf"
+      }
     },
     "plugin_tile": {
       "from": "Eine Kachel des Plugins {plugin}",

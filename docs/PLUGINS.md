@@ -5,7 +5,7 @@ from a web service, hardware on one board, a feature not everyone needs. How to 
 [github.com/MaxGramser/tessera-plugins](https://github.com/MaxGramser/tessera-plugins) (its `docs/` and `AGENTS.md`).
 This page is the core's side: what the firmware, the add-on and the editor do, and the rules a change here keeps.
 
-Plugins are on dev while the plugin API is 0.x: in an app added from the `#dev` URL, a local copy of the app, and the
+Plugins are on dev while the plugin API is 0.x (0.2 now): in an app added from the `#dev` URL, a local copy of the app, and the
 editor's development server (`core.plugins_enabled()`). The stable app has no Plugins page, no routes and no loop.
 
 ## The pieces
@@ -87,9 +87,32 @@ repository's `docs/FETCH.md`.
 - **Test against real data**: the plugins repository's `tools/check.py` uses this `plugin_manifest.py`; change both in
   step.
 
+## What a plugin can add (plugin API 0.2)
+
+| Part | Firmware | Add-on | Editor |
+|---|---|---|---|
+| A tile, with data from a fetch | `Tile`, `add_tile` | `Plugins.tile_message`, `plugin_fetch.py` | library, inspector, `preview` drawn from the data |
+| A tile of an entity | `TileContext.entity`, `tessera::action` | `Plugins.entity_part` (state, name, named attributes), `related_entities` | entity picker of the manifest's domains, also ones Tessera draws no tile for |
+| A card | `Card`, `add_card`, `open_card`; closed by `hide_detail` | nothing | nothing |
+| A tap action | `add_tap_action`; `event()` runs a tile's `plugin:` tap | `validate_layout` takes a `plugin:` tap | the tile inspector's tap choices |
+| A top bar item | `add_bar_item`; `header_bar::Kind::plugin` | `validate_header` type `plugin`, sent to a screen whose hello says `plugins` | "From plugins" in Top bar, Add |
+| Settings rows | `settings(SettingsPage&)`; `settings_screen::plugin_pages` | nothing (the values are ESPHome entities of the plugin's YAML) | nothing |
+| A question to Home Assistant | `tessera::send`, `on_message` (op `plugin`) | `Plugins.answer`: only `permissions.ha_commands`, logged, answer bounded | the commands under "What it may do" |
+| The moments | `on_ready`, `on_tick`, `on_standby`, `before_update`, `on_cards_closed`, `on_alert` | | |
+
+## Where a plugin comes from
+
+- **The index** (`tessera-plugins/index.json`): Tessera's own plugins (label Tessera) and entries of `community/`
+  (label Community), each pinned to a commit, read when the editor opens and at most every ten minutes (ETag).
+- **A link** (`POST api/plugins/link`): the newest release of any GitHub repository, pinned to its commit (Community,
+  or Tessera for a repository of MaxGramser); a branch to test, which every build takes anew (`refresh: 0s`, Test); or
+  a folder in `tessera-plugins/` beside the ESPHome folder (Test).
+- **An update** is a newer version in the index: the screen's Plugins tab and the Plugins page offer it, and the build
+  queue takes the screens one by one. An update whose rights differ from what the person agreed to
+  (`permission_hash`) waits for their yes in the editor; the add-on refuses it without (`consent`).
+
 ## What is not built yet
 
-From the design: settings pages and cards of a plugin, top bar items, tap actions for existing tiles, `ha_commands`,
-messages between the screen and the add-on, tiles that belong to an entity, community entries in the index, plugin
-updates offered in the app, and the move of `core.yaml`'s substitution hooks (`TICK_HOOK`, `BOOT_CAMERA_HOOKS`, ...)
-onto the plugin API.
+A plugin's own messages beyond Home Assistant commands, pictures of a plugin's own, Python modules of Tessera's own
+plugins in the add-on (the design's `module`), and the plugin's settings rows in the editor's Screen settings (they are
+entities of the screen in Home Assistant, so an automation and Home Assistant's own device page already reach them).

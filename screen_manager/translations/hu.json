@@ -816,7 +816,8 @@
         "link_not_found": "Ott nem található bővítmény: nincs kiadás, vagy nincs tessera-plugin.yaml abban a mappában.",
         "link_rate": "A GitHub most nem válaszol (túl sok kérés egy órán belül). Próbáld újra később.",
         "folder": "A tessera-plugins {folder} mappája még nem bővítmény: {why}",
-        "manifest": "A bővítmény leírása érvénytelen: {why}"
+        "manifest": "A bővítmény leírása érvénytelen: {why}",
+        "consent": "{name} más jogokat kér, mint korábban. Nézd meg, mit tehet most, fogadd el, majd frissíts."
       }
     },
     "status": {
@@ -1788,7 +1789,11 @@
       "rebuild": "Újrafordítás",
       "failed": "A(z) {screen} firmware-e nem fordult le ezzel a bővítménnyel. A naplót a Firmware és USB alatt találod.",
       "retry": "Próbáld újra",
-      "privacy": "Adatvédelem"
+      "privacy": "Adatvédelem",
+      "consent": {
+        "title": "Ez a frissítés más jogokat kér",
+        "agree": "Elfogadom, amit most tehet"
+      }
     },
     "plugin_tile": {
       "from": "A(z) {plugin} bővítmény csempéje",

@@ -816,7 +816,8 @@
         "link_not_found": "Daar is geen plugin gevonden: geen release, of geen tessera-plugin.yaml in die map.",
         "link_rate": "GitHub antwoordt nu niet (te veel vragen in een uur). Probeer het later opnieuw.",
         "folder": "De map {folder} in tessera-plugins is nog geen plugin: {why}",
-        "manifest": "De beschrijving van de plugin klopt niet: {why}"
+        "manifest": "De beschrijving van de plugin klopt niet: {why}",
+        "consent": "{name} vraagt andere rechten dan eerst. Bekijk wat hij nu mag en stem in, en werk dan bij."
       }
     },
     "status": {
@@ -3060,7 +3061,11 @@
       "rebuild": "Opnieuw bouwen",
       "failed": "De firmware voor {screen} bouwde niet met deze plugin. Het log staat onder Firmware & USB.",
       "retry": "Opnieuw proberen",
-      "privacy": "Privacy"
+      "privacy": "Privacy",
+      "consent": {
+        "title": "Deze update vraagt andere rechten",
+        "agree": "Ik ga akkoord met wat hij nu mag"
+      }
     },
     "plugin_tile": {
       "from": "Een tegel van de plugin {plugin}",

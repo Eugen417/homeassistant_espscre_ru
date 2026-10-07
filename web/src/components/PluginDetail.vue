@@ -10,7 +10,7 @@ import { fit, flashShare, headroomKb, inEditorLanguage, text, type Plugin } from
 import { glyph } from "../model/topbar";
 import {
   addPlugin, attachLine, buildingOn, copyAttach, fileOf, installedOn, labelOf, markAttached, needsAttach, partsKb, pluginsFile, realScreens,
-  removePlugin, setupReady, statusOn,
+  needsConsent, plugins, removePlugin, setupReady, statusOn,
 } from "../plugin-state";
 import { toast } from "../store";
 import type { Screen } from "../types";
@@ -68,6 +68,9 @@ function rowLine(screen: Screen) {
 }
 const adding = computed(() => screens.value.filter((s) => wanted[s.id] && !has(s)));
 const removing = computed(() => screens.value.filter((s) => !wanted[s.id] && has(s)));
+// An update that asks for other rights waits for the person's yes, shown above the update keys.
+const askConsent = computed(() => screens.value.some((s) => installedOn(s, props.plugin.id) && needsConsent(s, props.plugin)));
+const agreed = computed(() => !askConsent.value || Boolean(plugins.consented[props.plugin.id]));
 const updatable = computed(() => screens.value.filter((s) => has(s) && installedOn(s, props.plugin.id)!.source === "index"
   && installedOn(s, props.plugin.id)!.version !== props.plugin.version && !buildingOn(s, props.plugin.id)));
 const needsTrust = computed(() => label.value === "community" && adding.value.length > 0);
@@ -142,8 +145,12 @@ watch(() => screens.value.map((s) => `${s.id}:${installedOn(s, props.plugin.id)?
     <p v-else-if="hereStatus.kind === 'building'" class="pd-note"><span class="spin" aria-hidden="true"></span>{{ t("editor.plugins.building", { screen: here.name }) }}</p>
     <template v-else-if="hereInstalled">
       <p class="pd-note"><Icon name="check-circle" />{{ t("editor.plugins.installed_on", { screen: here.name, version: hereInstalled.version }) }}</p>
+      <label v-if="hereStatus.kind === 'update' && askConsent" class="pd-trust" id="plugin-consent">
+        <input type="checkbox" :checked="plugins.consented[plugin.id]" @change="plugins.consented[plugin.id] = ($event.target as HTMLInputElement).checked" />
+        <span><b>{{ t("editor.plugins.consent.title") }}</b>{{ t("editor.plugins.consent.agree") }}</span>
+      </label>
       <div class="pd-buttons">
-        <button v-if="hereStatus.kind === 'update'" type="button" class="btn primary" id="plugin-update" @click="addPlugin([here], plugin)">{{ t("editor.plugins.update", { version: plugin.version }) }}</button>
+        <button v-if="hereStatus.kind === 'update'" type="button" class="btn primary" id="plugin-update" :disabled="!agreed" @click="addPlugin([here], plugin)">{{ t("editor.plugins.update", { version: plugin.version }) }}</button>
         <button type="button" class="btn quiet" id="plugin-remove" @click="removePlugin([here], plugin)">{{ t("editor.plugins.remove", { screen: here.name }) }}</button>
       </div>
     </template>
@@ -177,7 +184,11 @@ watch(() => screens.value.map((s) => `${s.id}:${installedOn(s, props.plugin.id)?
     </label>
     <div class="pd-buttons">
       <button type="button" class="btn primary" id="plugin-apply" :disabled="!(adding.length || removing.length) || (needsTrust && !trust) || !setupReady(plugin, adding)" @click="apply">{{ applyText }}</button>
-      <button v-if="updatable.length" type="button" class="btn quiet" id="plugin-update-all" @click="addPlugin(updatable, plugin)">{{ t("editor.plugins.update_all", { n: updatable.length, version: plugin.version }, updatable.length) }}</button>
+      <label v-if="updatable.length && askConsent" class="pd-trust" id="plugin-consent-all">
+        <input type="checkbox" :checked="plugins.consented[plugin.id]" @change="plugins.consented[plugin.id] = ($event.target as HTMLInputElement).checked" />
+        <span><b>{{ t("editor.plugins.consent.title") }}</b>{{ t("editor.plugins.consent.agree") }}</span>
+      </label>
+      <button v-if="updatable.length" type="button" class="btn quiet" id="plugin-update-all" :disabled="!agreed" @click="addPlugin(updatable, plugin)">{{ t("editor.plugins.update_all", { n: updatable.length, version: plugin.version }, updatable.length) }}</button>
     </div>
   </div>
 

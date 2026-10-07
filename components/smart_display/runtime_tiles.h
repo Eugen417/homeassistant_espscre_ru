@@ -56,6 +56,7 @@
 #include "energy_view.h"
 #include "plugin_api.h"
 #include "plugin_host.h"
+#include "screen_hooks.h"
 #include "light_card.h"
 #include "weather_card.h"
 #include "forecast_tile.h"

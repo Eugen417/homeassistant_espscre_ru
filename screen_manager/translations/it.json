@@ -816,7 +816,8 @@
         "link_not_found": "Nessun plugin trovato: nessuna release o nessun tessera-plugin.yaml in quella cartella.",
         "link_rate": "GitHub non risponde ora (troppe richieste in un'ora). Riprova più tardi.",
         "folder": "La cartella {folder} in tessera-plugins non è ancora un plugin: {why}",
-        "manifest": "La descrizione del plugin non è valida: {why}"
+        "manifest": "La descrizione del plugin non è valida: {why}",
+        "consent": "{name} chiede permessi diversi da prima. Guarda cosa può fare ora e accetta, poi aggiorna."
       }
     },
     "status": {
@@ -1788,7 +1789,11 @@
       "rebuild": "Compila di nuovo",
       "failed": "Il firmware per {screen} non si è compilato con questo plugin. Il registro è in Firmware e USB.",
       "retry": "Riprova",
-      "privacy": "Privacy"
+      "privacy": "Privacy",
+      "consent": {
+        "title": "Questo aggiornamento chiede permessi diversi",
+        "agree": "Accetto ciò che può fare ora"
+      }
     },
     "plugin_tile": {
       "from": "Un riquadro del plugin {plugin}",

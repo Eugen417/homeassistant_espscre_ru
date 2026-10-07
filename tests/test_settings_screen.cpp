@@ -308,11 +308,13 @@ int main() {
   // ---- a plugin's rows (docs/PLUGINS.md): their own words, read and written through their context ----
   {
     static int32_t level = 3;
+    Own own{};
+    own.words = "Volume";
+    own.ctx = &level;
+    own.read = [](void *c) -> int32_t { return *static_cast<int32_t *>(c); };
+    own.write = [](void *c, int32_t v) { *static_cast<int32_t *>(c) = v; };
     Row row{};
-    row.kind = Kind::number; row.words = "Volume"; row.low = 0; row.high = 10; row.step = 1; row.unit = "";
-    row.ctx = &level;
-    row.read_ctx = [](void *c) -> int32_t { return *static_cast<int32_t *>(c); };
-    row.write_ctx = [](void *c, int32_t v) { *static_cast<int32_t *>(c) = v; };
+    row.kind = Kind::number; row.low = 0; row.high = 10; row.step = 1; row.unit = ""; row.own = &own;
     assert(std::string(label_text(row)) == "Volume" && readable(row) && writable(row));
     put(row, stepped(row, get(row), 1));
     assert(level == 4 && value_text(row) == "4");

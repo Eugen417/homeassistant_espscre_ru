@@ -56,6 +56,7 @@ export type Plugin = {
   label?: PluginLabel;
   blocked?: string | null;
   fits_api?: boolean;
+  permission_hash?: string;
   privacy?: string;
   // Its cards and its tap actions for tiles of Home Assistant's own (the add-on's payload; docs/PLUGINS.md).
   cards?: { id: string; name: Texts }[];
@@ -75,6 +76,8 @@ export type Plugin = {
 export type Installed = {
   id: string; version: string; source: PluginSource; ref?: string | null; parts?: string[]; values?: Record<string, string>;
   state?: "building" | "active" | "failed" | "removing"; reason?: string | null;
+  // The fingerprint of the rights the person agreed to when it went on (Plugin.permission_hash then).
+  consent?: string | null;
 };
 
 // ---- Plugin tiles in a layout: the tile's entity is plugin:<plugin>.<tile>, the type the screen's protocol carries ----

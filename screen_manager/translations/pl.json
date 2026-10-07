@@ -816,7 +816,8 @@
         "link_not_found": "Nie znaleziono tam wtyczki: brak wydania lub brak pliku tessera-plugin.yaml w tym folderze.",
         "link_rate": "GitHub teraz nie odpowiada (za dużo zapytań w ciągu godziny). Spróbuj później.",
         "folder": "Folder {folder} w tessera-plugins nie jest jeszcze wtyczką: {why}",
-        "manifest": "Opis wtyczki jest nieprawidłowy: {why}"
+        "manifest": "Opis wtyczki jest nieprawidłowy: {why}",
+        "consent": "{name} prosi o inne uprawnienia niż wcześniej. Sprawdź, co może teraz robić, zgódź się, a potem zaktualizuj."
       }
     },
     "status": {
@@ -1788,7 +1789,11 @@
       "rebuild": "Skompiluj ponownie",
       "failed": "Firmware dla {screen} nie skompilował się z tą wtyczką. Log znajdziesz w sekcji „Firmware i USB”.",
       "retry": "Spróbuj ponownie",
-      "privacy": "Prywatność"
+      "privacy": "Prywatność",
+      "consent": {
+        "title": "Ta aktualizacja prosi o inne uprawnienia",
+        "agree": "Zgadzam się na to, co może teraz robić"
+      }
     },
     "plugin_tile": {
       "from": "Kafelek wtyczki {plugin}",

@@ -35,6 +35,8 @@ export const plugins = reactive({
   previews: {} as Record<string, { items: PreviewRow[]; at: number }>,
   // Entities of the domains the plugins name that the editor's own list lacks (a calendar), from the add-on.
   entities: [] as { id: string; name: string }[],
+  // Per plugin: the person agreed to the other rights an update asks for (needsConsent).
+  consented: {} as Record<string, boolean>,
   folders: { path: "", errors: {} as Record<string, string> },
 });
 
@@ -135,6 +137,12 @@ export function entitiesIn(domains: string[] = []) {
   const seen = new Set<string>();
   return [...state.inventory.entities, ...plugins.entities].filter((e) => domains.includes(e.id.split(".")[0]) && !seen.has(e.id) && seen.add(e.id))
     .map((e) => ({ id: e.id, name: e.name || e.id }));
+}
+
+// An update of a plugin on this screen that asks for other rights than the person agreed to: the details ask again.
+export function needsConsent(screen: Screen, plugin: Plugin) {
+  const have = installedOn(screen, plugin.id);
+  return Boolean(have && have.consent && plugin.permission_hash && have.consent !== plugin.permission_hash);
 }
 
 export const realScreens = () => state.inventory.screens.filter((screen) => !screen.virtual);
@@ -261,7 +269,8 @@ function addition(screen: Screen, plugin: Plugin) {
     const value = valueOf(screen, plugin, input.id).trim();
     if (value) (input.kind === "secret" ? secrets : values)[input.id] = value;
   }
-  return { id: plugin.id, source: plugin.source || "index", parts: partsOn(screen, plugin), values, secrets };
+  return { id: plugin.id, source: plugin.source || "index", parts: partsOn(screen, plugin), values, secrets,
+    ...(plugins.consented[plugin.id] ? { consent: true } : {}) };
 }
 async function change(screen: Screen, body: object) {
   const result = await send<{ own_yaml?: boolean; file?: string; content?: string; line?: string }>(

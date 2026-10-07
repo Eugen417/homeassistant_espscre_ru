@@ -180,6 +180,10 @@ class Plugin {
   virtual void on_standby(bool dark) {}
   // An update of the firmware starts: let go of large buffers.
   virtual void before_update() {}
+  // The cards closed (Back, standby, Back to page 1, another card), 0.2.
+  virtual void on_cards_closed() {}
+  // An alert is about to show (a doorbell), 0.2.
+  virtual void on_alert() {}
   // Rows on the screen's settings page. Called once when the interface is up; true when the plugin added some.
   virtual bool settings(SettingsPage &page) { return false; }
   // An answer from the app to tessera::send(): {"re": <the number send returned>, "ok": true, "result": ...} or

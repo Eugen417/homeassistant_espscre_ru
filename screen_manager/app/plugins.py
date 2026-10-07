@@ -395,7 +395,7 @@ class Plugins:
             'version': entry.version, 'repo': entry.link(), 'license': manifest['license'],
             'kind': 'hardware' if gpio or manifest['boards'] != 'any' else 'behaviour', 'boards': manifest['boards'],
             'requires': {'psram': manifest['requires']['psram']}, 'flash_kb': manifest['flash_kb'],
-            'permissions': {'home_assistant': manifest['permissions']['home_assistant_actions'],
+            'permissions': {'home_assistant': manifest['permissions']['home_assistant_actions'] + manifest['permissions']['ha_commands'],
                             'network': manifest['permissions']['network'],
                             'read_entities': manifest['permissions']['read_entities']},
             'privacy': manifest.get('privacy'), 'readme': entry.readme,
@@ -417,6 +417,8 @@ class Plugins:
                           for b in manifest['bar_items']],
             'source': entry.source, 'label': entry.label, 'status': entry.status, 'blocked': self.blocked(entry),
             'fits_api': pm.api_fits(manifest['api']), 'api': manifest['api'],
+            # What a person agrees to (permissions and attributes), as one fingerprint: an update with another asks again.
+            'permission_hash': pm.permission_hash(manifest),
         }
 
     def running(self):
@@ -446,6 +448,7 @@ class Plugins:
                 installed[inbox].append({'id': record['id'], 'version': record.get('version', ''),
                                          'source': record.get('source', 'index'), 'ref': record.get('ref'),
                                          'parts': record.get('parts', []), 'values': record.get('values', {}),
+                                         'consent': (record.get('consent') or {}).get('permissions'),
                                          'state': record.get('state', 'active'), 'reason': record.get('reason')})
         secrets = {}
         for entry in listed.values():
@@ -575,6 +578,11 @@ class Plugins:
                 elif given:
                     kept[spec['id']] = given.strip()
             parts = [p for p in item.get('parts') or [] if p in {x['id'] for x in entry.manifest['parts']}]
+            # An update that asks for more than the person agreed to waits for their yes (the editor asks again).
+            had = self.store.get(inbox, entry.id)
+            agreed = (had or {}).get('consent', {}).get('permissions') if had else None
+            if had and agreed and agreed != pm.permission_hash(entry.manifest) and item.get('consent') is not True:
+                raise ValueError(t('addon.errors.plugins.consent', name=entry.text('name')))
             if entry.source in ('index', 'link', 'branch'):
                 self.keep_snapshot(entry)
             changes.append({'id': entry.id, 'source': entry.source, 'repo': entry.repo, 'path': entry.path,

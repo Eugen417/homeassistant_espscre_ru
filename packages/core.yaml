@@ -60,13 +60,10 @@ substitutions:
   # reads a touch panel and lights a backlight, so the board says how (features/capacitive-touch.yaml, features/backlight.yaml).
   CAMERA_PAINT_FILL: ""                            # the paint styles a feature brings (theme::paints)
   CALIBRATION_PAINT_FILL: ""
-  CLOSE_CARDS_HOOK: ""                             # in runtime_tiles::dismiss, after the detail card closes
   BOOT_CAMERA_HOOKS: ""                            # after the gesture: the camera images (features/camera.yaml)
   BOOT_CARDS_TAIL: ""                              # after the cards' hooks, before the settings page's
-  MAY_OPEN_EXTRA: ""                               # what else keeps the settings page closed (inline, in the condition)
-  TICK_HOOK: ""                                    # every 250 ms after runtime_tiles::tick()
-  AWAY_EXTRA: ""                                   # back_to_page_1_when_due: what else counts as away from page 1 (inline)
-  ALERT_SHOW_HOOK: ""                              # alert_show: after the settings page closed, before the card is made
+  # The screen's moments (every 250 ms, the cards closing, the settings page opening, away from page 1, an alert) are
+  # lists, not substitutions (screen_hooks.h): a feature adds to them at boot, a plugin through the plugin API.
   # one more line of the ui_state diagnostics
   UI_STATE_HOOK: "ESP_LOGI(\"ui_diag\", \"rotation=%u actual=%u\", (unsigned)runtime_tiles::rotation, (unsigned)id(screen_lvgl).get_rotation());"
 
@@ -198,7 +195,7 @@ esphome:
             effects_page::close();
             group_page::close();
             runtime_tiles::hide_detail();
-            ${CLOSE_CARDS_HOOK}
+            screen_hooks::run_cards_closed();
             id(active_entity).clear();
             lv_obj_add_flag(id(color_detail_overlay), LV_OBJ_FLAG_HIDDEN);
           };
@@ -365,7 +362,7 @@ esphome:
           settings_screen::restart_device = []() { ESP_LOGI("settings", "restart from the screen"); App.safe_reboot(); };
           // A dimmed screen, a calibration or an alert owns the glass; the page waits.
           settings_screen::may_open = []() {
-            return runtime_tiles::enabled && !id(display_dimmed) && !id(calibration_active) && !id(alert_active)${MAY_OPEN_EXTRA};
+            return runtime_tiles::enabled && !id(display_dimmed) && !id(calibration_active) && !id(alert_active) && !screen_hooks::settings_kept_closed();
           };
           settings_screen::drift = []() { return screen_input::touch_guard.distance(); };
           settings_screen::before_open = []() { id(close_cards).execute(); };
@@ -705,7 +702,7 @@ interval:
       - lambda: |-
           runtime_tiles::tick();
           plugin_host::tick(millis(), id(display_dimmed));
-          ${TICK_HOOK}
+          screen_hooks::run_tick(millis());
   - interval: 1s
     then:
       - if:
@@ -2486,7 +2483,7 @@ script:
             lambda: |-
               if (!runtime_tiles::auto_home || id(touch_down) || id(calibration_active) || id(alert_active)) return false;
               if (id(display_dimmed)) return false;
-              bool away = settings_screen::visible() ||${AWAY_EXTRA} !id(active_entity).empty() || id(tile_page) != runtime_tiles::home_page() ||
+              bool away = settings_screen::visible() || screen_hooks::is_away() || !id(active_entity).empty() || id(tile_page) != runtime_tiles::home_page() ||
                           (runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root, LV_OBJ_FLAG_HIDDEN));
               return away && (millis() - id(last_use_ms)) > (uint32_t) runtime_tiles::auto_home_seconds * 1000UL;
           then:
@@ -2524,7 +2521,7 @@ script:
           runtime_tiles::alert_key(id(alert_ok), id(alert_ok_label), alert.button_color);
           runtime_tiles::alert_key(id(alert_button2), id(alert_button2_label), alert.button2_color);
           runtime_tiles::alert_place(false);
-          ${ALERT_SHOW_HOOK}
+          screen_hooks::run_alert_show();
           id(alert_active) = true;
           id(alert_title_text) = alert.title;
           id(alert_timeout_seconds) = alert.timeout_seconds;

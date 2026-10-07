@@ -1,12 +1,17 @@
 // The plugin API's core side (plugin_api.h, plugin_host.h, docs/PLUGINS.md). Apart from main.cpp, as energy_view.cpp
 // and page_receiver.cpp are: main.cpp's literal pool is close to the S3's l32r range.
+// USE_TESSERA_PLUGINS: set by smart_display.register_plugin() when the build has a plugin. Without one this file holds
+// only the stubs at its end, and leaves runtime_tiles.h out: every file that includes it pays for its globals' start-up.
+#ifndef ESP_SCREEN_HOST  // the WASM preview has no ESPHome defines (and no plugins)
+#include "esphome/core/defines.h"
+#endif
+#ifdef USE_TESSERA_PLUGINS
 #include "runtime_tiles.h"
 #include "plugin_host.h"
 #include <functional>
 #include <memory>
 
 namespace rt = runtime_tiles;
-
 // ---- The register (plugin_api.h) ----
 namespace tessera {
 
@@ -547,6 +552,7 @@ struct SettingsStore {
   std::vector<std::unique_ptr<tessera::SettingsPage>> pages;   // what each plugin added
   std::vector<std::unique_ptr<std::vector<settings_screen::Row>>> rows;
   std::vector<std::unique_ptr<std::vector<const char *>>> options;
+  std::vector<std::unique_ptr<settings_screen::Own>> owns;        // each plugin row's words and functions
   std::vector<std::pair<tessera::Plugin *, std::string>> cards;  // a card row: its plugin and card
 };
 static SettingsStore &settings_store() {
@@ -573,7 +579,10 @@ static void build_settings() {
   for (size_t i = 0; i < added.size(); ++i) {
     Row row{};
     row.kind = Kind::page;
-    row.words = added[i].second->title.c_str();
+    auto own = std::make_unique<settings_screen::Own>();
+    own->words = added[i].second->title.c_str();
+    row.own = own.get();
+    store.owns.push_back(std::move(own));
     row.icon = added[i].second->icon.c_str();
     row.opens = static_cast<uint8_t>(settings_screen::PLUGINS_PAGE + 1 + i);
     list->push_back(row);
@@ -585,8 +594,9 @@ static void build_settings() {
     auto rows = std::make_unique<std::vector<Row>>();
     for (auto &item : page->items) {
       Row row{};
-      row.words = item.label.c_str();
-      row.ctx = &item;
+      auto own = std::make_unique<settings_screen::Own>();
+      own->words = item.label.c_str();
+      own->ctx = &item;
       using Item = tessera::SettingsPage::Item;
       switch (item.kind) {
         case Item::TOGGLE: row.kind = Kind::toggle; break;
@@ -607,7 +617,7 @@ static void build_settings() {
         case Item::CARD:
           row.kind = Kind::action;
           row.icon = item.icon.c_str();
-          if (!item.confirm.empty()) row.confirm_words = item.confirm.c_str();
+          if (!item.confirm.empty()) own->confirm = item.confirm.c_str();
           break;
         case Item::INFO: row.kind = Kind::info; break;
       }
@@ -618,10 +628,12 @@ static void build_settings() {
           tessera::open_card(plugin->plugin_id(), card.c_str());
         };
       }
-      row.read_ctx = [](void *c) -> int32_t { auto *i = static_cast<Item *>(c); return i->read ? i->read() : 0; };
-      row.write_ctx = [](void *c, int32_t v) { auto *i = static_cast<Item *>(c); if (i->write) i->write(v); };
-      row.run_ctx = [](void *c) { auto *i = static_cast<Item *>(c); if (i->run) i->run(); };
-      row.text_ctx = [](void *c) -> std::string { auto *i = static_cast<Item *>(c); return i->text ? i->text() : ""; };
+      own->read = [](void *c) -> int32_t { auto *i = static_cast<Item *>(c); return i->read ? i->read() : 0; };
+      own->write = [](void *c, int32_t v) { auto *i = static_cast<Item *>(c); if (i->write) i->write(v); };
+      own->run = [](void *c) { auto *i = static_cast<Item *>(c); if (i->run) i->run(); };
+      own->text = [](void *c) -> std::string { auto *i = static_cast<Item *>(c); return i->text ? i->text() : ""; };
+      row.own = own.get();
+      store.owns.push_back(std::move(own));
       rows->push_back(row);
       if (rows->size() == 12) break;   // what one page draws (settings_screen::draw)
     }
@@ -650,6 +662,11 @@ void message(const std::string &plugin, JsonObjectConst body) {
 
 void ready() {
   header_bar::plugin_item = bar_item;
+  // The plugins in the screen's moments (screen_hooks.h), beside the board's own features: a card of a plugin counts as
+  // away from page 1, as a camera full screen does, so Back to page 1 closes it in time.
+  screen_hooks::cards_closed().push_back([]() { for (auto *p : tessera::plugins()) p->on_cards_closed(); });
+  screen_hooks::alert_show().push_back([]() { for (auto *p : tessera::plugins()) p->on_alert(); });
+  screen_hooks::away().push_back([]() { return card_open(); });
   build_settings();
   for (auto *p : tessera::plugins()) p->on_ready();
 }
@@ -686,3 +703,34 @@ void hello(JsonObject root) {
 }
 
 }  // namespace plugin_host
+#else
+#include <cstdio>
+#include "plugin_host.h"
+#include "plugin_api.h"
+// A build without a plugin (docs/PLUGINS.md, "What it costs"): the core only says it offers the plugin API and draws a
+// plugin's tile as a plain card that says the plugin is missing. Everything else of the API is left out, so a screen
+// pays nothing for plugins it does not have (21 KB on the CYD otherwise).
+namespace plugin_host {
+bool known(const runtime_tiles::Tile &) { return false; }
+void render(runtime_tiles::Widgets &, const runtime_tiles::Tile &, int, int) {}
+void release(runtime_tiles::Widgets &) {}   // no plugin card is ever made in this build
+void tap(runtime_tiles::Widgets &) {}
+void tick_cards(uint32_t) {}
+uint16_t bytes(const std::string &) { return PLACEHOLDER_BYTES; }
+bool open_card(const std::string &, const std::string &, int, const std::string &) { return false; }
+void close_card() {}
+bool card_open() { return false; }
+bool tap_action(size_t) { return false; }
+void message(const std::string &, JsonObjectConst) {}
+void ready() {}
+void tick(uint32_t, bool) {}
+void standby(bool) {}
+void before_update() {}
+void hello(JsonObject root) {
+  char api[8];
+  snprintf(api, sizeof api, "%u.%u", tessera::PLUGIN_API_MAJOR, tessera::PLUGIN_API_MINOR);
+  root["plugin_api"] = std::string(api);
+  root["plugins"].to<JsonArray>();
+}
+}  // namespace plugin_host
+#endif

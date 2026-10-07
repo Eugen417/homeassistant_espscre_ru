@@ -816,7 +816,8 @@
         "link_not_found": "Não foi encontrado nenhum plugin: nenhuma versão publicada ou nenhum tessera-plugin.yaml nessa pasta.",
         "link_rate": "O GitHub não está a responder agora (demasiados pedidos numa hora). Tente mais tarde.",
         "folder": "A pasta {folder} em tessera-plugins ainda não é um plugin: {why}",
-        "manifest": "A descrição do plugin não é válida: {why}"
+        "manifest": "A descrição do plugin não é válida: {why}",
+        "consent": "{name} pede outras permissões do que antes. Veja o que pode fazer agora e aceite, depois atualize."
       }
     },
     "status": {
@@ -1788,7 +1789,11 @@
       "rebuild": "Compilar novamente",
       "failed": "O firmware para {screen} não compilou com este plugin. O registo está em Firmware e USB.",
       "retry": "Tentar novamente",
-      "privacy": "Privacidade"
+      "privacy": "Privacidade",
+      "consent": {
+        "title": "Esta atualização pede outras permissões",
+        "agree": "Aceito o que pode fazer agora"
+      }
     },
     "plugin_tile": {
       "from": "Um mosaico do plugin {plugin}",

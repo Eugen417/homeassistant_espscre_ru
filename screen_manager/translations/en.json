@@ -816,7 +816,8 @@
         "link_not_found": "No plugin was found there: no release, or no tessera-plugin.yaml in that folder.",
         "link_rate": "GitHub is not answering right now (too many questions in an hour). Try again later.",
         "folder": "The folder {folder} in tessera-plugins is not a plugin yet: {why}",
-        "manifest": "The plugin's description is not valid: {why}"
+        "manifest": "The plugin's description is not valid: {why}",
+        "consent": "{name} asks for other rights than before. Look at what it may do now and agree, then update."
       }
     },
     "status": {
@@ -3060,7 +3061,11 @@
       "rebuild": "Build again",
       "failed": "The firmware for {screen} did not build with this plugin. Its log is under Firmware & USB.",
       "retry": "Try again",
-      "privacy": "Privacy"
+      "privacy": "Privacy",
+      "consent": {
+        "title": "This update asks for other rights",
+        "agree": "I agree to what it may do now"
+      }
     },
     "plugin_tile": {
       "from": "A tile of the plugin {plugin}",

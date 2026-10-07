@@ -117,15 +117,32 @@ To make something bigger or smaller on every board of a look, change the number 
 
 Some of the core's lambdas have a line that differs between boards, for instance what the first boot step does with
 the touch panel, or the camera images a board with PSRAM sets up. The core writes a `${NAME}` there, a *hook*, and
-gives it a default (empty, or what most boards do). The feature that needs a hook sets it: `features/camera.yaml` sets
-`BOOT_CAMERA_HOOKS`, `CLOSE_CARDS_HOOK`, `TICK_HOOK` and the other camera lines; `features/capacitive-touch.yaml` and
-`features/resistive-touch.yaml` set `BOOT_TOUCH` and `BOOT_PAGE_GESTURE`; `features/backlight.yaml` sets
-`APPLY_BACKLIGHT`. Every screen reads a touch panel and lights a backlight, so those three have no default and a board
-without them does not build. A board file would set a hook only for code no other board has; since app 0.2.129 none
-does (the CYD used to drive its backlight and run its self test its own way).
+gives it a default (empty, or what most boards do). A hook is for a choice of the board that exactly one package makes:
+`features/capacitive-touch.yaml` and `features/resistive-touch.yaml` set `BOOT_TOUCH` and `BOOT_PAGE_GESTURE`;
+`features/backlight.yaml` sets `APPLY_BACKLIGHT` and `OTA_BACKLIGHT`; `features/camera.yaml` sets `BOOT_CAMERA_HOOKS`,
+its code at boot. Every screen reads a touch panel and lights a backlight, so those have no default and a board without
+them does not build. A board file would set a hook only for code no other board has; since app 0.2.129 none does (the CYD
+used to drive its backlight and run its self test its own way).
 
-Hooks are a stretch of C++ inside a shared lambda because ESPHome cannot merge two lambdas into one. A feature that
-needs a step of its own rather than a line inside a shared one brings its own script or automation instead.
+Hooks are a stretch of C++ inside a shared lambda because ESPHome cannot merge two lambdas into one, and one
+substitution holds one piece of code: a second package that set the same hook would silently replace the first.
+
+## The screen's moments: lists, not hooks
+
+What a feature or a plugin wants to do at a moment of the core is added to a list in `components/smart_display/
+screen_hooks.h`, never written into a substitution, so several parts can each add their own:
+
+| List | When |
+|---|---|
+| `screen_hooks::tick()` | Every 250 ms, after `runtime_tiles::tick()`. |
+| `screen_hooks::cards_closed()` | The cards closed (`runtime_tiles::dismiss`). |
+| `screen_hooks::keeps_settings_closed()` | Any true keeps the settings page from opening (a camera full screen). |
+| `screen_hooks::away()` | Any true counts as away from page 1, so Back to page 1 closes it in time. |
+| `screen_hooks::alert_show()` | An alert is about to show, before its card is made. |
+
+`features/camera.yaml` adds the camera's part in its boot code; the plugins take part through `plugin_host.cpp` (a
+plugin's card counts as away, `on_cards_closed`, `on_alert`; docs/PLUGINS.md). A new moment is a new list here, not a
+`${...}` in `packages/core.yaml`.
 
 ## Widgets made only in C++
 

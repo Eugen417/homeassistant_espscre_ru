@@ -81,6 +81,17 @@ using Run = void (*)();
 // The page's words are keys into the screen's language (screen.settings in screen_manager/translations, app 0.2.90):
 // the table stays constexpr, the text is looked up when a row is drawn.
 constexpr uint16_t NO_TEXT = 0xFFFF;
+// A row of a plugin (docs/PLUGINS.md, plugin_host.cpp): its own words instead of a key, and its own reader, writer,
+// action and text with a context, since a plugin's row reads an entity of its own. Apart from Row, so Tessera's own
+// rows, which are constant tables in flash, grow by one pointer and not by seven.
+struct Own {
+  const char *words = nullptr, *confirm = nullptr;
+  void *ctx = nullptr;
+  int32_t (*read)(void *) = nullptr;
+  void (*write)(void *, int32_t) = nullptr;
+  void (*run)(void *) = nullptr;
+  std::string (*text)(void *) = nullptr;
+};
 struct Row {
   Kind kind = Kind::info;
   uint16_t label = NO_TEXT;
@@ -98,26 +109,21 @@ struct Row {
   Shown shown = nullptr;              // absent rows: the quarter turns on glass that is not square
   Shown enabled = nullptr;            // greyed out while the switch it depends on is off
   uint8_t opens = 0;                  // page rows: the page they open
-  // A row of a plugin (docs/PLUGINS.md, plugin_host.cpp): its own words instead of a key (`words`, `confirm_words`) and
-  // its own reader, writer, action and text with a context, since a plugin's row reads an entity of its own.
-  const char *words = nullptr, *confirm_words = nullptr;
-  void *ctx = nullptr;
-  int32_t (*read_ctx)(void *) = nullptr;
-  void (*write_ctx)(void *, int32_t) = nullptr;
-  void (*run_ctx)(void *) = nullptr;
-  std::string (*text_ctx)(void *) = nullptr;
+  const Own *own = nullptr;          // a plugin's row: its own words and functions
 };
 // Every reader of a row asks through these, so Tessera's rows and a plugin's are drawn and tapped the same way.
-inline bool readable(const Row &row) { return row.read || row.read_ctx; }
-inline bool writable(const Row &row) { return row.write || row.write_ctx; }
-inline int32_t get(const Row &row) { return row.read ? row.read() : row.read_ctx ? row.read_ctx(row.ctx) : 0; }
+inline bool readable(const Row &row) { return row.read || (row.own && row.own->read); }
+inline bool writable(const Row &row) { return row.write || (row.own && row.own->write); }
+inline int32_t get(const Row &row) {
+  return row.read ? row.read() : row.own && row.own->read ? row.own->read(row.own->ctx) : 0;
+}
 inline void put(const Row &row, int32_t value) {
   if (row.write) row.write(value);
-  else if (row.write_ctx) row.write_ctx(row.ctx, value);
+  else if (row.own && row.own->write) row.own->write(row.own->ctx, value);
 }
 inline void act(const Row &row) {
   if (row.run) row.run();
-  else if (row.run_ctx) row.run_ctx(row.ctx);
+  else if (row.own && row.own->run) row.own->run(row.own->ctx);
 }
 
 constexpr Row page_row(uint16_t label, const char *icon, uint8_t opens, Shown shown = nullptr) {
@@ -149,8 +155,10 @@ constexpr Row choice(uint16_t label, Read read, Write write, uint16_t option_key
   Row r{}; r.kind = Kind::choice; r.label = label; r.read = read; r.write = write;
   r.option_keys = option_keys; r.option_count = count; r.shown = shown; return r;
 }
-inline const char *label_text(const Row &row) { return row.words ? row.words : screen_text::tr(row.label); }
-inline const char *confirm_text(const Row &row) { return row.confirm_words ? row.confirm_words : screen_text::tr(row.confirm); }
+inline const char *label_text(const Row &row) { return row.own && row.own->words ? row.own->words : screen_text::tr(row.label); }
+inline const char *confirm_text(const Row &row) {
+  return row.own && row.own->confirm ? row.own->confirm : screen_text::tr(row.confirm);
+}
 constexpr Row info(uint16_t label, Text text) {
   Row r{}; r.kind = Kind::info; r.label = label; r.text = text; return r;
 }
@@ -281,7 +289,7 @@ inline std::string value_text(const Row &row) {
       if (index < 0 || index >= row.option_count) return "";
       return row.option_keys != NO_TEXT ? screen_text::tr(row.option_keys + index) : row.options[index];
     }
-    case Kind::info: return row.text ? row.text() : row.text_ctx ? row.text_ctx(row.ctx) : "";
+    case Kind::info: return row.text ? row.text() : row.own && row.own->text ? row.own->text(row.own->ctx) : "";
     default: return "";
   }
 }
@@ -711,7 +719,7 @@ inline void row_event(lv_event_t *event) {
     // Nothing on this page is worth a dialog, except the one row that takes the screen away for ten
     // seconds: it asks once, in place, and forgets the question after five.
     // A plugin's action without a question runs at once; one with a question asks first, as Restart does.
-    if (row.confirm == NO_TEXT && !row.confirm_words) { act(row); refresh(); return; }
+    if (row.confirm == NO_TEXT && !(row.own && row.own->confirm)) { act(row); refresh(); return; }
     if (confirm_row == index) { forget_confirm(); act(row); return; }
     forget_confirm();
     confirm_row = index;
