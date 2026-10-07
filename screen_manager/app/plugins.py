@@ -808,6 +808,85 @@ class Plugins:
             out.append(item)
         return {'items': out, **({'stale': True} if data.get('stale') else {})}
 
+    # ---- A plugin's settings under Screen settings ----
+
+    SETTING_DOMAINS = ('switch', 'number', 'select')
+
+    def _setting_entities(self, screen, entry):
+        """{key: entity_id} of a plugin's settings on this screen: entities of its device whose id ends in _<key>."""
+        device = (screen or {}).get('device_id')
+        registry = getattr(self.manager.ha, 'registry', None) or []
+        found = {}
+        for setting in entry.manifest['settings']:
+            for item in registry:
+                eid = item.get('entity_id') if isinstance(item, dict) else None
+                if (isinstance(eid, str) and item.get('device_id') == device and eid.split('.')[0] in self.SETTING_DOMAINS
+                        and eid.endswith('_' + setting['key'])):
+                    found[setting['key']] = eid
+        return found
+
+    def settings_for(self, inbox, language='en'):
+        """The plugins' settings of one screen, as the editor draws them: [{plugin, name, rows: [{entity, kind, label,
+        hint, value, min, max, step, options, available}]}]."""
+        screen = self.manager.screen(inbox)
+        if screen is None:
+            raise ValueError(t('addon.errors.not_paired'))
+        states = getattr(self.manager.ha, 'states', {}) or {}
+        out = []
+        for record in self.store.of(screen['id']):
+            entry = self.entry_for(record)
+            if not entry or not entry.manifest['settings']:
+                continue
+            entities = self._setting_entities(screen, entry)
+            rows = []
+            for setting in entry.manifest['settings']:
+                eid = entities.get(setting['key'])
+                state = states.get(eid) or {} if eid else {}
+                attrs = state.get('attributes') or {}
+                kind = eid.split('.')[0] if eid else None
+                value = state.get('state')
+                available = bool(eid) and value not in (None, 'unavailable', 'unknown') and screen.get('online')
+                row = {'entity': eid, 'kind': kind, 'label': entry.texts.get(setting['label']) or {'en': setting['label']},
+                       'hint': entry.texts.get(setting['hint']) if setting['hint'] else None, 'available': bool(available)}
+                if kind == 'switch':
+                    row['value'] = value == 'on'
+                elif kind == 'number':
+                    try:
+                        row['value'] = float(value)
+                    except (TypeError, ValueError):
+                        row['value'] = None
+                    row.update(min=attrs.get('min'), max=attrs.get('max'), step=attrs.get('step') or 1,
+                               unit=attrs.get('unit_of_measurement') or '')
+                elif kind == 'select':
+                    row.update(value=value, options=[o for o in attrs.get('options') or [] if isinstance(o, str)][:16])
+                rows.append(row)
+            out.append({'plugin': entry.id, 'name': entry.texts.get('name') or {'en': entry.id}, 'rows': rows})
+        return out
+
+    async def set_setting(self, inbox, entity, value):
+        """Change one plugin setting of this screen through Home Assistant: only an entity a plugin on the screen names
+        in its manifest's `settings`, of that screen's own device."""
+        screen = self.manager.screen(inbox)
+        if screen is None:
+            raise ValueError(t('addon.errors.not_paired'))
+        allowed = {}
+        for record in self.store.of(screen['id']):
+            entry = self.entry_for(record)
+            if entry:
+                allowed.update({eid: key for key, eid in self._setting_entities(screen, entry).items()})
+        if entity not in allowed:
+            raise ValueError(t('addon.errors.plugins.request'))
+        domain = entity.split('.')[0]
+        if domain == 'switch' and isinstance(value, bool):
+            await self.manager.ha.call_service('switch', 'turn_on' if value else 'turn_off', {'entity_id': entity})
+        elif domain == 'number' and isinstance(value, (int, float)) and not isinstance(value, bool):
+            await self.manager.ha.call_service('number', 'set_value', {'entity_id': entity, 'value': value})
+        elif domain == 'select' and isinstance(value, str) and len(value) <= 64:
+            await self.manager.ha.call_service('select', 'select_option', {'entity_id': entity, 'option': value})
+        else:
+            raise ValueError(t('addon.errors.plugins.request'))
+        return {'ok': True}
+
     # ---- A plugin's question (tessera::send) ----
 
     async def answer(self, request):

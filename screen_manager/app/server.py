@@ -4366,6 +4366,18 @@ def create_app(manager, development=False):
             entry = await manager.plugins.resolve_link(data.get('url'), data.get('branch'), data.get('folder'))
             return web.json_response(manager.plugins.editor_plugin(entry, REQUEST_LANGUAGE.get()))
         app.router.add_post('/api/plugins/link', plugins_link)
+
+        async def plugins_settings(request):
+            return web.json_response(manager.plugins.settings_for(request.match_info['inbox'], REQUEST_LANGUAGE.get()))
+
+        async def plugins_setting(request):
+            data = await request.json()
+            if not isinstance(data, dict):
+                raise ValueError(t('addon.errors.plugins.request'))
+            result = await manager.plugins.set_setting(request.match_info['inbox'], data.get('entity'), data.get('value'))
+            return web.json_response(result)
+        app.router.add_get('/api/screens/{inbox}/plugins/settings', plugins_settings)
+        app.router.add_post('/api/screens/{inbox}/plugins/settings', plugins_setting)
     app.router.add_get('/', index)
     app.router.add_get('/api/inventory', inventory)
     app.router.add_get('/api/capabilities', capabilities)

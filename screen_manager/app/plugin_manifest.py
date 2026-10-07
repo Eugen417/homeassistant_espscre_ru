@@ -28,7 +28,7 @@ PLACEHOLDER = re.compile(r'\{([a-z][a-z0-9_]*)\}')
 TEXT_KEY = re.compile(r'^[a-z][a-z0-9_]{0,47}$')
 
 TOP = {'id', 'version', 'api', 'icon', 'maintainer', 'license', 'requires', 'boards', 'flash_kb', 'permissions',
-       'attributes', 'privacy', 'inputs', 'parts', 'tiles', 'fetch', 'cards', 'tap_actions', 'bar_items'}
+       'attributes', 'privacy', 'inputs', 'parts', 'tiles', 'fetch', 'cards', 'tap_actions', 'bar_items', 'settings'}
 ATTRIBUTES = ('cloud', 'commercial', 'ai-developed', 'experimental')
 INPUT_KINDS = ('secret', 'text', 'gpio', 'entity')
 OPTION_KINDS = ('text', 'choice', 'number', 'toggle')
@@ -627,6 +627,17 @@ def check(manifest, english=None):
                     'icon': icon, 'example': _text_key(item['example'], f'{where}.example', keys) if 'example' in item else None})
     _unique(bar, 'bar_items')
     out['bar_items'] = bar
+    # The plugin's settings as the editor shows them under Screen settings: ESPHome entities of its plugin.yaml (a
+    # template switch, number or select), by the end of their entity id on the screen's device ("waste_in_top_bar").
+    settings = []
+    for i, item in enumerate(_list(manifest.get('settings'), 'settings', 8)):
+        where = f'settings[{i}]'
+        item = _object(item, where, {'key', 'label', 'hint'}, ('key', 'label'))
+        if not isinstance(item['key'], str) or not re.match(r'^[a-z0-9_]{1,64}$', item['key']):
+            raise ManifestError(f'{where}.key', 'the end of the entity id of the setting, such as waste_in_top_bar')
+        settings.append({'key': item['key'], 'label': _text_key(item['label'], f'{where}.label', keys),
+                         'hint': _text_key(item['hint'], f'{where}.hint', keys) if 'hint' in item else None})
+    out['settings'] = settings
 
     out['text_keys'] = sorted(keys)
     if english is not None:

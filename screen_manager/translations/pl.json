@@ -1794,7 +1794,8 @@
       "consent": {
         "title": "Ta aktualizacja prosi o inne uprawnienia",
         "agree": "Zgadzam się na to, co może teraz robić"
-      }
+      },
+      "settings_missing": "Jeszcze nie na tym ekranie: pojawi się z następną kompilacją wtyczki."
     },
     "plugin_tile": {
       "from": "Kafelek wtyczki {plugin}",

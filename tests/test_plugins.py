@@ -348,6 +348,46 @@ class Questions(unittest.IsolatedAsyncioTestCase):
         await service.answer({'inbox': 'kitchen', 'plugin': 'other', 'body': json.dumps(body)})
         self.assertEqual(len(sent), 2)
 
+    async def test_settings_of_the_screens_own_entities_only(self):
+        import shutil
+        import plugins as plugin_service
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        config = Path(tmp.name) / 'esphome'
+        config.mkdir()
+        shutil.copytree(ROOT / 'tests' / 'fixtures' / 'plugins' / 'calendar_peek', Path(tmp.name) / 'tessera-plugins' / 'calendar_peek')
+        calls = []
+
+        class FakeHA:
+            changed, dirty = asyncio.Event(), set()
+            registry = [{'entity_id': 'switch.kitchen_peek_in_bar', 'device_id': 'dev1'},
+                        {'entity_id': 'number.kitchen_peek_days', 'device_id': 'dev1'},
+                        {'entity_id': 'switch.hall_peek_in_bar', 'device_id': 'dev2'}]
+            states = {'switch.kitchen_peek_in_bar': {'state': 'on'},
+                      'number.kitchen_peek_days': {'state': '2.0', 'attributes': {'min': 0, 'max': 3, 'step': 1}}}
+
+            async def call_service(self, domain, service, data):
+                calls.append((domain, service, data))
+
+        class FakeManager:
+            ha = FakeHA()
+            page_senders, aliases = {}, {}
+
+            def screen(self, inbox):
+                return {'id': inbox, 'device_id': 'dev1', 'online': True}
+        service = plugin_service.Plugins(FakeManager(), Path(tmp.name) / 'data', config)
+        service.scan_folders()
+        service.store.put('kitchen', {'id': 'calendar_peek', 'source': 'folder', 'state': 'active'})
+        groups = service.settings_for('kitchen')
+        rows = groups[0]['rows']
+        self.assertEqual([(r['entity'], r['kind'], r['value']) for r in rows],
+                         [('switch.kitchen_peek_in_bar', 'switch', True), ('number.kitchen_peek_days', 'number', 2.0)])
+        await service.set_setting('kitchen', 'number.kitchen_peek_days', 3)
+        self.assertEqual(calls, [('number', 'set_value', {'entity_id': 'number.kitchen_peek_days', 'value': 3})])
+        for entity, value in (('switch.hall_peek_in_bar', True), ('light.kitchen', True), ('switch.kitchen_peek_in_bar', 'yes')):
+            with self.subTest(entity), self.assertRaises(ValueError):
+                await service.set_setting('kitchen', entity, value)
+
     def test_the_manifest_refuses_commands_that_reach_home_assistant_itself(self):
         for wrong in ('call_service', 'config/entity_registry/update', 'auth/sign_path', 'fire_event', 'supervisor/api'):
             with self.subTest(wrong), self.assertRaises(pm.ManifestError):

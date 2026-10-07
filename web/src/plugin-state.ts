@@ -208,7 +208,7 @@ export const setupReady = (plugin: Plugin, screens: Screen[]) =>
 export const partsKb = (screen: Screen, plugin: Plugin) =>
   partsOn(screen, plugin).reduce((sum, id) => sum + (plugin.parts?.find((part) => part.id === id)?.flash_kb || 0), 0);
 // The add-on keeps a screen's plugins by its inbox, the id every screen route takes; the example by its name.
-const nodeOf = (screen: Screen) => (plugins.example ? screen.node || screen.id : screen.id);
+export const nodeOf = (screen: Screen) => (plugins.example ? screen.node || screen.id : screen.id);
 export const installedOn = (screen: Screen, id: string) => plugins.installed[nodeOf(screen)]?.find((item) => item.id === id);
 export const buildingOn = (screen: Screen, id: string) => Boolean(plugins.building[nodeOf(screen)]?.includes(id));
 // Test plugins: on a screen, but not in the index. The pages know them only by what the screen says it runs.

@@ -1794,7 +1794,8 @@
       "consent": {
         "title": "Ez a frissítés más jogokat kér",
         "agree": "Elfogadom, amit most tehet"
-      }
+      },
+      "settings_missing": "Még nincs ezen a képernyőn: a bővítmény következő fordításával érkezik."
     },
     "plugin_tile": {
       "from": "A(z) {plugin} bővítmény csempéje",

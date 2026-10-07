@@ -96,7 +96,7 @@ repository's `docs/FETCH.md`.
 | A card | `Card`, `add_card`, `open_card`; closed by `hide_detail` | nothing | nothing |
 | A tap action | `add_tap_action`; `event()` runs a tile's `plugin:` tap | `validate_layout` takes a `plugin:` tap | the tile inspector's tap choices |
 | A top bar item | `add_bar_item`; `header_bar::Kind::plugin` | `validate_header` type `plugin`, sent to a screen whose hello says `plugins` | "From plugins" in Top bar, Add |
-| Settings rows | `settings(SettingsPage&)`; `settings_screen::plugin_pages` | nothing (the values are ESPHome entities of the plugin's YAML) | nothing |
+| Settings rows | `settings(SettingsPage&)`; `settings_screen::plugin_pages` | `Plugins.settings_for`, `set_setting`: the manifest's `settings`, entities of the screen's own device | under Screen settings (`PluginSettings.vue`) |
 | A question to Home Assistant | `tessera::send`, `on_message` (op `plugin`) | `Plugins.answer`: only `permissions.ha_commands`, logged, answer bounded | the commands under "What it may do" |
 | The moments | `on_ready`, `on_tick`, `on_standby`, `before_update`, `on_cards_closed`, `on_alert` | | |
 
@@ -113,6 +113,5 @@ repository's `docs/FETCH.md`.
 
 ## What is not built yet
 
-A plugin's own messages beyond Home Assistant commands, pictures of a plugin's own, Python modules of Tessera's own
-plugins in the add-on (the design's `module`), and the plugin's settings rows in the editor's Screen settings (they are
-entities of the screen in Home Assistant, so an automation and Home Assistant's own device page already reach them).
+A plugin's own messages beyond Home Assistant commands, pictures of a plugin's own, and Python modules of Tessera's own
+plugins in the add-on (the design's `module`).
