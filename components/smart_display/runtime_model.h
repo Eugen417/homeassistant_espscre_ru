@@ -117,8 +117,23 @@ inline unsigned page_number(const std::string &entity) {
   return static_cast<unsigned>(entity[12] - '0') * 10 + static_cast<unsigned>(entity[13] - '0');
 }
 inline bool page_entity(const std::string &entity) { return page_number(entity) > 0; }
+// A tile of a plugin (docs/PLUGINS.md): plugin:<plugin>.<tile>, each an id of a-z, 0-9 and _ that starts with a letter.
+// Whether this screen has that plugin decides only how the tile is drawn (plugin_host::known); any such tile is valid.
+inline bool plugin_entity(const std::string &entity) {
+  if (entity.size() > 72 || entity.rfind("plugin:", 0) != 0) return false;
+  const size_t dot = entity.find('.', 7);
+  if (dot == std::string::npos || dot == 7 || dot + 1 == entity.size() || dot - 7 > 32 || entity.size() - dot - 1 > 32) return false;
+  for (size_t i = 7; i < entity.size(); ++i) {
+    const char c = entity[i];
+    if (i == dot) continue;
+    const bool first = i == 7 || i == dot + 1;
+    if (!((c >= 'a' && c <= 'z') || (!first && ((c >= '0' && c <= '9') || c == '_')))) return false;
+  }
+  return true;
+}
 inline bool valid_entity(const std::string &entity) {
   if (entity.size() > 120) return false;
+  if (entity.rfind("plugin:", 0) == 0) return plugin_entity(entity);
   auto dot = entity.find('.');
   if (dot == std::string::npos || dot == 0 || dot + 1 == entity.size()) return false;
   for (size_t i = 0; i < entity.size(); ++i)
@@ -303,6 +318,9 @@ struct Extra {
   // A lock (firmware 0.5.0+) shares code_format, changed_by and code_saved with the alarm panel, and says whether the
   // integration only assumes its state (assumed_state), which lets every key work as in Home Assistant's dialog.
   bool assumed = false;
+  // A plugin tile (docs/PLUGINS.md): its options as the editor set them, and what the add-on sent for it (its `x`), each
+  // as the JSON it came in. The plugin reads them when its card is made and when they change (plugin_host::render).
+  std::string plugin_options, plugin_state;
   Choice *choice(char kind) { for (auto &c : choices) if (c.kind == kind) return &c; return nullptr; }
   bool empty() const {
     return hvac_modes.empty() && fan_modes.empty() && swing_modes.empty() && fan_mode.empty() && swing_mode.empty() &&
@@ -317,7 +335,7 @@ struct Extra {
            media_source.empty() && media_repeat.empty() && media_sources.empty() && media_shuffle < 0 && !media_features &&
            speaker_flags.empty() && speaker_volumes.empty() && media_inputs.empty() && media_input.empty() && media_target.empty() &&
            !has_ground && !ground_known && !media_library && fav_kind.empty() && fav_source.empty() && fav_mark.empty() &&
-           fav_glyph.empty() && !fav_playing && !energy;
+           fav_glyph.empty() && !fav_playing && !energy && plugin_options.empty() && plugin_state.empty();
   }
 };
 // The numbers of a clock text ("0:05:00", "07:45"), at most `max` of them, each after optional white space, up to the
@@ -569,7 +587,9 @@ struct Tile {
     if (field && std::isfinite(slider_sent)) *field = slider_real;
     slider_sent = NAN;
   }
-  std::string domain() const { return entity.substr(0, entity.find('.')); }
+  std::string domain() const { return is_plugin() ? std::string("plugin") : entity.substr(0, entity.find('.')); }
+  // A tile of a plugin (plugin:<plugin>.<tile>): no Home Assistant entity behind it, it draws itself (plugin_host).
+  bool is_plugin() const { return entity.rfind("plugin:", 0) == 0; }
   bool builtin() const { return domain() == "screen"; }
   // Two built-in cards, and only one of them is a clock that has to be redrawn every minute.
   bool is_clock() const { return entity == "screen.clock"; }

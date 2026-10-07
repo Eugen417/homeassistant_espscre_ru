@@ -54,6 +54,8 @@
 #include "media_card.h"
 #include "saver_view.h"
 #include "energy_view.h"
+#include "plugin_api.h"
+#include "plugin_host.h"
 #include "light_card.h"
 #include "weather_card.h"
 #include "forecast_tile.h"
@@ -527,6 +529,8 @@ struct Widgets {
   bool media_live=false;  // the media card shows "Live" for a stream (media_live), drawn again when that changes
   // The energy card's scene and running dots (firmware 0.47.0+, energy_view.cpp); it goes with the card's extra layer.
   energy_view::View *energy{};
+  // A plugin tile's card (docs/PLUGINS.md, plugin_host.cpp): the plugin's object; it goes with the card's extra layer.
+  plugin_host::Card *plugin{};
 };
 // A page is being built off the glass (warm_page): its cards ask for no pictures and wake nothing.
 inline bool warming=false;
@@ -5394,6 +5398,13 @@ inline void event(lv_event_t *event) {
     if (allowed(esphome::millis(), TILE_TOUCH + static_cast<int>(w.index), card.entity)) settings_screen::open();
     return;
   }
+  // A plugin's tile (docs/PLUGINS.md): a short tap goes to the plugin, through the same guard as every tile's.
+  if (model.tiles[w.index].is_plugin()) {
+    if (code == LV_EVENT_SHORT_CLICKED && model.tiles[w.index].tap != "none" && w.plugin &&
+        allowed(esphome::millis(), TILE_TOUCH + static_cast<int>(w.index), model.tiles[w.index].entity))
+      plugin_host::tap(w);
+    return;
+  }
   if (!fresh()) return;
   auto &tile = model.tiles[w.index];
   auto d = tile.domain();
@@ -5747,6 +5758,7 @@ inline void end_extra(Widgets &w) {
   if(!w.extra_mode.empty()){
     if(captured_slider&&std::find(w.parts.begin(),w.parts.end(),captured_slider)!=w.parts.end()){captured_slider=nullptr;slider_changed=false;}
     if(w.energy)energy_view::release(w);
+    if(w.plugin)plugin_host::release(w);
     lv_obj_clean(w.extra);w.parts.fill(nullptr);w.extra_mode.clear();delete[] w.points;w.points=nullptr;}
 }
 // Two triangles per segment between the polyline and its baseline. No canvas
@@ -7755,8 +7767,11 @@ inline void render_slot(size_t slot) {
   // but not over the two that say the screen cannot answer: an unavailable entity and a refused tap still say so.
   std::string chosen;
   const bool set_by_hand = chosen_subtitle(t, chosen);
+  // A tile of a plugin this screen does not have (docs/PLUGINS.md) is a plain card that says so; one it has draws itself.
+  if (t.is_plugin())
+    value = plugin_host::known(t) ? std::string() : std::string(tr(txt::plugin_missing));
   // Nothing in Home Assistant stands behind a built-in card, so it says its own line with the link down too.
-  if (t.is_settings() || t.is_page())
+  else if (t.is_settings() || t.is_page())
     value = set_by_hand ? chosen
           : t.is_settings() ? std::string(tr(txt::tile_tap_to_open))
           : fill(txt::tile_page, "n", t.page_target());
@@ -7854,7 +7869,9 @@ inline void render_slot(size_t slot) {
   bool graph=d=="sensor" && t.display=="graph" && t.has_history && !clock;
   // The energy card (firmware 0.47.0+) draws its own diagram, on any size it takes.
   bool energy=t.is_energy();
-  bool custom=clock||forecast||sunpath||bedside||energy;
+  // A plugin's tile (docs/PLUGINS.md) draws itself too, when this screen has its plugin; else it is a plain card.
+  bool plugin=t.is_plugin() && plugin_host::known(t);
+  bool custom=clock||forecast||sunpath||bedside||energy||plugin;
   if(!large_tile)pad_vertical(w.tile,watch||custom||graph?2:4);
   // A big value that stepped up to the setpoint's digits (the watch block below) keeps them until that block
   // decides again, so a card is not restyled twice a render.
@@ -7870,7 +7887,7 @@ inline void render_slot(size_t slot) {
   set_busy(w,w.busy_drawn,large_tile);
   lap(swipe_profile::BUSY);
   for(auto *o:{w.title,w.value,w.circle,w.unit})set_hidden(o,custom);  // a big-value card on a short cell hides its circle again below
-  if(!w.key)set_hidden(w.icon,false);  // a key that showed a value hid its icon
+  if(!w.key)set_hidden(w.icon,plugin);  // a key that showed a value hid its icon; a plugin tile draws its own
   if(custom && w.picture)lv_obj_add_flag(w.picture,LV_OBJ_FLAG_HIDDEN);
   if(w.key){
     // A key of a bedside clock: the card is the key, round, with the tile's icon in the middle, or its value where
@@ -7893,6 +7910,12 @@ inline void render_slot(size_t slot) {
     lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);hide_panel(w);lv_obj_add_flag(w.progress,LV_OBJ_FLAG_HIDDEN);
     lap(swipe_profile::GEOMETRY);
     energy_view::render(w,t,content_w,content_h);
+    lap(swipe_profile::CUSTOM);
+  }else if(plugin){
+    lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);hide_panel(w);lv_obj_add_flag(w.progress,LV_OBJ_FLAG_HIDDEN);
+    if(w.picture)lv_obj_add_flag(w.picture,LV_OBJ_FLAG_HIDDEN);
+    lap(swipe_profile::GEOMETRY);
+    plugin_host::render(w,t,content_w,content_h);
     lap(swipe_profile::CUSTOM);
   }else if((t.live()||t.is_map())&&render_camera_card(w,t,content_w,content_h)){
     lap(swipe_profile::GEOMETRY);
@@ -9253,7 +9276,9 @@ inline size_t layout_cost() {
   size_t sum = 0;
   for (size_t i = 0; i < model.count && i < model.tiles.size(); ++i) {
     const auto &t = model.tiles[i];
-    sum += tile_memory::cost(t.entity, tile_memory::own_action(t.tap), tile_memory::own_line(t.subtitle), board);
+    // A plugin's tile costs what its plugin says (its manifest's memory), and keeps its options and data as extras.
+    if (t.is_plugin()) sum += plugin_host::bytes(t.entity) + (board.psram ? 0 : board.tile_bytes + board.extra_bytes);
+    else sum += tile_memory::cost(t.entity, tile_memory::own_action(t.tap), tile_memory::own_line(t.subtitle), board);
   }
   // And its pages: a page's title, and each item of its top bar that shows an entity (a text or a moment).
   for (const auto &page : model.page_data.records) {
@@ -9351,7 +9376,7 @@ inline size_t kept_capacity() {
 inline void release_kept(size_t from) {
   for (size_t i = from; i < kept_sets.size(); ++i) {
     if (!kept_sets[i]) continue;
-    for (auto &w : *kept_sets[i]) { if (w.energy) energy_view::release(w); if (w.tile) lv_obj_delete(w.tile); }
+    for (auto &w : *kept_sets[i]) { if (w.energy) energy_view::release(w); if (w.plugin) plugin_host::release(w); if (w.tile) lv_obj_delete(w.tile); }
     kept_sets[i]->~CardSet();
     kept_free(kept_sets[i]);
     kept_sets[i] = nullptr;
@@ -9751,6 +9776,8 @@ inline void tick() {
   uint32_t second=esphome::millis()/1000;
   if(second!=last_live_second){
     last_live_second=second;
+    // Every plugin card on the glass counts on its own clock (docs/PLUGINS.md).
+    plugin_host::tick_cards(now_epoch());
     // The media card's bar runs on while the track plays (firmware 0.2.64+). A wait of its face that ran out paints the
     // card again (media_face_follow): a cover that waited for its colour long enough is asked for without it, and an old
     // cover whose next one did not come goes.

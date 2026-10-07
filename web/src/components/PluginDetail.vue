@@ -127,7 +127,17 @@ watch(() => screens.value.map((s) => `${s.id}:${installedOn(s, props.plugin.id)?
     <p v-if="!hereFit.ok && !hereInstalled" class="pd-misfit" id="plugin-misfit"><Icon name="information-outline" />{{ t(`editor.plugins.misfit.${hereFit.reason}`, { screen: here.name, kb: headroomKb(here) }) }}</p>
     <template v-else-if="hereStatus.kind === 'test'">
       <p class="pd-note">{{ t("editor.plugins.test_note") }}</p>
-      <button type="button" class="btn quiet" @click="removePlugin([here], plugin)">{{ t("editor.plugins.remove", { screen: here.name }) }}</button>
+      <div class="pd-buttons">
+        <button type="button" class="btn primary" id="plugin-rebuild" @click="addPlugin([here], plugin)">{{ t("editor.plugins.rebuild") }}</button>
+        <button type="button" class="btn quiet" @click="removePlugin([here], plugin)">{{ t("editor.plugins.remove", { screen: here.name }) }}</button>
+      </div>
+    </template>
+    <template v-else-if="hereStatus.kind === 'failed'">
+      <p class="pd-misfit" id="plugin-failed"><Icon name="information-outline" />{{ t("editor.plugins.failed", { screen: here.name }) }}</p>
+      <div class="pd-buttons">
+        <button type="button" class="btn primary" @click="addPlugin([here], plugin)">{{ t("editor.plugins.retry") }}</button>
+        <button type="button" class="btn quiet" @click="removePlugin([here], plugin)">{{ t("editor.plugins.remove", { screen: here.name }) }}</button>
+      </div>
     </template>
     <p v-else-if="hereStatus.kind === 'building'" class="pd-note"><span class="spin" aria-hidden="true"></span>{{ t("editor.plugins.building", { screen: here.name }) }}</p>
     <template v-else-if="hereInstalled">
@@ -220,5 +230,6 @@ watch(() => screens.value.map((s) => `${s.id}:${installedOn(s, props.plugin.id)?
   <p class="pd-links">
     <a v-if="plugin.repo" :href="plugin.repo" target="_blank" rel="noopener">{{ t("editor.plugins.source_code") }}</a>
     <a v-if="plugin.repo && !plugin.tessera" :href="`${plugin.repo}/issues`" target="_blank" rel="noopener">{{ t("editor.plugins.issues") }}</a>
+    <a v-if="plugin.privacy" :href="plugin.privacy" target="_blank" rel="noopener">{{ t("editor.plugins.privacy") }}</a>
   </p>
 </template>

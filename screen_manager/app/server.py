@@ -34,11 +34,12 @@ import map_tiles
 import tile_icons
 from updates import Updater
 import core
+import plugins
 
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
 from core import alarm_extras, lock_extras, ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_choice, alert_data, choice_service, ALERT_CHOICE_ACTION, ALERT_CHOICE_MIN_FIRMWARE, parse_firmware, alert_reference, alert_screen_choice, alert_screen_names, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, entity_slug, extras, media_cover, media_extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, name_clash, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 from core import ENERGY_TILE, MAP_TILE_MIN_FIRMWARE, calibrate_entity, can_standby, dimmable, SETTING_ENTITIES, SETTING_RULES, STANDBY_KEYS, setting_action, setting_entities, setting_from_state, state_word
-from core import BOARD_KEYS, has_battery, is_key, drawn_controls, FAVORITE_KINDS, SCREENSAVER_MIN_FIRMWARE, short
+from core import BOARD_KEYS, has_battery, is_key, drawn_controls, FAVORITE_KINDS, SCREENSAVER_MIN_FIRMWARE, short, plugin_tile
 from core import (FIRMWARE_MAX_BAR_ITEMS, FIRMWARE_MAX_PAGES, FIRMWARE_MAX_TILES, Grid, page_target, PAGE_TILE_REPEAT_MIN_FIRMWARE, ENTITY_REPEAT_MIN_FIRMWARE, ROTATION_MIN_FIRMWARE, SHAPES, firmware_features, grid_of, orientation_at,
                   packed_slots, run_tile_event, screen_firmware, shape_of, turns_of, update_in_tessera, version_text)
 import header_bar
@@ -860,6 +861,8 @@ class Manager:
         self.forecasts = {}
         self.listeners = set()  # asyncio.Event per open /api/events stream
         self.firmware = Firmware(os.environ.get("ESPHOME_CONFIG", "/homeassistant/esphome"), self.path.parent)
+        # Plugins (docs/PLUGINS.md): which exist, which each screen runs, their files and their tiles' data.
+        self.plugins = plugins.Plugins(self, self.path.parent, self.firmware.root)
         self.updates = Updater(self, self.path.parent / 'updates.json')
         # Does this screen work as you expect? One shared answer per board, with its own key (app 0.3.10).
         self.feedback = feedback.Feedback(self.path.parent / 'feedback.json')
@@ -1341,6 +1344,7 @@ class Manager:
             with contextlib.suppress(ClientError, ConnectionError, TimeoutError, OSError):
                 await self.ha.remove_state(sensor)
         self.forget_inbox(inbox)
+        self.plugins.forget_screen(inbox)
         self.labels.forget(screen.get('device_id'))
         self.savers.forget(screen.get('device_id'))
         # The registry again at once, so the screen leaves the page now instead of when Home Assistant's own
@@ -2410,6 +2414,9 @@ class Manager:
         """The state message of one tile: state, options, extras, and the history the background task holds. `lamps`:
         the screen takes a light group's lamps (its hello said `group_lamps`, firmware 0.3.9+). `features`: the other
         flags its hello said (page_delivery), None where the screen's hello is not known."""
+        # A plugin's tile (docs/PLUGINS.md): no entity behind it; its options and the data of its fetch.
+        if plugin_tile(tile['entity']):
+            return await self.plugins.tile_message(index, tile)
         forecast=hourly=None
         if tile['entity'].startswith('weather.') and hasattr(self.ha,'forecast'):
             entity = tile['entity']
@@ -3537,8 +3544,8 @@ def create_app(manager, development=False):
     # rules allow stays under about 75 KB (app 0.2.78). The YAML override keeps its own 12 KB limit (firmware.py).
     # Named editor features. An experiment can sit behind SCREEN_EDITOR_ENV=development here and never changes
     # authentication or firmware capabilities; taller tiles left that stage in 0.3.1.
-    # Plugins (design, docs: the plugins proposal) stay behind SCREEN_EDITOR_ENV=development until the add-on serves an index.
-    editor_features = {'tall_tiles': True, 'plugins': os.environ.get('SCREEN_EDITOR_ENV') == 'development'}
+    # Plugins (docs/PLUGINS.md) are on dev only while their API is 0.x (core.plugins_enabled).
+    editor_features = {'tall_tiles': True, 'plugins': core.plugins_enabled()}
     app = web.Application(middlewares=[guard], client_max_size=128*1024)
     static = Path(__file__).parent / 'static'
 
@@ -4295,6 +4302,36 @@ def create_app(manager, development=False):
     app.router.add_delete('/api/firmware/profiles/{file}', firmware_forget)
     app.router.add_post('/api/firmware/profiles', firmware_create)
     app.router.add_put('/api/firmware/wifi', firmware_wifi)
+    # Plugins (docs/PLUGINS.md): only where they are on, so the stable app has none of these routes.
+    if editor_features['plugins']:
+        async def plugins_list(request):
+            await manager.plugins.refresh_index(force=request.query.get('refresh') == '1')
+            return web.json_response(manager.plugins.payload(REQUEST_LANGUAGE.get()))
+
+        async def plugins_apply(request):
+            result = await manager.plugins.apply(request.match_info['inbox'], await request.json())
+            manager.notify()
+            return web.json_response(result)
+
+        async def plugins_file(request):
+            return web.json_response(manager.plugins.file_for(request.match_info['inbox']))
+
+        async def plugins_secret(request):
+            data = await request.json()
+            if not isinstance(data, dict):
+                raise ValueError(t('addon.errors.plugins.request'))
+            return web.json_response(manager.plugins.set_secret(request.match_info['plugin'], request.match_info['input'],
+                                                                data.get('value')))
+
+        async def plugins_choices(request):
+            values = {key: value for key, value in request.query.items() if key != 'language'}
+            return web.json_response(await manager.plugins.choices(request.match_info['plugin'], request.match_info['fetch'], values))
+
+        app.router.add_get('/api/plugins', plugins_list)
+        app.router.add_post('/api/screens/{inbox}/plugins', plugins_apply)
+        app.router.add_get('/api/screens/{inbox}/plugins/file', plugins_file)
+        app.router.add_put('/api/plugins/{plugin}/secrets/{input}', plugins_secret)
+        app.router.add_get('/api/plugins/{plugin}/choices/{fetch}', plugins_choices)
     app.router.add_get('/', index)
     app.router.add_get('/api/inventory', inventory)
     app.router.add_get('/api/capabilities', capabilities)
@@ -4360,6 +4397,7 @@ async def main():
         # The branch the screens build from (docs/RELEASING.md, "Testing dev"): dev for an app added from the `#dev` URL.
         slug = await addon_slug(session)
         core.set_channel(core.channel_of(slug))
+        core.set_local(slug)
         LOG.info('App %s, channel %s', slug or 'without a Supervisor', core.channel() or 'none (screens keep their ref)')
         ha = HomeAssistant(session, os.environ.get('HA_API', 'http://supervisor/core/api'), token)
         manager = Manager(ha, Path(os.environ.get('SCREEN_DATA', '/data')) / 'screens.json')
@@ -4379,7 +4417,8 @@ async def main():
         try:
             await asyncio.gather(ha.run(), manager.run(), manager.history_loop(), manager.updates.run(),
                                  manager.alert_loop(), manager.tile_loop(), manager.card_history_loop(), manager.camera_loop(), manager.card_options_loop(),
-                                 manager.media_loop(), manager.pairing_loop())
+                                 manager.media_loop(), manager.pairing_loop(),
+                                 *([manager.plugins.loop()] if core.plugins_enabled() else []))
         finally:
             await cameras.cleanup()
             await runner.cleanup()

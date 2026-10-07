@@ -225,6 +225,9 @@
     },
     "navigation": {
       "back": "Back"
+    },
+    "plugin": {
+      "missing": "Plugin missing"
     }
   },
   "editor": {

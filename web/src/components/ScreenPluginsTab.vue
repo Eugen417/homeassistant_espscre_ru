@@ -31,7 +31,7 @@ function close() { panel.value = null; openId.value = null; }
       <div class="sp-head">
         <p class="sp-intro">{{ t("editor.plugins.tab.intro", { screen: screen.name }) }}</p>
         <div class="sp-actions">
-          <button type="button" class="btn quiet" id="screen-plugin-link" :aria-pressed="panel === 'link'" @click="panel = 'link'; openId = null"><Icon name="link-variant" />{{ t("editor.plugins.add_link") }}</button>
+          <button v-if="plugins.example" type="button" class="btn quiet" id="screen-plugin-link" :aria-pressed="panel === 'link'" @click="panel = 'link'; openId = null"><Icon name="link-variant" />{{ t("editor.plugins.add_link") }}</button>
           <button type="button" class="btn link" id="screen-plugin-all" @click="go('#plugins')">{{ t("editor.plugins.tab.all") }}<Icon name="arrow-right" /></button>
         </div>
       </div>

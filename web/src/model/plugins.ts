@@ -23,6 +23,7 @@ export type PluginTile = {
   entity?: string[]; options?: PluginTileOption[]; example?: Texts;
 };
 export type PluginSource = "index" | "link" | "branch" | "folder";
+export type PluginLabel = "tessera" | "community" | "test";
 export type PluginKind = "hardware" | "behaviour";
 export type Plugin = {
   id: string;
@@ -46,6 +47,13 @@ export type Plugin = {
   inputs?: PluginInput[];             // what a person fills in when adding it: a key, a pin, a name
   parts?: PluginPart[];               // optional parts, on or off per screen, each with its own room
   attributes: string[];               // cloud, commercial, ai-developed, experimental
+  // From the add-on (plugins.py): where it comes from (the index, or a folder someone is making it in), its label, the
+  // reason it is blocked, whether this app's plugin API takes it, and its privacy statement.
+  source?: PluginSource;
+  label?: PluginLabel;
+  blocked?: string | null;
+  fits_api?: boolean;
+  privacy?: string;
   adds: {
     tiles?: PluginTile[];
     tap_actions?: { label: Texts; domains: string[] }[];
@@ -55,7 +63,12 @@ export type Plugin = {
     inputs?: boolean;
   };
 };
-export type Installed = { id: string; version: string; source: PluginSource; ref?: string };
+// A plugin on a screen, as the add-on keeps it (plugins.json): its source and commit, its parts and what was filled in
+// (never a secret), and its state: building, active, or failed with the reason.
+export type Installed = {
+  id: string; version: string; source: PluginSource; ref?: string | null; parts?: string[]; values?: Record<string, string>;
+  state?: "building" | "active" | "failed" | "removing"; reason?: string | null;
+};
 
 // ---- Plugin tiles in a layout: the tile's entity is plugin:<plugin>.<tile>, the type the screen's protocol carries ----
 export const PLUGIN_TILE = /^plugin:([a-z0-9_]+)\.([a-z0-9_]+)$/;
@@ -77,6 +90,10 @@ export const EXAMPLE_FETCH: Record<string, { value: string; label: Texts }[]> = 
     { value: "N4", label: { en: "N4 Night bus", nl: "N4 Nachtbus" } },
   ],
 };
+// The key of one list of choices: plugin, fetch, and the other options it is asked with (plugin-state keeps the lists).
+export const choiceKey = (plugin: Plugin, option: PluginTileOption, values: Record<string, unknown>) =>
+  `${plugin.id}.${option.options_from}.${JSON.stringify(Object.entries(values).filter(([k]) => k !== option.id).sort())}`;
+// The example answers, while the page shows the example index.
 export const choicesOf = (plugin: Plugin, option: PluginTileOption) =>
   option.choices || (option.options_from ? EXAMPLE_FETCH[`${plugin.id}.${option.options_from}`] || [] : []);
 // What a plugin tile's options are when nothing is chosen yet.
@@ -91,7 +108,7 @@ export const inEditorLanguage = (texts: Texts) => own(texts) !== undefined;
 
 // ---- Does it fit this screen ----
 // The reasons a plugin is not offered for a screen, in the order a person can do something about them.
-export type Misfit = "board" | "psram" | "firmware" | "flash" | "pins";
+export type Misfit = "board" | "psram" | "firmware" | "flash" | "pins" | "blocked";
 export type Fit = { ok: true } | { ok: false; reason: Misfit };
 
 const parts = (version: string) => version.replace(/^[^\d]*/, "").split(".").map((part) => Number.parseInt(part, 10) || 0);
@@ -126,6 +143,8 @@ export const freePins = (screen: Screen) => (screen.board && FREE_PINS[screen.bo
 
 export function fit(plugin: Plugin, screen: Screen | null): Fit {
   if (!screen) return { ok: true };
+  if (plugin.blocked) return { ok: false, reason: "blocked" };
+  if (plugin.fits_api === false) return { ok: false, reason: "firmware" };
   if (plugin.boards !== "any" && !(screen.board && plugin.boards.includes(screen.board))) return { ok: false, reason: "board" };
   if (plugin.requires.psram && !screen.pictures) return { ok: false, reason: "psram" };
   if (plugin.requires.firmware && !atLeast(screen.firmware, plugin.requires.firmware.replace(/^>=\s*/, ""))) return { ok: false, reason: "firmware" };

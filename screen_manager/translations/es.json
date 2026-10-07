@@ -548,6 +548,9 @@
       "home": "Casa",
       "other": "Otros",
       "no_power": "No hay sensores de potencia en los ajustes de energía de Home Assistant"
+    },
+    "plugin": {
+      "missing": "Falta el plugin"
     }
   },
   "addon": {
@@ -796,6 +799,18 @@
         "not_allowed": "Home Assistant no deja que esta aplicación cambie sus integraciones. Hazlo en el propio Home Assistant, en Configuración → Dispositivos y servicios.",
         "no_entry": "Home Assistant no tiene esta pantalla como dispositivo ESPHome.",
         "failed": "Home Assistant no lo aceptó. En Home Assistant abre Ajustes → Dispositivos y servicios → ESPHome, elige esta pantalla, luego Configurar, y activa «Permitir que el dispositivo realice acciones de Home Assistant»."
+      },
+      "plugins": {
+        "request": "Esta solicitud de plugin está incompleta.",
+        "unknown": "No existe el plugin {id}.",
+        "misfit_api": "{name} se escribió para otra API de plugins distinta a la de esta app.",
+        "misfit_board": "{name} está hecho para otras placas.",
+        "misfit_psram": "{name} necesita una placa con PSRAM.",
+        "misfit_blocked": "{name} está bloqueado: esta versión es dañina o está rota.",
+        "requires": "{name} necesita primero el plugin {other} en esta pantalla.",
+        "firmware": "El firmware de esta pantalla aún no conoce los plugins. Actualízalo y aparecerán los mosaicos del plugin.",
+        "file": "El archivo de plugins no es válido.",
+        "other_include": "El YAML de esta pantalla ya tiene otro include tessera_plugins."
       }
     },
     "status": {
@@ -1191,6 +1206,8 @@
         "briefcase": "Trabajo",
         "car": "Coche",
         "bike": "Bicicleta",
+        "bus": "Autobús",
+        "train": "Tren",
         "airplane": "Vacaciones",
         "map_marker": "Ubicación",
         "power": "Encender/apagar",
@@ -1310,6 +1327,7 @@
       "copy": "Copiar"
     },
     "nav": {
+      "plugins": "Plugins",
       "new_screen": "Nueva pantalla",
       "firmware": "Firmware y USB",
       "alerts": "Alertas",
@@ -1464,6 +1482,7 @@
       "identified": "{name} parpadea y muestra una tarjeta durante unos segundos.",
       "offline": "Sin conexión · los cambios se guardan",
       "tabs": {
+        "plugins": "Plugins",
         "layout": "Diseño",
         "settings": "Configuración de pantalla"
       },
@@ -1536,6 +1555,7 @@
       }
     },
     "library": {
+      "plugins": "Plugins",
       "title": "Biblioteca",
       "entities": "{n} entidad | {n} entidades",
       "search": "Busca por nombre, dispositivo o habitación…",
@@ -1578,6 +1598,203 @@
       "resize": "Arrastra para cambiar el tamaño de la biblioteca",
       "filter_label": "Filtrar por tipo",
       "no_room": "Sin estancia"
+    },
+    "plugins": {
+      "title": "Plugins",
+      "intro": "Extras para tus pantallas: hardware en la placa, o algo más que una pantalla puede hacer. Un plugin se integra en el firmware de una pantalla, así que eliges para cada pantalla cuáles recibe.",
+      "example": "Plugins de ejemplo: la lista real llegará con el índice de plugins",
+      "search": "Busca por nombre, autor o lo que hace",
+      "filter": "Mostrar",
+      "filters": {
+        "all": "Todos",
+        "tessera": "De Tessera",
+        "community": "Comunidad",
+        "in_use": "En uso"
+      },
+      "from_tessera": "De Tessera",
+      "by": "Por {maker}",
+      "label": {
+        "tessera": "De Tessera",
+        "community": "Comunidad",
+        "test": "Prueba"
+      },
+      "state": {
+        "building": "Compilando…",
+        "installed": "Instalado",
+        "update": "Actualización {version}",
+        "test_on": "Prueba en {name}",
+        "updates": "Actualización en {n} pantalla | Actualización en {n} pantallas",
+        "on_screens": "En {n} pantalla | En {n} pantallas",
+        "fits_none": "No es compatible con ninguna de tus pantallas",
+        "failed": "Error al compilar"
+      },
+      "source": {
+        "link": "Desde un enlace",
+        "branch": "Prueba desde una rama",
+        "folder": "Prueba desde una carpeta"
+      },
+      "misfit_short": {
+        "board": "No es para esta placa",
+        "psram": "Necesita PSRAM",
+        "firmware": "Necesita un firmware más reciente",
+        "flash": "Demasiado grande para esta pantalla",
+        "pins": "Ningún pin libre",
+        "blocked": "Bloqueado"
+      },
+      "misfit": {
+        "board": "Este plugin está hecho para otras placas distintas de la de {screen}.",
+        "psram": "Este plugin necesita una placa con PSRAM, y {screen} no la tiene.",
+        "firmware": "{screen} necesita una actualización de firmware antes de poder recibir este plugin.",
+        "flash": "A {screen} le queda sitio para unos {kb} KB más, y este plugin es más grande.",
+        "pins": "{screen} no tiene ningún pin libre que este plugin pueda usar.",
+        "blocked": "Esta versión del plugin está bloqueada: se sabe que es dañina o que no funciona."
+      },
+      "none_installed": "Todavía no hay plugins en esta pantalla.",
+      "none_found": "Ningún plugin coincide con «{query}».",
+      "make": "¿Haces tu propio plugin?",
+      "template": "Empieza con la plantilla",
+      "version": "versión {version}",
+      "kind": {
+        "hardware": "Hardware",
+        "behaviour": "Función"
+      },
+      "attribute": {
+        "cloud": "Usa un servicio en la nube",
+        "commercial": "Comercial",
+        "ai-developed": "Hecho con IA",
+        "experimental": "Experimental"
+      },
+      "test_note": "Una prueba: cada compilación toma la versión más reciente, y Tessera no ofrece actualizaciones para ella.",
+      "remove": "Eliminar de {screen}",
+      "building": "Compilando el firmware para {screen}…",
+      "installed_on": "En {screen}, versión {version}",
+      "update": "Actualizar a {version}",
+      "trust": {
+        "title": "Confío en este autor",
+        "text": "Tessera no ha revisado este plugin. Se ejecuta en tu pantalla y puede hacer lo que la pantalla puede hacer en Home Assistant."
+      },
+      "install": "Añadir a {screen}",
+      "adds": {
+        "title": "Qué añade",
+        "tile": "Mosaico «{name}»",
+        "tile_sizes": "De {min} a {max} en una página",
+        "tap": "Acción al tocar «{name}»",
+        "tap_on": "En mosaicos de {domains}",
+        "card": "Una vista propia en la pantalla",
+        "settings": "Configuración",
+        "settings_where": "En la página de configuración de la pantalla y en Configuración de pantalla",
+        "inputs": "Pines y nombres que eliges tú",
+        "ha_package": "Un paquete para Home Assistant",
+        "ha_package_why": "Se instala una vez en Home Assistant; el editor ofrece la descarga"
+      },
+      "may": {
+        "title": "Qué puede hacer",
+        "ha": "Usa estos comandos de Home Assistant",
+        "ha_none": "No ejecuta acciones en Home Assistant",
+        "network": "Se conecta a {hosts}",
+        "network_none": "No se conecta a nada fuera de Home Assistant",
+        "read": "Lee estas entidades de Home Assistant"
+      },
+      "warning": "Un plugin se ejecuta en tu pantalla con acceso total a ella, incluidas su Wi-Fi y las acciones que puede realizar en Home Assistant. Añade solo plugins de autores en los que confíes, o lee antes el código.",
+      "room": {
+        "title": "Espacio en {screen}",
+        "small": "{kb} KB más: el firmware pasa de {before} a {after} de su espacio.",
+        "large": "{kb} KB, muy dentro del espacio que tiene esta pantalla.",
+        "title_all": "Espacio",
+        "per_screen": "{kb} KB en cada pantalla donde se instale. Para una placa de 4 MB, aquí se indica si hay espacio."
+      },
+      "works": {
+        "title": "Funciona en:",
+        "any": "todas las placas",
+        "any_psram": "todas las placas con PSRAM"
+      },
+      "source_code": "Código fuente",
+      "issues": "Informar de un problema",
+      "example_install": "Ejemplo: {name} en {screens}. Con el índice de plugins, Tessera lo escribe en el YAML de cada pantalla y compila.",
+      "removed": "{name} eliminado de {screens}. La pantalla lo pierde en su próxima compilación.",
+      "add_link": "Añadir con un enlace",
+      "link": {
+        "title": "Añadir con un enlace",
+        "intro": "Un plugin que no está en la lista, o uno que estás haciendo tú. Tessera lee primero su descripción y te dice si es compatible antes de compilar nada.",
+        "sources": {
+          "link": "Versión publicada",
+          "branch": "Probar una rama",
+          "folder": "Probar una carpeta"
+        },
+        "url": "Enlace de GitHub",
+        "branch": "Rama",
+        "folder": "Carpeta en este equipo",
+        "hints": {
+          "link": "Tessera toma la versión publicada más reciente y mantiene la pantalla en ella. Una nueva versión aparece como actualización.",
+          "branch": "Cada compilación toma el commit más reciente de esta rama. Para probar, no para el día a día.",
+          "folder": "Para un plugin que estás haciendo: guarda, y la siguiente compilación lo incluye. La carpeta está en la configuración de Home Assistant."
+        },
+        "fetch": "Leer el plugin",
+        "test": "Añadir a {screen} como prueba",
+        "example": "Ejemplo: con el índice de plugins, Tessera lee la descripción del plugin desde este enlace.",
+        "not_found": "No hay ninguna descripción de plugin en este enlace.",
+        "on_screen": "En la pantalla"
+      },
+      "none_in_use": "Ninguna de tus pantallas tiene todavía un plugin.",
+      "screen_update": "Versión {from}, actualizar a {to}",
+      "screen_version": "Versión {version}",
+      "on_screens": "En qué pantallas",
+      "apply": {
+        "add": "Añadir a {n} pantalla | Añadir a {n} pantallas",
+        "remove": "Eliminar de {n} pantalla | Eliminar de {n} pantallas",
+        "both": "Aplicar a {n} pantalla | Aplicar a {n} pantallas",
+        "none": "Aplicar"
+      },
+      "update_all": "Actualizar {n} pantalla a {version} | Actualizar {n} pantallas a {version}",
+      "tab": {
+        "intro": "Los plugins que usa {screen}, y lo que se le puede añadir. Cada cambio compila un firmware nuevo para esta pantalla.",
+        "all": "Todos los plugins",
+        "here": "En esta pantalla",
+        "add": "Añadir",
+        "misfits": "No es compatible con esta pantalla ({n}) | No son compatibles con esta pantalla ({n})"
+      },
+      "pending": {
+        "add": "Se añadirá al aplicar",
+        "remove": "Se eliminará al aplicar"
+      },
+      "setup": {
+        "on_screen": "{label} en {screen}",
+        "choose_pin": "Elige un pin",
+        "part_kb": "{kb} KB más",
+        "secret_set": "Configurado. Escribe uno nuevo para sustituirlo."
+      },
+      "readme": {
+        "title": "Léeme",
+        "package": "Descargar el paquete de Home Assistant",
+        "package_example": "Ejemplo: con el índice de plugins, Tessera descarga el paquete desde el plugin."
+      },
+      "english_only": "Solo en inglés",
+      "build_note": "¿Compilas con ESPHome Device Builder o en otro ordenador? El plugin está en el YAML de la pantalla; compílala allí como siempre.",
+      "attach": {
+        "row": "Vincular una vez, en la pestaña de la pantalla",
+        "text": "{screen} se compila desde su propio YAML. Añade esta línea una vez; después Tessera guarda sus plugins en un archivo propio, y ESPHome Device Builder los compila como siempre, también después de una actualización.",
+        "copy": "Copiar la línea",
+        "done": "Ya la he añadido",
+        "file": "Lo que Tessera escribe en {file}"
+      },
+      "folder_note": "¿Haces un plugin? Pon su carpeta en {path} y aparecerá aquí como prueba.",
+      "folder_error": "La carpeta {folder} todavía no es un plugin: {why}",
+      "rebuild": "Volver a compilar",
+      "failed": "El firmware de {screen} no se pudo compilar con este plugin. Su registro está en Firmware y USB.",
+      "retry": "Volver a intentarlo",
+      "privacy": "Privacidad"
+    },
+    "plugin_tile": {
+      "from": "Un mosaico del plugin {plugin}",
+      "details": "Detalles del plugin",
+      "options": "Opciones",
+      "choose": "Elegir…",
+      "less": "Menos",
+      "more": "Más",
+      "from_fetch": "Las opciones vienen de la propia fuente de datos del plugin, a través de Tessera.",
+      "on_screen": "En la pantalla",
+      "sizes": "De {min} a {max}; arrastra un borde del mosaico para cambiar su tamaño.",
+      "placeholder": "El editor muestra un marcador de posición: lo que dibuja el plugin aparece en la propia pantalla."
     },
     "memory": {
       "label": "Memoria para mosaicos",

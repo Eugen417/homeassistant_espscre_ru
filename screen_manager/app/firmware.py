@@ -126,6 +126,11 @@ class Firmware:
     # The bridge of a screen: the smallest firmware that takes the wide table (`bridge`), written beside the screen's
     # own YAML while its flash is widened and removed after. No screen has a dot in its name, so no profile is hidden.
     BRIDGE_SUFFIX = '.bridge.yaml'
+    # The plugins of a screen (docs/PLUGINS.md): one file only this app writes, beside its YAML and attached once under
+    # `packages:` as `tessera_plugins: !include <name>.plugins.yaml`, the way Override YAML is attached. ESPHome Device
+    # Builder, another computer that shares the folder, and this app's own updates all build the same plugins from it.
+    PLUGINS_SUFFIX = '.plugins.yaml'
+    PLUGINS_LIMIT = 16 * 1024
     # The compiler cache's limit (app 0.2.89+); past it ccache drops the oldest entries. Some seventeen full builds of
     # both boards took 0.6 GB on a Mac.
     CCACHE_SIZE = '1G'
@@ -151,7 +156,7 @@ class Firmware:
     def profiles(self):
         if not self.root.exists(): return []
         return [{'file': p.name} for p in sorted(self.root.glob('*.yaml'))
-                if p.name != 'secrets.yaml' and not p.name.endswith((self.OVERRIDE_SUFFIX, self.BRIDGE_SUFFIX))
+                if p.name != 'secrets.yaml' and not p.name.endswith((self.OVERRIDE_SUFFIX, self.BRIDGE_SUFFIX, self.PLUGINS_SUFFIX))
                 and p.is_file() and not p.is_symlink()]
 
     def profile_names(self):
@@ -654,12 +659,15 @@ packages:
 
     def _ensure_override_include(self, profile):
         """Attach an existing profile to its sidecar without reformatting user YAML."""
-        filename = profile.stem + self.OVERRIDE_SUFFIX
+        return self._ensure_include(profile, 'local_overrides', profile.stem + self.OVERRIDE_SUFFIX)
+
+    def _ensure_include(self, profile, key, filename):
+        """`key: !include filename` at the end of the profile's top-level `packages:`, written once."""
         text = profile.read_text()
-        if re.search(rf'(?m)^\s*local_overrides:\s*!include\s+{re.escape(filename)}\s*$', text):
+        if re.search(rf'(?m)^\s*{key}:\s*!include\s+{re.escape(filename)}\s*$', text):
             return False
-        if re.search(r'(?m)^\s*local_overrides\s*:', text):
-            raise ValueError(t('addon.errors.firmware.other_include'))
+        if re.search(rf'(?m)^\s*{key}\s*:', text):
+            raise ValueError(t('addon.errors.plugins.other_include' if key == 'tessera_plugins' else 'addon.errors.firmware.other_include'))
         try:
             parsed = yaml.load(text, Loader=LenientLoader)
         except yaml.YAMLError as error:
@@ -674,7 +682,7 @@ packages:
         if not next_top and not text.endswith('\n'):
             text += '\n'
         end = match.end() + next_top.start() if next_top else len(text)
-        addition = f'  local_overrides: !include {filename}\n'
+        addition = f'  {key}: !include {filename}\n'
         self._atomic_write(profile, text[:end] + addition + text[end:])
         self._names.pop(profile.name, None)
         return True
@@ -718,6 +726,8 @@ packages:
         profile, override = self._override_path(name)
         text = profile.read_text()
         local = override.read_text() if override.exists() else '{}\n'
+        plugins = self.root / (profile.stem + self.PLUGINS_SUFFIX)
+        extra = [(plugins.name, plugins.read_text())] if plugins.is_file() and not plugins.is_symlink() else []
         wanted = sorted(set(re.findall(r'!secret\s+([A-Za-z0-9_]+)', text + '\n' + local)))
         secrets = {}
         path = self.root / 'secrets.yaml'
@@ -730,7 +740,7 @@ packages:
                 secrets = {key: values[key] for key in wanted if key in values}
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as bundle:
-            for file, content in ((profile.name, text), (override.name, local),
+            for file, content in ((profile.name, text), (override.name, local), *extra,
                                   ('secrets.yaml', yaml.safe_dump(secrets, width=4096, allow_unicode=True) if secrets else '{}\n')):
                 entry = zipfile.ZipInfo(f'{profile.stem}/{file}', date_time=time.localtime()[:6])
                 entry.compress_type = zipfile.ZIP_DEFLATED
@@ -760,6 +770,36 @@ packages:
         self._atomic_write(path, content)
         self._ensure_override_include(profile)
         return self.override(profile.name)
+
+    def _plugins_path(self, name):
+        profile = self.profile(name)
+        path = self.root / (profile.stem + self.PLUGINS_SUFFIX)
+        if path.is_symlink():
+            raise ValueError(t('addon.errors.firmware.override_symlink'))
+        return profile, path
+
+    def plugins_file(self, name):
+        """The plugins file of a screen and whether its YAML attaches it (docs/PLUGINS.md)."""
+        profile, path = self._plugins_path(name)
+        attached = bool(re.search(rf'(?m)^\s*tessera_plugins:\s*!include\s+{re.escape(path.name)}\s*$',
+                                  profile.read_text()))
+        return {'file': profile.name, 'plugins_file': path.name, 'attached': attached, 'exists': path.exists(),
+                'content': path.read_text() if path.exists() else ''}
+
+    def save_plugins(self, name, content):
+        """Write the screen's plugins file (plugins.sidecar), then attach it: never an include of a missing file."""
+        profile, path = self._plugins_path(name)
+        if not isinstance(content, str) or len(content.encode()) > self.PLUGINS_LIMIT:
+            raise ValueError(t('addon.errors.plugins.file'))
+        try:
+            parsed = yaml.load(content, Loader=LenientLoader)
+        except yaml.YAMLError as error:
+            raise ValueError(t('addon.errors.plugins.file')) from error
+        if not isinstance(parsed, dict) or set(parsed) - {'packages', 'external_components'}:
+            raise ValueError(t('addon.errors.plugins.file'))
+        self._atomic_write(path, content)
+        self._ensure_include(profile, 'tessera_plugins', path.name)
+        return self.plugins_file(profile.name)
 
     def install(self, data):
         """Profile plus, when a USB port is chosen, the build and flash in one go. With the target
@@ -792,11 +832,13 @@ packages:
             raise ValueError(t('addon.errors.firmware.busy_wait'))
         profile = self.profile(name)
         override = self.root / (profile.stem + self.OVERRIDE_SUFFIX)
+        plugins = self.root / (profile.stem + self.PLUGINS_SUFFIX)
         removed = [profile.name]
         profile.unlink()
-        if override.is_file() and not override.is_symlink():
-            override.unlink()
-            removed.append(override.name)
+        for sidecar in (override, plugins):
+            if sidecar.is_file() and not sidecar.is_symlink():
+                sidecar.unlink()
+                removed.append(sidecar.name)
         # The build folder is this app's own (/data/build/<profile>, build_env), so nothing in the ESPHome
         # folder depends on it; a big one is removed off the loop, which keeps the screens going.
         build = self.data / 'build' / profile.stem

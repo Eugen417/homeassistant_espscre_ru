@@ -1,3 +1,12 @@
+## Unreleased
+
+- **Plugins (on dev only).** A plugin adds a tile or a feature to the screens you choose: open Plugins, tick the screens,
+  and each screen builds once with it. The first one is Public transport (NL): the next bus, tram, metro or ferry from
+  your stop, live from OVapi, counted down on the screen. Plugins live in github.com/MaxGramser/tessera-plugins, with
+  a template and docs to make your own. A plugin you are making shows up as a test when its folder is in
+  `tessera-plugins/` beside the `esphome` folder. Only in the dev app while the plugin API is 0.x (docs/PLUGINS.md).
+- **Bus and train icons** for any tile.
+
 ## 0.4.84 (firmware 0.52.0)
 
 - **Zoom and move a map full screen.** A map opened full screen has round + and - keys at the bottom right, like the

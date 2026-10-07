@@ -4,7 +4,8 @@
 import { reactive } from "vue";
 import { getJson, send } from "./api";
 import { t } from "./i18n";
-import { EXAMPLE_INDEX, EXAMPLE_INSTALLED, fit, knowTileTypes, pluginTileId, testPlugin, text, type Installed, type Plugin } from "./model/plugins";
+import { choiceKey, choicesOf, EXAMPLE_INDEX, EXAMPLE_INSTALLED, fit, knowTileTypes, pluginTileId, testPlugin, text, type Installed, type Plugin,
+  type PluginTileOption, type Texts } from "./model/plugins";
 import { pluginTiles } from "./model/page-validation";
 import { computed, watch } from "vue";
 import { copyText, state, toast } from "./store";
@@ -23,6 +24,14 @@ export const plugins = reactive({
   values: {} as Record<string, Record<string, Record<string, string>>>,
   parts: {} as Record<string, Record<string, string[]>>,
   attached: {} as Record<string, boolean>,
+  // From the add-on: what each screen's hello says it runs, which secrets are set (never their values), the screens
+  // whose build is running, the plugins file of a screen with its own YAML, and the lists of choices it fetched.
+  running: {} as Record<string, { id: string; version: string; tiles: string[] }[]>,
+  secrets: {} as Record<string, Record<string, boolean>>,
+  jobs: {} as Record<string, { add: string[]; remove: string[] }>,
+  files: {} as Record<string, { file: string; content: string; line: string }>,
+  choices: {} as Record<string, { value: string; label: Texts }[]>,
+  folders: { path: "", errors: {} as Record<string, string> },
 });
 
 // Plugins are an experiment (editor_features.plugins, SCREEN_EDITOR_ENV=development) and always on in `npm run dev`:
@@ -32,14 +41,50 @@ export const pluginsEnabled = computed(() => import.meta.env.DEV || state.invent
 watch(() => plugins.index, (index) => knowTileTypes(index), { immediate: true });
 watch(pluginsEnabled, (on) => { pluginTiles.enabled = on; }, { immediate: true });
 
+type Payload = {
+  plugins: Plugin[]; installed: Record<string, Installed[]>; running: typeof plugins.running; secrets: typeof plugins.secrets;
+  building: typeof plugins.jobs; folders: typeof plugins.folders;
+};
+let polling: ReturnType<typeof setTimeout> | undefined;
+// The add-on's plugins (api/plugins), and again every few seconds while a screen builds. Without an add-on (npm run
+// dev on its own) the example index stays.
+export function reloadPlugins(refresh = false) {
+  return getJson<Payload>(refresh ? "plugins?refresh=1" : "plugins").then((data) => {
+    plugins.index = data.plugins;
+    plugins.installed = data.installed;
+    plugins.running = data.running || {};
+    plugins.secrets = data.secrets || {};
+    plugins.jobs = data.building || {};
+    plugins.folders = data.folders || { path: "", errors: {} };
+    plugins.building = Object.fromEntries(Object.entries(data.installed).map(([id, list]) =>
+      [id, list.filter((item) => item.state === "building").map((item) => item.id)]));
+    plugins.example = false;
+    clearTimeout(polling);
+    if (Object.values(plugins.building).some((list) => list.length) || Object.keys(plugins.jobs).length)
+      polling = setTimeout(() => reloadPlugins(), 5000);
+  }).catch(() => undefined);
+}
 export function loadPlugins() {
   if (plugins.loaded) return;
   plugins.loaded = true;
-  getJson<{ plugins: Plugin[]; installed: Record<string, Installed[]> }>("plugins").then((data) => {
-    plugins.index = data.plugins;
-    plugins.installed = data.installed;
-    plugins.example = false;
-  }).catch(() => undefined);
+  reloadPlugins();
+}
+// The choices of an option that come from one of the plugin's fetches (a stop's lines), asked of the add-on with the
+// tile's other options; the example's while the page shows the example.
+const asking = new Set<string>();
+export function choicesFor(plugin: Plugin, option: PluginTileOption, values: Record<string, unknown>) {
+  if (plugins.example || !option.options_from) return choicesOf(plugin, option);
+  const key = choiceKey(plugin, option, values);
+  if (!(key in plugins.choices) && !asking.has(key)) {
+    asking.add(key);
+    const query = new URLSearchParams(Object.entries(values).filter(([k, v]) => k !== option.id && v !== "" && v !== undefined)
+      .map(([k, v]) => [k, String(v)])).toString();
+    getJson<{ choices: { value: string; label: string }[] }>(`plugins/${plugin.id}/choices/${option.options_from}${query ? `?${query}` : ""}`)
+      .then((data) => { plugins.choices[key] = data.choices.map((c) => ({ value: c.value, label: { en: c.label } })); })
+      .catch(() => { plugins.choices[key] = []; })
+      .finally(() => asking.delete(key));
+  }
+  return plugins.choices[key] || [];
 }
 
 export const realScreens = () => state.inventory.screens.filter((screen) => !screen.virtual);
@@ -92,17 +137,20 @@ function entry(screen: Screen, plugin: Plugin) {
   ];
 }
 export function pluginsFile(screen: Screen, adding?: Plugin) {
+  if (!plugins.example && plugins.files[screen.id]) return plugins.files[screen.id].content;
   const on = plugins.index.filter((p) => installedOn(screen, p.id) || p === adding);
   return ["# Written by Tessera. Change plugins in Tessera, not here.", "packages:",
     ...(on.length ? on.flatMap((plugin) => entry(screen, plugin)) : ["  {}"])].join("\n");
 }
 // Whether everything a plugin asks for is filled in on these screens: the button waits until it is.
 export const setupReady = (plugin: Plugin, screens: Screen[]) =>
-  screens.every((screen) => (plugin.inputs || []).every((input) => valueOf(screen, plugin, input.id).trim() !== ""));
+  screens.every((screen) => (plugin.inputs || []).every((input) => valueOf(screen, plugin, input.id).trim() !== ""
+    || (input.kind === "secret" && plugins.secrets[plugin.id]?.[input.id])));
 // The room the chosen optional parts add.
 export const partsKb = (screen: Screen, plugin: Plugin) =>
   partsOn(screen, plugin).reduce((sum, id) => sum + (plugin.parts?.find((part) => part.id === id)?.flash_kb || 0), 0);
-const nodeOf = (screen: Screen) => screen.node || screen.id;
+// The add-on keeps a screen's plugins by its inbox, the id every screen route takes; the example by its name.
+const nodeOf = (screen: Screen) => (plugins.example ? screen.node || screen.id : screen.id);
 export const installedOn = (screen: Screen, id: string) => plugins.installed[nodeOf(screen)]?.find((item) => item.id === id);
 export const buildingOn = (screen: Screen, id: string) => Boolean(plugins.building[nodeOf(screen)]?.includes(id));
 // Test plugins: on a screen, but not in the index. The pages know them only by what the screen says it runs.
@@ -114,13 +162,15 @@ export const allTests = () => {
   return [...seen.values()];
 };
 // Tessera's own, someone else's from the index, or a test the screen runs from a branch, a folder or a link.
-export const labelOf = (plugin: Plugin) => plugin.tessera ? "tessera" : plugins.index.some((p) => p.id === plugin.id) ? "community" : "test";
+export const labelOf = (plugin: Plugin) => plugin.label
+  || (plugin.tessera ? "tessera" : plugins.index.some((p) => p.id === plugin.id) ? "community" : "test");
 
 // ---- One line of state: for one screen (its tab), or over all screens (the page) ----
-export type Status = { kind: "installed" | "update" | "building" | "test" | "misfit" | ""; label: string };
+export type Status = { kind: "installed" | "update" | "building" | "test" | "misfit" | "failed" | ""; label: string };
 export function statusOn(plugin: Plugin, screen: Screen): Status {
   if (buildingOn(screen, plugin.id)) return { kind: "building", label: t("editor.plugins.state.building") };
   const have = installedOn(screen, plugin.id);
+  if (have?.state === "failed") return { kind: "failed", label: t("editor.plugins.state.failed") };
   if (have && have.source !== "index") return { kind: "test", label: t(`editor.plugins.source.${have.source}`) };
   if (have && have.version !== plugin.version) return { kind: "update", label: t("editor.plugins.state.update", { version: plugin.version }) };
   if (have) return { kind: "installed", label: t("editor.plugins.state.installed") };
@@ -152,6 +202,20 @@ function simulate(screen: Screen, plugin: Plugin) {
     else list.push({ id: plugin.id, version: plugin.version, source: "index" });
   }, 2400);
 }
+// What goes to the add-on for one screen: the plugin, its parts, what was filled in, and the secrets apart.
+function addition(screen: Screen, plugin: Plugin) {
+  const values: Record<string, string> = {}, secrets: Record<string, string> = {};
+  for (const input of plugin.inputs || []) {
+    const value = valueOf(screen, plugin, input.id).trim();
+    if (value) (input.kind === "secret" ? secrets : values)[input.id] = value;
+  }
+  return { id: plugin.id, source: plugin.source || "index", parts: partsOn(screen, plugin), values, secrets };
+}
+async function change(screen: Screen, body: object) {
+  const result = await send<{ own_yaml?: boolean; file?: string; content?: string; line?: string }>(
+    `screens/${encodeURIComponent(screen.id)}/plugins`, "POST", body);
+  if (result?.own_yaml) plugins.files[screen.id] = { file: result.file || "", content: result.content || "", line: result.line || "" };
+}
 export async function addPlugin(screens: Screen[], plugin: Plugin) {
   if (!screens.length) return;
   if (plugins.example) {
@@ -159,15 +223,37 @@ export async function addPlugin(screens: Screen[], plugin: Plugin) {
     toast(t("editor.plugins.example_install", { name: text(plugin.name), screens: screens.map((s) => s.name).join(", ") }));
     return;
   }
+  // One build at a time: the add-on builds the screens one after the other as each build ends.
   for (const screen of screens) {
-    try { await send(`screens/${encodeURIComponent(screen.id)}/plugins`, "POST", { id: plugin.id, version: plugin.version }); }
-    catch (error: any) { toast(error.message); }
+    try {
+      (plugins.building[screen.id] ||= []).push(plugin.id);
+      await change(screen, { add: [addition(screen, plugin)] });
+    } catch (error: any) {
+      plugins.building[screen.id] = (plugins.building[screen.id] || []).filter((id) => id !== plugin.id);
+      toast(error.message);
+      break;
+    }
   }
+  await reloadPlugins();
 }
-export function removePlugin(screens: Screen[], plugin: Plugin) {
-  for (const screen of screens) {
-    const node = nodeOf(screen);
-    plugins.installed[node] = (plugins.installed[node] || []).filter((item) => item.id !== plugin.id);
+export async function removePlugin(screens: Screen[], plugin: Plugin) {
+  if (!screens.length) return;
+  if (plugins.example) {
+    for (const screen of screens) {
+      const node = nodeOf(screen);
+      plugins.installed[node] = (plugins.installed[node] || []).filter((item) => item.id !== plugin.id);
+    }
+  } else {
+    for (const screen of screens) {
+      try { await change(screen, { remove: [plugin.id] }); }
+      catch (error: any) { toast(error.message); break; }
+    }
+    await reloadPlugins();
   }
-  if (screens.length) toast(t("editor.plugins.removed", { name: text(plugin.name), screens: screens.map((s) => s.name).join(", ") }));
+  toast(t("editor.plugins.removed", { name: text(plugin.name), screens: screens.map((s) => s.name).join(", ") }));
+}
+// A secret for every screen (an API key): kept by the add-on, never shown again.
+export async function setSecret(plugin: Plugin, input: string, value: string) {
+  await send(`plugins/${plugin.id}/secrets/${input}`, "PUT", { value });
+  await reloadPlugins();
 }

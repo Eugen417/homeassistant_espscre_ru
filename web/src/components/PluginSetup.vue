@@ -3,7 +3,7 @@
 // is asked once for all chosen screens; a pin or a name per screen, because each board has its own free pins.
 import { editorLanguage, languageMarks, numberText, t } from "../i18n";
 import { freePins, text, type Plugin } from "../model/plugins";
-import { partsOn, setParts, setValue, valueOf } from "../plugin-state";
+import { partsOn, plugins, setParts, setValue, valueOf } from "../plugin-state";
 import type { Screen } from "../types";
 
 const props = defineProps<{ plugin: Plugin; screens: Screen[] }>();
@@ -26,7 +26,8 @@ const partOn = (id: string) => props.screens.length > 0 && props.screens.every((
       <label class="f-label" :for="`plugin-input-${input.id}`">{{ text(input.label) }}</label>
       <input :id="`plugin-input-${input.id}`" :type="input.kind === 'secret' ? 'password' : 'text'" autocomplete="off" spellcheck="false"
         :value="valueOf(screens[0], plugin, input.id)" @input="setAll(input.id, ($event.target as HTMLInputElement).value)" />
-      <small v-if="input.hint">{{ text(input.hint) }}</small>
+      <small v-if="input.kind === 'secret' && plugins.secrets[plugin.id]?.[input.id]">{{ t("editor.plugins.setup.secret_set") }}</small>
+      <small v-else-if="input.hint">{{ text(input.hint) }}</small>
     </div>
     <template v-for="screen in screens" :key="screen.id">
       <div v-for="input in perScreen()" :key="`${screen.id}-${input.id}`" class="field">

@@ -140,6 +140,8 @@ inline constexpr Named NAMES[] = {
   {"briefcase", 0xF00D6},
   {"car", 0xF010B},
   {"bike", 0xF00A3},
+  {"bus", 0xF00E7},
+  {"train", 0xF052C},
   {"airplane", 0xF001D},
   {"map-marker", 0xF034E},
   {"power", 0xF0425},

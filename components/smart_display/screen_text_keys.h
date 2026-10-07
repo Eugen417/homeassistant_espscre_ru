@@ -400,6 +400,7 @@ constexpr uint16_t energy_battery = 435;
 constexpr uint16_t energy_home = 436;
 constexpr uint16_t energy_other = 437;
 constexpr uint16_t energy_no_power = 438;
+constexpr uint16_t plugin_missing = 439;
 constexpr uint16_t date_weekdays = 18;
 constexpr uint16_t date_weekdays_count = 7;
 constexpr uint16_t date_weekdays_short = 25;
@@ -411,6 +412,6 @@ constexpr uint16_t date_months_count = 12;
 constexpr uint16_t date_months_short = 51;
 constexpr uint16_t date_months_short_count = 12;
 }  // namespace txt
-constexpr uint16_t KEY_COUNT = 439;
-constexpr uint32_t KEYS_HASH = 0x8F7B8A40u;
+constexpr uint16_t KEY_COUNT = 440;
+constexpr uint32_t KEYS_HASH = 0x883292A7u;
 }  // namespace screen_text

@@ -548,6 +548,9 @@
       "home": "Home",
       "other": "Other",
       "no_power": "No power sensors in Home Assistant's energy settings"
+    },
+    "plugin": {
+      "missing": "Plugin missing"
     }
   },
   "addon": {
@@ -796,6 +799,18 @@
         "not_allowed": "Home Assistant doesn't let this app change its integrations. Do it in Home Assistant itself, under Settings → Devices & services.",
         "no_entry": "Home Assistant doesn't have this screen as an ESPHome device.",
         "failed": "Home Assistant didn't take it. In Home Assistant open Settings → Devices & services → ESPHome, choose this screen, then Configure, and turn on “Allow the device to perform Home Assistant actions”."
+      },
+      "plugins": {
+        "request": "This plugin request is not complete.",
+        "unknown": "There is no plugin {id}.",
+        "misfit_api": "{name} was written for another plugin API than this app's.",
+        "misfit_board": "{name} is made for other boards.",
+        "misfit_psram": "{name} needs a board with PSRAM.",
+        "misfit_blocked": "{name} is blocked: this version is known to be harmful or broken.",
+        "requires": "{name} needs the plugin {other} on this screen first.",
+        "firmware": "This screen's firmware has no plugins yet. Update it, then the plugin tiles appear.",
+        "file": "The plugins file is not valid.",
+        "other_include": "This screen's YAML already has a different tessera_plugins include."
       }
     },
     "status": {
@@ -1191,6 +1206,8 @@
         "briefcase": "Work",
         "car": "Car",
         "bike": "Bike",
+        "bus": "Bus",
+        "train": "Train",
         "airplane": "Vacation",
         "map_marker": "Location",
         "power": "On/off",
@@ -2878,7 +2895,8 @@
         "test_on": "Test on {name}",
         "updates": "Update on {n} screen | Update on {n} screens",
         "on_screens": "On {n} screen | On {n} screens",
-        "fits_none": "Fits none of your screens"
+        "fits_none": "Fits none of your screens",
+        "failed": "Build failed"
       },
       "source": {
         "link": "From a link",
@@ -2890,14 +2908,16 @@
         "psram": "Needs PSRAM",
         "firmware": "Needs newer firmware",
         "flash": "Too large for this screen",
-        "pins": "No free pin"
+        "pins": "No free pin",
+        "blocked": "Blocked"
       },
       "misfit": {
         "board": "This plugin is made for other boards than {screen}'s.",
         "psram": "This plugin needs a board with PSRAM, and {screen} has none.",
         "firmware": "{screen} needs a firmware update before it can take this plugin.",
         "flash": "{screen} has room for about {kb} KB more, and this plugin is larger.",
-        "pins": "{screen} has no free pin this plugin can use."
+        "pins": "{screen} has no free pin this plugin can use.",
+        "blocked": "This version of the plugin is blocked: it is known to be harmful or broken."
       },
       "none_installed": "No plugins on this screen yet.",
       "none_found": "No plugin matches “{query}”.",
@@ -3010,7 +3030,8 @@
       "setup": {
         "on_screen": "{label} on {screen}",
         "choose_pin": "Choose a pin",
-        "part_kb": "{kb} KB more"
+        "part_kb": "{kb} KB more",
+        "secret_set": "Set. Fill in a new one to replace it."
       },
       "readme": {
         "title": "Read me",
@@ -3025,7 +3046,13 @@
         "copy": "Copy the line",
         "done": "I added it",
         "file": "What Tessera writes in {file}"
-      }
+      },
+      "folder_note": "Making a plugin? Put its folder in {path} and it shows up here as a test.",
+      "folder_error": "The folder {folder} is no plugin yet: {why}",
+      "rebuild": "Build again",
+      "failed": "The firmware for {screen} did not build with this plugin. Its log is under Firmware & USB.",
+      "retry": "Try again",
+      "privacy": "Privacy"
     },
     "plugin_tile": {
       "from": "A tile of the plugin {plugin}",

@@ -548,6 +548,9 @@
       "home": "Casa",
       "other": "Outros",
       "no_power": "Sem sensores de potência nas definições de energia do Home Assistant"
+    },
+    "plugin": {
+      "missing": "Plugin ausente"
     }
   },
   "addon": {
@@ -796,6 +799,18 @@
         "not_allowed": "O Home Assistant não deixa esta aplicação alterar as suas integrações. Faça-o no próprio Home Assistant, em Configuração → Dispositivos & serviços.",
         "no_entry": "O Home Assistant não tem este ecrã como dispositivo ESPHome.",
         "failed": "O Home Assistant não aceitou. No Home Assistant abra Definições → Dispositivos e serviços → ESPHome, escolha este ecrã, depois Configurar, e ative “Permitir que o dispositivo execute ações do Home Assistant”."
+      },
+      "plugins": {
+        "request": "Este pedido de plugin está incompleto.",
+        "unknown": "Não existe o plugin {id}.",
+        "misfit_api": "{name} foi escrito para outra API de plugins diferente da desta app.",
+        "misfit_board": "{name} foi feito para outras placas.",
+        "misfit_psram": "{name} precisa de uma placa com PSRAM.",
+        "misfit_blocked": "{name} está bloqueado: esta versão é prejudicial ou está avariada.",
+        "requires": "{name} precisa primeiro do plugin {other} neste ecrã.",
+        "firmware": "O firmware deste ecrã ainda não conhece plugins. Atualize-o e os mosaicos do plugin aparecem.",
+        "file": "O ficheiro de plugins não é válido.",
+        "other_include": "O YAML deste ecrã já tem outro include tessera_plugins."
       }
     },
     "status": {
@@ -1191,6 +1206,8 @@
         "briefcase": "Trabalho",
         "car": "Carro",
         "bike": "Bicicleta",
+        "bus": "Autocarro",
+        "train": "Comboio",
         "airplane": "Férias",
         "map_marker": "Localização",
         "power": "Ligar/desligar",
@@ -1310,6 +1327,7 @@
       "copy": "Copiar"
     },
     "nav": {
+      "plugins": "Plugins",
       "new_screen": "Novo ecrã",
       "firmware": "Firmware e USB",
       "alerts": "Alertas",
@@ -1464,6 +1482,7 @@
       "identified": "{name} pisca e mostra um cartão durante alguns segundos.",
       "offline": "Offline · as alterações ficam guardadas",
       "tabs": {
+        "plugins": "Plugins",
         "layout": "Layout",
         "settings": "Definições do ecrã"
       },
@@ -1536,6 +1555,7 @@
       }
     },
     "library": {
+      "plugins": "Plugins",
       "title": "Biblioteca",
       "entities": "{n} entidade | {n} entidades",
       "search": "Procurar por nome, dispositivo ou divisão…",
@@ -1578,6 +1598,203 @@
       "resize": "Arraste para redimensionar a biblioteca",
       "filter_label": "Filtrar por tipo",
       "no_room": "Sem divisão"
+    },
+    "plugins": {
+      "title": "Plugins",
+      "intro": "Extras para os seus ecrãs: hardware na placa, ou algo mais que um ecrã consegue fazer. Um plugin é integrado no firmware de um ecrã, por isso escolhe para cada ecrã quais recebe.",
+      "example": "Plugins de exemplo: a lista real chega com o índice de plugins",
+      "search": "Procurar por nome, autor ou o que faz",
+      "filter": "Mostrar",
+      "filters": {
+        "all": "Todos",
+        "tessera": "Do Tessera",
+        "community": "Comunidade",
+        "in_use": "Em uso"
+      },
+      "from_tessera": "Do Tessera",
+      "by": "Por {maker}",
+      "label": {
+        "tessera": "Do Tessera",
+        "community": "Comunidade",
+        "test": "Teste"
+      },
+      "state": {
+        "building": "A compilar…",
+        "installed": "Instalado",
+        "update": "Atualização {version}",
+        "test_on": "Teste em {name}",
+        "updates": "Atualização em {n} ecrã | Atualização em {n} ecrãs",
+        "on_screens": "Em {n} ecrã | Em {n} ecrãs",
+        "fits_none": "Não é compatível com nenhum dos seus ecrãs",
+        "failed": "A compilação falhou"
+      },
+      "source": {
+        "link": "A partir de uma ligação",
+        "branch": "Teste a partir de um branch",
+        "folder": "Teste a partir de uma pasta"
+      },
+      "misfit_short": {
+        "board": "Não é para esta placa",
+        "psram": "Precisa de PSRAM",
+        "firmware": "Precisa de firmware mais recente",
+        "flash": "Demasiado grande para este ecrã",
+        "pins": "Nenhum pino livre",
+        "blocked": "Bloqueado"
+      },
+      "misfit": {
+        "board": "Este plugin foi feito para outras placas que não a de {screen}.",
+        "psram": "Este plugin precisa de uma placa com PSRAM, e {screen} não tem.",
+        "firmware": "{screen} precisa de uma atualização de firmware antes de poder receber este plugin.",
+        "flash": "{screen} tem espaço para cerca de mais {kb} KB, e este plugin é maior.",
+        "pins": "{screen} não tem nenhum pino livre que este plugin possa usar.",
+        "blocked": "Esta versão do plugin está bloqueada: sabe-se que é prejudicial ou que não funciona."
+      },
+      "none_installed": "Ainda não há plugins neste ecrã.",
+      "none_found": "Nenhum plugin corresponde a «{query}».",
+      "make": "Está a criar um plugin seu?",
+      "template": "Começar a partir do modelo",
+      "version": "versão {version}",
+      "kind": {
+        "hardware": "Hardware",
+        "behaviour": "Função"
+      },
+      "attribute": {
+        "cloud": "Usa um serviço na nuvem",
+        "commercial": "Comercial",
+        "ai-developed": "Feito com IA",
+        "experimental": "Experimental"
+      },
+      "test_note": "Um teste: cada compilação usa a versão mais recente, e o Tessera não oferece atualizações para ele.",
+      "remove": "Remover de {screen}",
+      "building": "A compilar o firmware para {screen}…",
+      "installed_on": "Em {screen}, versão {version}",
+      "update": "Atualizar para {version}",
+      "trust": {
+        "title": "Confio neste autor",
+        "text": "O Tessera não reviu este plugin. Corre no seu ecrã e pode fazer o que o ecrã pode fazer no Home Assistant."
+      },
+      "install": "Adicionar a {screen}",
+      "adds": {
+        "title": "O que adiciona",
+        "tile": "Mosaico «{name}»",
+        "tile_sizes": "De {min} a {max} numa página",
+        "tap": "Ação ao tocar «{name}»",
+        "tap_on": "Em mosaicos de {domains}",
+        "card": "Uma vista própria no ecrã",
+        "settings": "Definições",
+        "settings_where": "Na página de definições do ecrã e em Definições do ecrã",
+        "inputs": "Pinos e nomes que escolhe",
+        "ha_package": "Um pacote para o Home Assistant",
+        "ha_package_why": "Instala-se uma vez no Home Assistant; o editor disponibiliza a transferência"
+      },
+      "may": {
+        "title": "O que pode fazer",
+        "ha": "Usa estes comandos do Home Assistant",
+        "ha_none": "Não executa ações no Home Assistant",
+        "network": "Liga-se a {hosts}",
+        "network_none": "Não faz ligações fora do Home Assistant",
+        "read": "Lê estas entidades do Home Assistant"
+      },
+      "warning": "Um plugin corre no seu ecrã com acesso total ao mesmo, incluindo à rede Wi-Fi e às ações que o ecrã pode executar no Home Assistant. Adicione apenas plugins de autores em quem confia, ou leia primeiro o código.",
+      "room": {
+        "title": "Espaço em {screen}",
+        "small": "Mais {kb} KB: o firmware passa de {before} para {after} do seu espaço.",
+        "large": "{kb} KB, bem dentro do espaço que este ecrã tem.",
+        "title_all": "Espaço",
+        "per_screen": "{kb} KB em cada ecrã onde for instalado. Numa placa de 4 MB, aqui vê se há espaço."
+      },
+      "works": {
+        "title": "Funciona em:",
+        "any": "todas as placas",
+        "any_psram": "todas as placas com PSRAM"
+      },
+      "source_code": "Código-fonte",
+      "issues": "Comunicar um problema",
+      "example_install": "Exemplo: {name} em {screens}. Com o índice de plugins, o Tessera escreve-o no YAML de cada ecrã e compila.",
+      "removed": "{name} removido de {screens}. O ecrã perde-o na próxima compilação.",
+      "add_link": "Adicionar com uma ligação",
+      "link": {
+        "title": "Adicionar com uma ligação",
+        "intro": "Um plugin que não está na lista, ou um que está a criar. O Tessera lê primeiro a sua descrição e diz se é compatível, antes de compilar o que quer que seja.",
+        "sources": {
+          "link": "Versão publicada",
+          "branch": "Testar um branch",
+          "folder": "Testar uma pasta"
+        },
+        "url": "Ligação do GitHub",
+        "branch": "Branch",
+        "folder": "Pasta nesta máquina",
+        "hints": {
+          "link": "O Tessera usa a versão publicada mais recente e mantém o ecrã nela. Uma nova versão aparece como atualização.",
+          "branch": "Cada compilação usa o commit mais recente deste branch. Para experimentar, não para o dia a dia.",
+          "folder": "Para um plugin que está a criar: guarde, e a compilação seguinte inclui-o. A pasta fica na configuração do Home Assistant."
+        },
+        "fetch": "Ler o plugin",
+        "test": "Adicionar a {screen} como teste",
+        "example": "Exemplo: com o índice de plugins, o Tessera lê a descrição do plugin a partir desta ligação.",
+        "not_found": "Não há nenhuma descrição de plugin nesta ligação.",
+        "on_screen": "No ecrã"
+      },
+      "none_in_use": "Nenhum dos seus ecrãs tem ainda um plugin.",
+      "screen_update": "Versão {from}, atualizar para {to}",
+      "screen_version": "Versão {version}",
+      "on_screens": "Em que ecrãs",
+      "apply": {
+        "add": "Adicionar a {n} ecrã | Adicionar a {n} ecrãs",
+        "remove": "Remover de {n} ecrã | Remover de {n} ecrãs",
+        "both": "Aplicar a {n} ecrã | Aplicar a {n} ecrãs",
+        "none": "Aplicar"
+      },
+      "update_all": "Atualizar {n} ecrã para {version} | Atualizar {n} ecrãs para {version}",
+      "tab": {
+        "intro": "Os plugins que {screen} usa, e o que ainda pode receber. Cada alteração compila um novo firmware para este ecrã.",
+        "all": "Todos os plugins",
+        "here": "Neste ecrã",
+        "add": "Adicionar",
+        "misfits": "Não é compatível com este ecrã ({n}) | Não são compatíveis com este ecrã ({n})"
+      },
+      "pending": {
+        "add": "Será adicionado quando aplicar",
+        "remove": "Será removido quando aplicar"
+      },
+      "setup": {
+        "on_screen": "{label} em {screen}",
+        "choose_pin": "Escolha um pino",
+        "part_kb": "Mais {kb} KB",
+        "secret_set": "Definido. Introduza um novo para o substituir."
+      },
+      "readme": {
+        "title": "Leia-me",
+        "package": "Descarregar o pacote para o Home Assistant",
+        "package_example": "Exemplo: com o índice de plugins, o Tessera descarrega o pacote a partir do plugin."
+      },
+      "english_only": "Apenas em inglês",
+      "build_note": "Compila com o ESPHome Device Builder ou noutro computador? O plugin está no YAML do ecrã; compile-o lá como sempre.",
+      "attach": {
+        "row": "Ligar uma vez, no separador do ecrã",
+        "text": "{screen} é compilado a partir do seu próprio YAML. Adicione-lhe esta linha uma vez; depois o Tessera guarda os plugins num ficheiro próprio, e o ESPHome Device Builder compila-os como sempre, também depois de uma atualização.",
+        "copy": "Copiar a linha",
+        "done": "Já a adicionei",
+        "file": "O que o Tessera escreve em {file}"
+      },
+      "folder_note": "Está a criar um plugin? Coloque a pasta dele em {path} e ele aparece aqui como teste.",
+      "folder_error": "A pasta {folder} ainda não é um plugin: {why}",
+      "rebuild": "Compilar novamente",
+      "failed": "O firmware para {screen} não compilou com este plugin. O registo está em Firmware e USB.",
+      "retry": "Tentar novamente",
+      "privacy": "Privacidade"
+    },
+    "plugin_tile": {
+      "from": "Um mosaico do plugin {plugin}",
+      "details": "Detalhes do plugin",
+      "options": "Opções",
+      "choose": "Escolher…",
+      "less": "Menos",
+      "more": "Mais",
+      "from_fetch": "As opções vêm da fonte de dados do próprio plugin, através do Tessera.",
+      "on_screen": "No ecrã",
+      "sizes": "De {min} a {max}; arraste uma margem do mosaico para mudar o tamanho.",
+      "placeholder": "O editor mostra um marcador de posição: o que o plugin desenha aparece no próprio ecrã."
     },
     "memory": {
       "label": "Memória para mosaicos",

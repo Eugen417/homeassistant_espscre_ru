@@ -548,6 +548,9 @@
       "home": "Thuis",
       "other": "Overig",
       "no_power": "Geen vermogenssensoren in de energie-instellingen van Home Assistant"
+    },
+    "plugin": {
+      "missing": "Plugin ontbreekt"
     }
   },
   "addon": {
@@ -796,6 +799,18 @@
         "not_allowed": "Home Assistant laat deze app zijn integraties niet wijzigen. Doe het in Home Assistant zelf, onder Instellingen → Apparaten & diensten.",
         "no_entry": "Home Assistant heeft dit scherm niet als ESPHome-apparaat.",
         "failed": "Home Assistant nam het niet over. Open in Home Assistant Instellingen → Apparaten & diensten → ESPHome, kies dit scherm, dan Configureren, en zet “Sta het apparaat toe om Home Assistant-acties uit te voeren” aan."
+      },
+      "plugins": {
+        "request": "Dit pluginverzoek is niet compleet.",
+        "unknown": "Er is geen plugin {id}.",
+        "misfit_api": "{name} is geschreven voor een andere plugin-API dan die van deze app.",
+        "misfit_board": "{name} is gemaakt voor andere bordjes.",
+        "misfit_psram": "{name} heeft een bordje met PSRAM nodig.",
+        "misfit_blocked": "{name} is geblokkeerd: deze versie is schadelijk of kapot.",
+        "requires": "{name} heeft eerst de plugin {other} op dit scherm nodig.",
+        "firmware": "De firmware van dit scherm kent nog geen plugins. Werk hem bij, dan verschijnen de plugintegels.",
+        "file": "Het pluginsbestand is niet geldig.",
+        "other_include": "De YAML van dit scherm heeft al een andere tessera_plugins-include."
       }
     },
     "status": {
@@ -1191,6 +1206,8 @@
         "briefcase": "Werk",
         "car": "Auto",
         "bike": "Fiets",
+        "bus": "Bus",
+        "train": "Trein",
         "airplane": "Vakantie",
         "map_marker": "Locatie",
         "power": "Aan/uit",
@@ -2878,7 +2895,8 @@
         "test_on": "Test op {name}",
         "updates": "Update op {n} scherm | Update op {n} schermen",
         "on_screens": "Op {n} scherm | Op {n} schermen",
-        "fits_none": "Past op geen van je schermen"
+        "fits_none": "Past op geen van je schermen",
+        "failed": "Bouwen mislukt"
       },
       "source": {
         "link": "Via een link",
@@ -2890,14 +2908,16 @@
         "psram": "Heeft PSRAM nodig",
         "firmware": "Heeft nieuwere firmware nodig",
         "flash": "Te groot voor dit scherm",
-        "pins": "Geen vrije pin"
+        "pins": "Geen vrije pin",
+        "blocked": "Geblokkeerd"
       },
       "misfit": {
         "board": "Deze plugin is gemaakt voor andere bordjes dan dat van {screen}.",
         "psram": "Deze plugin heeft een bordje met PSRAM nodig, en {screen} heeft dat niet.",
         "firmware": "{screen} heeft eerst een firmware-update nodig voordat deze plugin erop kan.",
         "flash": "{screen} heeft nog ruimte voor ongeveer {kb} KB, en deze plugin is groter.",
-        "pins": "{screen} heeft geen vrije pin die deze plugin kan gebruiken."
+        "pins": "{screen} heeft geen vrije pin die deze plugin kan gebruiken.",
+        "blocked": "Deze versie van de plugin is geblokkeerd: hij is schadelijk of kapot."
       },
       "none_installed": "Nog geen plugins op dit scherm.",
       "none_found": "Geen plugin gevonden voor “{query}”.",
@@ -3010,7 +3030,8 @@
       "setup": {
         "on_screen": "{label} op {screen}",
         "choose_pin": "Kies een pin",
-        "part_kb": "{kb} KB extra"
+        "part_kb": "{kb} KB extra",
+        "secret_set": "Ingesteld. Vul een nieuwe in om hem te vervangen."
       },
       "readme": {
         "title": "Lees mij",
@@ -3025,7 +3046,13 @@
         "copy": "Regel kopiëren",
         "done": "Ik heb hem toegevoegd",
         "file": "Wat Tessera in {file} zet"
-      }
+      },
+      "folder_note": "Maak je een plugin? Zet zijn map in {path}, dan verschijnt hij hier als test.",
+      "folder_error": "De map {folder} is nog geen plugin: {why}",
+      "rebuild": "Opnieuw bouwen",
+      "failed": "De firmware voor {screen} bouwde niet met deze plugin. Het log staat onder Firmware & USB.",
+      "retry": "Opnieuw proberen",
+      "privacy": "Privacy"
     },
     "plugin_tile": {
       "from": "Een tegel van de plugin {plugin}",

@@ -548,6 +548,9 @@
       "home": "Dom",
       "other": "Inne",
       "no_power": "Brak czujników mocy w ustawieniach energii Home Assistant"
+    },
+    "plugin": {
+      "missing": "Brak wtyczki"
     }
   },
   "addon": {
@@ -796,6 +799,18 @@
         "not_allowed": "Home Assistant nie pozwala tej aplikacji zmieniać swoich integracji. Zrób to w samym Home Assistant, w sekcji Ustawienia → Urządzenia oraz usługi.",
         "no_entry": "Home Assistant nie ma tego ekranu jako urządzenia ESPHome.",
         "failed": "Home Assistant tego nie przyjął. W Home Assistant otwórz Ustawienia → Urządzenia oraz usługi → ESPHome, wybierz ten ekran, potem Konfiguruj, i włącz „Zezwalaj urządzeniu na wykonywanie akcji Home Assistant”."
+      },
+      "plugins": {
+        "request": "To żądanie wtyczki jest niekompletne.",
+        "unknown": "Nie ma wtyczki {id}.",
+        "misfit_api": "{name} napisano dla innego API wtyczek niż API tej aplikacji.",
+        "misfit_board": "{name} jest przeznaczona dla innych płytek.",
+        "misfit_psram": "{name} wymaga płytki z PSRAM.",
+        "misfit_blocked": "{name} jest zablokowana: ta wersja jest szkodliwa lub uszkodzona.",
+        "requires": "{name} wymaga najpierw wtyczki {other} na tym ekranie.",
+        "firmware": "Firmware tego ekranu nie zna jeszcze wtyczek. Zaktualizuj go, a pojawią się kafelki wtyczki.",
+        "file": "Plik wtyczek jest nieprawidłowy.",
+        "other_include": "YAML tego ekranu ma już inny include tessera_plugins."
       }
     },
     "status": {
@@ -1191,6 +1206,8 @@
         "briefcase": "Praca",
         "car": "Samochód",
         "bike": "Rower",
+        "bus": "Autobus",
+        "train": "Pociąg",
         "airplane": "Wakacje",
         "map_marker": "Lokalizacja",
         "power": "Wł./wył.",
@@ -1310,6 +1327,7 @@
       "copy": "Kopiuj"
     },
     "nav": {
+      "plugins": "Wtyczki",
       "new_screen": "Nowy ekran",
       "firmware": "Firmware i USB",
       "alerts": "Alerty",
@@ -1464,6 +1482,7 @@
       "identified": "{name} miga i przez kilka sekund pokazuje kartę.",
       "offline": "Offline · zmiany są zapisywane",
       "tabs": {
+        "plugins": "Wtyczki",
         "layout": "Układ",
         "settings": "Ustawienia ekranu"
       },
@@ -1536,6 +1555,7 @@
       }
     },
     "library": {
+      "plugins": "Wtyczki",
       "title": "Biblioteka",
       "entities": "{n} encja | {n} encje | {n} encji",
       "search": "Szukaj po nazwie, urządzeniu lub obszarze…",
@@ -1578,6 +1598,203 @@
       "resize": "Przeciągnij, aby zmienić rozmiar biblioteki",
       "filter_label": "Filtruj według typu",
       "no_room": "Bez pomieszczenia"
+    },
+    "plugins": {
+      "title": "Wtyczki",
+      "intro": "Dodatki do Twoich ekranów: sprzęt na płytce albo coś, co ekran może robić dodatkowo. Wtyczka jest wbudowywana w firmware ekranu, więc dla każdego ekranu wybierasz, które dostanie.",
+      "example": "Przykładowe wtyczki: prawdziwa lista pojawi się wraz z indeksem wtyczek",
+      "search": "Szukaj po nazwie, autorze lub funkcji",
+      "filter": "Pokaż",
+      "filters": {
+        "all": "Wszystkie",
+        "tessera": "Od Tessera",
+        "community": "Społeczność",
+        "in_use": "W użyciu"
+      },
+      "from_tessera": "Od Tessera",
+      "by": "Autor: {maker}",
+      "label": {
+        "tessera": "Od Tessera",
+        "community": "Społeczność",
+        "test": "Test"
+      },
+      "state": {
+        "building": "Kompilowanie…",
+        "installed": "Zainstalowana",
+        "update": "Aktualizacja {version}",
+        "test_on": "Test na {name}",
+        "updates": "Aktualizacja na {n} ekranie | Aktualizacja na {n} ekranach | Aktualizacja na {n} ekranach",
+        "on_screens": "Na {n} ekranie | Na {n} ekranach | Na {n} ekranach",
+        "fits_none": "Nie pasuje do żadnego z Twoich ekranów",
+        "failed": "Kompilacja nie powiodła się"
+      },
+      "source": {
+        "link": "Z linku",
+        "branch": "Test z gałęzi",
+        "folder": "Test z folderu"
+      },
+      "misfit_short": {
+        "board": "Nie dla tej płytki",
+        "psram": "Wymaga PSRAM",
+        "firmware": "Wymaga nowszego firmware",
+        "flash": "Za duża dla tego ekranu",
+        "pins": "Brak wolnego pinu",
+        "blocked": "Zablokowana"
+      },
+      "misfit": {
+        "board": "Ta wtyczka jest przeznaczona dla innych płytek niż płytka ekranu {screen}.",
+        "psram": "Ta wtyczka wymaga płytki z PSRAM, a {screen} jej nie ma.",
+        "firmware": "{screen} potrzebuje aktualizacji firmware, zanim przyjmie tę wtyczkę.",
+        "flash": "{screen} ma miejsce na około {kb} KB więcej, a ta wtyczka jest większa.",
+        "pins": "{screen} nie ma wolnego pinu, którego ta wtyczka mogłaby użyć.",
+        "blocked": "Ta wersja wtyczki jest zablokowana: wiadomo, że jest szkodliwa lub uszkodzona."
+      },
+      "none_installed": "Na tym ekranie nie ma jeszcze wtyczek.",
+      "none_found": "Żadna wtyczka nie pasuje do „{query}”.",
+      "make": "Tworzysz własną wtyczkę?",
+      "template": "Zacznij od szablonu",
+      "version": "wersja {version}",
+      "kind": {
+        "hardware": "Sprzęt",
+        "behaviour": "Funkcja"
+      },
+      "attribute": {
+        "cloud": "Korzysta z usługi w chmurze",
+        "commercial": "Komercyjna",
+        "ai-developed": "Stworzona z pomocą AI",
+        "experimental": "Eksperymentalna"
+      },
+      "test_note": "Test: każda kompilacja bierze najnowszą wersję, a Tessera nie oferuje dla niej aktualizacji.",
+      "remove": "Usuń z {screen}",
+      "building": "Kompilowanie firmware dla {screen}…",
+      "installed_on": "Na {screen}, wersja {version}",
+      "update": "Zaktualizuj do {version}",
+      "trust": {
+        "title": "Ufam temu autorowi",
+        "text": "Tessera nie sprawdziła tej wtyczki. Działa ona na Twoim ekranie i może robić to, co ekran może robić w Home Assistant."
+      },
+      "install": "Dodaj do {screen}",
+      "adds": {
+        "title": "Co dodaje",
+        "tile": "Kafelek „{name}”",
+        "tile_sizes": "Od {min} do {max} na stronie",
+        "tap": "Akcja po dotknięciu „{name}”",
+        "tap_on": "Na kafelkach {domains}",
+        "card": "Własny widok na ekranie",
+        "settings": "Ustawienia",
+        "settings_where": "Na stronie ustawień ekranu i w Ustawieniach ekranu",
+        "inputs": "Piny i nazwy, które sam wybierasz",
+        "ha_package": "Pakiet dla Home Assistant",
+        "ha_package_why": "Instalowany raz w Home Assistant; edytor udostępnia go do pobrania"
+      },
+      "may": {
+        "title": "Co może robić",
+        "ha": "Używa tych poleceń Home Assistant",
+        "ha_none": "Nie wykonuje żadnych akcji w Home Assistant",
+        "network": "Łączy się z {hosts}",
+        "network_none": "Nie łączy się z niczym poza Home Assistant",
+        "read": "Odczytuje te encje z Home Assistant"
+      },
+      "warning": "Wtyczka działa na Twoim ekranie z pełnym dostępem do niego, także do jego Wi-Fi i akcji, które ekran może wykonywać w Home Assistant. Dodawaj tylko wtyczki od autorów, którym ufasz, albo najpierw przeczytaj kod.",
+      "room": {
+        "title": "Miejsce na {screen}",
+        "small": "{kb} KB więcej: firmware zajmie {after} zamiast {before} swojego miejsca.",
+        "large": "{kb} KB, z dużym zapasem w miejscu, które ma ten ekran.",
+        "title_all": "Miejsce",
+        "per_screen": "{kb} KB na każdym ekranie, na który trafi. Przy płytce z 4 MB widać tutaj, czy jest na nią miejsce."
+      },
+      "works": {
+        "title": "Działa na:",
+        "any": "każdej płytce",
+        "any_psram": "każdej płytce z PSRAM"
+      },
+      "source_code": "Kod źródłowy",
+      "issues": "Zgłoś problem",
+      "example_install": "Przykład: {name} na {screens}. Z indeksem wtyczek Tessera wpisuje ją do YAML każdego ekranu i kompiluje.",
+      "removed": "Usunięto {name} z {screens}. Ekran straci ją przy następnej kompilacji.",
+      "add_link": "Dodaj przez link",
+      "link": {
+        "title": "Dodaj przez link",
+        "intro": "Wtyczka, której nie ma na liście, albo taka, którą tworzysz. Tessera najpierw czyta jej opis i mówi, czy pasuje, zanim cokolwiek zostanie skompilowane.",
+        "sources": {
+          "link": "Wydanie",
+          "branch": "Testuj gałąź",
+          "folder": "Testuj folder"
+        },
+        "url": "Link do GitHuba",
+        "branch": "Gałąź",
+        "folder": "Folder na tym komputerze",
+        "hints": {
+          "link": "Tessera bierze najnowsze wydanie i utrzymuje na nim ekran. Nowe wydanie pojawia się jako aktualizacja.",
+          "branch": "Każda kompilacja bierze najnowszy commit tej gałęzi. Do testowania, nie na co dzień.",
+          "folder": "Dla wtyczki, którą tworzysz: zapisz, a następna kompilacja ją uwzględni. Folder znajduje się w konfiguracji Home Assistant."
+        },
+        "fetch": "Odczytaj wtyczkę",
+        "test": "Dodaj do {screen} jako test",
+        "example": "Przykład: z indeksem wtyczek Tessera odczytuje opis wtyczki z tego linku.",
+        "not_found": "Pod tym linkiem nie ma opisu wtyczki.",
+        "on_screen": "Na ekranie"
+      },
+      "none_in_use": "Żaden z Twoich ekranów nie ma jeszcze wtyczki.",
+      "screen_update": "Wersja {from}, aktualizacja do {to}",
+      "screen_version": "Wersja {version}",
+      "on_screens": "Na których ekranach",
+      "apply": {
+        "add": "Dodaj do {n} ekranu | Dodaj do {n} ekranów | Dodaj do {n} ekranów",
+        "remove": "Usuń z {n} ekranu | Usuń z {n} ekranów | Usuń z {n} ekranów",
+        "both": "Zastosuj na {n} ekranie | Zastosuj na {n} ekranach | Zastosuj na {n} ekranach",
+        "none": "Zastosuj"
+      },
+      "update_all": "Zaktualizuj {n} ekran do {version} | Zaktualizuj {n} ekrany do {version} | Zaktualizuj {n} ekranów do {version}",
+      "tab": {
+        "intro": "Wtyczki, których używa {screen}, i co jeszcze można dodać. Każda zmiana kompiluje nowy firmware dla tego ekranu.",
+        "all": "Wszystkie wtyczki",
+        "here": "Na tym ekranie",
+        "add": "Dodaj",
+        "misfits": "Nie pasuje do tego ekranu ({n}) | Nie pasują do tego ekranu ({n}) | Nie pasują do tego ekranu ({n})"
+      },
+      "pending": {
+        "add": "Zostanie dodana po zastosowaniu",
+        "remove": "Zostanie usunięta po zastosowaniu"
+      },
+      "setup": {
+        "on_screen": "{label} na {screen}",
+        "choose_pin": "Wybierz pin",
+        "part_kb": "{kb} KB więcej",
+        "secret_set": "Ustawiono. Wpisz nową wartość, aby ją zastąpić."
+      },
+      "readme": {
+        "title": "Przeczytaj",
+        "package": "Pobierz pakiet dla Home Assistant",
+        "package_example": "Przykład: z indeksem wtyczek Tessera pobiera pakiet z wtyczki."
+      },
+      "english_only": "Tylko po angielsku",
+      "build_note": "Kompilujesz w ESPHome Device Builder albo na innym komputerze? Wtyczka jest w YAML ekranu; skompiluj go tam jak zawsze.",
+      "attach": {
+        "row": "Podłącz raz, w karcie ekranu",
+        "text": "{screen} jest kompilowany z własnego YAML. Dodaj do niego tę linię jeden raz; potem Tessera trzyma jego wtyczki we własnym pliku, a ESPHome Device Builder kompiluje je jak zawsze, także po aktualizacji.",
+        "copy": "Kopiuj linię",
+        "done": "Gotowe, dodano",
+        "file": "Co Tessera zapisuje w {file}"
+      },
+      "folder_note": "Tworzysz wtyczkę? Umieść jej folder w {path}, a pojawi się tutaj jako test.",
+      "folder_error": "Folder {folder} nie jest jeszcze wtyczką: {why}",
+      "rebuild": "Skompiluj ponownie",
+      "failed": "Firmware dla {screen} nie skompilował się z tą wtyczką. Log znajdziesz w sekcji „Firmware i USB”.",
+      "retry": "Spróbuj ponownie",
+      "privacy": "Prywatność"
+    },
+    "plugin_tile": {
+      "from": "Kafelek wtyczki {plugin}",
+      "details": "Szczegóły wtyczki",
+      "options": "Opcje",
+      "choose": "Wybierz…",
+      "less": "Mniej",
+      "more": "Więcej",
+      "from_fetch": "Opcje pochodzą z własnego źródła danych wtyczki, przez Tessera.",
+      "on_screen": "Na ekranie",
+      "sizes": "Od {min} do {max}; przeciągnij krawędź kafelka, aby zmienić jego rozmiar.",
+      "placeholder": "Edytor pokazuje symbol zastępczy: to, co rysuje wtyczka, widać na samym ekranie."
     },
     "memory": {
       "label": "Pamięć na kafelki",

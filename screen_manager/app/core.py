@@ -1,5 +1,6 @@
 """Pure validation, firmware generation and bounded display protocol."""
 import base64
+from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
@@ -121,6 +122,18 @@ def set_channel(channel):
 def channel():
     """'main', 'dev', or None when this app was not added from this repository."""
     return CHANNEL
+
+# A copy of the app installed from a local folder (its slug starts with local_): someone working on Tessera itself.
+LOCAL_APP = False
+
+def set_local(slug):
+    global LOCAL_APP
+    LOCAL_APP = isinstance(slug, str) and slug.startswith('local_')
+
+def plugins_enabled():
+    """Plugins (docs/PLUGINS.md) are on dev while their API is 0.x: for an app added from the `#dev` URL, a local copy of
+    the app, and the editor's development server. The stable app shows nothing of them."""
+    return os.environ.get('SCREEN_EDITOR_ENV') == 'development' or CHANNEL == 'dev' or LOCAL_APP
 
 def ref():
     """The branch a screen of this app builds from: its channel, else main."""
@@ -778,6 +791,11 @@ def tile_cost(tile, memory):
     sizes the screen gave in its hello (page_delivery.memory_of). The screen counts the same way (tile_memory::cost), and
     so does the editor (web/src/model/memory.ts): tests/fixtures/memory-conformance.json holds the cases."""
     entity = str(tile.get('entity', ''))
+    if plugin_tile(entity):
+        # A plugin's tile costs what its manifest says (plugin_host::bytes on the screen), and keeps its options and
+        # data as extras.
+        cost = PLUGIN_MEMORY.get(entity, PLUGIN_PLACEHOLDER_BYTES)
+        return cost + (0 if memory['psram'] else memory['tile'] + memory['extra'])
     entry = catalogue.CARD_MEMORY.get(entity) or catalogue.MEMORY.get(entity.split('.', 1)[0], catalogue.DEAREST)
     options = tile.get('options') or {}
     action = options.get('tap') == 'action'
@@ -1017,6 +1035,43 @@ def validate_settings(data):
     if max(clean['standby_brightness'], clean['night_brightness']) > clean['brightness']:
         raise ValueError(t('addon.errors.settings.dim_above_normal'))
     return clean
+
+# A tile of a plugin (docs/PLUGINS.md): plugin:<plugin>.<tile>. Not an entity: entity_id() stays for Home Assistant's own
+# ids, which commands and events use; a layout takes either.
+PLUGIN_TILE = re.compile(r'^plugin:([a-z][a-z0-9_]{0,31})\.([a-z][a-z0-9_]{0,31})$')
+# What a plugin tile may carry: its size, colour, icon, whether a tap reaches it, and its own options (`plugin`, the
+# manifest's options; checked against the manifest where the screen is known, plugins.check_tile).
+PLUGIN_TILE_OPTIONS = {'size', 'background', 'icon', 'tap', 'plugin'}
+PLUGIN_OPTION_MAX = 12
+PLUGIN_TEXT_MAX = 64
+# What a tile of a plugin the screen does not have costs (plugin_host::PLACEHOLDER_BYTES in the firmware).
+PLUGIN_PLACEHOLDER_BYTES = 64
+# What each plugin tile type the app knows costs, from its manifest's `memory` (plugins.Plugins keeps it up to date).
+PLUGIN_MEMORY = {}
+
+
+def plugin_tile(value):
+    """(plugin, tile) for a plugin tile's entity, else None."""
+    match = PLUGIN_TILE.match(value) if isinstance(value, str) else None
+    return (match.group(1), match.group(2)) if match else None
+
+
+def plugin_options(value):
+    """A plugin tile's own options in their stored shape: at most 12, each a short text, a number or true/false."""
+    if not isinstance(value, dict) or len(value) > PLUGIN_OPTION_MAX:
+        return False
+    for key, item in value.items():
+        if not isinstance(key, str) or not re.fullmatch(r'[a-z][a-z0-9_]{0,31}', key):
+            return False
+        if isinstance(item, str):
+            if len(item) > PLUGIN_TEXT_MAX:
+                return False
+        elif isinstance(item, bool) or (isinstance(item, (int, float)) and math.isfinite(item)):
+            continue
+        else:
+            return False
+    return True
+
 
 def entity_id(value):
     if not (isinstance(value, str) and len(value) <= 120 and re.fullmatch(r'[a-z0-9_]+\.[a-z0-9_]+', value)):
@@ -1685,7 +1740,7 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
         raise ValueError(t('addon.errors.layout.tiles_max', n=most))
     clean, seen = [], set()
     for tile in tiles:
-        if not isinstance(tile, dict) or not entity_id(tile.get('entity')):
+        if not isinstance(tile, dict) or not (entity_id(tile.get('entity')) or plugin_tile(tile.get('entity'))):
             raise ValueError(t('addon.errors.layout.unsupported'))
         # A navigation tile goes to a page the screen has: eight, or what its board takes (firmware 0.34.0+).
         if page_target(tile['entity']) > (grid.pages if grid else FIRMWARE_MAX_PAGES):
@@ -1712,6 +1767,25 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
                 item['options'] = dict(tile['options']) if isinstance(tile['options'], dict) else {}
                 clean.append(item)
                 continue
+        if plugin_tile(tile['entity']):
+            # A plugin's tile (docs/PLUGINS.md): its plugin decides what it shows; here only the shape of what it keeps.
+            options = tile.get('options', {})
+            if not isinstance(options, dict) or set(options) - PLUGIN_TILE_OPTIONS or is_key(tile):
+                raise ValueError(t('addon.errors.layout.unknown_settings'))
+            if 'plugin' in options and not plugin_options(options['plugin']):
+                raise ValueError(t('addon.errors.layout.invalid_setting', setting='plugin'))
+            if 'size' in options and not is_size(options['size']):
+                raise ValueError(t('addon.errors.layout.invalid_setting', setting='size'))
+            if 'tap' in options and options['tap'] not in ('auto', 'none'):
+                raise ValueError(t('addon.errors.layout.invalid_setting', setting='tap'))
+            if 'background' in options and (not isinstance(options['background'], str) or options['background'] not in TILE_BACKGROUNDS):
+                raise ValueError(t('addon.errors.layout.background'))
+            if 'icon' in options and not (options['icon'] == 'auto' or isinstance(options['icon'], str) and options['icon'] in tile_icons.ICONS):
+                raise ValueError(t('addon.errors.choose_icon'))
+            if options:
+                item['options'] = deepcopy(options)
+            clean.append(item)
+            continue
         if 'options' in tile:
             options = tile['options']
             if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon', 'controls', 'action', 'refresh', 'sub', 'fit', 'overlay', 'guard', *MAP_OWN, *FAVORITE_OWN}:

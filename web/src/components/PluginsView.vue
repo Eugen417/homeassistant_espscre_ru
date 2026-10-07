@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // Plugins (design for the plugins proposal): every plugin there is, and on which of your screens it is. A plugin lives
 // in a screen's firmware, so this page does not install anything for "the app": its details tick the screens it goes
-// on, greyed out where it does not fit. A screen's own Plugins tab does the same for that one screen. Until the add-on
-// serves the index the page shows an example one and says so.
+// on, greyed out where it does not fit. A screen's own Plugins tab does the same for that one screen. The list is the
+// add-on's: the plugin index, and the plugins someone is making in a folder of Home Assistant's config (a test).
 import { computed, ref } from "vue";
 import { t } from "../i18n";
 import { text, type Plugin } from "../model/plugins";
@@ -41,7 +41,7 @@ function close() { panel.value = null; openId.value = null; }
       <span class="setup-brand">{{ t("editor.plugins.title") }}</span>
       <span class="setup-steps-spacer"></span>
       <div class="plugins-head-actions">
-        <button type="button" class="btn quiet" id="plugin-add-link" :aria-pressed="panel === 'link'" @click="panel = 'link'; openId = null"><Icon name="link-variant" />{{ t("editor.plugins.add_link") }}</button>
+        <button v-if="plugins.example" type="button" class="btn quiet" id="plugin-add-link" :aria-pressed="panel === 'link'" @click="panel = 'link'; openId = null"><Icon name="link-variant" />{{ t("editor.plugins.add_link") }}</button>
         <button type="button" class="icon-btn" id="close-plugins" :aria-label="t('editor.common.close')" :title="t('editor.common.close')" @click="go('')"><Icon name="close" /></button>
       </div>
     </header>
@@ -63,8 +63,10 @@ function close() { panel.value = null; openId.value = null; }
         </div>
         <p class="plugins-make">
           {{ t("editor.plugins.make") }}
-          <a href="https://github.com/MaxGramser/tessera-plugin-template" target="_blank" rel="noopener">{{ t("editor.plugins.template") }}</a>
+          <a href="https://github.com/MaxGramser/tessera-plugins/tree/main/template" target="_blank" rel="noopener">{{ t("editor.plugins.template") }}</a>
         </p>
+        <p v-if="!plugins.example && plugins.folders.path" class="plugins-make" id="plugins-folder">{{ t("editor.plugins.folder_note", { path: plugins.folders.path }) }}</p>
+        <p v-for="(why, folder) in plugins.folders.errors" :key="folder" class="pd-misfit plugins-folder-error"><Icon name="information-outline" />{{ t("editor.plugins.folder_error", { folder, why }) }}</p>
       </section>
 
       <Transition name="drawer">

@@ -315,6 +315,7 @@ esphome:
           effects_page::now = []() { return (uint32_t) millis(); };
           runtime_tiles::options_received = effects_page::received;
           ${BOOT_CARDS_TAIL}
+          plugin_host::ready();
       # The settings page the screen opens on its own (0.2.44+): the same values ESP Screen Manager
       # writes, reachable by holding the top bar. Fonts and hooks only; the page itself is built
       # when it opens and thrown away when it closes, so it costs nothing while it is closed.
@@ -348,6 +349,7 @@ esphome:
             // Sleep stays asked for: the screen restarts after the update, and a failed one dims again on its own time.
             id(display_dimmed) = false;
             id(last_touch_ms) = millis();
+            plugin_host::before_update();
             runtime_tiles::saver_wake();
             lv_obj_add_flag(id(dim_wake_overlay), LV_OBJ_FLAG_HIDDEN);
             ${OTA_BACKLIGHT}
@@ -673,6 +675,9 @@ api:
                     // battery (firmware 0.41.0): this screen has a battery sensor (runtime_tiles::find_battery), so the
                     // top bar can show it; a screen without one never says so, and ESP Screens does not offer the item.
                     if (battery_status::level) features.add("battery");
+                    // The plugin API this firmware offers and the plugins built into it, with their tile types
+                    // (docs/PLUGINS.md): ESP Screens says which plugins a screen runs from this.
+                    plugin_host::hello(root);
                     auto sizes = root["tile_sizes"].to<JsonArray>();
                     for (const auto &size : page_protocol::TILE_SIZES)
                       if (size.fits(runtime_tiles::grid.columns, runtime_tiles::grid.rows)) sizes.add(size.name);
@@ -697,6 +702,7 @@ interval:
     then:
       - lambda: |-
           runtime_tiles::tick();
+          plugin_host::tick(millis(), id(display_dimmed));
           ${TICK_HOOK}
   - interval: 1s
     then:
@@ -1131,6 +1137,8 @@ font:
       - "\U000F00D6" # briefcase
       - "\U000F010B" # car
       - "\U000F00A3" # bike
+      - "\U000F00E7" # bus
+      - "\U000F052C" # train
       - "\U000F001D" # airplane
       - "\U000F034E" # map-marker
       - "\U000F0425" # power

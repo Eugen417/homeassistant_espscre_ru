@@ -7,6 +7,7 @@ The document revision used for saving is separate from this content revision.
 import asyncio
 from copy import deepcopy
 import json
+import re
 
 from core import (ENTITY_REPEAT_MIN_FIRMWARE, FIRMWARE_MAX_BAR_ITEMS, FIRMWARE_MAX_PAGES, FIRMWARE_MAX_TILES, FREE_PAGES_MIN_FIRMWARE,
                   NIGHTSTAND_MIN_FIRMWARE, STORE_MAX_BAR_ITEMS, STORE_MAX_PAGES, STORE_MAX_TILES, is_key, repeated_entities)
@@ -143,6 +144,23 @@ def prepare(inbox, record, region, values, bars):
     return begin, initial_tiles, initial_bars, live_values
 
 
+def plugins_of(answer):
+    """The plugin API and plugins of a hello (docs/PLUGINS.md): ("0.1", [{"id", "version", "tiles"}]), or (None, [])."""
+    api = answer.get("plugin_api") if isinstance(answer, dict) else None
+    if not isinstance(api, str) or not re.fullmatch(r"\d+\.\d+", api):
+        return None, []
+    plugins = []
+    for item in answer.get("plugins") or []:
+        if not isinstance(item, dict) or not isinstance(item.get("id"), str) or not re.fullmatch(r"[a-z][a-z0-9_]{0,31}", item["id"]):
+            continue
+        tiles = [tile for tile in item.get("tiles") or [] if isinstance(tile, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,31}", tile)]
+        version = item.get("version") if isinstance(item.get("version"), str) else ""
+        plugins.append({"id": item["id"], "version": version[:16], "tiles": tiles[:8]})
+        if len(plugins) == 16:
+            break
+    return api, plugins
+
+
 def ceiling_of(value, most):
     """A ceiling from a hello (firmware 0.34.0+): a whole number from 1 to `most`, or None for anything else."""
     return value if type(value) is int and 1 <= value <= most else None
@@ -196,6 +214,9 @@ class Sender:
         self.tile_repeats = False
         self.free_pages = False
         self.features = set()
+        # The plugin API the firmware offers and the plugins built into it (docs/PLUGINS.md): None and [] for a firmware
+        # without plugins, which refuses a plugin's tile.
+        self.plugin_api, self.plugins = None, []
         # This screen's own ceilings and memory (firmware 0.34.0+): None while it has not said, and the last ones it said
         # for editing while it is offline (page_capabilities keeps them across restarts of the app).
         self.max_tiles = self.max_pages = self.max_bar_items = self.memory = None
@@ -212,6 +233,7 @@ class Sender:
         self.tile_repeats = False
         self.free_pages = False
         self.features = set()
+        self.plugin_api, self.plugins = None, []
         self.max_tiles = self.max_pages = self.max_bar_items = self.memory = None
         self.structure, self.appearance = None, None
         self.phase = "waiting"
@@ -248,6 +270,8 @@ class Sender:
             # and none of its own here. climate_range: a thermostat's range on its -/+. The older flags above stay.
             listed = answer.get("features")
             self.features = {name for name in listed if isinstance(name, str)} if isinstance(listed, list) else set()
+            # Plugins (docs/PLUGINS.md): the API it offers ("0.1") and what it runs, [{id, version, tiles}].
+            self.plugin_api, self.plugins = plugins_of(answer)
             # Its own ceilings and the memory its tiles may take (firmware 0.34.0+): 64 tiles over eight pages when it says
             # nothing (core.Grid), and no memory check at all.
             self.max_tiles = ceiling_of(answer.get("max_tiles"), STORE_MAX_TILES)
@@ -345,6 +369,10 @@ class Sender:
                         raise Refused(english('addon.errors.layout.firmware_first', version='.'.join(map(str, NIGHTSTAND_MIN_FIRMWARE))))
                     if not self.tile_repeats and repeated_entities(initial_tiles):
                         raise Refused(english('addon.errors.layout.firmware_first', version='.'.join(map(str, ENTITY_REPEAT_MIN_FIRMWARE))))
+                    # A plugin's tile goes only to a screen that offers the plugin API; one without the plugin itself draws
+                    # it as a plain card that says so (plugin_host.h), which is never an error.
+                    if not self.plugin_api and any(message.get("entity", "").startswith("plugin:") for message in initial_tiles):
+                        raise Refused(english('addon.errors.plugins.firmware'))
                     if not self.free_pages and begin["pages"] > grid_of_record(record).legacy_pages:
                         raise Refused(english('addon.errors.layout.firmware_first', version='.'.join(map(str, FREE_PAGES_MIN_FIRMWARE))))
                     # Past this screen's own ceilings (64 and eight when it says none): refused here, before a begin the

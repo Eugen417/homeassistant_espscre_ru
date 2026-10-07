@@ -1,10 +1,11 @@
 <script setup lang="ts">
 // A plugin's tile in the inspector (design, docs: the plugins proposal): its name, the options its manifest lists, drawn
-// with the inspector's own rows, and the sizes it takes. A choice can come from one of the plugin's fetches (a bus line
-// from the transport API); until the add-on runs fetches, example answers stand in.
+// with the inspector's own rows, and the sizes it takes. A choice can come from one of the plugin's fetches (the lines of
+// a stop): the add-on asks the plugin's service with the tile's other options and hands back only the choices.
 import { computed } from "vue";
 import { editorLanguage, languageMarks, numberText, t } from "../i18n";
-import { choicesOf, pluginDefaults, pluginTileOf, text, type PluginTileOption } from "../model/plugins";
+import { pluginDefaults, pluginTileOf, text, type PluginTileOption } from "../model/plugins";
+import { choicesFor } from "../plugin-state";
 import { glyph } from "../model/topbar";
 import { closeInspector, removeTile, setTileName, setTileOption, state } from "../store";
 import type { Tile } from "../types";
@@ -21,7 +22,7 @@ const values = computed(() => ({ ...pluginDefaults(kind.value.tile), ...(props.t
 function set(option: PluginTileOption, value: string | number | boolean) {
   setTileOption(props.tile, "plugin", { ...(props.tile.options?.plugin || {}), [option.id]: value });
 }
-const choices = (option: PluginTileOption) => choicesOf(kind.value.plugin, option).map((choice) => [choice.value, text(choice.label)] as [string, string]);
+const choices = (option: PluginTileOption) => choicesFor(kind.value.plugin, option, values.value).map((choice) => [choice.value, text(choice.label)] as [string, string]);
 const fromFetch = (option: PluginTileOption) => Boolean(option.options_from);
 const size = (value: string) => value.replace("x", "×");
 const number = (value: number) => numberText(value, languageMarks(editorLanguage()));

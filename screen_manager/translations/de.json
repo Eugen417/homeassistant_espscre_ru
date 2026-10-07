@@ -548,6 +548,9 @@
       "home": "Zuhause",
       "other": "Andere",
       "no_power": "Keine Leistungssensoren in den Energie-Einstellungen von Home Assistant"
+    },
+    "plugin": {
+      "missing": "Plugin fehlt"
     }
   },
   "addon": {
@@ -796,6 +799,18 @@
         "not_allowed": "Home Assistant lässt diese App seine Integrationen nicht ändern. Erledige es in Home Assistant selbst, unter Einstellungen → Geräte & Dienste.",
         "no_entry": "Home Assistant hat diesen Bildschirm nicht als ESPHome-Gerät.",
         "failed": "Home Assistant hat es nicht übernommen. Öffne in Home Assistant Einstellungen → Geräte & Dienste → ESPHome, wähle diesen Bildschirm, dann Konfigurieren, und schalte „Dem Gerät erlauben, Home Assistant-Aktionen auszuführen“ ein."
+      },
+      "plugins": {
+        "request": "Diese Plugin-Anfrage ist unvollständig.",
+        "unknown": "Es gibt kein Plugin {id}.",
+        "misfit_api": "{name} wurde für eine andere Plugin-API als die dieser App geschrieben.",
+        "misfit_board": "{name} ist für andere Boards gemacht.",
+        "misfit_psram": "{name} braucht ein Board mit PSRAM.",
+        "misfit_blocked": "{name} ist gesperrt: Diese Version ist schädlich oder defekt.",
+        "requires": "{name} braucht zuerst das Plugin {other} auf diesem Bildschirm.",
+        "firmware": "Die Firmware dieses Bildschirms kennt noch keine Plugins. Aktualisiere sie, dann erscheinen die Plugin-Kacheln.",
+        "file": "Die Plugin-Datei ist ungültig.",
+        "other_include": "Die YAML dieses Bildschirms hat schon ein anderes tessera_plugins-Include."
       }
     },
     "status": {
@@ -1191,6 +1206,8 @@
         "briefcase": "Arbeit",
         "car": "Auto",
         "bike": "Fahrrad",
+        "bus": "Bus",
+        "train": "Zug",
         "airplane": "Urlaub",
         "map_marker": "Ort",
         "power": "Ein/Aus",
@@ -1310,6 +1327,7 @@
       "copy": "Kopieren"
     },
     "nav": {
+      "plugins": "Plugins",
       "new_screen": "Neuer Bildschirm",
       "firmware": "Firmware & USB",
       "alerts": "Meldungen",
@@ -1464,6 +1482,7 @@
       "identified": "{name} blinkt und zeigt ein paar Sekunden lang eine Karte.",
       "offline": "Offline · Änderungen werden gespeichert",
       "tabs": {
+        "plugins": "Plugins",
         "layout": "Layout",
         "settings": "Bildschirmeinstellungen"
       },
@@ -1536,6 +1555,7 @@
       }
     },
     "library": {
+      "plugins": "Plugins",
       "title": "Bibliothek",
       "entities": "{n} Entität | {n} Entitäten",
       "search": "Nach Name, Gerät oder Bereich suchen…",
@@ -1578,6 +1598,203 @@
       "resize": "Ziehen, um die Bibliothek zu vergrößern oder zu verkleinern",
       "filter_label": "Nach Art filtern",
       "no_room": "Ohne Raum"
+    },
+    "plugins": {
+      "title": "Plugins",
+      "intro": "Extras für deine Bildschirme: Hardware auf dem Board oder etwas, das ein Bildschirm zusätzlich kann. Ein Plugin wird in die Firmware eines Bildschirms eingebaut, deshalb wählst du für jeden Bildschirm, welche er bekommt.",
+      "example": "Beispiel-Plugins: Die echte Liste kommt mit dem Plugin-Index",
+      "search": "Nach Name, Autor oder Funktion suchen",
+      "filter": "Zeigen",
+      "filters": {
+        "all": "Alle",
+        "tessera": "Von Tessera",
+        "community": "Community",
+        "in_use": "In Gebrauch"
+      },
+      "from_tessera": "Von Tessera",
+      "by": "Von {maker}",
+      "label": {
+        "tessera": "Von Tessera",
+        "community": "Community",
+        "test": "Test"
+      },
+      "state": {
+        "building": "Wird erstellt…",
+        "installed": "Installiert",
+        "update": "Update {version}",
+        "test_on": "Test auf {name}",
+        "updates": "Update auf {n} Bildschirm | Update auf {n} Bildschirmen",
+        "on_screens": "Auf {n} Bildschirm | Auf {n} Bildschirmen",
+        "fits_none": "Passt auf keinen deiner Bildschirme",
+        "failed": "Erstellen fehlgeschlagen"
+      },
+      "source": {
+        "link": "Über einen Link",
+        "branch": "Test aus einem Branch",
+        "folder": "Test aus einem Ordner"
+      },
+      "misfit_short": {
+        "board": "Nicht für dieses Board",
+        "psram": "Braucht PSRAM",
+        "firmware": "Braucht neuere Firmware",
+        "flash": "Zu groß für diesen Bildschirm",
+        "pins": "Kein freier Pin",
+        "blocked": "Gesperrt"
+      },
+      "misfit": {
+        "board": "Dieses Plugin ist für andere Boards gemacht als das von {screen}.",
+        "psram": "Dieses Plugin braucht ein Board mit PSRAM, und {screen} hat keinen.",
+        "firmware": "{screen} braucht zuerst ein Firmware-Update, erst dann kann dieses Plugin darauf.",
+        "flash": "{screen} hat noch Platz für etwa {kb} KB, und dieses Plugin ist größer.",
+        "pins": "{screen} hat keinen freien Pin, den dieses Plugin nutzen kann.",
+        "blocked": "Diese Version des Plugins ist gesperrt: Sie ist bekanntermaßen schädlich oder defekt."
+      },
+      "none_installed": "Noch keine Plugins auf diesem Bildschirm.",
+      "none_found": "Kein Plugin passt zu „{query}“.",
+      "make": "Du machst selbst ein Plugin?",
+      "template": "Mit der Vorlage beginnen",
+      "version": "Version {version}",
+      "kind": {
+        "hardware": "Hardware",
+        "behaviour": "Funktion"
+      },
+      "attribute": {
+        "cloud": "Nutzt einen Cloud-Dienst",
+        "commercial": "Kommerziell",
+        "ai-developed": "Mit KI gemacht",
+        "experimental": "Experimentell"
+      },
+      "test_note": "Ein Test: Jede Erstellung nimmt die neueste Version, und Tessera bietet dafür keine Updates an.",
+      "remove": "Von {screen} entfernen",
+      "building": "Die Firmware für {screen} wird erstellt…",
+      "installed_on": "Auf {screen}, Version {version}",
+      "update": "Auf {version} aktualisieren",
+      "trust": {
+        "title": "Ich vertraue diesem Autor",
+        "text": "Tessera hat dieses Plugin nicht geprüft. Es läuft auf deinem Bildschirm und kann alles, was der Bildschirm in Home Assistant darf."
+      },
+      "install": "Zu {screen} hinzufügen",
+      "adds": {
+        "title": "Was es hinzufügt",
+        "tile": "Kachel „{name}“",
+        "tile_sizes": "Von {min} bis {max} auf einer Seite",
+        "tap": "Tippaktion „{name}“",
+        "tap_on": "Auf Kacheln von {domains}",
+        "card": "Eine eigene Ansicht auf dem Bildschirm",
+        "settings": "Einstellungen",
+        "settings_where": "Auf der Einstellungsseite des Bildschirms und unter Bildschirmeinstellungen",
+        "inputs": "Pins und Namen, die du selbst wählst",
+        "ha_package": "Ein Paket für Home Assistant",
+        "ha_package_why": "Einmal in Home Assistant installieren; der Editor bietet den Download an"
+      },
+      "may": {
+        "title": "Was es darf",
+        "ha": "Nutzt diese Home Assistant-Befehle",
+        "ha_none": "Führt keine Aktionen in Home Assistant aus",
+        "network": "Verbindet sich mit {hosts}",
+        "network_none": "Baut keine Verbindungen außerhalb von Home Assistant auf",
+        "read": "Liest diese Entitäten aus Home Assistant"
+      },
+      "warning": "Ein Plugin läuft mit vollem Zugriff auf deinem Bildschirm, auch auf sein WLAN und die Aktionen, die er in Home Assistant ausführen darf. Füge nur Plugins von Autoren hinzu, denen du vertraust, oder lies zuerst den Code.",
+      "room": {
+        "title": "Platz auf {screen}",
+        "small": "{kb} KB mehr: Die Firmware belegt dann {after} statt {before} ihres Speicherplatzes.",
+        "large": "{kb} KB, gut innerhalb des Platzes, den dieser Bildschirm hat.",
+        "title_all": "Platz",
+        "per_screen": "{kb} KB auf jedem Bildschirm, auf den es kommt. Bei einem Board mit 4 MB steht hier, ob Platz dafür ist."
+      },
+      "works": {
+        "title": "Läuft auf:",
+        "any": "jedem Board",
+        "any_psram": "jedem Board mit PSRAM"
+      },
+      "source_code": "Quellcode",
+      "issues": "Problem melden",
+      "example_install": "Beispiel: {name} auf {screens}. Mit dem Plugin-Index schreibt Tessera es in die YAML jedes Bildschirms und erstellt die Firmware.",
+      "removed": "{name} von {screens} entfernt. Der Bildschirm verliert es mit der nächsten Erstellung.",
+      "add_link": "Mit Link hinzufügen",
+      "link": {
+        "title": "Mit einem Link hinzufügen",
+        "intro": "Ein Plugin, das nicht in der Liste steht, oder eines, das du selbst machst. Tessera liest zuerst seine Beschreibung und sagt, ob es passt, bevor etwas erstellt wird.",
+        "sources": {
+          "link": "Release",
+          "branch": "Branch testen",
+          "folder": "Ordner testen"
+        },
+        "url": "GitHub-Link",
+        "branch": "Branch",
+        "folder": "Ordner auf diesem Rechner",
+        "hints": {
+          "link": "Tessera nimmt das neueste Release und hält den Bildschirm darauf. Ein neues Release erscheint als Update.",
+          "branch": "Jede Erstellung nimmt den neuesten Commit dieses Branches. Zum Ausprobieren, nicht für jeden Tag.",
+          "folder": "Für ein Plugin, das du selbst machst: Speichern, und die nächste Erstellung nimmt es mit. Der Ordner liegt in der Konfiguration von Home Assistant."
+        },
+        "fetch": "Plugin lesen",
+        "test": "Als Test zu {screen} hinzufügen",
+        "example": "Beispiel: Mit dem Plugin-Index liest Tessera die Beschreibung des Plugins über diesen Link.",
+        "not_found": "Unter diesem Link gibt es keine Plugin-Beschreibung.",
+        "on_screen": "Auf Bildschirm"
+      },
+      "none_in_use": "Noch keiner deiner Bildschirme hat ein Plugin.",
+      "screen_update": "Version {from}, Update auf {to}",
+      "screen_version": "Version {version}",
+      "on_screens": "Auf welchen Bildschirmen",
+      "apply": {
+        "add": "Zu {n} Bildschirm hinzufügen | Zu {n} Bildschirmen hinzufügen",
+        "remove": "Von {n} Bildschirm entfernen | Von {n} Bildschirmen entfernen",
+        "both": "Auf {n} Bildschirm anwenden | Auf {n} Bildschirme anwenden",
+        "none": "Anwenden"
+      },
+      "update_all": "{n} Bildschirm auf {version} aktualisieren | {n} Bildschirme auf {version} aktualisieren",
+      "tab": {
+        "intro": "Die Plugins, die {screen} nutzt, und was noch dazukommen kann. Jede Änderung erstellt neue Firmware für diesen Bildschirm.",
+        "all": "Alle Plugins",
+        "here": "Auf diesem Bildschirm",
+        "add": "Hinzufügen",
+        "misfits": "Passt nicht auf diesen Bildschirm ({n}) | Passen nicht auf diesen Bildschirm ({n})"
+      },
+      "pending": {
+        "add": "Wird beim Anwenden hinzugefügt",
+        "remove": "Wird beim Anwenden entfernt"
+      },
+      "setup": {
+        "on_screen": "{label} auf {screen}",
+        "choose_pin": "Pin wählen",
+        "part_kb": "{kb} KB mehr",
+        "secret_set": "Gesetzt. Gib einen neuen Wert ein, um ihn zu ersetzen."
+      },
+      "readme": {
+        "title": "Lies mich",
+        "package": "Paket für Home Assistant herunterladen",
+        "package_example": "Beispiel: Mit dem Plugin-Index lädt Tessera das Paket aus dem Plugin herunter."
+      },
+      "english_only": "Nur auf Englisch",
+      "build_note": "Erstellst du mit ESPHome Device Builder oder auf einem anderen Computer? Das Plugin steht in der YAML des Bildschirms; erstelle ihn dort wie immer.",
+      "attach": {
+        "row": "Einmal verknüpfen, im Tab des Bildschirms",
+        "text": "{screen} wird aus seiner eigenen YAML erstellt. Füge diese Zeile einmal hinzu; danach führt Tessera seine Plugins in einer eigenen Datei, und ESPHome Device Builder erstellt sie wie immer, auch nach einem Update.",
+        "copy": "Zeile kopieren",
+        "done": "Ich habe sie hinzugefügt",
+        "file": "Was Tessera in {file} schreibt"
+      },
+      "folder_note": "Du machst ein Plugin? Leg seinen Ordner in {path}, dann erscheint es hier als Test.",
+      "folder_error": "Der Ordner {folder} ist noch kein Plugin: {why}",
+      "rebuild": "Neu erstellen",
+      "failed": "Die Firmware für {screen} ließ sich mit diesem Plugin nicht erstellen. Das Protokoll findest du unter Firmware & USB.",
+      "retry": "Noch einmal versuchen",
+      "privacy": "Datenschutz"
+    },
+    "plugin_tile": {
+      "from": "Eine Kachel des Plugins {plugin}",
+      "details": "Plugin-Details",
+      "options": "Optionen",
+      "choose": "Wählen…",
+      "less": "Weniger",
+      "more": "Mehr",
+      "from_fetch": "Die Auswahl kommt aus der eigenen Datenquelle des Plugins, über Tessera.",
+      "on_screen": "Auf dem Bildschirm",
+      "sizes": "Von {min} bis {max}; zieh an einem Rand der Kachel, um ihre Größe zu ändern.",
+      "placeholder": "Der Editor zeigt einen Platzhalter: Was das Plugin zeichnet, erscheint auf dem Bildschirm selbst."
     },
     "memory": {
       "label": "Speicher für Kacheln",

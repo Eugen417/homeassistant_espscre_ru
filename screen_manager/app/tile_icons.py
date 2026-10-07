@@ -167,6 +167,8 @@ GROUPS = (
         ('briefcase', 'F00D6', 'Work'),
         ('car', 'F010B', 'Car'),
         ('bike', 'F00A3', 'Bike'),
+        ('bus', 'F00E7', 'Bus'),
+        ('train', 'F052C', 'Train'),
         ('airplane', 'F001D', 'Vacation'),
         ('map-marker', 'F034E', 'Location'),
     )),
