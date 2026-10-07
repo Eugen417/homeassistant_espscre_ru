@@ -32,6 +32,12 @@ Thank you! I work on this project with a lot of love, and every bit of support h
 
 I lead Tessera's development and maintenance, with contributions from the community. Your support gives me more time to build, review and test improvements. A small monthly contribution or a one-time coffee is welcome.
 
+<p align="center">
+  <a href="https://discord.gg/M7x96AUzC"><img src="docs/images/discord-invite.svg" width="560" alt="Join the Tessera Discord server. Share your screen, ask a question and meet the community."></a>
+</p>
+
+<p align="center"><a href="https://discord.gg/M7x96AUzC"><b>Join the Discord server</b></a></p>
+
 <a href="https://buymeacoffee.com/f5j9jnkmhpv/membership"><img src="https://img.buymeacoffee.com/button-api/?text=Support%20monthly&emoji=&slug=f5j9jnkmhpv&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Support monthly" height="42"></a>
 &nbsp; or <a href="https://buymeacoffee.com/f5j9jnkmhpv">buy me a coffee once</a>
 
@@ -61,12 +67,6 @@ also be changed on the screen or by an automation, and your own YAML for one scr
 **[Install it](#installing-from-home-assistant)** · [The manual](https://tessera-maxgramser.on-forge.com/docs/) · [Pages](https://tessera-maxgramser.on-forge.com/docs/pages) · [Screen settings](https://tessera-maxgramser.on-forge.com/docs/screen-settings) · [Troubleshooting](https://tessera-maxgramser.on-forge.com/docs/troubleshooting) · [What's new](screen_manager/CHANGELOG.md)
 
 > **The manual is on the [Tessera website](https://tessera-maxgramser.on-forge.com/docs/):** from the [quick start](https://tessera-maxgramser.on-forge.com/docs/quick-start) to every tile, every screen setting, every supported screen and troubleshooting, with search. Anyone with a GitHub account can improve a page with **Edit this page**. This README is the overview; the files under `docs/` are the reference for contributors.
-
-<p align="center">
-  <a href="https://discord.gg/M7x96AUzC"><img src="docs/images/discord-invite.svg" width="560" alt="Join the Tessera Discord server. Share your screen, ask a question and meet the community."></a>
-</p>
-
-<p align="center"><a href="https://discord.gg/M7x96AUzC"><b>Join the Discord server</b></a></p>
 
 ## In real life
 
