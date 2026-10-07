@@ -4327,6 +4327,7 @@ def create_app(manager, development=False):
     if editor_features['plugins']:
         async def plugins_list(request):
             await manager.plugins.refresh_index(force=request.query.get('refresh') == '1')
+            await manager.plugins.refresh_links(force=request.query.get('refresh') == '1')
             return web.json_response(manager.plugins.payload(REQUEST_LANGUAGE.get()))
 
         async def plugins_apply(request):

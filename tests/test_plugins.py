@@ -182,6 +182,40 @@ class ReadWhole(unittest.IsolatedAsyncioTestCase):
             await plugin_service.read_whole(type('Response', (), {'content': Content([b'x' * 10, b'x' * 10])})(), 15)
 
 
+class Links(unittest.IsolatedAsyncioTestCase):
+    """A plugin added with a link follows its repository's releases: a new release is read and offered as an update,
+    the same one costs two calls of GitHub's API and nothing more, and nothing of it goes through Tessera."""
+
+    async def test_a_new_release_is_read_the_same_one_is_not(self):
+        import plugins as plugin_service
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        manager = type('Manager', (), {'page_senders': {}})()
+        service = plugin_service.Plugins(manager, Path(tmp.name) / 'data', Path(tmp.name) / 'esphome')
+        installed = plugin_service.Entry(manifest(), {'en': ENGLISH}, {}, 'link', 'community',
+                                         repo='https://github.com/someone/tessera-bus', path='.', ref='a' * 40)
+        service.keep_snapshot(installed)
+        service.store.put('kitchen', {'id': 'bus', 'version': '1.0.0', 'source': 'link', 'ref': 'a' * 40})
+        newest = {'sha': 'a' * 40}
+        asked, read = [], []
+
+        async def github(url, text=False):
+            asked.append(url)
+            return {'tag_name': 'v1.0.0'} if url.endswith('/releases/latest') else dict(newest)
+
+        async def resolve_link(url, branch=None, folder=None, path=None):
+            read.append((url, path))
+        service._github, service.resolve_link = github, resolve_link
+        await service.refresh_links(force=True)
+        self.assertEqual((len(asked), read), (2, []))
+        self.assertIs(service.links['bus'], installed)
+        newest['sha'] = 'b' * 40   # the maker published a release
+        await service.refresh_links()           # within the hour: nothing asked
+        self.assertEqual(len(asked), 2)
+        await service.refresh_links(force=True)
+        self.assertEqual(read, [('https://github.com/someone/tessera-bus', '.')])
+
+
 class Map(unittest.TestCase):
     ANSWER = {'30003025': {'passes': {
         'b': {'line': '7', 'to': 'Slotermeer', 'when': '2026-10-07T17:30:00', 'state': 'DRIVING'},

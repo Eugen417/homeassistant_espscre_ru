@@ -107,7 +107,9 @@ repository's `docs/FETCH.md`.
   (label Community), each pinned to a commit, read when the editor opens and at most every ten minutes (ETag).
 - **A link** (`POST api/plugins/link`): the newest release of any GitHub repository, pinned to its commit (Community,
   or Tessera for a repository of MaxGramser); a branch to test, which every build takes anew (`refresh: 0s`, Test); or
-  a folder in `tessera-plugins/` beside the ESPHome folder (Test).
+  a folder in `tessera-plugins/` beside the ESPHome folder (Test). A release added this way follows its repository:
+  `Plugins.refresh_links` asks for its newest release at most every hour and offers it as an update, so a maker
+  publishes a release and nothing goes through Tessera.
 - **An update** is a newer version in the index: the screen's Plugins tab and the Plugins page offer it, and the build
   queue takes the screens one by one. An update whose rights differ from what the person agreed to
   (`permission_hash`) waits for their yes in the editor; the add-on refuses it without (`consent`).

@@ -35,6 +35,9 @@ INDEX_URL = 'https://raw.githubusercontent.com/MaxGramser/tessera-plugins/main/i
 # How old the index may be before the next editor visit asks GitHub again: a conditional request (ETag) that costs
 # nothing when it did not change, so a new release shows as an update within minutes.
 INDEX_TTL = 10 * 60
+# How often a plugin added with a link asks its repository for a newer release: two calls of GitHub's API each time,
+# which allows 60 an hour to an app without a token.
+LINK_TTL = 60 * 60
 INDEX_MAX = 2 * 1024 * 1024
 INDEX_FORMAT = 1
 TESSERA_OWNER = 'https://github.com/MaxGramser/'
@@ -168,6 +171,7 @@ class Plugins:
         self.folder_errors = {}     # folder name -> what is wrong with it
         self.snapshots = {}         # (id, ref) -> Entry of an installed release
         self.links = {}             # id -> Entry added with a link (a release of any repository, or a branch to test)
+        self.links_checked = 0.0    # when refresh_links last asked for the linked repositories' newest releases
         self.jobs = {}              # inbox -> what its waiting or running build adds and removes, and its state
         self.queue = []             # the screens that wait for a build, in the order they were asked
         self.worker = None
@@ -336,10 +340,11 @@ class Plugins:
                 raise ValueError(t('addon.errors.plugins.link_not_found')) from None
             return raw.decode('utf-8', errors='replace') if text else json.loads(raw)
 
-    async def resolve_link(self, url, branch=None, folder=None):
+    async def resolve_link(self, url, branch=None, folder=None, path=None):
         """A plugin from a link, read before anything is built: the newest release of a GitHub repository (pinned to its
         commit), a branch to test (every build takes its newest commit), or a folder in tessera-plugins/. The editor
-        then shows its details like any plugin's."""
+        then shows its details like any plugin's. `path`: the plugin's folder in the repository, for a link without
+        one (refresh_links)."""
         if folder:
             self.scan_folders()
             name = Path(str(folder).rstrip('/')).name
@@ -351,8 +356,8 @@ class Plugins:
         match = GITHUB_LINK.match(str(url or '').strip())
         if not match:
             raise ValueError(t('addon.errors.plugins.link_invalid'))
-        owner, repo, tree_ref, path = match.groups()
-        path = (path or '.').strip('/') or '.'
+        owner, repo, tree_ref, path_in_link = match.groups()
+        path = (path or path_in_link or '.').strip('/') or '.'
         api = GITHUB_API.format(owner=owner, repo=repo)
         wanted = (branch or '').strip() or None
         if wanted and not re.fullmatch(r'[A-Za-z0-9_./-]{1,100}', wanted):
@@ -393,6 +398,34 @@ class Plugins:
         self.links[entry.id] = entry
         self._know_tiles()
         return entry
+
+    async def refresh_links(self, force=False):
+        """A plugin added with a link to a repository's release follows that repository: its newest release is asked
+        for at most every LINK_TTL, and the editor offers it as an update like one of the index (installed releases
+        only; a branch to test takes its newest commit at every build anyway). Nothing goes through Tessera: the
+        maker publishes a release, the app sees it."""
+        if not force and time.monotonic() - self.links_checked < LINK_TTL:
+            return
+        self.links_checked = time.monotonic()
+        seen = set()
+        for records in self.store.everywhere().values():
+            for record in records:
+                if record.get('source') != 'link' or record['id'] in seen:
+                    continue
+                seen.add(record['id'])
+                entry = self.links.get(record['id']) or self.snapshot_of(record['id'], record.get('ref'))
+                if not entry or not entry.repo or not GITHUB_LINK.match(entry.repo):
+                    continue
+                try:
+                    owner, repo = GITHUB_LINK.match(entry.repo).groups()[:2]
+                    api = GITHUB_API.format(owner=owner, repo=repo)
+                    tag = (await self._github(f'{api}/releases/latest'))['tag_name']
+                    if (await self._github(f'{api}/commits/{tag}'))['sha'] != entry.ref:
+                        await self.resolve_link(entry.repo, path=entry.path)   # a new release: read it whole
+                    else:
+                        self.links[record['id']] = entry   # the one installed is the newest
+                except Exception as error:   # offline, rate-limited, a release that no longer reads: keep what is there
+                    LOG.info('Plugin %s: newest release not read (%s)', record['id'], error)
 
     # ---- What the editor shows ----
 
