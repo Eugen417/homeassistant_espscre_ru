@@ -8,7 +8,8 @@ import type { Screen } from "../types";
 // parts like Tessera's own files: `screen` (built into the firmware in the screen's language) and `app` (what the editor
 // shows); its README is README.md with README.<language>.md beside it. The add-on hands the editor this per-language form.
 export type Texts = Record<string, string>;
-export type PluginInput = { id: string; kind: "secret" | "text" | "gpio"; label: Texts; hint?: Texts; scope: "all" | "screen" };
+// An input of kind entity is an entity the plugin's ESPHome part reads itself, of one of `domains`.
+export type PluginInput = { id: string; kind: "secret" | "text" | "gpio" | "entity"; label: Texts; hint?: Texts; scope: "all" | "screen"; domains?: string[] };
 export type PluginPart = { id: string; label: Texts; hint: Texts; flash_kb: number; default: boolean };
 // A tile type of a plugin (docs: the plugins proposal, "Een plugin-tegel"): its sizes as the catalogue names them, its
 // price in the screen's memory, the entity it belongs to if any, and the options the inspector draws. An option's

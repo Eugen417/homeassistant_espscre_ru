@@ -4,12 +4,15 @@
 import { editorLanguage, languageMarks, numberText, t } from "../i18n";
 import { freePins, text, type Plugin } from "../model/plugins";
 import { partsOn, plugins, setParts, setValue, valueOf } from "../plugin-state";
+import { state } from "../store";
 import type { Screen } from "../types";
 
 const props = defineProps<{ plugin: Plugin; screens: Screen[] }>();
 const kb = (value: number) => numberText(value, languageMarks(editorLanguage()));
 const shared = () => (props.plugin.inputs || []).filter((input) => input.scope === "all");
 const perScreen = () => (props.plugin.inputs || []).filter((input) => input.scope === "screen");
+// The entities an input of kind entity takes: those of its domains in Home Assistant.
+const entitiesOf = (domains: string[] = []) => state.inventory.entities.filter((e) => domains.includes(e.id.split(".")[0]));
 function setAll(id: string, value: string) { props.screens.forEach((screen) => setValue(screen, props.plugin, id, value)); }
 function togglePart(id: string, on: boolean) {
   for (const screen of props.screens) {
@@ -35,6 +38,10 @@ const partOn = (id: string) => props.screens.length > 0 && props.screens.every((
         <select v-if="input.kind === 'gpio'" :id="`plugin-input-${screen.id}-${input.id}`" :value="valueOf(screen, plugin, input.id)" @change="setValue(screen, plugin, input.id, ($event.target as HTMLSelectElement).value)">
           <option value="" disabled>{{ t("editor.plugins.setup.choose_pin") }}</option>
           <option v-for="pin in freePins(screen)" :key="pin" :value="pin">{{ pin }}</option>
+        </select>
+        <select v-else-if="input.kind === 'entity'" :id="`plugin-input-${screen.id}-${input.id}`" :value="valueOf(screen, plugin, input.id)" @change="setValue(screen, plugin, input.id, ($event.target as HTMLSelectElement).value)">
+          <option value="" disabled>{{ t("editor.plugin_tile.choose") }}</option>
+          <option v-for="entity in entitiesOf(input.domains)" :key="entity.id" :value="entity.id">{{ entity.name || entity.id }}</option>
         </select>
         <input v-else :id="`plugin-input-${screen.id}-${input.id}`" type="text" autocomplete="off" :value="valueOf(screen, plugin, input.id)"
           @input="setValue(screen, plugin, input.id, ($event.target as HTMLInputElement).value)" />

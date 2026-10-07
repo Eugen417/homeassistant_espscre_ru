@@ -233,6 +233,13 @@ LocalTime local_time(uint32_t epoch);
 std::string clock_text(uint32_t epoch);
 // "{n}" in `text` replaced by `n`; with "one | more" in `text` (Tessera's plural form), the part that fits `n`.
 std::string format(const char *text, long n);
+// How many days from today a moment is on the screen's own calendar: 0 today, 1 tomorrow, -1 yesterday. A large
+// negative number (INT32_MIN) while the clock is not set.
+int32_t days_from_today(uint32_t epoch);
+// A day as the top bar writes it in the screen's language: "Fri 9 Oct", "vr 9 okt".
+std::string date_text(uint32_t epoch);
+// "Tomorrow", "In 3 days" in the screen's language; "" for today and the past (a plugin has its own word for today).
+std::string days_text(int32_t days);
 // "{name}" in `text` replaced by `value`, wherever the language put it.
 std::string fill(const char *text, const char *name, const std::string &value);
 // Open a card of this plugin (`card`: its id in the manifest; plugin_id: the plugin's own). `title`: the words in its

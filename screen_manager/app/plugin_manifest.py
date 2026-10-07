@@ -30,7 +30,7 @@ TEXT_KEY = re.compile(r'^[a-z][a-z0-9_]{0,47}$')
 TOP = {'id', 'version', 'api', 'icon', 'maintainer', 'license', 'requires', 'boards', 'flash_kb', 'permissions',
        'attributes', 'privacy', 'inputs', 'parts', 'tiles', 'fetch', 'cards', 'tap_actions', 'bar_items'}
 ATTRIBUTES = ('cloud', 'commercial', 'ai-developed', 'experimental')
-INPUT_KINDS = ('secret', 'text', 'gpio')
+INPUT_KINDS = ('secret', 'text', 'gpio', 'entity')
 OPTION_KINDS = ('text', 'choice', 'number', 'toggle')
 FIELD_KINDS = ('text', 'number', 'epoch')
 UNITS = {'s': 1, 'm': 60, 'h': 3600, 'd': 86400}
@@ -462,13 +462,17 @@ def check(manifest, english=None):
     inputs = []
     for i, item in enumerate(_list(manifest.get('inputs'), 'inputs', MAX_INPUTS)):
         where = f'inputs[{i}]'
-        item = _object(item, where, {'id', 'kind', 'scope', 'label', 'hint'}, ('id', 'kind', 'label'))
+        item = _object(item, where, {'id', 'kind', 'scope', 'label', 'hint', 'domains'}, ('id', 'kind', 'label'))
         if item['kind'] not in INPUT_KINDS:
             raise ManifestError(f'{where}.kind', f'one of {", ".join(INPUT_KINDS)}')
+        # An entity the plugin's ESPHome part reads itself (a `homeassistant` sensor): which domains it takes.
+        domains = _strings(item.get('domains'), f'{where}.domains', 8)
+        if (item['kind'] == 'entity') != bool(domains) or not all(re.match(r'^[a-z_]+$', d) for d in domains):
+            raise ManifestError(f'{where}.domains', 'an input of kind entity names its domains, such as [calendar]')
         scope = item.get('scope', 'all' if item['kind'] == 'secret' else 'screen')
         if scope not in ('all', 'screen'):
             raise ManifestError(f'{where}.scope', 'all or screen')
-        inputs.append({'id': _id(item['id'], f'{where}.id'), 'kind': item['kind'], 'scope': scope,
+        inputs.append({'id': _id(item['id'], f'{where}.id'), 'kind': item['kind'], 'scope': scope, 'domains': domains,
                        'label': _text_key(item['label'], f'{where}.label', keys),
                        'hint': _text_key(item['hint'], f'{where}.hint', keys) if 'hint' in item else None})
     _unique(inputs, 'inputs')

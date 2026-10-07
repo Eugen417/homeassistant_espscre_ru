@@ -163,6 +163,38 @@ std::string format(const char *text, long n) {
   return screen_text::fill(form, "n", std::to_string(n));
 }
 
+// Days since 1970 of a civil date (Howard Hinnant's days_from_civil), so two local dates subtract to whole days.
+static int32_t civil_days(int year, unsigned month, unsigned day) {
+  year -= month <= 2;
+  const int era = (year >= 0 ? year : year - 399) / 400;
+  const unsigned yoe = static_cast<unsigned>(year - era * 400);
+  const unsigned doy = (153 * (month + (month > 2 ? -3 : 9)) + 2) / 5 + day - 1;
+  const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+  return era * 146097 + static_cast<int32_t>(doe) - 719468;
+}
+static int32_t local_day(uint32_t epoch) {
+  const esphome::ESPTime t = esphome::ESPTime::from_epoch_local(epoch);
+  return civil_days(t.year, t.month, t.day_of_month);
+}
+
+int32_t days_from_today(uint32_t when) {
+  const uint32_t now = rt::now_epoch();
+  if (!now || !when) return INT32_MIN;
+  return local_day(when) - local_day(now);
+}
+
+std::string date_text(uint32_t when) {
+  if (!when) return "";
+  const esphome::ESPTime t = esphome::ESPTime::from_epoch_local(when);
+  return header_bar::date_text(t.day_of_week, t.day_of_month, t.month);
+}
+
+std::string days_text(int32_t days) {
+  if (days == 1) return screen_text::tr(screen_text::txt::time_tomorrow);
+  if (days > 1) return screen_text::plural(screen_text::txt::time_in_days, days);
+  return "";
+}
+
 std::string fill(const char *text, const char *name, const std::string &value) {
   return screen_text::fill(std::string(text ? text : ""), name, value);
 }
@@ -343,6 +375,8 @@ void tap(rt::Widgets &w) {
   if (w.plugin && w.plugin->tile) w.plugin->tile->on_tap();
 }
 
+static void tick_card(uint32_t epoch);
+
 void tick_cards(uint32_t epoch) {
   tick_card(epoch);
   for (auto &w : rt::widgets) {
@@ -485,7 +519,7 @@ bool open_card(const std::string &key, const std::string &entity, int tile, cons
   return true;
 }
 
-void tick_card(uint32_t epoch) {
+static void tick_card(uint32_t epoch) {
   if (!shown) return;
   card_state(*shown, false);
   if (shown->dark != theme::dark) {

@@ -318,7 +318,7 @@ class Plugins:
             'privacy': manifest.get('privacy'), 'readme': entry.readme,
             'languages': pm.complete_languages(manifest, entry.translations),
             'inputs': [{'id': i['id'], 'kind': i['kind'], 'scope': i['scope'], 'label': words(i['label']),
-                        'hint': words(i['hint'])} for i in manifest['inputs']],
+                        'hint': words(i['hint']), 'domains': i['domains']} for i in manifest['inputs']],
             'parts': [{'id': p['id'], 'label': words(p['label']), 'hint': words(p['hint']) or {'en': ''},
                        'flash_kb': p['flash_kb'], 'default': p['default']} for p in manifest['parts']],
             'attributes': manifest['attributes'],
