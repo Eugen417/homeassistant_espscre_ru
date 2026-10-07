@@ -1797,7 +1797,8 @@
       "placeholder": "L'editor mostra un segnaposto: ciò che il plugin disegna appare sullo schermo stesso.",
       "now": "ora",
       "minutes": "{n} min",
-      "live": "L'editor la disegna con i dati del plugin; lo schermo la disegna da sé e fa il conto alla rovescia con il proprio orologio."
+      "live": "L'editor la disegna con i dati del plugin; lo schermo la disegna da sé e fa il conto alla rovescia con il proprio orologio.",
+      "entity": "Entità"
     },
     "memory": {
       "label": "Memoria per i riquadri",

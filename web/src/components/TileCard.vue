@@ -65,7 +65,7 @@ const energyTile = computed(() => props.tile.entity === "screen.energy");
 const pluginTile = computed(() => pluginTileOf(props.tile.entity));
 // With data, it looks like the glass: the add-on fills in the manifest's preview (a line's number, where it goes, and
 // the minutes to the next departure), and the mockup counts down on the editor's clock as the screen does on its own.
-const pluginRows = computed(() => (pluginTile.value && !props.placeholder ? previewFor(props.tile.entity, props.tile.options?.plugin) : null));
+const pluginRows = computed(() => (pluginTile.value && !props.placeholder ? previewFor(props.tile.entity, props.tile.options?.plugin, props.tile.options?.plugin_entity) : null));
 const pluginRow = computed(() => {
   const rows = pluginRows.value || [];
   const seconds = state.now / 1000;

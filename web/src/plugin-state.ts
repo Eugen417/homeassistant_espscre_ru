@@ -94,10 +94,10 @@ export function choicesFor(plugin: Plugin, option: PluginTileOption, values: Rec
 // from the tile's data, its first rows; asked again once a minute while a page shows it.
 export type PreviewRow = { badge?: string; title?: string; value?: string; at?: number };
 const drawing = new Set<string>();
-export function previewFor(entity: string, options: Record<string, unknown> | undefined): PreviewRow[] | null {
+export function previewFor(entity: string, options: Record<string, unknown> | undefined, bound?: string): PreviewRow[] | null {
   const kind = pluginTileOf(entity);
   if (plugins.example || !kind?.tile.preview) return null;
-  const values = { ...pluginDefaults(kind.tile), ...(options || {}) };
+  const values = { ...pluginDefaults(kind.tile), ...(options || {}), ...(bound ? { entity: bound } : {}) };
   const key = `${entity}|${JSON.stringify(values)}`;
   const known = plugins.previews[key];
   if ((!known || Date.now() - known.at > 60000) && !drawing.has(key)) {

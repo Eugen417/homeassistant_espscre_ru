@@ -79,8 +79,9 @@ export function validatePageShape(layout: PageLayout) {
         if (!['home', 'page'].includes(content.target.kind)) fail();
       } else if (content.kind === 'plugin' && pluginTiles.enabled) {
         // A plugin's tile type (design): a known plugin and tile, and options of plain values the manifest checks.
-        fields(content, ['kind', 'plugin', 'tile', 'options'], ['kind', 'plugin', 'tile']);
+        fields(content, ['kind', 'plugin', 'tile', 'entityId', 'options'], ['kind', 'plugin', 'tile']);
         if (!/^[a-z0-9_]+$/.test(String(content.plugin)) || !/^[a-z0-9_]+$/.test(String(content.tile))) fail();
+        if (content.entityId !== undefined && !/^[a-z0-9_]+\.[a-z0-9_]+$/.test(String(content.entityId))) fail();
         if (content.options !== undefined && (typeof content.options !== 'object' || content.options === null ||
           Object.values(content.options).some((value) => !['string', 'number', 'boolean'].includes(typeof value)))) fail();
       } else fail();

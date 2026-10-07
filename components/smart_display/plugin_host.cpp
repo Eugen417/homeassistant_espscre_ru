@@ -80,6 +80,11 @@ std::string fill(const char *text, const char *name, const std::string &value) {
   return screen_text::fill(std::string(text ? text : ""), name, value);
 }
 
+bool action(const char *service, const std::string &entity, const char *key, const std::string &value) {
+  if (!service || !rt::valid_entity(entity) || entity.rfind("plugin:", 0) == 0) return false;
+  return rt::action(service, entity, key ? key : "", value);
+}
+
 void refresh() {
   for (auto &w : rt::widgets)
     if (w.plugin && w.index < rt::model.count) rt::mark_tile(w.index);
@@ -172,7 +177,7 @@ void render(rt::Widgets &w, const rt::Tile &t, int width, int height) {
   if (!type || !type->make) return;
   rt::begin_extra(w, "plugin", width, height);
   const auto &extra = t.extra();
-  const size_t options = hash(extra.plugin_options);
+  const size_t options = hash(extra.plugin_options + "|" + extra.plugin_entity);
   Card *card = w.plugin;
   if (card && (card->entity != t.entity || card->index != w.index || card->width != width || card->height != height ||
                card->options != options)) {
@@ -195,7 +200,8 @@ void render(rt::Widgets &w, const rt::Tile &t, int width, int height) {
     JsonDocument doc;
     if (extra.plugin_options.empty() || deserializeJson(doc, extra.plugin_options)) doc.to<JsonObject>();
     tessera::TileContext context{w.extra, width, height, static_cast<uint8_t>(t.column_span()),
-                                 static_cast<uint8_t>(t.row_span()), t.name.c_str(), doc.as<JsonObjectConst>()};
+                                 static_cast<uint8_t>(t.row_span()), t.name.c_str(), extra.plugin_entity.c_str(),
+                                 doc.as<JsonObjectConst>()};
     card->tile->create(context);
   }
   const size_t state = hash(extra.plugin_state);

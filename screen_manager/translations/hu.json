@@ -1797,7 +1797,8 @@
       "placeholder": "A szerkesztő helyőrzőt mutat: amit a bővítmény rajzol, az magán a kijelzőn jelenik meg.",
       "now": "most",
       "minutes": "{n} perc",
-      "live": "A szerkesztő a bővítmény saját adataiból rajzolja meg; a képernyő maga rajzolja, és a saját órája szerint számol vissza."
+      "live": "A szerkesztő a bővítmény saját adataiból rajzolja meg; a képernyő maga rajzolja, és a saját órája szerint számol vissza.",
+      "entity": "Entitás"
     },
     "memory": {
       "label": "Memória a csempéknek",

@@ -1041,7 +1041,7 @@ def validate_settings(data):
 PLUGIN_TILE = re.compile(r'^plugin:([a-z][a-z0-9_]{0,31})\.([a-z][a-z0-9_]{0,31})$')
 # What a plugin tile may carry: its size, colour, icon, whether a tap reaches it, and its own options (`plugin`, the
 # manifest's options; checked against the manifest where the screen is known, plugins.check_tile).
-PLUGIN_TILE_OPTIONS = {'size', 'background', 'icon', 'tap', 'plugin'}
+PLUGIN_TILE_OPTIONS = {'size', 'background', 'icon', 'tap', 'plugin', 'plugin_entity'}
 PLUGIN_OPTION_MAX = 12
 PLUGIN_TEXT_MAX = 64
 # What a tile of a plugin the screen does not have costs (plugin_host::PLACEHOLDER_BYTES in the firmware).
@@ -1774,6 +1774,9 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
                 raise ValueError(t('addon.errors.layout.unknown_settings'))
             if 'plugin' in options and not plugin_options(options['plugin']):
                 raise ValueError(t('addon.errors.layout.invalid_setting', setting='plugin'))
+            # The entity a plugin tile belongs to (its manifest's `entity`); whether its domain fits is the manifest's.
+            if 'plugin_entity' in options and not (entity_id(options['plugin_entity']) and not options['plugin_entity'].startswith('screen.')):
+                raise ValueError(t('addon.errors.layout.invalid_setting', setting='plugin_entity'))
             if 'size' in options and not is_size(options['size']):
                 raise ValueError(t('addon.errors.layout.invalid_setting', setting='size'))
             if 'tap' in options and options['tap'] not in ('auto', 'none'):

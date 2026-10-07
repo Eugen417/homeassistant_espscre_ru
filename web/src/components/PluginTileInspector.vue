@@ -22,6 +22,11 @@ const values = computed(() => ({ ...pluginDefaults(kind.value.tile), ...(props.t
 function set(option: PluginTileOption, value: string | number | boolean) {
   setTileOption(props.tile, "plugin", { ...(props.tile.options?.plugin || {}), [option.id]: value });
 }
+// A tile that belongs to an entity (its manifest's `entity`): any entity of those domains.
+const entityChoices = computed(() => (kind.value.tile.entity?.length
+  ? state.inventory.entities.filter((e) => kind.value.tile.entity!.includes(e.id.split(".")[0]))
+    .map((e) => [e.id, e.name ? `${e.name} (${e.id})` : e.id] as [string, string])
+  : []));
 const choices = (option: PluginTileOption) => choicesFor(kind.value.plugin, option, values.value).map((choice) => [choice.value, text(choice.label)] as [string, string]);
 const fromFetch = (option: PluginTileOption) => Boolean(option.options_from);
 const size = (value: string) => value.replace("x", "×");
@@ -46,6 +51,12 @@ function openPlugin() { closeInspector(); state.tab = "plugins"; }
     <p class="plugin-tile-from"><span class="mdi">{{ glyph("F0A66") }}</span>{{ t("editor.plugin_tile.from", { plugin: text(kind.plugin.name) }) }}
       <button type="button" class="btn link mini" @click="openPlugin">{{ t("editor.plugin_tile.details") }}</button></p>
 
+    <Section v-if="kind.tile.entity?.length" :title="t('editor.plugin_tile.entity')">
+      <PropRow :label="t('editor.plugin_tile.entity')" icon="link-variant" for="plugin-entity">
+        <UiSelect id="plugin-entity" :model-value="tile.options?.plugin_entity || ''" :options="entityChoices"
+          :placeholder="t('editor.plugin_tile.choose')" @update:model-value="(value: string) => setTileOption(tile, 'plugin_entity', value)" />
+      </PropRow>
+    </Section>
     <Section v-if="kind.tile.options?.length" :title="t('editor.plugin_tile.options')">
       <template v-for="option in kind.tile.options" :key="option.id">
         <SwitchRow v-if="option.kind === 'toggle'" :label="text(option.label)" :description="option.hint ? text(option.hint) : undefined"

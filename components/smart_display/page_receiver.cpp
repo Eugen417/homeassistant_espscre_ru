@@ -672,12 +672,17 @@ std::string receive(const std::string &payload) {
       next.action_data = std::move(saved->action_data);
       next.action_templates = std::move(saved->action_templates);
       next.plugin_options = std::move(saved->plugin_options);
+      next.plugin_entity = std::move(saved->plugin_entity);
     }
     // A plugin tile (docs/PLUGINS.md): its options come with the layout, its data with every state; both stay as the
     // JSON they came in, for the plugin to read (plugin_host::render). A plugin's data is what the add-on mapped from
     // the plugin's fetch, bounded there; the 4 KB message bounds it here.
     if (tile.is_plugin()) {
       if (initial && root["o"]["plugin"].is<JsonObject>()) serializeJson(root["o"]["plugin"], next.plugin_options);
+      if (initial) {
+        const std::string bound = string(root["o"]["pe"], 120);
+        if (valid_entity(bound) && bound.rfind("plugin:", 0) != 0 && bound.rfind("screen.", 0) != 0) next.plugin_entity = bound;
+      }
       if (extra.is<JsonObject>()) serializeJson(extra, next.plugin_state);
     }
     if (extra["days"].is<JsonArray>()) for (JsonVariant day : extra["days"].as<JsonArray>()) {

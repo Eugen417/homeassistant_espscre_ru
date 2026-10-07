@@ -2153,6 +2153,10 @@ class Manager:
         """Entities a card reads besides its own: a vacuum's cleaning mode and water selects and its battery sensor, a
         cover's battery sensor."""
         from core import cover_related, vacuum_related
+        # A plugin tile that belongs to an entity (docs/PLUGINS.md) is sent again when that entity changes.
+        if plugin_tile(tile['entity']):
+            entity = (tile.get('options') or {}).get('plugin_entity')
+            return (entity,) if entity else ()
         if tile['entity'].startswith('vacuum.'):
             return tuple(vacuum_related(tile['entity'], self.device_entries(tile['entity']), self.ha.states).values())
         if tile['entity'].startswith('cover.'):

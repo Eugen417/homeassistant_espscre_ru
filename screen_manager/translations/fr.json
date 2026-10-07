@@ -1797,7 +1797,8 @@
       "placeholder": "L'éditeur affiche un espace réservé : ce que le plugin dessine apparaît sur l'écran lui-même.",
       "now": "maintenant",
       "minutes": "{n} min",
-      "live": "L'éditeur la dessine avec les données du plugin ; l'écran la dessine lui-même et décompte avec sa propre horloge."
+      "live": "L'éditeur la dessine avec les données du plugin ; l'écran la dessine lui-même et décompte avec sa propre horloge.",
+      "entity": "Entité"
     },
     "memory": {
       "label": "Mémoire pour les tuiles",

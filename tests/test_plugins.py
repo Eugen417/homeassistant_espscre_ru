@@ -229,6 +229,19 @@ class Layout(unittest.TestCase):
         back = page_layout.tile_from_fields(flat, core.DEFAULT_GRID, ['aaaaaaaaaaaaaaaa'], id_factory=lambda: 't1')
         self.assertEqual(back['content'], self.DOC['pages'][0]['tiles'][0]['content'])
 
+    def test_a_tile_of_an_entity_round_trips(self):
+        doc = json.loads(json.dumps(self.DOC))
+        doc['pages'][0]['tiles'][0]['content']['entityId'] = 'sensor.waste_next'
+        page_layout.validate_document(json.loads(json.dumps(doc)), core.DEFAULT_GRID)
+        flat = page_layout.compile_tiles(doc, core.DEFAULT_GRID)[0]
+        self.assertEqual(flat['options']['plugin_entity'], 'sensor.waste_next')
+        back = page_layout.tile_from_fields(flat, core.DEFAULT_GRID, ['aaaaaaaaaaaaaaaa'], id_factory=lambda: 't1')
+        self.assertEqual(back['content'], doc['pages'][0]['tiles'][0]['content'])
+        for wrong in ('screen.clock', 'not an entity'):
+            with self.subTest(wrong), self.assertRaises(ValueError):
+                core.validate_layout({'title': '', 'tiles': [{'entity': 'plugin:bus.next', 'name': '', 'slot': 0,
+                                                              'options': {'plugin_entity': wrong}}]})
+
     def test_only_the_shape_is_checked(self):
         ok = {'title': '', 'tiles': [{'entity': 'plugin:bus.next', 'name': '', 'slot': 0,
                                       'options': {'plugin': {'a': 'x', 'b': 2, 'c': True}, 'tap': 'none'}}]}
@@ -249,6 +262,29 @@ class Layout(unittest.TestCase):
                              core.PLUGIN_PLACEHOLDER_BYTES)
         finally:
             core.PLUGIN_MEMORY.pop('plugin:bus.next')
+
+
+class EntityTile(unittest.IsolatedAsyncioTestCase):
+    async def test_state_name_and_named_attributes_only(self):
+        import plugins as plugin_service
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+
+        class FakeManager:
+            ha = type('HA', (), {'states': {'sensor.waste_next': {'state': 'paper', 'attributes': {
+                'friendly_name': 'Next collection', 'next_date': '2026-10-09', 'days': 2, 'secret': 'no'}}},
+                'time_zone': 'Europe/Amsterdam', 'changed': asyncio.Event(), 'dirty': set()})()
+            page_senders = {}
+        service = plugin_service.Plugins(FakeManager(), Path(tmp.name) / 'data', Path(tmp.name) / 'esphome')
+        kind = {'id': 'next', 'entity': ['sensor'], 'attributes': ['next_date', 'days']}
+        entity, part = service.entity_part(kind, {'options': {'plugin_entity': 'sensor.waste_next'}})
+        self.assertEqual(entity, 'sensor.waste_next')
+        self.assertEqual(part['state'], 'paper')
+        self.assertEqual(part['name'], 'Next collection')
+        self.assertEqual(set(part['attributes']), {'next_date', 'days'})
+        self.assertIsInstance(part['attributes']['next_date'], int)   # a date as seconds, for the screen's own words
+        _, wrong = service.entity_part(kind, {'options': {'plugin_entity': 'light.kitchen'}})
+        self.assertEqual(wrong, {'wait': 'wrong_entity'})
 
 
 class Hello(unittest.TestCase):

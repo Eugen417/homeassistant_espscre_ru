@@ -1797,7 +1797,8 @@
       "placeholder": "El editor muestra un marcador de posición: lo que dibuja el plugin aparece en la propia pantalla.",
       "now": "ahora",
       "minutes": "{n} min",
-      "live": "El editor la dibuja con los datos del plugin; la pantalla la dibuja ella misma y cuenta atrás con su propio reloj."
+      "live": "El editor la dibuja con los datos del plugin; la pantalla la dibuja ella misma y cuenta atrás con su propio reloj.",
+      "entity": "Entidad"
     },
     "memory": {
       "label": "Memoria para mosaicos",

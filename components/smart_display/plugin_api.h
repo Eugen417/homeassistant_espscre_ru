@@ -41,6 +41,7 @@ struct TileContext {
   int width, height;         // that area in pixels (the card's own padding is already off)
   uint8_t columns, rows;     // the cells of the grid the tile covers
   const char *name;          // the name given to the tile in the editor, "" for none
+  const char *entity;        // the Home Assistant entity it belongs to (manifest `entity`), "" for none
   JsonObjectConst options;   // the tile's options as the editor set them (the manifest's `options`)
 };
 
@@ -52,7 +53,9 @@ class Tile {
   virtual void create(const TileContext &context) = 0;
   // What the add-on sent for this tile: for a tile with `data: <fetch>` the mapped answer ({"items": [...]} or the
   // fields of one object), plus "stale": true while the add-on shows its last good answer and "wait": "<why>" while it
-  // has none (not_filled, asking, failed, too_large). Called after create(), and again when the card is drawn after the
+  // has none (not_filled, asking, failed, too_large). A tile with an entity also gets "state", "name" and "attributes"
+  // (the ones its manifest names; a moment named ..._at, ..._time or ...date as seconds since 1970), and is sent again
+  // when that entity changes in Home Assistant. Called after create(), and again when the card is drawn after the
   // data changed (a card off the glass catches up when its page comes back).
   virtual void on_state(JsonObjectConst data) {}
   // Once a second while the card is on the glass, with the screen's clock (seconds since 1970, 0 until it is set).
@@ -129,6 +132,10 @@ std::string format(const char *text, long n);
 std::string fill(const char *text, const char *name, const std::string &value);
 // The card on the glass draws again in its next pass (after a change made outside on_state or on_tick).
 void refresh();
+// A Home Assistant action on an entity, as a tile's tap sends it: action("light.toggle", entity), or with one field
+// (action("climate.set_temperature", entity, "temperature", "21")). The screen must be allowed to perform actions,
+// and the plugin's manifest names the action under permissions.home_assistant_actions. False when it was not sent.
+bool action(const char *service, const std::string &entity, const char *key = nullptr, const std::string &value = "");
 
 namespace ui {
 // Sizes: a physical size in millimetres of glass, or a size of the reference look in this board's pixels.

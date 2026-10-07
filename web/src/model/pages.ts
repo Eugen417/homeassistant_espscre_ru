@@ -207,6 +207,8 @@ export function projectLayout(layout: PageLayout, grid: PageGrid): Layout {
       }
       if (size !== "single") options.size = size;
       if (tile.content.kind === "plugin" && tile.content.options) options.plugin = clone(tile.content.options);
+      // A plugin tile that belongs to an entity (its manifest's `entity`): the entity travels beside its options.
+      if (tile.content.kind === "plugin" && tile.content.entityId) options.plugin_entity = tile.content.entityId;
       return { id: tile.id, entity: entityOf(layout, tile), name: tile.appearance.label,
         slot: index * grid.columns * grid.rows + tile.placement.row * grid.columns + tile.placement.column,
         ...(Object.keys(options).length ? { options } : {}) };
@@ -351,7 +353,8 @@ export function arrangeTiles(layout: PageLayout, grid: PageGrid, entries: { tile
         content = { kind: "builtin", name: tile.entity.slice(7) as BuiltinName };
       } else if (PLUGIN_TILE.test(tile.entity)) {
         const [, plugin, kind] = PLUGIN_TILE.exec(tile.entity)!;
-        content = { kind: "plugin", plugin, tile: kind, ...(options.plugin ? { options: clone(options.plugin) } : {}) };
+        content = { kind: "plugin", plugin, tile: kind, ...(options.plugin_entity ? { entityId: options.plugin_entity } : {}),
+          ...(options.plugin ? { options: clone(options.plugin) } : {}) };
       } else content = { kind: "entity", entityId: tile.entity };
       const size = options.size ?? "single";
       if (!isSize(size)) throw new Error(t("addon.errors.pages.size"));

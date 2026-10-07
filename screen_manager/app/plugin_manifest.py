@@ -42,6 +42,7 @@ LICENSES = ('MIT', 'Apache-2.0', 'BSD-2-Clause', 'BSD-3-Clause', 'ISC', 'MPL-2.0
 # How the editor draws a tile with data (it cannot run the plugin's C++): the first item's fields in a badge, a title
 # and a value, or a countdown to a moment. Templates name fields as {field}.
 PREVIEW = ('badge', 'title', 'value', 'countdown')
+MAX_ATTRIBUTES = 16
 MAX_TILES = 8
 MAX_OPTIONS = 12
 MAX_FETCHES = 8
@@ -485,7 +486,7 @@ def check(manifest, english=None):
     for i, item in enumerate(_list(manifest.get('tiles'), 'tiles', MAX_TILES)):
         where = f'tiles[{i}]'
         item = _object(item, where, {'id', 'name', 'icon', 'sizes', 'memory', 'entity', 'data', 'options',
-                                     'example', 'preview'}, ('id', 'name', 'sizes', 'memory'))
+                                     'example', 'preview', 'attributes'}, ('id', 'name', 'sizes', 'memory'))
         tile = {'id': _id(item['id'], f'{where}.id'), 'name': _text_key(item['name'], f'{where}.name', keys)}
         icon = item.get('icon', out['icon'])
         if not isinstance(icon, str) or not MDI.match(icon):
@@ -508,6 +509,13 @@ def check(manifest, english=None):
             if not all(re.match(r'^[a-z_]+$', domain) for domain in entity):
                 raise ManifestError(f'{where}.entity', 'Home Assistant domains, such as climate')
         tile['entity'] = entity
+        # What the tile gets of its entity besides its state: the attributes it names, bounded as every tile's.
+        attributes = _strings(item.get('attributes'), f'{where}.attributes', MAX_ATTRIBUTES)
+        if attributes and not entity:
+            raise ManifestError(f'{where}.attributes', 'only a tile with an "entity" gets attributes')
+        if not all(re.match(r'^[a-z_][a-z0-9_]{0,47}$', a) for a in attributes):
+            raise ManifestError(f'{where}.attributes', 'attribute names such as next_date')
+        tile['attributes'] = attributes
         if 'data' in item:
             if item['data'] not in fetch_ids:
                 raise ManifestError(f'{where}.data', 'must name a fetch of this plugin')
@@ -522,8 +530,9 @@ def check(manifest, english=None):
         if 'example' in item:
             tile['example'] = _text_key(item['example'], f'{where}.example', keys)
         if 'preview' in item:
-            if 'data' not in tile:
-                raise ManifestError(f'{where}.preview', 'a preview is drawn from the tile\'s data: it needs "data"')
+            if 'data' not in tile and not tile['entity']:
+                raise ManifestError(f'{where}.preview', 'a preview is drawn from the tile\'s data or entity: it needs '
+                                                        '"data" or "entity"')
             preview = _object(item['preview'], f'{where}.preview', set(PREVIEW))
             for key, value in preview.items():
                 if not isinstance(value, str) or not 0 < len(value) <= 64:
@@ -553,12 +562,17 @@ def check(manifest, english=None):
     for i, tile in enumerate(tiles):
         if 'preview' not in tile:
             continue
-        fields = (next(f for f in fetches if f['id'] == tile['data'])['map'].get('fields') or {})
+        if tile.get('data'):
+            fields = dict(next(f for f in fetches if f['id'] == tile['data'])['map'].get('fields') or {})
+        else:
+            # A tile of an entity: its state, its name, and the attributes it names (a moment as seconds, see below).
+            fields = {name: {'as': 'text'} for name in ('state', 'name', *tile['attributes'])}
+            fields.update({name: {'as': 'epoch'} for name in tile['attributes'] if name.endswith(('_at', '_time', 'date'))})
         for key, value in tile['preview'].items():
             names = [value] if key == 'countdown' else PLACEHOLDER.findall(value)
             for name in names:
                 if name not in fields:
-                    raise ManifestError(f'tiles[{i}].preview.{key}', f'"{name}" is no field of the fetch {tile["data"]}')
+                    raise ManifestError(f'tiles[{i}].preview.{key}', f'"{name}" is no field of the tile\'s data')
             if key == 'countdown' and fields[value]['as'] != 'epoch':
                 raise ManifestError(f'tiles[{i}].preview.countdown', f'"{value}" must be a field with "as: epoch"')
     for name in sorted(fetch_ids - {f['id'] for f in fetches}):

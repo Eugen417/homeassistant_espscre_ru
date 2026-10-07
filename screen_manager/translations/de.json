@@ -1797,7 +1797,8 @@
       "placeholder": "Der Editor zeigt einen Platzhalter: Was das Plugin zeichnet, erscheint auf dem Bildschirm selbst.",
       "now": "jetzt",
       "minutes": "{n} Min.",
-      "live": "Der Editor zeichnet sie aus den eigenen Daten des Plugins; der Bildschirm zeichnet sie selbst und zählt mit seiner eigenen Uhr herunter."
+      "live": "Der Editor zeichnet sie aus den eigenen Daten des Plugins; der Bildschirm zeichnet sie selbst und zählt mit seiner eigenen Uhr herunter.",
+      "entity": "Entität"
     },
     "memory": {
       "label": "Speicher für Kacheln",

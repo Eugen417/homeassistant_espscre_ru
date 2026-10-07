@@ -1797,7 +1797,8 @@
       "placeholder": "Edytor pokazuje symbol zastępczy: to, co rysuje wtyczka, widać na samym ekranie.",
       "now": "teraz",
       "minutes": "{n} min",
-      "live": "Edytor rysuje go z danych wtyczki; ekran rysuje go sam i odlicza czas według własnego zegara."
+      "live": "Edytor rysuje go z danych wtyczki; ekran rysuje go sam i odlicza czas według własnego zegara.",
+      "entity": "Encja"
     },
     "memory": {
       "label": "Pamięć na kafelki",

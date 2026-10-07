@@ -3,7 +3,7 @@ firmware, and the data their tiles show.
 
 Where plugins come from:
 - **the index**, github.com/MaxGramser/tessera-plugins `index.json`: every plugin with its manifest, its texts and its
-  README at the commit of its release. Read when the Plugins page opens and at most every six hours, kept in
+  README at the commit of its release. Read when the editor opens and at most every ten minutes, kept in
   /data/plugins/ for when the internet is away.
 - **a folder** in Home Assistant's config, `tessera-plugins/<id>/` beside the `esphome/` folder: a plugin someone is
   making. Every build takes what the folder holds now; the app shows it as a test and offers no updates.
@@ -14,6 +14,7 @@ ESPHome builds the plugin into that screen, and carries out the plugin's fetches
 import asyncio
 import json
 import logging
+import math
 import time
 from copy import deepcopy
 from pathlib import Path
@@ -30,7 +31,9 @@ from plugin_store import PluginSecrets, PluginStore
 LOG = logging.getLogger('plugins')
 
 INDEX_URL = 'https://raw.githubusercontent.com/MaxGramser/tessera-plugins/main/index.json'
-INDEX_TTL = 6 * 3600
+# How old the index may be before the next editor visit asks GitHub again: a conditional request (ETag) that costs
+# nothing when it did not change, so a new release shows as an update within minutes.
+INDEX_TTL = 10 * 60
 INDEX_MAX = 2 * 1024 * 1024
 INDEX_FORMAT = 1
 TESSERA_OWNER = 'https://github.com/MaxGramser/'
@@ -165,7 +168,7 @@ class Plugins:
         self._know_tiles()
 
     async def refresh_index(self, force=False):
-        """index.json again when it is older than six hours (or `force`), with its ETag; the last one stays offline."""
+        """index.json again when it is older than INDEX_TTL (or `force`), with its ETag; the last one stays offline."""
         if not force and time.monotonic() - self.index_state['checked'] < INDEX_TTL and self.index_state['at']:
             return
         self.index_state['checked'] = time.monotonic()
@@ -581,6 +584,35 @@ class Plugins:
             data['stale'] = True
         return trimmed(data)
 
+    def entity_part(self, kind, tile):
+        """(entity, what the screen gets of it) for a tile that belongs to an entity: its state, its name and the
+        attributes its manifest names, bounded as every tile's (48 bytes a text, 16 items a list). An attribute named
+        ..._at, ..._time or ...date that holds a moment goes as seconds since 1970, so the screen says it in its words."""
+        entity = (tile.get('options') or {}).get('plugin_entity')
+        if not kind or not kind['entity'] or not entity:
+            return None, None
+        if entity.split('.')[0] not in kind['entity']:
+            return entity, {'wait': 'wrong_entity'}
+        state = self.manager.ha.states.get(entity) or {}
+        attrs = state.get('attributes') or {}
+        bounded = {}
+        for name in kind['attributes']:
+            value = attrs.get(name)
+            if name.endswith(('_at', '_time', 'date')) and isinstance(value, str):
+                moment = plugin_fetch.epoch_of(value, getattr(self.manager.ha, 'time_zone', None))
+                if moment is not None:
+                    bounded[name] = moment
+                    continue
+            if isinstance(value, bool) or (isinstance(value, (int, float)) and math.isfinite(value)):
+                bounded[name] = value
+            elif isinstance(value, str):
+                bounded[name] = core.short(value, 48)
+            elif isinstance(value, list):
+                bounded[name] = [core.short(v, 48) if isinstance(v, str) else v for v in value[:16]
+                                 if isinstance(v, str) or (isinstance(v, (int, float)) and not isinstance(v, bool))]
+        return entity, {'state': core.short(str(state.get('state', 'unavailable')), 160),
+                        'name': core.short(attrs.get('friendly_name') or entity, 48), 'attributes': bounded}
+
     async def tile_message(self, index, tile, ask=True):
         """The state message of a plugin tile (core.state_message's shape): no entity behind it, its options, its data."""
         plugin, tile_id = core.plugin_tile(tile['entity'])
@@ -596,13 +628,16 @@ class Plugins:
         chosen = self.values_of(entry, kind, options.get('plugin')) if kind else dict(options.get('plugin') or {})
         if chosen:
             wire['plugin'] = chosen
-        name = tile.get('name') or (entry.text(kind['name']) if kind else tile_id)
+        entity, part = self.entity_part(kind, tile)
+        if entity:
+            wire['pe'] = entity
+        name = tile.get('name') or (part or {}).get('name') or (entry.text(kind['name']) if kind else tile_id)
         message = {'v': 1, 'op': 'state', 'i': index, 'entity': tile['entity'], 'name': core.short(name, 80),
                    'state': 'ok', 'a': {}, 'o': wire}
         if kind:
             data = await self.tile_data(entry, kind, chosen, ask)
-            if data:
-                message['x'] = data
+            if part or data:
+                message['x'] = trimmed({**(part or {}), **(data or {})})
         return message
 
     async def choices(self, plugin, fetch_id, values):
@@ -627,8 +662,13 @@ class Plugins:
         kind = entry.tile(tile_id) if entry else None
         if not kind or not kind.get('preview'):
             raise ValueError(t('addon.errors.plugins.request'))
-        chosen = self.values_of(entry, kind, options)
-        data = await self.tile_data(entry, kind, chosen)
+        chosen = self.values_of(entry, kind, {k: v for k, v in options.items() if k != 'entity'})
+        if kind.get('data'):
+            data = await self.tile_data(entry, kind, chosen)
+        else:
+            _, part = self.entity_part(kind, {'options': {'plugin_entity': options.get('entity')}})
+            data = {'items': [{**part['attributes'], 'state': part['state'], 'name': part['name']}]} \
+                if part and 'wait' not in part else (part or {'wait': 'no_entity'})
         if not data or 'wait' in data:
             return {'items': [], 'wait': (data or {}).get('wait', 'asking')}
         rows = data.get('items') if isinstance(data.get('items'), list) else [data]

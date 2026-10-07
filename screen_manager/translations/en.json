@@ -3067,7 +3067,8 @@
       "placeholder": "The editor shows a placeholder: what the plugin draws appears on the screen itself.",
       "now": "now",
       "minutes": "{n} min",
-      "live": "The editor draws it from the plugin's own data; the screen draws it itself and counts down on its own clock."
+      "live": "The editor draws it from the plugin's own data; the screen draws it itself and counts down on its own clock.",
+      "entity": "Entity"
     }
   }
 }
