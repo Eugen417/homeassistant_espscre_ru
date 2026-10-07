@@ -15,6 +15,7 @@ import asyncio
 import json
 import logging
 import math
+import re
 import time
 from copy import deepcopy
 from pathlib import Path
@@ -37,6 +38,9 @@ INDEX_TTL = 10 * 60
 INDEX_MAX = 2 * 1024 * 1024
 INDEX_FORMAT = 1
 TESSERA_OWNER = 'https://github.com/MaxGramser/'
+GITHUB_LINK = re.compile(r'^https://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?(?:/tree/([^/]+)(?:/(.+?))?)?/?$')
+GITHUB_API = 'https://api.github.com/repos/{owner}/{repo}'
+GITHUB_RAW = 'https://raw.githubusercontent.com/{owner}/{repo}/{ref}/{path}'
 FOLDER = 'tessera-plugins'
 PLUGIN_ICON = 'F0A66'         # puzzle-outline, for a plugin whose icon is not in Tessera's set
 X_BUDGET = 2600               # bytes of a tile's data on the wire: the message carries more and stays under 4 KB
@@ -146,6 +150,7 @@ class Plugins:
         self.folders = {}           # id -> Entry, from tessera-plugins/<id>/
         self.folder_errors = {}     # folder name -> what is wrong with it
         self.snapshots = {}         # (id, ref) -> Entry of an installed release
+        self.links = {}             # id -> Entry added with a link (a release of any repository, or a branch to test)
         self.jobs = {}              # inbox -> what its waiting or running build adds and removes, and its state
         self.queue = []             # the screens that wait for a build, in the order they were asked
         self.worker = None
@@ -264,9 +269,11 @@ class Plugins:
         self.snapshots[(entry.id, entry.ref)] = entry
 
     def entry_for(self, record):
-        """What an installed plugin is: its folder, or the release it is pinned to."""
+        """What an installed plugin is: its folder, the branch it follows, or the release it is pinned to."""
         if record.get('source') == 'folder':
             return self.folders.get(record['id'])
+        if record.get('source') == 'branch':
+            return self.links.get(record['id']) or self.snapshot_of(record['id'], record.get('ref'))
         return self.snapshot_of(record['id'], record.get('ref')) or (
             self.index.get(record['id']) if self.index.get(record['id']) and self.index[record['id']].ref == record.get('ref') else None)
 
@@ -278,12 +285,12 @@ class Plugins:
                     entry = self.entry_for(record)
                     if entry:
                         return entry
-        return self.folders.get(plugin) or self.index.get(plugin)
+        return self.folders.get(plugin) or self.links.get(plugin) or self.index.get(plugin)
 
     def _know_tiles(self):
         """Every tile type's price for core.tile_cost (the screen's plugin_host::bytes uses the same manifest)."""
         prices = {}
-        for entry in [*self.index.values(), *self.folders.values(), *self.snapshots.values()]:
+        for entry in [*self.index.values(), *self.folders.values(), *self.snapshots.values(), *self.links.values()]:
             for tile in entry.manifest['tiles']:
                 prices[f'plugin:{entry.id}.{tile["id"]}'] = tile['memory']
         core.PLUGIN_MEMORY.clear()
@@ -295,6 +302,82 @@ class Plugins:
                                                    (entry.ref and entry.ref == item.get('sha'))):
                 return str(item.get('reason') or 'blocked')
         return None
+
+    # ---- Adding with a link ----
+
+    async def _github(self, url, text=False):
+        import aiohttp
+        if self.http is None or self.http.closed:
+            self.http = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15),
+                                              headers={'User-Agent': self.fetcher.user_agent})
+        async with self.http.get(url, headers={'Accept': 'application/vnd.github+json'}) as response:
+            if response.status == 404:
+                raise ValueError(t('addon.errors.plugins.link_not_found'))
+            if response.status in (403, 429):
+                raise ValueError(t('addon.errors.plugins.link_rate'))
+            response.raise_for_status()
+            raw = await response.content.read(INDEX_MAX + 1)
+            if len(raw) > INDEX_MAX:
+                raise ValueError(t('addon.errors.plugins.link_not_found'))
+            return raw.decode('utf-8', errors='replace') if text else json.loads(raw)
+
+    async def resolve_link(self, url, branch=None, folder=None):
+        """A plugin from a link, read before anything is built: the newest release of a GitHub repository (pinned to its
+        commit), a branch to test (every build takes its newest commit), or a folder in tessera-plugins/. The editor
+        then shows its details like any plugin's."""
+        if folder:
+            self.scan_folders()
+            name = Path(str(folder).rstrip('/')).name
+            if name in self.folder_errors:
+                raise ValueError(t('addon.errors.plugins.folder', folder=name, why=self.folder_errors[name]))
+            if name not in self.folders:
+                raise ValueError(t('addon.errors.plugins.link_not_found'))
+            return self.folders[name]
+        match = GITHUB_LINK.match(str(url or '').strip())
+        if not match:
+            raise ValueError(t('addon.errors.plugins.link_invalid'))
+        owner, repo, tree_ref, path = match.groups()
+        path = (path or '.').strip('/') or '.'
+        api = GITHUB_API.format(owner=owner, repo=repo)
+        wanted = (branch or '').strip() or None
+        if wanted and not re.fullmatch(r'[A-Za-z0-9_./-]{1,100}', wanted):
+            raise ValueError(t('addon.errors.plugins.link_invalid'))
+        if wanted:
+            sha = (await self._github(f'{api}/commits/{wanted}'))['sha']
+        elif tree_ref:
+            sha = (await self._github(f'{api}/commits/{tree_ref}'))['sha']
+        else:
+            tag = (await self._github(f'{api}/releases/latest'))['tag_name']
+            sha = (await self._github(f'{api}/commits/{tag}'))['sha']
+        base = '' if path == '.' else path + '/'
+        raw = lambda name: GITHUB_RAW.format(owner=owner, repo=repo, ref=sha, path=base + name)
+        manifest = yaml.safe_load(await self._github(raw('tessera-plugin.yaml'), text=True))
+        listing = await self._github(f'{api}/contents/{base}translations?ref={sha}')
+        translations = {}
+        for item in listing if isinstance(listing, list) else []:
+            name = item.get('name', '')
+            if name.endswith('.json') and len(translations) < 16:
+                try:
+                    translations[name[:-5]] = json.loads(await self._github(raw('translations/' + name), text=True))
+                except ValueError:
+                    continue
+        readme = {}
+        files = await self._github(f'{api}/contents/{path if path != "." else ""}?ref={sha}')
+        for item in files if isinstance(files, list) else []:
+            name = item.get('name', '')
+            if re.fullmatch(r'README(\.[a-z]{2}(-[A-Za-z]{2})?)?\.md', name):
+                language = name[7:-3] or 'en'
+                readme[language] = (await self._github(raw(name), text=True))[:64 * 1024]
+        repo_url = f'https://github.com/{owner}/{repo}'
+        label = 'test' if wanted else ('tessera' if repo_url.startswith(TESSERA_OWNER) else 'community')
+        try:
+            entry = Entry(manifest, translations, readme, 'branch' if wanted else 'link', label, repo=repo_url, path=path,
+                          ref=wanted or sha)
+        except pm.ManifestError as error:
+            raise ValueError(t('addon.errors.plugins.manifest', why=str(error)[:200]))
+        self.links[entry.id] = entry
+        self._know_tiles()
+        return entry
 
     # ---- What the editor shows ----
 
@@ -349,6 +432,8 @@ class Plugins:
         listed = {}
         for entry in self.index.values():
             listed[entry.id] = entry
+        for entry in self.links.values():
+            listed[entry.id] = entry  # a link someone added in this app
         for entry in self.folders.values():
             listed[entry.id] = entry  # a folder of the same id is the one someone is working on
         installed = {}
@@ -367,7 +452,16 @@ class Plugins:
             for item in entry.manifest['inputs']:
                 if item['kind'] == 'secret':
                     secrets.setdefault(entry.id, {})[item['id']] = self.secrets.has(entry.id, item['id'])
+        # The entities of every domain a plugin names (a tile's `entity`, an input of kind entity): the editor's own list
+        # has only the domains Tessera draws tiles for, and a plugin may add one it does not (a calendar).
+        domains = {d for entry in listed.values() for tile in entry.manifest['tiles'] for d in (tile['entity'] or [])}
+        domains |= {d for entry in listed.values() for item in entry.manifest['inputs'] for d in item['domains']}
+        states = getattr(self.manager.ha, 'states', {}) or {}
+        entities = sorted(({'id': eid, 'name': (state.get('attributes') or {}).get('friendly_name') or eid}
+                           for eid, state in states.items() if isinstance(eid, str) and eid.split('.')[0] in domains),
+                          key=lambda e: e['name'].lower())[:500]
         return {'api': api_text(), 'plugins': [self.editor_plugin(entry, language) for entry in listed.values()],
+                'entities': entities,
                 'installed': installed, 'running': self.running(), 'secrets': secrets,
                 'building': {inbox: {k: job[k] for k in ('add', 'remove', 'state') if k in job} for inbox, job in self.jobs.items()},
                 'index': {'at': self.index_state['at'], 'error': self.index_state['error']},
@@ -401,13 +495,15 @@ class Plugins:
                 components.append(f'  - source: {{type: local, path: {base}/components}}')
                 continue
             folder = '' if entry.path in ('', '.') else entry.path.rstrip('/') + '/'
+            # A branch to test takes its newest commit at every build; everything else stays on its commit.
+            refresh = '0s' if record.get('source') == 'branch' else 'never'
             packages += [f'  {name}:', f'    url: {entry.repo}', f'    ref: {entry.ref}  # {entry.id} {entry.version}',
-                         '    refresh: never', '    files:', f'      - path: {folder}plugin.yaml']
+                         f'    refresh: {refresh}', '    files:', f'      - path: {folder}plugin.yaml']
             if variables:
                 packages.append(f'        vars: {json.dumps(variables)}')
             packages += [f'      - path: {folder}{part}' for part in parts]
             components += ['  - source:', '      type: git', f'      url: {entry.repo}', f'      ref: {entry.ref}',
-                           f'      path: {folder}components', '    refresh: never']
+                           f'      path: {folder}components', f'    refresh: {refresh}']
         lines = ['# Written by Tessera. Change plugins in Tessera, not here.']
         if packages:
             lines += ['packages:', *packages, 'external_components:', *components]
@@ -454,7 +550,7 @@ class Plugins:
             if not isinstance(item, dict) or not isinstance(item.get('id'), str):
                 raise ValueError(t('addon.errors.plugins.request'))
             source = item.get('source') or ('folder' if item['id'] in self.folders else 'index')
-            entry = (self.folders if source == 'folder' else self.index).get(item['id'])
+            entry = (self.folders if source == 'folder' else self.links if source in ('link', 'branch') else self.index).get(item['id'])
             if entry is None:
                 raise ValueError(t('addon.errors.plugins.unknown', id=item['id']))
             reason = self.fits(entry, screen)
@@ -479,7 +575,7 @@ class Plugins:
                 elif given:
                     kept[spec['id']] = given.strip()
             parts = [p for p in item.get('parts') or [] if p in {x['id'] for x in entry.manifest['parts']}]
-            if entry.source == 'index':
+            if entry.source in ('index', 'link', 'branch'):
                 self.keep_snapshot(entry)
             changes.append({'id': entry.id, 'source': entry.source, 'repo': entry.repo, 'path': entry.path,
                             'ref': entry.ref, 'version': entry.version, 'parts': parts, 'values': kept,

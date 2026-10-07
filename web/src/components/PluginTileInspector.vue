@@ -5,7 +5,7 @@
 import { computed } from "vue";
 import { editorLanguage, languageMarks, numberText, t } from "../i18n";
 import { pluginDefaults, pluginTileOf, text, type PluginTileOption } from "../model/plugins";
-import { choicesFor } from "../plugin-state";
+import { choicesFor, entitiesIn } from "../plugin-state";
 import { glyph } from "../model/topbar";
 import { closeInspector, removeTile, setTileName, setTileOption, state } from "../store";
 import type { Tile } from "../types";
@@ -23,10 +23,7 @@ function set(option: PluginTileOption, value: string | number | boolean) {
   setTileOption(props.tile, "plugin", { ...(props.tile.options?.plugin || {}), [option.id]: value });
 }
 // A tile that belongs to an entity (its manifest's `entity`): any entity of those domains.
-const entityChoices = computed(() => (kind.value.tile.entity?.length
-  ? state.inventory.entities.filter((e) => kind.value.tile.entity!.includes(e.id.split(".")[0]))
-    .map((e) => [e.id, e.name ? `${e.name} (${e.id})` : e.id] as [string, string])
-  : []));
+const entityChoices = computed(() => entitiesIn(kind.value.tile.entity).map((e) => [e.id, e.name !== e.id ? `${e.name} (${e.id})` : e.id] as [string, string]));
 const choices = (option: PluginTileOption) => choicesFor(kind.value.plugin, option, values.value).map((choice) => [choice.value, text(choice.label)] as [string, string]);
 const fromFetch = (option: PluginTileOption) => Boolean(option.options_from);
 const size = (value: string) => value.replace("x", "×");

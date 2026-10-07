@@ -4358,6 +4358,14 @@ def create_app(manager, development=False):
             options = {key: value for key, value in request.query.items() if key != 'language'}
             return web.json_response(await manager.plugins.preview(request.match_info['plugin'], request.match_info['tile'], options))
         app.router.add_get('/api/plugins/{plugin}/preview/{tile}', plugins_preview)
+
+        async def plugins_link(request):
+            data = await request.json()
+            if not isinstance(data, dict):
+                raise ValueError(t('addon.errors.plugins.request'))
+            entry = await manager.plugins.resolve_link(data.get('url'), data.get('branch'), data.get('folder'))
+            return web.json_response(manager.plugins.editor_plugin(entry, REQUEST_LANGUAGE.get()))
+        app.router.add_post('/api/plugins/link', plugins_link)
     app.router.add_get('/', index)
     app.router.add_get('/api/inventory', inventory)
     app.router.add_get('/api/capabilities', capabilities)

@@ -811,7 +811,12 @@
         "requires": "{name} precisa primeiro do plugin {other} neste ecrã.",
         "firmware": "O firmware deste ecrã ainda não conhece plugins. Atualize-o e os mosaicos do plugin aparecem.",
         "file": "O ficheiro de plugins não é válido.",
-        "other_include": "O YAML deste ecrã já tem outro include tessera_plugins."
+        "other_include": "O YAML deste ecrã já tem outro include tessera_plugins.",
+        "link_invalid": "Isso não é uma ligação para um repositório GitHub (https://github.com/dono/repositorio).",
+        "link_not_found": "Não foi encontrado nenhum plugin: nenhuma versão publicada ou nenhum tessera-plugin.yaml nessa pasta.",
+        "link_rate": "O GitHub não está a responder agora (demasiados pedidos numa hora). Tente mais tarde.",
+        "folder": "A pasta {folder} em tessera-plugins ainda não é um plugin: {why}",
+        "manifest": "A descrição do plugin não é válida: {why}"
       }
     },
     "status": {

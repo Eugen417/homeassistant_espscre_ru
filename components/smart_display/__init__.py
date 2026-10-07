@@ -53,8 +53,8 @@ async def to_code(config):
 
 # ---- Plugins (docs/PLUGINS.md) ----
 # The plugin API this core offers: plugin_api.h's PLUGIN_API_MAJOR/MINOR and the add-on's plugin_manifest.PLUGIN_API
-# (a test keeps the three equal). Major 0: a plugin builds on its own minor only.
-PLUGIN_API = (0, 1)
+# (a test keeps the three equal). A plugin builds on the same major from its own minor up.
+PLUGIN_API = (0, 2)
 PLUGIN_MANIFEST = "tessera-plugin.yaml"
 
 
@@ -95,7 +95,7 @@ async def register_plugin(var, component_file):
     parts = wanted.split(".")
     ok = len(parts) == 2 and all(p.isdigit() for p in parts)
     major, minor = (int(parts[0]), int(parts[1])) if ok else (-1, -1)
-    fits = ok and major == PLUGIN_API[0] and (minor == PLUGIN_API[1] if major == 0 else minor <= PLUGIN_API[1])
+    fits = ok and major == PLUGIN_API[0] and minor <= PLUGIN_API[1]
     if not fits:
         offered = f"{PLUGIN_API[0]}.{PLUGIN_API[1]}"
         raise cv.Invalid(f"Plugin {manifest.get('id')} wants plugin API {wanted or '?'}; this firmware offers {offered}. "

@@ -811,7 +811,12 @@
         "requires": "{name} heeft eerst de plugin {other} op dit scherm nodig.",
         "firmware": "De firmware van dit scherm kent nog geen plugins. Werk hem bij, dan verschijnen de plugintegels.",
         "file": "Het pluginsbestand is niet geldig.",
-        "other_include": "De YAML van dit scherm heeft al een andere tessera_plugins-include."
+        "other_include": "De YAML van dit scherm heeft al een andere tessera_plugins-include.",
+        "link_invalid": "Dat is geen link naar een GitHub-repository (https://github.com/eigenaar/repository).",
+        "link_not_found": "Daar is geen plugin gevonden: geen release, of geen tessera-plugin.yaml in die map.",
+        "link_rate": "GitHub antwoordt nu niet (te veel vragen in een uur). Probeer het later opnieuw.",
+        "folder": "De map {folder} in tessera-plugins is nog geen plugin: {why}",
+        "manifest": "De beschrijving van de plugin klopt niet: {why}"
       }
     },
     "status": {

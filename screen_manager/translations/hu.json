@@ -811,7 +811,12 @@
         "requires": "A(z) {name} először a(z) {other} bővítményt igényli ezen a kijelzőn.",
         "firmware": "Ennek a kijelzőnek a firmware-e még nem ismeri a bővítményeket. Frissítsd, és megjelennek a bővítmény csempéi.",
         "file": "A bővítményfájl érvénytelen.",
-        "other_include": "Ennek a kijelzőnek a YAML-jében már van egy másik tessera_plugins include."
+        "other_include": "Ennek a kijelzőnek a YAML-jében már van egy másik tessera_plugins include.",
+        "link_invalid": "Ez nem egy GitHub-tárolóra mutató hivatkozás (https://github.com/tulajdonos/tarolo).",
+        "link_not_found": "Ott nem található bővítmény: nincs kiadás, vagy nincs tessera-plugin.yaml abban a mappában.",
+        "link_rate": "A GitHub most nem válaszol (túl sok kérés egy órán belül). Próbáld újra később.",
+        "folder": "A tessera-plugins {folder} mappája még nem bővítmény: {why}",
+        "manifest": "A bővítmény leírása érvénytelen: {why}"
       }
     },
     "status": {

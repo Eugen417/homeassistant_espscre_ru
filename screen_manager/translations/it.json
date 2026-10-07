@@ -811,7 +811,12 @@
         "requires": "{name} ha prima bisogno del plugin {other} su questo schermo.",
         "firmware": "Il firmware di questo schermo non conosce ancora i plugin. Aggiornalo e i riquadri del plugin compariranno.",
         "file": "Il file dei plugin non è valido.",
-        "other_include": "Lo YAML di questo schermo ha già un altro include tessera_plugins."
+        "other_include": "Lo YAML di questo schermo ha già un altro include tessera_plugins.",
+        "link_invalid": "Questo non è un link a un repository GitHub (https://github.com/proprietario/repository).",
+        "link_not_found": "Nessun plugin trovato: nessuna release o nessun tessera-plugin.yaml in quella cartella.",
+        "link_rate": "GitHub non risponde ora (troppe richieste in un'ora). Riprova più tardi.",
+        "folder": "La cartella {folder} in tessera-plugins non è ancora un plugin: {why}",
+        "manifest": "La descrizione del plugin non è valida: {why}"
       }
     },
     "status": {

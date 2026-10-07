@@ -14,8 +14,8 @@ from urllib.parse import urlsplit
 
 # The plugin API this core offers (components/smart_display/plugin_api.h, PLUGIN_API_MAJOR/MINOR; a test keeps them
 # equal). A plugin names the API it was written for; it builds on every core with the same major and at least its minor.
-# Major 0 is the time before the API is promised: every minor may break, so 0.x wants its exact minor.
-PLUGIN_API = (0, 1)
+# Something new raises the minor; a plugin builds on the same major from its own minor up. Only a break raises the major.
+PLUGIN_API = (0, 2)
 
 ID = re.compile(r'^[a-z][a-z0-9_]{0,31}$')
 VERSION = re.compile(r'^\d+\.\d+\.\d+$')
@@ -81,9 +81,7 @@ def api_fits(wanted, offered=PLUGIN_API):
     if not match:
         return False
     major, minor = int(match.group(1)), int(match.group(2))
-    if major != offered[0]:
-        return False
-    return minor == offered[1] if major == 0 else minor <= offered[1]
+    return major == offered[0] and minor <= offered[1]
 
 
 def span(size):

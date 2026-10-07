@@ -33,6 +33,8 @@ export const plugins = reactive({
   choices: {} as Record<string, { value: string; label: Texts }[]>,
   // What the add-on drew of a tile's data, by plugin tile and its options (previewFor), and when it was asked.
   previews: {} as Record<string, { items: PreviewRow[]; at: number }>,
+  // Entities of the domains the plugins name that the editor's own list lacks (a calendar), from the add-on.
+  entities: [] as { id: string; name: string }[],
   folders: { path: "", errors: {} as Record<string, string> },
 });
 
@@ -46,7 +48,7 @@ watch(pluginsEnabled, (on) => { pluginTiles.enabled = on; if (on) loadPlugins();
 
 type Payload = {
   plugins: Plugin[]; installed: Record<string, Installed[]>; running: typeof plugins.running; secrets: typeof plugins.secrets;
-  building: typeof plugins.jobs; folders: typeof plugins.folders;
+  building: typeof plugins.jobs; folders: typeof plugins.folders; entities?: typeof plugins.entities;
 };
 let polling: ReturnType<typeof setTimeout> | undefined;
 // The add-on's plugins (api/plugins), and again every few seconds while a screen builds. Without an add-on (npm run
@@ -59,6 +61,7 @@ export function reloadPlugins(refresh = false) {
     plugins.secrets = data.secrets || {};
     plugins.jobs = data.building || {};
     plugins.folders = data.folders || { path: "", errors: {} };
+    plugins.entities = data.entities || [];
     plugins.building = Object.fromEntries(Object.entries(data.installed).map(([id, list]) =>
       [id, list.filter((item) => item.state === "building").map((item) => item.id)]));
     plugins.example = false;
@@ -125,6 +128,13 @@ export function barItemsFor(screen: Screen | undefined) {
   return plugins.index.filter((plugin) => installedOn(screen, plugin.id)).flatMap((plugin) =>
     (plugin.bar_items || []).map((bar) => ({ item: `plugin:${plugin.id}.${bar.id}`, label: text(bar.label), icon: bar.icon,
       example: bar.example ? text(bar.example) : "", plugin: text(plugin.name) })));
+}
+
+// Every entity of these domains: the editor's own and those the add-on sent for plugins, each once.
+export function entitiesIn(domains: string[] = []) {
+  const seen = new Set<string>();
+  return [...state.inventory.entities, ...plugins.entities].filter((e) => domains.includes(e.id.split(".")[0]) && !seen.has(e.id) && seen.add(e.id))
+    .map((e) => ({ id: e.id, name: e.name || e.id }));
 }
 
 export const realScreens = () => state.inventory.screens.filter((screen) => !screen.virtual);

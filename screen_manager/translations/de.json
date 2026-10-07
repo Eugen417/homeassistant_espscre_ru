@@ -811,7 +811,12 @@
         "requires": "{name} braucht zuerst das Plugin {other} auf diesem Bildschirm.",
         "firmware": "Die Firmware dieses Bildschirms kennt noch keine Plugins. Aktualisiere sie, dann erscheinen die Plugin-Kacheln.",
         "file": "Die Plugin-Datei ist ungültig.",
-        "other_include": "Die YAML dieses Bildschirms hat schon ein anderes tessera_plugins-Include."
+        "other_include": "Die YAML dieses Bildschirms hat schon ein anderes tessera_plugins-Include.",
+        "link_invalid": "Das ist kein Link zu einem GitHub-Repository (https://github.com/besitzer/repository).",
+        "link_not_found": "Dort wurde kein Plugin gefunden: kein Release oder keine tessera-plugin.yaml in diesem Ordner.",
+        "link_rate": "GitHub antwortet gerade nicht (zu viele Anfragen in einer Stunde). Versuche es später erneut.",
+        "folder": "Der Ordner {folder} in tessera-plugins ist noch kein Plugin: {why}",
+        "manifest": "Die Beschreibung des Plugins ist ungültig: {why}"
       }
     },
     "status": {

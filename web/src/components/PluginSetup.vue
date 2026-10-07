@@ -3,8 +3,7 @@
 // is asked once for all chosen screens; a pin or a name per screen, because each board has its own free pins.
 import { editorLanguage, languageMarks, numberText, t } from "../i18n";
 import { freePins, text, type Plugin } from "../model/plugins";
-import { partsOn, plugins, setParts, setValue, valueOf } from "../plugin-state";
-import { state } from "../store";
+import { entitiesIn, partsOn, plugins, setParts, setValue, valueOf } from "../plugin-state";
 import type { Screen } from "../types";
 
 const props = defineProps<{ plugin: Plugin; screens: Screen[] }>();
@@ -12,7 +11,7 @@ const kb = (value: number) => numberText(value, languageMarks(editorLanguage()))
 const shared = () => (props.plugin.inputs || []).filter((input) => input.scope === "all");
 const perScreen = () => (props.plugin.inputs || []).filter((input) => input.scope === "screen");
 // The entities an input of kind entity takes: those of its domains in Home Assistant.
-const entitiesOf = (domains: string[] = []) => state.inventory.entities.filter((e) => domains.includes(e.id.split(".")[0]));
+const entitiesOf = (domains: string[] = []) => entitiesIn(domains);
 function setAll(id: string, value: string) { props.screens.forEach((screen) => setValue(screen, props.plugin, id, value)); }
 function togglePart(id: string, on: boolean) {
   for (const screen of props.screens) {

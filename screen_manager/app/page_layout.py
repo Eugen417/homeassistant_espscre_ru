@@ -12,7 +12,7 @@ import re
 import secrets
 
 from i18n import t
-from core import (entity_id, plugin_tile, FIRMWARE_MAX_PAGES, FIRMWARE_MAX_TILES, HEADER_MAX_ITEMS, KEY_HOLDERS, STORE_MAX_BAR_ITEMS, STORE_MAX_PAGES,
+from core import (entity_id, plugin_entity, plugin_tile, FIRMWARE_MAX_PAGES, FIRMWARE_MAX_TILES, HEADER_MAX_ITEMS, KEY_HOLDERS, STORE_MAX_BAR_ITEMS, STORE_MAX_PAGES,
                   STORE_MAX_TILES, Grid, is_key, span_of,
                   span_offered, placed, header_items, page_target, tile_size, validate_header, validate_layout)
 
@@ -189,7 +189,7 @@ def _entity(content, page_indexes, home):
     if content["kind"] == "plugin":
         # A plugin's tile (docs/PLUGINS.md): its plugin, its type and its own options, plugin:<plugin>.<tile> flat.
         _object(content, {"kind", "plugin", "tile", "entityId", "options"}, {"kind", "plugin", "tile"})
-        if "entityId" in content and not entity_id(content["entityId"]):
+        if "entityId" in content and not plugin_entity(content["entityId"]):
             raise LayoutError(t('addon.errors.layout.unsupported'))
         entity = f'plugin:{content["plugin"]}.{content["tile"]}' if isinstance(content["plugin"], str) and isinstance(content["tile"], str) else ""
         if not plugin_tile(entity):

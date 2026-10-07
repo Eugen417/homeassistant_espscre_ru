@@ -811,7 +811,12 @@
         "requires": "{name} needs the plugin {other} on this screen first.",
         "firmware": "This screen's firmware has no plugins yet. Update it, then the plugin tiles appear.",
         "file": "The plugins file is not valid.",
-        "other_include": "This screen's YAML already has a different tessera_plugins include."
+        "other_include": "This screen's YAML already has a different tessera_plugins include.",
+        "link_invalid": "That is not a link to a GitHub repository (https://github.com/owner/repository).",
+        "link_not_found": "No plugin was found there: no release, or no tessera-plugin.yaml in that folder.",
+        "link_rate": "GitHub is not answering right now (too many questions in an hour). Try again later.",
+        "folder": "The folder {folder} in tessera-plugins is not a plugin yet: {why}",
+        "manifest": "The plugin's description is not valid: {why}"
       }
     },
     "status": {

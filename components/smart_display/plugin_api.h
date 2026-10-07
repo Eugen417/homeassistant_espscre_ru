@@ -23,10 +23,12 @@
 namespace tessera {
 
 // Major.minor (plugin_manifest.PLUGIN_API in the add-on is the same; a test keeps them equal). A plugin's manifest
-// names the API it was written for (`api: "0.1"`); its component checks it when it is built. Major 0 is the time before
-// the API is promised: every minor may change it, so a 0.x plugin builds on that minor only. From 1.0 a new hook raises
-// the minor and only a break raises the major.
-constexpr uint8_t PLUGIN_API_MAJOR = 0, PLUGIN_API_MINOR = 1;
+// names the API it was written for (`api: "0.2"`); its component checks it when it is built, so a core that is too old
+// says so in one sentence instead of a compiler error. Something new raises the minor, and a plugin builds on every core
+// with the same major and at least its minor; only a break raises the major. Major 0 is the time before the API is
+// promised to anyone outside Tessera. 0.1: tiles and the moments. 0.2: tiles of an entity, cards, tap actions, top bar
+// items, settings rows, questions to the app, date words.
+constexpr uint8_t PLUGIN_API_MAJOR = 0, PLUGIN_API_MINOR = 2;
 
 // The screen's fixed fonts, largest first. A tile takes the largest that fits; a plugin brings no font of its own.
 // VALUE is the big number of a watch card, HEADLINE a card's large words, TITLE a card's name, BODY its second line,

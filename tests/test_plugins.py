@@ -110,7 +110,8 @@ class Manifest(unittest.TestCase):
 
     def test_api_versions(self):
         self.assertTrue(pm.api_fits('0.1', (0, 1)))
-        self.assertFalse(pm.api_fits('0.1', (0, 2)))   # 0.x: its own minor only
+        self.assertTrue(pm.api_fits('0.1', (0, 2)))    # something new raises the minor and breaks nothing
+        self.assertFalse(pm.api_fits('0.3', (0, 2)))   # a plugin that needs a newer core says so
         self.assertTrue(pm.api_fits('1.1', (1, 3)))
         self.assertFalse(pm.api_fits('1.4', (1, 3)))
         self.assertFalse(pm.api_fits('2.0', (1, 3)))

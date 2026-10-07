@@ -811,7 +811,12 @@
         "requires": "{name} a d'abord besoin du plugin {other} sur cet écran.",
         "firmware": "Le firmware de cet écran ne connaît pas encore les plugins. Mettez-le à jour, puis les tuiles du plugin apparaissent.",
         "file": "Le fichier des plugins n'est pas valide.",
-        "other_include": "Le YAML de cet écran a déjà un autre include tessera_plugins."
+        "other_include": "Le YAML de cet écran a déjà un autre include tessera_plugins.",
+        "link_invalid": "Ce n'est pas un lien vers un dépôt GitHub (https://github.com/proprietaire/depot).",
+        "link_not_found": "Aucun plugin trouvé ici : pas de version publiée, ou pas de tessera-plugin.yaml dans ce dossier.",
+        "link_rate": "GitHub ne répond pas pour le moment (trop de demandes en une heure). Réessayez plus tard.",
+        "folder": "Le dossier {folder} de tessera-plugins n'est pas encore un plugin : {why}",
+        "manifest": "La description du plugin n'est pas valide : {why}"
       }
     },
     "status": {

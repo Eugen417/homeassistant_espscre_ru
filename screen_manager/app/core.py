@@ -1056,6 +1056,13 @@ def plugin_tile(value):
     return (match.group(1), match.group(2)) if match else None
 
 
+def plugin_entity(value):
+    """An entity a plugin tile belongs to: any Home Assistant entity id, also of a domain Tessera draws no tile for (a
+    calendar); which domains fit is the plugin's manifest's."""
+    return isinstance(value, str) and len(value) <= 120 and re.fullmatch(r'[a-z0-9_]+\.[a-z0-9_]+', value) is not None \
+        and not value.startswith(('screen.', 'plugin'))
+
+
 def plugin_options(value):
     """A plugin tile's own options in their stored shape: at most 12, each a short text, a number or true/false."""
     if not isinstance(value, dict) or len(value) > PLUGIN_OPTION_MAX:
@@ -1782,7 +1789,7 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
             if 'plugin' in options and not plugin_options(options['plugin']):
                 raise ValueError(t('addon.errors.layout.invalid_setting', setting='plugin'))
             # The entity a plugin tile belongs to (its manifest's `entity`); whether its domain fits is the manifest's.
-            if 'plugin_entity' in options and not (entity_id(options['plugin_entity']) and not options['plugin_entity'].startswith('screen.')):
+            if 'plugin_entity' in options and not plugin_entity(options['plugin_entity']):
                 raise ValueError(t('addon.errors.layout.invalid_setting', setting='plugin_entity'))
             if 'size' in options and not is_size(options['size']):
                 raise ValueError(t('addon.errors.layout.invalid_setting', setting='size'))

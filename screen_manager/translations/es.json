@@ -811,7 +811,12 @@
         "requires": "{name} necesita primero el plugin {other} en esta pantalla.",
         "firmware": "El firmware de esta pantalla aún no conoce los plugins. Actualízalo y aparecerán los mosaicos del plugin.",
         "file": "El archivo de plugins no es válido.",
-        "other_include": "El YAML de esta pantalla ya tiene otro include tessera_plugins."
+        "other_include": "El YAML de esta pantalla ya tiene otro include tessera_plugins.",
+        "link_invalid": "Eso no es un enlace a un repositorio de GitHub (https://github.com/propietario/repositorio).",
+        "link_not_found": "No se encontró ningún plugin: no hay versión publicada o no hay tessera-plugin.yaml en esa carpeta.",
+        "link_rate": "GitHub no responde ahora (demasiadas peticiones en una hora). Inténtalo más tarde.",
+        "folder": "La carpeta {folder} de tessera-plugins aún no es un plugin: {why}",
+        "manifest": "La descripción del plugin no es válida: {why}"
       }
     },
     "status": {

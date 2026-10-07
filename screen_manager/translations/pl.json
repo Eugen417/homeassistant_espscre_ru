@@ -811,7 +811,12 @@
         "requires": "{name} wymaga najpierw wtyczki {other} na tym ekranie.",
         "firmware": "Firmware tego ekranu nie zna jeszcze wtyczek. Zaktualizuj go, a pojawią się kafelki wtyczki.",
         "file": "Plik wtyczek jest nieprawidłowy.",
-        "other_include": "YAML tego ekranu ma już inny include tessera_plugins."
+        "other_include": "YAML tego ekranu ma już inny include tessera_plugins.",
+        "link_invalid": "To nie jest link do repozytorium GitHub (https://github.com/wlasciciel/repozytorium).",
+        "link_not_found": "Nie znaleziono tam wtyczki: brak wydania lub brak pliku tessera-plugin.yaml w tym folderze.",
+        "link_rate": "GitHub teraz nie odpowiada (za dużo zapytań w ciągu godziny). Spróbuj później.",
+        "folder": "Folder {folder} w tessera-plugins nie jest jeszcze wtyczką: {why}",
+        "manifest": "Opis wtyczki jest nieprawidłowy: {why}"
       }
     },
     "status": {
