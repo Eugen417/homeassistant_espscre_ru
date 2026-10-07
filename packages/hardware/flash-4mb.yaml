@@ -13,6 +13,11 @@
 # core: the component starts by itself.
 flash_layout:
 
+substitutions:
+  # The bedside clock draws with the display step these boards have anyway: its own digits, a page tall, cost about
+  # 40 KB of a slot that is close to full (looks/shared/digits.yaml).
+  BEDSIDE_OWN_DIGITS: "0"
+
 text_sensor:
   # What this screen's partition table is, for ESP Screens (core.NAME_SCREEN_FLASH): "wide", ready for the wide one
   # ("widen", or "widen_next" when it takes one more update first), "old" while it is ESPHome's and not ready, or

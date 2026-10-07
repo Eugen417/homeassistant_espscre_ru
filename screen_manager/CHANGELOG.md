@@ -6,6 +6,8 @@
   a template and docs to make your own. A plugin you are making shows up as a test when its folder is in
   `tessera-plugins/` beside the `esphome` folder. Only in the dev app while the plugin API is 0.x (docs/PLUGINS.md).
 - **Bus and train icons** for any tile.
+- **Room on the 4 MB boards.** The bedside clock on a Hosyond 4-inch draws its time with the large digits the screen
+  already has, a little smaller than before, which frees about 40 KB of its nearly full flash. The CYD already did so.
 
 ## 0.4.84 (firmware 0.52.0)
 

@@ -51,6 +51,8 @@ substitutions:
   SCREEN_MAX_BAR_ITEMS: "6"
   BACKLIGHT_DIMMABLE: "true"                       # false: the backlight is lit or dark, a switch instead of a percentage
   CAN_STANDBY: "true"                              # false: the screen never goes dark (features/backlight-always-on.yaml)
+  # 0: the bedside clock takes the display step, never digits of its own (hardware/flash-4mb.yaml, looks/shared/digits.yaml).
+  BEDSIDE_OWN_DIGITS: "1"
   # The touch test page (CALIBRATION_ON_BOOT); its sizes are the look's.
   TOUCH_TEST_PAGE_PAINT: "paint_page_soft"         # the page
   TOUCH_TEST_TITLE: "calibration_touch_check"      # the words at the top
