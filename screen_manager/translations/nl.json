@@ -1314,7 +1314,8 @@
       "firmware": "Firmware & USB",
       "alerts": "Alerts",
       "settings": "Instellingen",
-      "new_screen_detail": "Aansluiten en installeren"
+      "new_screen_detail": "Aansluiten en installeren",
+      "plugins": "Plugins"
     },
     "api": {
       "failed": "Dat lukte niet. Vernieuw de pagina en probeer het opnieuw."
@@ -2848,6 +2849,131 @@
       "later": "Misschien later",
       "donated": "Ik heb al gedoneerd",
       "thanks": "Dank je wel! Dit komt niet meer terug."
+    },
+    "plugins": {
+      "title": "Plugins",
+      "intro": "Extra's voor je schermen: hardware op het bordje, of iets wat een scherm extra kan. Een plugin wordt in de firmware van het scherm gebouwd, dus alleen de schermen waar je hem aan toevoegt dragen hem mee.",
+      "example": "Voorbeeldplugins: de echte lijst komt met de plugin-index",
+      "search": "Zoek op naam, maker of wat hij doet",
+      "filter": "Toon",
+      "filters": {
+        "all": "Alle",
+        "tessera": "Van Tessera",
+        "community": "Community",
+        "installed": "Op dit scherm"
+      },
+      "for": "Voor",
+      "from_tessera": "Van Tessera",
+      "by": "Door {maker}",
+      "label": {
+        "tessera": "Van Tessera",
+        "community": "Community",
+        "test": "Test"
+      },
+      "state": {
+        "building": "Wordt gebouwd…",
+        "installed": "Geïnstalleerd",
+        "update": "Update {version}"
+      },
+      "source": {
+        "link": "Via een link",
+        "branch": "Test van een branch",
+        "folder": "Test uit een map"
+      },
+      "misfit_short": {
+        "board": "Niet voor dit bordje",
+        "psram": "Heeft PSRAM nodig",
+        "firmware": "Heeft nieuwere firmware nodig",
+        "flash": "Te groot voor dit scherm"
+      },
+      "misfit": {
+        "board": "Deze plugin is gemaakt voor andere bordjes dan dat van {screen}.",
+        "psram": "Deze plugin heeft een bordje met PSRAM nodig, en {screen} heeft dat niet.",
+        "firmware": "{screen} heeft eerst een firmware-update nodig voordat deze plugin erop kan.",
+        "flash": "{screen} heeft nog ruimte voor ongeveer {kb} KB, en deze plugin is groter."
+      },
+      "none_installed": "Nog geen plugins op dit scherm.",
+      "none_found": "Geen plugin gevonden voor “{query}”.",
+      "make": "Zelf een plugin maken?",
+      "template": "Begin met het template",
+      "version": "versie {version}",
+      "kind": {
+        "hardware": "Hardware",
+        "behaviour": "Functie"
+      },
+      "attribute": {
+        "cloud": "Gebruikt een clouddienst",
+        "commercial": "Commercieel",
+        "ai-developed": "Gemaakt met AI",
+        "experimental": "Experimenteel"
+      },
+      "test_note": "Een test: elke build neemt de nieuwste versie, en Tessera biedt er geen updates voor aan.",
+      "remove": "Verwijderen van {screen}",
+      "building": "De firmware voor {screen} wordt gebouwd…",
+      "installed_on": "Op {screen}, versie {version}",
+      "update": "Bijwerken naar {version}",
+      "trust": {
+        "title": "Ik vertrouw deze maker",
+        "text": "Tessera heeft deze plugin niet nagekeken. Hij draait op je scherm en kan doen wat het scherm in Home Assistant mag."
+      },
+      "install": "Toevoegen aan {screen}",
+      "adds": {
+        "title": "Wat hij toevoegt",
+        "tile": "Tegel “{name}”",
+        "tile_sizes": "Van {min} tot {max} op een pagina",
+        "tap": "Tikactie “{name}”",
+        "tap_on": "Op tegels van {domains}",
+        "card": "Een eigen scherm op het glas",
+        "settings": "Instellingen",
+        "settings_where": "Op de instellingenpagina van het scherm en onder Scherminstellingen",
+        "inputs": "Pinnen en namen die je zelf kiest",
+        "ha_package": "Een pakket voor Home Assistant",
+        "ha_package_why": "Eenmalig in Home Assistant te installeren; de editor biedt de download"
+      },
+      "may": {
+        "title": "Wat hij mag",
+        "ha": "Gebruikt deze Home Assistant-commando's",
+        "ha_none": "Voert geen acties uit in Home Assistant",
+        "network": "Maakt verbinding met {hosts}",
+        "network_none": "Maakt geen verbindingen buiten Home Assistant"
+      },
+      "warning": "Een plugin draait op je scherm met volledige toegang ertoe, ook tot de Wi-Fi en de acties die het scherm in Home Assistant mag uitvoeren. Voeg alleen plugins toe van makers die je vertrouwt, of lees eerst de code.",
+      "room": {
+        "title": "Ruimte op {screen}",
+        "small": "{kb} KB extra: de firmware gaat van {before} naar {after} van zijn ruimte.",
+        "large": "{kb} KB, ruim binnen de ruimte van dit scherm."
+      },
+      "works": {
+        "title": "Werkt op:",
+        "any": "elk bordje",
+        "any_psram": "elk bordje met PSRAM"
+      },
+      "source_code": "Broncode",
+      "issues": "Probleem melden",
+      "example_install": "Voorbeeld: {name} op {screen}. Met de plugin-index zet Tessera hem in de YAML van het scherm en bouwt.",
+      "removed": "{name} verwijderd. Het scherm verliest hem bij de volgende build.",
+      "add_link": "Toevoegen met link",
+      "link": {
+        "title": "Toevoegen met een link",
+        "intro": "Een plugin die niet in de lijst staat, of een die je zelf maakt. Tessera leest eerst zijn beschrijving en zegt of hij past, voordat er iets gebouwd wordt.",
+        "sources": {
+          "link": "Release",
+          "branch": "Branch testen",
+          "folder": "Map testen"
+        },
+        "url": "GitHub-link",
+        "branch": "Branch",
+        "folder": "Map op deze machine",
+        "hints": {
+          "link": "Tessera neemt de nieuwste release en houdt het scherm daarop. Een nieuwe release verschijnt als update.",
+          "branch": "Elke build neemt de nieuwste commit van deze branch. Om te proberen, niet voor elke dag.",
+          "folder": "Voor een plugin die je zelf maakt: opslaan, en de volgende build neemt hem mee. De map staat in de config van Home Assistant."
+        },
+        "fetch": "Plugin lezen",
+        "test": "Als test toevoegen aan {screen}",
+        "example": "Voorbeeld: met de plugin-index leest Tessera de beschrijving van de plugin via deze link.",
+        "not_found": "Geen pluginbeschrijving gevonden op deze link."
+      }
     }
   }
 }

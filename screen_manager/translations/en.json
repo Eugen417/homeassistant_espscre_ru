@@ -1314,7 +1314,8 @@
       "firmware": "Firmware & USB",
       "alerts": "Alerts",
       "settings": "Settings",
-      "new_screen_detail": "Connect and install"
+      "new_screen_detail": "Connect and install",
+      "plugins": "Plugins"
     },
     "api": {
       "failed": "That didn't work. Refresh the page and try again."
@@ -2848,6 +2849,131 @@
       "later": "Maybe later",
       "donated": "I already donated",
       "thanks": "Thank you! This won't ask again."
+    },
+    "plugins": {
+      "title": "Plugins",
+      "intro": "Extras for your screens: hardware on the board, or something more a screen can do. A plugin is built into the screen's firmware, so only the screens you add it to carry it.",
+      "example": "Example plugins: the real list arrives with the plugin index",
+      "search": "Search by name, maker or what it does",
+      "filter": "Show",
+      "filters": {
+        "all": "All",
+        "tessera": "From Tessera",
+        "community": "Community",
+        "installed": "On this screen"
+      },
+      "for": "For",
+      "from_tessera": "From Tessera",
+      "by": "By {maker}",
+      "label": {
+        "tessera": "From Tessera",
+        "community": "Community",
+        "test": "Test"
+      },
+      "state": {
+        "building": "Building…",
+        "installed": "Installed",
+        "update": "Update {version}"
+      },
+      "source": {
+        "link": "From a link",
+        "branch": "Test from a branch",
+        "folder": "Test from a folder"
+      },
+      "misfit_short": {
+        "board": "Not for this board",
+        "psram": "Needs PSRAM",
+        "firmware": "Needs newer firmware",
+        "flash": "Too large for this screen"
+      },
+      "misfit": {
+        "board": "This plugin is made for other boards than {screen}'s.",
+        "psram": "This plugin needs a board with PSRAM, and {screen} has none.",
+        "firmware": "{screen} needs a firmware update before it can take this plugin.",
+        "flash": "{screen} has room for about {kb} KB more, and this plugin is larger."
+      },
+      "none_installed": "No plugins on this screen yet.",
+      "none_found": "No plugin matches “{query}”.",
+      "make": "Making a plugin of your own?",
+      "template": "Start from the template",
+      "version": "version {version}",
+      "kind": {
+        "hardware": "Hardware",
+        "behaviour": "Feature"
+      },
+      "attribute": {
+        "cloud": "Uses a cloud service",
+        "commercial": "Commercial",
+        "ai-developed": "Made with AI",
+        "experimental": "Experimental"
+      },
+      "test_note": "A test: every build takes the newest version, and Tessera offers no updates for it.",
+      "remove": "Remove from {screen}",
+      "building": "Building the firmware for {screen}…",
+      "installed_on": "On {screen}, version {version}",
+      "update": "Update to {version}",
+      "trust": {
+        "title": "I trust this maker",
+        "text": "Tessera did not review this plugin. It runs on your screen and can do what the screen can do in Home Assistant."
+      },
+      "install": "Add to {screen}",
+      "adds": {
+        "title": "What it adds",
+        "tile": "Tile “{name}”",
+        "tile_sizes": "From {min} to {max} on a page",
+        "tap": "Tap action “{name}”",
+        "tap_on": "On tiles of {domains}",
+        "card": "A screen of its own on the glass",
+        "settings": "Settings",
+        "settings_where": "On the screen's settings page and under Screen settings",
+        "inputs": "Pins and names you choose",
+        "ha_package": "A package for Home Assistant",
+        "ha_package_why": "Installed once in Home Assistant; the editor offers the download"
+      },
+      "may": {
+        "title": "What it may do",
+        "ha": "Uses these Home Assistant commands",
+        "ha_none": "Runs no Home Assistant actions",
+        "network": "Connects to {hosts}",
+        "network_none": "Makes no connections outside Home Assistant"
+      },
+      "warning": "A plugin runs on your screen with full access to it, including its Wi-Fi and the actions it may perform in Home Assistant. Only add plugins from makers you trust, or read the code first.",
+      "room": {
+        "title": "Room on {screen}",
+        "small": "{kb} KB more: the firmware goes from {before} to {after} of its slot.",
+        "large": "{kb} KB, well within the room this screen has."
+      },
+      "works": {
+        "title": "Works on:",
+        "any": "every board",
+        "any_psram": "every board with PSRAM"
+      },
+      "source_code": "Source code",
+      "issues": "Report a problem",
+      "example_install": "Example: {name} on {screen}. With the plugin index, Tessera writes it into the screen's YAML and builds.",
+      "removed": "{name} removed. The screen loses it with its next build.",
+      "add_link": "Add with a link",
+      "link": {
+        "title": "Add with a link",
+        "intro": "A plugin that is not in the list, or one you are making. Tessera reads its description first and says whether it fits before anything is built.",
+        "sources": {
+          "link": "Release",
+          "branch": "Test a branch",
+          "folder": "Test a folder"
+        },
+        "url": "GitHub link",
+        "branch": "Branch",
+        "folder": "Folder on this machine",
+        "hints": {
+          "link": "Tessera takes the newest release and keeps the screen on it. A new release shows up as an update.",
+          "branch": "Every build takes the newest commit of this branch. For trying out, not for every day.",
+          "folder": "For a plugin you are making: save, and the next build takes it. The folder lives in Home Assistant's config."
+        },
+        "fetch": "Read the plugin",
+        "test": "Add to {screen} as a test",
+        "example": "Example: with the plugin index, Tessera reads the plugin's description from this link.",
+        "not_found": "No plugin description at this link."
+      }
     }
   }
 }

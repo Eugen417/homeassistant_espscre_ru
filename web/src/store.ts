@@ -427,7 +427,7 @@ export function openIntegrations() {
 }
 
 // ---- Routes: the hash keeps a view open across a reload (#settings did before) ----
-export const routes = ["", "#settings", "#new-screen", "#firmware", "#alerts", "#override"] as const;
+export const routes = ["", "#settings", "#new-screen", "#firmware", "#alerts", "#override", "#plugins"] as const;
 export type Route = (typeof routes)[number];
 export const route = computed<Route>(() => (routes.includes(state.route as Route) ? (state.route as Route) : ""));
 export function go(target: Route) {

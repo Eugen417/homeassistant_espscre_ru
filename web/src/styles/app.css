@@ -1313,3 +1313,104 @@ section.advanced code { font-size: 11.5px; }
 .app.phone .home-head h1 { font-size: 27px; font-weight: 700; letter-spacing: -0.02em; }
 .app.phone .home-more { position: absolute; top: 0; right: 0; width: 34px; height: 34px; border-radius: 50%; background: var(--seg); color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { .app.phone .library, .phone-sheet, .app.phone .drawer-enter-active, .app.phone .drawer-leave-active { transition: none; animation: none; } }
+
+/* ---- Plugins (design for the plugins proposal): New screen's gallery for what a screen can get beyond the core ----
+   The same quiet bar and search; one card per plugin with its icon, its maker and one line of state; its details in a
+   column on the right that glides open like the inspector, with the one button for the chosen screen at the top.
+   Tessera's own plugins carry the accent, a community plugin the warm neutral of a label, never a warning colour:
+   it is not wrong, only someone else's. */
+.plugins-head-actions { justify-self: end; display: flex; align-items: center; gap: 8px; }
+.plugins-head-actions .btn[aria-pressed="true"] { background: var(--seg); color: var(--ink); }
+.plugins-frame { flex: 1 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); }
+.plugins.with-detail .plugins-frame { grid-template-columns: minmax(0, 1fr) auto; }
+.plugins-list { width: 100%; max-width: 1040px; margin: 0 auto; padding: 40px 32px 48px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-content: start; min-width: 0; }
+.plugins-example { display: flex; align-items: center; gap: 8px; justify-self: start; padding: 6px 12px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 500; }
+.plugins-example .ui-icon { font-size: 15px; }
+.plugins-for { display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: 12.5px; color: var(--muted); }
+.plugins-for select { width: auto; min-width: 170px; height: 34px; font-size: 13px; color: var(--ink); }
+.plugin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.plugins.with-detail .plugin-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.plugin-card { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto 1fr auto; column-gap: 12px; row-gap: 10px; align-items: start; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); text-align: left; transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s, opacity 0.15s; }
+.plugin-card:hover { border-color: var(--line-strong); box-shadow: 0 6px 20px rgba(20, 24, 40, 0.07); transform: translateY(-1px); }
+.plugin-card.chosen { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+/* A plugin that does not fit the chosen screen stays readable, a step back from the ones that do. */
+.plugin-card.misfit:not(.chosen) { background: var(--surface-2); border-color: transparent; }
+.plugin-card.misfit:not(.chosen) .plugin-icon { opacity: 0.6; }
+.plugin-icon { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; background: var(--seg); color: var(--ink-2); font-size: 22px; flex: none; }
+.plugin-icon.tessera { background: var(--accent-soft); color: var(--accent); }
+.plugin-icon.large { width: 52px; height: 52px; border-radius: 14px; font-size: 28px; }
+.plugin-icon .ui-icon { font-size: inherit; }
+.plugin-words { display: grid; gap: 1px; min-width: 0; align-self: center; }
+.plugin-words b { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plugin-words small { font-size: 12px; }
+.plugin-summary { grid-column: 1 / -1; color: var(--ink-2); font-size: 12.5px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.plugin-foot { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; min-height: 22px; }
+.plugin-chip { font-style: normal; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--seg); color: var(--ink-2); white-space: nowrap; }
+.plugin-chip.tessera { background: var(--accent-soft); color: var(--accent); }
+.plugin-chip.community { background: var(--seg); color: var(--ink-2); }
+.plugin-chip.test { background: var(--warn-soft); color: var(--warn); }
+.plugin-chip.attribute { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.plugin-state { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; color: var(--muted); white-space: nowrap; }
+.plugin-state .ui-icon { font-size: 15px; }
+.plugin-state.installed { color: var(--good); }
+.plugin-state.update { color: var(--accent); }
+.plugin-state.building { color: var(--ink-2); }
+.plugin-state.test { color: var(--warn); }
+.plugin-state.misfit { font-weight: 400; }
+.plugins-make { color: var(--muted); font-size: 12.5px; }
+.plugins-make a { font-weight: 500; }
+
+/* The details: a column of their own, as tall as the view, scrolling on their own. */
+.plugin-detail { position: sticky; top: 56px; align-self: start; height: calc(100vh - 56px); width: 400px; max-width: 100vw; border-left: 1px solid var(--line); background: var(--surface); overflow: hidden; display: flex; }
+.plugin-detail.drawer-enter-from, .plugin-detail.drawer-leave-to { width: 0; opacity: 0; }
+.plugin-detail-inner { width: 400px; max-width: 100vw; flex: none; overflow-y: auto; padding: 22px 24px 32px; display: flex; flex-direction: column; gap: 20px; }
+.pd-top { display: flex; align-items: flex-start; justify-content: space-between; }
+.pd-title { display: grid; gap: 6px; margin-top: -6px; }
+.pd-title h2 { font-size: 20px; font-weight: 650; letter-spacing: -0.02em; }
+.pd-by { color: var(--muted); font-size: 12.5px; overflow-wrap: anywhere; }
+.pd-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pd-description { color: var(--ink-2); font-size: 13.5px; line-height: 1.55; }
+.pd-action { display: grid; gap: 12px; padding: 14px; border-radius: 12px; background: var(--surface-2); }
+.pd-action .btn { height: 36px; font-size: 13px; }
+.pd-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.pd-note { display: flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: 12.5px; line-height: 1.45; }
+.pd-note .ui-icon { font-size: 17px; color: var(--good); }
+.pd-misfit { display: flex; align-items: flex-start; gap: 8px; color: var(--ink-2); font-size: 12.5px; line-height: 1.45; }
+.pd-misfit .ui-icon { font-size: 17px; color: var(--muted); margin-top: 1px; }
+.pd-trust { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); cursor: pointer; }
+.pd-trust input { margin-top: 3px; }
+.pd-trust b { display: block; color: var(--ink); font-weight: 600; margin-bottom: 2px; }
+.pd-section { display: grid; gap: 10px; }
+.pd-section h3 { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.pd-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.pd-list li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: start; }
+.pd-list li > .ui-icon { font-size: 17px; color: var(--ink-2); margin-top: 1px; }
+.pd-list b { display: block; font-weight: 500; font-size: 13px; }
+.pd-list small { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; font-size: 12px; }
+.pd-warning { padding: 10px 12px; border-radius: 10px; background: var(--warn-soft); color: var(--ink-2); font-size: 12px; line-height: 1.5; }
+.pd-meter { position: relative; height: 8px; border-radius: 999px; background: var(--seg); overflow: hidden; }
+.pd-meter i { position: absolute; top: 0; bottom: 0; }
+.pd-meter .before { left: 0; background: color-mix(in srgb, var(--ink-2) 55%, var(--seg)); }
+.pd-meter .added { background: var(--accent); }
+.pd-meter.tight .added { background: var(--warn); }
+.pd-room { color: var(--ink-2); font-size: 12.5px; line-height: 1.5; }
+.pd-works { color: var(--muted); }
+.pd-links { display: flex; gap: 16px; font-size: 12.5px; font-weight: 500; }
+.pd-link { display: grid; gap: 14px; }
+.pd-link .field { display: grid; gap: 6px; }
+.pd-link input { height: 38px; font-size: 13.5px; }
+.pd-link .btn { justify-self: start; height: 36px; font-size: 13px; }
+
+@media (max-width: 860px) {
+  .plugins-list { padding: 24px 16px 40px; }
+  .plugins .setup-steps-spacer { display: none; }
+  .plugins .pick-search { min-width: 0; flex-basis: 100%; }
+  .plugins .pick-tools .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .plugins-for { margin-left: 0; width: 100%; }
+  .plugins-for select { flex: 1; }
+  .plugins.with-detail .plugins-frame { grid-template-columns: minmax(0, 1fr); }
+  .plugin-detail { position: fixed; inset: 0 0 0 auto; top: 0; height: 100%; width: 100%; z-index: 30; box-shadow: var(--shadow); }
+  .plugin-detail-inner { width: 100%; }
+  .plugin-detail.drawer-enter-from, .plugin-detail.drawer-leave-to { width: 100%; opacity: 1; transform: translateX(100%); }
+  .plugin-detail.drawer-enter-active, .plugin-detail.drawer-leave-active { transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1); }
+}
