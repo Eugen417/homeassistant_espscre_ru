@@ -11,6 +11,7 @@ import { validateCardOptions } from "./page-validation";
 import { ofType } from "./catalogue";
 import type { PageTile, Tile, TileOptions } from "../types";
 import { BUILTIN_CARDS, type BuiltinName } from "../types";
+import { PLUGIN_TILE } from "./plugins";
 
 const APPEARANCE = { display: "display", icon: "icon", background: "background", historyHours: "history_hours", refresh: "refresh", subtitle: "sub", fit: "fit", overlay: "overlay",
   mapEntities: "map", mapFraming: "framing", mapDistance: "distance",
@@ -86,6 +87,7 @@ function cardOf(tile: Tile, options: TileOptions): PageTile {
   for (const key of INTERACTION) if (options[key] !== undefined) Object.assign(interaction, { [key]: options[key] });
   const content: PageTile["content"] = pageTile(tile.entity) ? { kind: "navigation", target: { kind: "home" } }
     : BUILTIN_CARDS.includes(tile.entity) ? { kind: "builtin", name: tile.entity.slice(7) as BuiltinName }
+    : PLUGIN_TILE.test(tile.entity) ? { kind: "plugin", plugin: PLUGIN_TILE.exec(tile.entity)![1], tile: PLUGIN_TILE.exec(tile.entity)![2], ...(options.plugin ? { options: options.plugin } : {}) }
     : { kind: "entity", entityId: tile.entity };
   return { id: tile.id || "trial", content, appearance, interaction, placement: { row: 0, column: 0, columns: 1, rows: 1 } };
 }

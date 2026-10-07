@@ -4,8 +4,9 @@
 import { reactive } from "vue";
 import { getJson, send } from "./api";
 import { t } from "./i18n";
-import { EXAMPLE_INDEX, EXAMPLE_INSTALLED, fit, testPlugin, text, type Installed, type Plugin } from "./model/plugins";
-import { computed } from "vue";
+import { EXAMPLE_INDEX, EXAMPLE_INSTALLED, fit, knowTileTypes, pluginTileId, testPlugin, text, type Installed, type Plugin } from "./model/plugins";
+import { pluginTiles } from "./model/page-validation";
+import { computed, watch } from "vue";
 import { copyText, state, toast } from "./store";
 import type { Screen } from "./types";
 
@@ -27,6 +28,9 @@ export const plugins = reactive({
 // Plugins are an experiment (editor_features.plugins, SCREEN_EDITOR_ENV=development) and always on in `npm run dev`:
 // a person with a released add-on never sees the page, the tab or the example index.
 export const pluginsEnabled = computed(() => import.meta.env.DEV || state.inventory.editor_features?.plugins === true);
+// The layout model, the memory price and the tile card ask the model's register for a plugin tile; it follows the index.
+watch(() => plugins.index, (index) => knowTileTypes(index), { immediate: true });
+watch(pluginsEnabled, (on) => { pluginTiles.enabled = on; }, { immediate: true });
 
 export function loadPlugins() {
   if (plugins.loaded) return;
@@ -39,6 +43,12 @@ export function loadPlugins() {
 }
 
 export const realScreens = () => state.inventory.screens.filter((screen) => !screen.virtual);
+// The tile types a screen can place: those of the plugins it runs (the library's Plugins group). A preview screen has none.
+export function tilesOn(screen: Screen | undefined) {
+  if (!screen || screen.virtual) return [];
+  return plugins.index.filter((plugin) => installedOn(screen, plugin.id)).flatMap((plugin) =>
+    (plugin.adds.tiles || []).map((tile) => ({ id: pluginTileId(plugin.id, tile.id), name: text(tile.name), plugin: text(plugin.name), tile: true })));
+}
 // A screen built from its own YAML (in ESPHome Device Builder, with no profile in Tessera): the add-on cannot add a
 // plugin to it, so the page shows the lines to paste instead.
 export const ownYaml = (screen: Screen) => !screen.update?.profile;

@@ -10,6 +10,18 @@ import type { Screen } from "../types";
 export type Texts = Record<string, string>;
 export type PluginInput = { id: string; kind: "secret" | "text" | "gpio"; label: Texts; hint?: Texts; scope: "all" | "screen" };
 export type PluginPart = { id: string; label: Texts; hint: Texts; flash_kb: number; default: boolean };
+// A tile type of a plugin (docs: the plugins proposal, "Een plugin-tegel"): its sizes as the catalogue names them, its
+// price in the screen's memory, the entity it belongs to if any, and the options the inspector draws. An option's
+// `options_from` names a fetch of the plugin, whose answer the add-on hands the inspector as a list of choices.
+export type PluginTileOption = {
+  id: string; kind: "text" | "choice" | "number" | "toggle"; label: Texts; hint?: Texts;
+  default?: string | number | boolean; choices?: { value: string; label: Texts }[]; options_from?: string;
+  min?: number; max?: number; step?: number; unit?: string;
+};
+export type PluginTile = {
+  id: string; name: Texts; icon?: string; min: string; max: string; memory: number;
+  entity?: string[]; options?: PluginTileOption[]; example?: Texts;
+};
 export type PluginSource = "index" | "link" | "branch" | "folder";
 export type PluginKind = "hardware" | "behaviour";
 export type Plugin = {
@@ -35,7 +47,7 @@ export type Plugin = {
   parts?: PluginPart[];               // optional parts, on or off per screen, each with its own room
   attributes: string[];               // cloud, commercial, ai-developed, experimental
   adds: {
-    tiles?: { name: Texts; min: string; max: string }[];
+    tiles?: PluginTile[];
     tap_actions?: { label: Texts; domains: string[] }[];
     card?: boolean;
     settings?: boolean;
@@ -44,6 +56,32 @@ export type Plugin = {
   };
 };
 export type Installed = { id: string; version: string; source: PluginSource; ref?: string };
+
+// ---- Plugin tiles in a layout: the tile's entity is plugin:<plugin>.<tile>, the type the screen's protocol carries ----
+export const PLUGIN_TILE = /^plugin:([a-z0-9_]+)\.([a-z0-9_]+)$/;
+export const pluginTileId = (plugin: string, tile: string) => `plugin:${plugin}.${tile}`;
+export const isPluginTile = (entity: string) => PLUGIN_TILE.test(entity);
+// The tile types of the plugins the editor knows, kept by the plugin state as its index changes, so the layout model,
+// the memory price and the tile card can ask without depending on it.
+const tileTypes = new Map<string, { plugin: Plugin; tile: PluginTile }>();
+export function knowTileTypes(index: Plugin[]) {
+  tileTypes.clear();
+  for (const plugin of index) for (const tile of plugin.adds.tiles || []) tileTypes.set(pluginTileId(plugin.id, tile.id), { plugin, tile });
+}
+export const pluginTileOf = (entity: string) => tileTypes.get(entity);
+// The choices an option takes from a fetch. Example answers until the add-on runs the plugin's fetches.
+export const EXAMPLE_FETCH: Record<string, { value: string; label: Texts }[]> = {
+  "bus.lines": [
+    { value: "12", label: { en: "12 Central Station", nl: "12 Centraal Station" } },
+    { value: "15", label: { en: "15 University", nl: "15 Universiteit" } },
+    { value: "N4", label: { en: "N4 Night bus", nl: "N4 Nachtbus" } },
+  ],
+};
+export const choicesOf = (plugin: Plugin, option: PluginTileOption) =>
+  option.choices || (option.options_from ? EXAMPLE_FETCH[`${plugin.id}.${option.options_from}`] || [] : []);
+// What a plugin tile's options are when nothing is chosen yet.
+export const pluginDefaults = (tile: PluginTile) =>
+  Object.fromEntries((tile.options || []).filter((option) => option.default !== undefined).map((option) => [option.id, option.default!]));
 
 // The words in the editor's language, else English.
 const own = (texts: Texts) => texts[editorLanguage()] ?? texts[editorLanguage().split("-")[0]];
@@ -170,7 +208,12 @@ export const EXAMPLE_INDEX: Plugin[] = [
     description: { en: "Drag the blocks of a day, set their temperature and save.", nl: "Sleep de blokken van een dag, kies hun temperatuur en bewaar." },
     readme: { en: HEATING_README_EN, nl: HEATING_README_NL },
     adds: {
-      tiles: [{ name: { en: "Week schedule", nl: "Weekschema" }, min: "2×1", max: "4×2" }],
+      tiles: [{
+        id: "week", icon: "F00ED", name: { en: "Week schedule", nl: "Weekschema" }, min: "2x1", max: "4x2", memory: 1800, entity: ["climate"],
+        example: { en: "Now 20.5° · 22:30 off", nl: "Nu 20,5° · 22:30 uit" },
+        options: [{ id: "days", kind: "choice", label: { en: "Shows", nl: "Toont" }, default: "today",
+          choices: [{ value: "today", label: { en: "Today", nl: "Vandaag" } }, { value: "week", label: { en: "The week", nl: "De week" } }] }],
+      }],
       tap_actions: [{ label: { en: "Edit schedule", nl: "Schema aanpassen" }, domains: ["climate"] }],
       card: true, settings: true, ha_package: true,
     },
@@ -201,7 +244,15 @@ export const EXAMPLE_INDEX: Plugin[] = [
     description: { en: "A tile with the next departures of one line at your stop, counting down on the screen.", nl: "Een tegel met de volgende vertrekken van één lijn bij je halte, die op het scherm aftelt." },
     readme: { en: BUS_README_EN, nl: BUS_README_NL },
     inputs: [{ id: "api_key", kind: "secret", scope: "all", label: { en: "API key", nl: "API-sleutel" }, hint: { en: "Stays in Tessera; never sent to a screen.", nl: "Blijft in Tessera; gaat nooit naar een scherm." } }],
-    adds: { tiles: [{ name: { en: "Next bus", nl: "Eerstvolgende bus" }, min: "1×1", max: "2×2" }] },
+    adds: { tiles: [{
+      id: "next_bus", icon: "F034E", name: { en: "Next bus", nl: "Eerstvolgende bus" }, min: "1x1", max: "2x2", memory: 900,
+      example: { en: "12 · in 4 min", nl: "12 · over 4 min" },
+      options: [
+        { id: "stop", kind: "text", label: { en: "Stop code", nl: "Haltecode" }, hint: { en: "On the sign at the stop", nl: "Staat op het bordje bij de halte" } },
+        { id: "line", kind: "choice", label: { en: "Line", nl: "Lijn" }, options_from: "lines" },
+        { id: "walk", kind: "number", label: { en: "Walk to the stop", nl: "Lopen naar de halte" }, min: 0, max: 20, step: 1, unit: "min", default: 3 },
+      ],
+    }] },
   },
   {
     id: "relays_86", icon: "F1A25", maintainer: "example-maker", tessera: false, version: "0.4.1",
@@ -238,7 +289,14 @@ export const EXAMPLE_INDEX: Plugin[] = [
     summary: { en: "A warm, dim glow on the glass with one tap at night." },
     description: { en: "A tile that turns the whole screen into a soft warm light until the next tap." },
     readme: { en: "A tile that turns the whole screen into a soft warm light until the next tap. Its colour and brightness are set in the inspector." },
-    adds: { tiles: [{ name: { en: "Night light" }, min: "1×1", max: "2×1" }], card: true },
+    adds: { tiles: [{
+      id: "glow", icon: "F0594", name: { en: "Night light" }, min: "1x1", max: "2x1", memory: 400, example: { en: "Tap for a warm glow" },
+      options: [
+        { id: "colour", kind: "choice", label: { en: "Colour" }, default: "warm",
+          choices: [{ value: "warm", label: { en: "Warm" } }, { value: "amber", label: { en: "Amber" } }, { value: "red", label: { en: "Red" } }] },
+        { id: "brightness", kind: "number", label: { en: "Brightness" }, min: 5, max: 40, step: 5, unit: "%", default: 15 },
+      ],
+    }], card: true },
   },
   {
     id: "camera_module", icon: "F07AE", maintainer: "example-labs", tessera: false, version: "0.1.0",

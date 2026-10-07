@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { pluginTileOf, text as pluginText } from "../model/plugins";
 import { editorLayout } from "../store";
 const { grid: editorGrid } = editorLayout;
 
@@ -58,6 +59,9 @@ const bedside = computed(() => props.tile.entity === "screen.nightstand");
 // The energy card (app 0.4.77): the screen draws the house live from Home Assistant's Energy settings, as its own live view
 // does; the mockup shows the diagram's shape, the sources around the house, in their paints.
 const energyTile = computed(() => props.tile.entity === "screen.energy");
+// A plugin's tile (design): the editor cannot draw what the plugin draws on the glass, so it shows a placeholder with the
+// tile's icon, its name, one line of what it shows, and the plugin it comes from.
+const pluginTile = computed(() => pluginTileOf(props.tile.entity));
 const energy = energyPaints();
 const bedsideKeys = computed(() => props.keys ?? keysOf(state.layout, props.tile));
 // As many places as the add-on lets this clock hold (page-rules.json, keyHolders).
@@ -412,6 +416,13 @@ async function onKey(e: KeyboardEvent) {
             <button v-else type="button" class="key-empty" :title="t('editor.page.cell.title')" @click.stop="markKey(place.key)"><span>+</span></button>
           </span>
         </span>
+      </span>
+    </template>
+    <template v-else-if="pluginTile">
+      <span class="plugin-face" :class="{ compact: shape.columns === 1 && shape.rows === 1 }">
+        <span class="plugin-face-icon mdi">{{ glyph(pluginTile.tile.icon || pluginTile.plugin.icon) }}</span>
+        <span class="plugin-face-words"><b>{{ name }}</b><small v-if="pluginTile.tile.example">{{ pluginText(pluginTile.tile.example) }}</small></span>
+        <span class="plugin-face-tag"><span class="mdi">{{ glyph("F0A66") }}</span>{{ pluginText(pluginTile.plugin.name) }}</span>
       </span>
     </template>
     <template v-else-if="energyTile">

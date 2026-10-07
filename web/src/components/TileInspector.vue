@@ -11,6 +11,8 @@ import { glyph } from "../model/topbar";
 import { controlOption, drawable, fits, ofType } from "../model/catalogue";
 import { currentScreen, automaticIcon, entityName, liveOf, moveTileToPage, openPage, openTile, phone, screenBuiltinName, fullPage, loadSubtitleValues, setTileName, pictures, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
 import { titleOf } from "../model/pages";
+import { pluginTileOf } from "../model/plugins";
+import PluginTileInspector from "./PluginTileInspector.vue";
 import type { Tile } from "../types";
 import ActionPicker from "./ActionPicker.vue";
 import IconPicker from "./IconPicker.vue";
@@ -46,6 +48,8 @@ const otherPages = computed(() => (state.document?.pages || []).map((page, index
   .filter((page) => page.index !== pageOf(props.tile.slot)));
 const nameDraft = textDraft(() => props.tile.name, value => setTileName(props.tile, value));
 const domain = computed(() => props.tile.entity.split(".")[0]);
+// A plugin's tile (design) has an inspector of its own, built from the plugin's manifest.
+const pluginTile = computed(() => Boolean(pluginTileOf(props.tile.entity)));
 const name = computed(() => entityName(props.tile.entity));
 // A navigation tile (screen.page_<n>): the page it opens, its size, icon and colour; nothing else applies.
 const goesTo = computed(() => pageTarget(props.tile.entity));
@@ -307,6 +311,8 @@ const backgroundName = computed(() => state.inventory.backgrounds?.[props.tile.o
 </script>
 
 <template>
+  <PluginTileInspector v-if="pluginTile" :tile="tile" />
+  <template v-else>
   <InspectorHead :title="tile.name || name" :code="tileIconCp(tile)" :tone="{ color: domainInfo(tile.entity)[2], background: domainInfo(tile.entity)[3] }" :crumbs="crumbs" kind="tile">
     <!-- The name is edited where it stands, as a title: empty is the name Home Assistant gives it. -->
     <template #title>
@@ -492,4 +498,5 @@ const backgroundName = computed(() => state.inventory.backgrounds?.[props.tile.o
       </div>
     </template>
   </div>
+  </template>
 </template>

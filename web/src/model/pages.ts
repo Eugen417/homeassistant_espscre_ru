@@ -7,6 +7,7 @@ import { t } from "../i18n";
  */
 import type { ChildTile, HeaderItem, Layout, Page, PageGrid, PageLayout, PageTarget, PageTile, Tile, TileOptions } from "../types";
 import { BUILTIN_CARDS, type BuiltinName } from "../types";
+import { PLUGIN_TILE, pluginTileId } from "./plugins";
 import { spanOf, spanOffered } from "./sizes";
 
 import { STORE_MAX_BAR_ITEMS, STORE_MAX_PAGES, dimensions, type Size } from "./layout";
@@ -167,6 +168,7 @@ export function entityOf(layout: PageLayout, tile: PageTile): string {
   const content = tile.content;
   if (content.kind === "entity") return content.entityId;
   if (content.kind === "builtin") return `screen.${content.name}`;
+  if (content.kind === "plugin") return pluginTileId(content.plugin, content.tile);
   const index = layout.pages.findIndex((page) => page.id === destination(layout, content.target));
   if (index < 0) throw new Error(t("addon.errors.pages.page_missing"));
   return `screen.page_${index + 1}`;
@@ -204,6 +206,7 @@ export function projectLayout(layout: PageLayout, grid: PageGrid): Layout {
         if (value !== undefined) Object.assign(options, { [wire]: clone(value) });
       }
       if (size !== "single") options.size = size;
+      if (tile.content.kind === "plugin" && tile.content.options) options.plugin = clone(tile.content.options);
       return { id: tile.id, entity: entityOf(layout, tile), name: tile.appearance.label,
         slot: index * grid.columns * grid.rows + tile.placement.row * grid.columns + tile.placement.column,
         ...(Object.keys(options).length ? { options } : {}) };
@@ -346,6 +349,9 @@ export function arrangeTiles(layout: PageLayout, grid: PageGrid, entries: { tile
           ? clone(old.content) : { kind: "navigation", target: { kind: "page", pageId: page.id } };
       } else if (BUILTIN_CARDS.includes(tile.entity)) {
         content = { kind: "builtin", name: tile.entity.slice(7) as BuiltinName };
+      } else if (PLUGIN_TILE.test(tile.entity)) {
+        const [, plugin, kind] = PLUGIN_TILE.exec(tile.entity)!;
+        content = { kind: "plugin", plugin, tile: kind, ...(options.plugin ? { options: clone(options.plugin) } : {}) };
       } else content = { kind: "entity", entityId: tile.entity };
       const size = options.size ?? "single";
       if (!isSize(size)) throw new Error(t("addon.errors.pages.size"));

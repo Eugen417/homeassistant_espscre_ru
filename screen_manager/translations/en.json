@@ -1579,7 +1579,8 @@
       "hint": "Drag onto a page, or tap + to add to the first free slot. ⌘K searches everything.",
       "resize": "Drag to resize the library",
       "filter_label": "Filter by type",
-      "no_room": "No room"
+      "no_room": "No room",
+      "plugins": "Plugins"
     },
     "memory": {
       "label": "Memory for tiles",
@@ -3025,6 +3026,18 @@
         "done": "I added it",
         "file": "What Tessera writes in {file}"
       }
+    },
+    "plugin_tile": {
+      "from": "A tile of the plugin {plugin}",
+      "details": "Plugin details",
+      "options": "Options",
+      "choose": "Choose…",
+      "less": "Less",
+      "more": "More",
+      "from_fetch": "The choices come from the plugin's own data source, through Tessera.",
+      "on_screen": "On the screen",
+      "sizes": "From {min} to {max}; drag an edge of the tile to change its size.",
+      "placeholder": "The editor shows a placeholder: what the plugin draws appears on the screen itself."
     }
   }
 }

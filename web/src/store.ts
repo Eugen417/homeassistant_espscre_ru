@@ -10,6 +10,7 @@ import { energyFits, frameOf, pillMetrics, uiScale } from "./model/ui-scale";
 import { createLayout, dimensions, type Size, versionAtLeast } from "./model/layout";
 import { measuring, memoryCrossing, memoryUse } from "./model/memory";
 import { validPreviewShape, type PreviewProfile } from "./model/preview";
+import { pluginTileOf, text as pluginText } from "./model/plugins";
 import renderer from "./wasm/renderer.json";
 import type { BoardChoice, Capability, ChildTile, FeedbackView, ChangelogSection, EntityAction, HeaderItem, Inventory, Layout, SaverKind, Screen, ScreensaverChoice, Tile, PageLayout, PageTile, PageDocument, PageGrid, PageWorkspace } from "./types";
 
@@ -438,6 +439,8 @@ window.addEventListener("hashchange", () => { state.route = location.hash; windo
 
 // ---- Names and icons ----
 export function entityName(id: string) {
+  const plugin = pluginTileOf(id);
+  if (plugin) return pluginText(plugin.tile.name);
   return state.inventory.entities.find((e) => e.id === id)?.name || state.inventory.builtin?.find((e) => e.id === id)?.name ||
     state.inventory.trackers?.find((e) => e.id === id)?.name || id;
 }
@@ -449,6 +452,8 @@ export function iconNamed(name: string | undefined) {
 }
 // What the firmware draws without a choice: Home Assistant's own icon, else the domain icon.
 export function automaticIcon(id: string): string {
+  const plugin = pluginTileOf(id);
+  if (plugin) return plugin.tile.icon || plugin.plugin.icon;
   const icons = state.inventory.icons;
   if (!icons) return "F0335";
   const entity = state.inventory.entities.find((e) => e.id === id), domain = id.split(".")[0];
@@ -974,7 +979,14 @@ export function tileSizeChoices(tile: Tile): Size[] {
     if (!span || !spanOffered(span.columns, span.rows, grid) || (span.rows > 1 && !tallerTilesEnabled.value) || (span.columns === 1 && narrow)) continue;
     choices.push(size as Size);
   }
-  if (!pageTarget(tile.entity)) choices.push('full');
+  if (!pageTarget(tile.entity) && !pluginTileOf(tile.entity)) choices.push('full');
+  // A plugin's tile takes the sizes between its manifest's smallest and largest (design, docs: the plugins proposal).
+  const plugin = pluginTileOf(tile.entity);
+  if (plugin) {
+    const least = dimensions(plugin.tile.min as Size, grid), most = dimensions(plugin.tile.max as Size, grid);
+    return choices.filter((size) => { const d = dimensions(size, grid);
+      return d.columns >= least.columns && d.rows >= least.rows && d.columns <= most.columns && d.rows <= most.rows; });
+  }
   // The energy card's diagram takes a size it fits (app 0.4.77): on a small glass a page of its own, never a single cell.
   if (tile.entity === "screen.energy") return choices.filter((size) => {
     const { columns, rows } = dimensions(size, grid);

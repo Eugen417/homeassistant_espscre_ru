@@ -1,0 +1,75 @@
+<script setup lang="ts">
+// A plugin's tile in the inspector (design, docs: the plugins proposal): its name, the options its manifest lists, drawn
+// with the inspector's own rows, and the sizes it takes. A choice can come from one of the plugin's fetches (a bus line
+// from the transport API); until the add-on runs fetches, example answers stand in.
+import { computed } from "vue";
+import { editorLanguage, languageMarks, numberText, t } from "../i18n";
+import { choicesOf, pluginDefaults, pluginTileOf, text, type PluginTileOption } from "../model/plugins";
+import { glyph } from "../model/topbar";
+import { closeInspector, removeTile, setTileName, setTileOption, state } from "../store";
+import type { Tile } from "../types";
+import Icon from "./ui/Icon.vue";
+import InspectorHead from "./ui/InspectorHead.vue";
+import PropRow from "./ui/PropRow.vue";
+import Section from "./ui/Section.vue";
+import SwitchRow from "./ui/SwitchRow.vue";
+import UiSelect from "./ui/UiSelect.vue";
+
+const props = defineProps<{ tile: Tile }>();
+const kind = computed(() => pluginTileOf(props.tile.entity)!);
+const values = computed(() => ({ ...pluginDefaults(kind.value.tile), ...(props.tile.options?.plugin || {}) }));
+function set(option: PluginTileOption, value: string | number | boolean) {
+  setTileOption(props.tile, "plugin", { ...(props.tile.options?.plugin || {}), [option.id]: value });
+}
+const choices = (option: PluginTileOption) => choicesOf(kind.value.plugin, option).map((choice) => [choice.value, text(choice.label)] as [string, string]);
+const fromFetch = (option: PluginTileOption) => Boolean(option.options_from);
+const size = (value: string) => value.replace("x", "×");
+const number = (value: number) => numberText(value, languageMarks(editorLanguage()));
+function step(option: PluginTileOption, by: number) {
+  const now = Number(values.value[option.id] ?? option.min ?? 0);
+  set(option, Math.min(option.max ?? Infinity, Math.max(option.min ?? -Infinity, now + by * (option.step ?? 1))));
+}
+// The plugin's details, in the screen's Plugins tab: the README says what the options mean.
+function openPlugin() { closeInspector(); state.tab = "plugins"; }
+</script>
+
+<template>
+  <InspectorHead :title="tile.name || text(kind.tile.name)" :code="kind.tile.icon || kind.plugin.icon" :tone="{ color: 'var(--accent)', background: 'var(--accent-soft)' }"
+    :crumbs="[{ text: text(kind.plugin.name) }, { text: tile.entity, mono: true }]" kind="tile">
+    <template #title>
+      <input id="tile-name" class="dr-title" :value="tile.name" :placeholder="text(kind.tile.name)" maxlength="60" :aria-label="t('editor.tile.name')"
+        @change="setTileName(tile, ($event.target as HTMLInputElement).value)" />
+    </template>
+  </InspectorHead>
+  <div class="dr-body" id="plugin-tile-inspector">
+    <p class="plugin-tile-from"><span class="mdi">{{ glyph("F0A66") }}</span>{{ t("editor.plugin_tile.from", { plugin: text(kind.plugin.name) }) }}
+      <button type="button" class="btn link mini" @click="openPlugin">{{ t("editor.plugin_tile.details") }}</button></p>
+
+    <Section v-if="kind.tile.options?.length" :title="t('editor.plugin_tile.options')">
+      <template v-for="option in kind.tile.options" :key="option.id">
+        <SwitchRow v-if="option.kind === 'toggle'" :label="text(option.label)" :description="option.hint ? text(option.hint) : undefined"
+          :model-value="Boolean(values[option.id])" @update:model-value="(on: boolean) => set(option, on)" />
+        <PropRow v-else :label="text(option.label)" icon="tune-variant" :hint="option.hint ? text(option.hint) : undefined" :for="`plugin-option-${option.id}`">
+          <UiSelect v-if="option.kind === 'choice'" :id="`plugin-option-${option.id}`" :model-value="String(values[option.id] ?? '')"
+            :options="choices(option)" :placeholder="t('editor.plugin_tile.choose')" @update:model-value="(value: string) => set(option, value)" />
+          <span v-else-if="option.kind === 'number'" class="plugin-stepper">
+            <button type="button" class="btn quiet mini" :aria-label="t('editor.plugin_tile.less')" @click="step(option, -1)"><Icon name="minus" /></button>
+            <b>{{ number(Number(values[option.id] ?? option.min ?? 0)) }}{{ option.unit ? ` ${option.unit}` : "" }}</b>
+            <button type="button" class="btn quiet mini" :aria-label="t('editor.plugin_tile.more')" @click="step(option, 1)"><Icon name="plus" /></button>
+          </span>
+          <input v-else :id="`plugin-option-${option.id}`" type="text" :value="String(values[option.id] ?? '')" autocomplete="off"
+            @change="set(option, ($event.target as HTMLInputElement).value)" />
+          <template v-if="fromFetch(option)" #note><small class="help">{{ t("editor.plugin_tile.from_fetch") }}</small></template>
+        </PropRow>
+      </template>
+    </Section>
+
+    <Section :title="t('editor.plugin_tile.on_screen')">
+      <p class="hint">{{ t("editor.plugin_tile.sizes", { min: size(kind.tile.min), max: size(kind.tile.max) }) }}</p>
+      <p class="hint">{{ t("editor.plugin_tile.placeholder") }}</p>
+    </Section>
+  </div>
+  <div class="dr-foot">
+    <button type="button" class="btn danger-soft" @click="removeTile(tile)"><Icon name="delete-outline" />{{ t("editor.common.remove") }}</button>
+  </div>
+</template>

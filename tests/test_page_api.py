@@ -27,7 +27,8 @@ class PageApiTests(unittest.IsolatedAsyncioTestCase):
                 for suffix in ('', '?light=1'):
                     response = await client.get('/api/inventory' + suffix)
                     self.assertEqual(response.status, 200)
-                    self.assertEqual((await response.json())['editor_features'], {'tall_tiles': expected})
+                    # Plugins (design) are an experiment: only SCREEN_EDITOR_ENV=development offers them.
+                    self.assertEqual((await response.json())['editor_features'], {'tall_tiles': expected, 'plugins': value == 'development'})
             finally:
                 await client.close()
 

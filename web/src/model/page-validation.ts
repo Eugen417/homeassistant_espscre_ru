@@ -14,6 +14,8 @@ export function fields(value: any, allowed: string[], required = allowed) {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(k => !allowed.includes(k)) ||
       required.some(k => !(k in value))) fail();
 }
+// Plugin tiles are an experiment: the add-on accepts them only once it serves plugins (docs: the plugins proposal).
+export const pluginTiles = { enabled: false };
 const entity = (value: any, domains: string[]) => typeof value === 'string' && value.length <= 120 &&
   matches(/^[a-z0-9_]+\.[a-z0-9_]+$/, value) && domains.includes(value.split('.')[0]);
 const icon = (value: any, none = false) => value === 'auto' || (none && value === 'none') || rules.icons.includes(value);
@@ -64,7 +66,7 @@ export function validatePageShape(layout: PageLayout) {
         'mapEntities', 'mapFraming', 'mapDistance', 'mapFollow', 'mapMarkers', 'mapNames', 'mapZones', 'mapStreets', 'mapLook'], ['label']);
       fields(tile.interaction, ['tap', 'inline', 'controls', 'action', 'guard', 'play', 'speaker', 'shuffle', 'repeat'], []);
       const content = tile.content;
-      fields(content, ['kind', 'entityId', 'name', 'target'], ['kind']);
+      fields(content, ['kind', 'entityId', 'name', 'target', 'plugin', 'tile', 'options'], ['kind']);
       if (content.kind === 'entity') {
         fields(content, ['kind', 'entityId']);
         if (!entity(content.entityId, rules.domains)) throw new Error(t('addon.errors.layout.unsupported'));
@@ -75,6 +77,12 @@ export function validatePageShape(layout: PageLayout) {
         fields(content, ['kind', 'target']);
         fields(content.target, content.target?.kind === 'home' ? ['kind'] : ['kind', 'pageId']);
         if (!['home', 'page'].includes(content.target.kind)) fail();
+      } else if (content.kind === 'plugin' && pluginTiles.enabled) {
+        // A plugin's tile type (design): a known plugin and tile, and options of plain values the manifest checks.
+        fields(content, ['kind', 'plugin', 'tile', 'options'], ['kind', 'plugin', 'tile']);
+        if (!/^[a-z0-9_]+$/.test(String(content.plugin)) || !/^[a-z0-9_]+$/.test(String(content.tile))) fail();
+        if (content.options !== undefined && (typeof content.options !== 'object' || content.options === null ||
+          Object.values(content.options).some((value) => !['string', 'number', 'boolean'].includes(typeof value)))) fail();
       } else fail();
       // A bedside clock's keys (app 0.4.12): tiles without a place, at most three, only under the bedside clock.
       if (tile.children !== undefined) {

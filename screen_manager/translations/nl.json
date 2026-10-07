@@ -1579,7 +1579,8 @@
       "hint": "Sleep naar een pagina, of tik op + voor de eerste vrije plek. ⌘K doorzoekt alles.",
       "resize": "Sleep om de bibliotheek groter of kleiner te maken",
       "filter_label": "Filter op soort",
-      "no_room": "Zonder ruimte"
+      "no_room": "Zonder ruimte",
+      "plugins": "Plugins"
     },
     "memory": {
       "label": "Geheugen voor tegels",
@@ -3025,6 +3026,18 @@
         "done": "Ik heb hem toegevoegd",
         "file": "Wat Tessera in {file} zet"
       }
+    },
+    "plugin_tile": {
+      "from": "Een tegel van de plugin {plugin}",
+      "details": "Details van de plugin",
+      "options": "Opties",
+      "choose": "Kies…",
+      "less": "Minder",
+      "more": "Meer",
+      "from_fetch": "De keuzes komen uit de eigen gegevensbron van de plugin, via Tessera.",
+      "on_screen": "Op het scherm",
+      "sizes": "Van {min} tot {max}; sleep aan een rand van de tegel om de maat te wijzigen.",
+      "placeholder": "De editor toont een plaatshouder: wat de plugin tekent, zie je op het scherm zelf."
     }
   }
 }

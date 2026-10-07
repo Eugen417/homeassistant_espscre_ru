@@ -2,6 +2,8 @@
 export type BuiltinName = "clock" | "nightstand" | "settings" | "map" | "energy";
 export const BUILTIN_CARDS: string[] = ["screen.clock", "screen.nightstand", "screen.settings", "screen.map", "screen.energy"];
 export type TileOptions = {
+  // A plugin tile's own options (design): what its manifest lets the inspector set.
+  plugin?: Record<string, string | number | boolean>;
   display?: string;
   size?: string;
   controls?: string;
@@ -41,7 +43,9 @@ export type PageGrid = Readonly<{ columns: number; rows: number; pages?: number;
 export type PageTarget = { kind: "page"; pageId: string } | { kind: "home" };
 export type PageTile = {
   id: string;
-  content: { kind: "entity"; entityId: string } | { kind: "builtin"; name: BuiltinName } | { kind: "navigation"; target: PageTarget };
+  content: { kind: "entity"; entityId: string } | { kind: "builtin"; name: BuiltinName } | { kind: "navigation"; target: PageTarget }
+    // A plugin's tile type (design, docs: the plugins proposal): its options are the plugin's own, checked against its manifest.
+    | { kind: "plugin"; plugin: string; tile: string; options?: Record<string, string | number | boolean> };
   // A footprint is a rectangle. The renderer's capabilities decide which
   // rectangles it supports; the page's grid is never user-overridable.
   placement: { row: number; column: number; columns: number; rows: number };
