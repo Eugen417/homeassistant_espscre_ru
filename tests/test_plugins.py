@@ -158,6 +158,27 @@ class Boards(unittest.TestCase):
         self.assertIsNone(fits({'board': 'guition'}))
 
 
+class ReadWhole(unittest.IsolatedAsyncioTestCase):
+    """The index arrives in pieces: every piece is read, and a body past the limit is refused (the index of three
+    plugins, 25 KB, came back cut off with content.read(n))."""
+
+    async def test_every_piece_and_the_limit(self):
+        import plugins as plugin_service
+
+        class Content:
+            def __init__(self, pieces):
+                self.pieces = pieces
+
+            async def iter_chunked(self, size):
+                for piece in self.pieces:
+                    yield piece
+
+        response = type('Response', (), {'content': Content([b'{"a": ', b'"' + b'x' * 20000 + b'"', b'}'])})()
+        self.assertEqual(len(json.loads(await plugin_service.read_whole(response, 1 << 20))['a']), 20000)
+        with self.assertRaises(ValueError):
+            await plugin_service.read_whole(type('Response', (), {'content': Content([b'x' * 10, b'x' * 10])})(), 15)
+
+
 class Map(unittest.TestCase):
     ANSWER = {'30003025': {'passes': {
         'b': {'line': '7', 'to': 'Slotermeer', 'when': '2026-10-07T17:30:00', 'state': 'DRIVING'},

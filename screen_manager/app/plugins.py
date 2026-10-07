@@ -47,6 +47,17 @@ X_BUDGET = 2600               # bytes of a tile's data on the wire: the message 
 LOOP_SECONDS = 15
 
 
+async def read_whole(response, limit):
+    """The whole body of `response`, at most `limit` bytes (ValueError past it). content.read(n) is not this: it returns
+    what has arrived so far, and a body in more than one piece came back cut off."""
+    raw = bytearray()
+    async for chunk in response.content.iter_chunked(65536):
+        raw += chunk
+        if len(raw) > limit:
+            raise ValueError(f'larger than {limit} bytes')
+    return bytes(raw)
+
+
 def api_text():
     return f'{pm.PLUGIN_API[0]}.{pm.PLUGIN_API[1]}'
 
@@ -206,10 +217,7 @@ class Plugins:
                 if response.status == 304:
                     return
                 response.raise_for_status()
-                raw = await response.content.read(INDEX_MAX + 1)
-                if len(raw) > INDEX_MAX:
-                    raise ValueError('index.json is larger than 2 MB')
-                index = json.loads(raw)
+                index = json.loads(await read_whole(response, INDEX_MAX))
                 etag = response.headers.get('ETag')
         except Exception as error:
             self.index_state['error'] = type(error).__name__
@@ -316,9 +324,10 @@ class Plugins:
             if response.status in (403, 429):
                 raise ValueError(t('addon.errors.plugins.link_rate'))
             response.raise_for_status()
-            raw = await response.content.read(INDEX_MAX + 1)
-            if len(raw) > INDEX_MAX:
-                raise ValueError(t('addon.errors.plugins.link_not_found'))
+            try:
+                raw = await read_whole(response, INDEX_MAX)
+            except ValueError:
+                raise ValueError(t('addon.errors.plugins.link_not_found')) from None
             return raw.decode('utf-8', errors='replace') if text else json.loads(raw)
 
     async def resolve_link(self, url, branch=None, folder=None):
