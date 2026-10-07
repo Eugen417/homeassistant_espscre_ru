@@ -15,7 +15,7 @@ from urllib.parse import urlsplit
 # The plugin API this core offers (components/smart_display/plugin_api.h, PLUGIN_API_MAJOR/MINOR; a test keeps them
 # equal). A plugin names the API it was written for; it builds on every core with the same major and at least its minor.
 # Something new raises the minor; a plugin builds on the same major from its own minor up. Only a break raises the major.
-PLUGIN_API = (0, 2)
+PLUGIN_API = (0, 3)
 
 ID = re.compile(r'^[a-z][a-z0-9_]{0,31}$')
 VERSION = re.compile(r'^\d+\.\d+\.\d+$')

@@ -5,7 +5,7 @@ from a web service, hardware on one board, a feature not everyone needs. How to 
 [github.com/MaxGramser/tessera-plugins](https://github.com/MaxGramser/tessera-plugins) (its `docs/` and `AGENTS.md`).
 This page is the core's side: what the firmware, the add-on and the editor do, and the rules a change here keeps.
 
-Plugins are on dev while the plugin API is 0.x (0.2 now): in an app added from the `#dev` URL, a local copy of the app, and the
+Plugins are on dev while the plugin API is 0.x (0.3 now): in an app added from the `#dev` URL, a local copy of the app, and the
 editor's development server (`core.plugins_enabled()`). The stable app has no Plugins page, no routes and no loop.
 
 ## The pieces
@@ -87,7 +87,7 @@ repository's `docs/FETCH.md`.
 - **Test against real data**: the plugins repository's `tools/check.py` uses this `plugin_manifest.py`; change both in
   step.
 
-## What a plugin can add (plugin API 0.2)
+## What a plugin can add (plugin API 0.3)
 
 | Part | Firmware | Add-on | Editor |
 |---|---|---|---|
@@ -98,7 +98,8 @@ repository's `docs/FETCH.md`.
 | A top bar item | `add_bar_item`; `header_bar::Kind::plugin` | `validate_header` type `plugin`, sent to a screen whose hello says `plugins` | "From plugins" in Top bar, Add |
 | Settings rows | `settings(SettingsPage&)`; `settings_screen::plugin_pages` | `Plugins.settings_for`, `set_setting`: the manifest's `settings`, entities of the screen's own device | under Screen settings (`PluginSettings.vue`) |
 | A question to Home Assistant | `tessera::send`, `on_message` (op `plugin`) | `Plugins.answer`: only `permissions.ha_commands`, logged, answer bounded | the commands under "What it may do" |
-| The moments | `on_ready`, `on_tick`, `on_standby`, `before_update`, `on_cards_closed`, `on_alert` | | |
+| The moments | `on_ready`, `on_tick`, `on_standby`, `before_update`, `on_cards_closed`, `on_alert`, `on_touch` (0.3: every tap `screen_input::TouchGuard` takes, through `screen_hooks::touched()`) | | |
+| A board's own hardware | the plugin's `plugin.yaml` (audio codecs, a relay), its `boards` in the manifest | offered only to the screens of those boards | the Plugins page says which boards |
 
 ## Where a plugin comes from
 

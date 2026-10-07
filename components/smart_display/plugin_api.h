@@ -28,7 +28,7 @@ namespace tessera {
 // with the same major and at least its minor; only a break raises the major. Major 0 is the time before the API is
 // promised to anyone outside Tessera. 0.1: tiles and the moments. 0.2: tiles of an entity, cards, tap actions, top bar
 // items, settings rows, questions to the app, date words.
-constexpr uint8_t PLUGIN_API_MAJOR = 0, PLUGIN_API_MINOR = 2;
+constexpr uint8_t PLUGIN_API_MAJOR = 0, PLUGIN_API_MINOR = 3;
 
 // The screen's fixed fonts, largest first. A tile takes the largest that fits; a plugin brings no font of its own.
 // VALUE is the big number of a watch card, HEADLINE a card's large words, TITLE a card's name, BODY its second line,
@@ -124,8 +124,10 @@ class SettingsPage {
   // One of a few words; a tap takes the next.
   SettingsPage &choice(const char *label, std::vector<std::string> options, std::function<int()> read,
                        std::function<void(int)> write);
-  // A row that does something on a tap; with `confirm` it asks once ("Tap again to ...") as Restart does.
-  SettingsPage &action(const char *label, const char *icon, std::function<void()> run, const char *confirm = nullptr);
+  // A row that does something on a tap; with `confirm` it asks once ("Tap again to ...") as Restart does. With `text`
+  // it says how it is going on its right ("Playing", "3 s"), read again every second while the page shows (0.3).
+  SettingsPage &action(const char *label, const char *icon, std::function<void()> run, const char *confirm = nullptr,
+                       std::function<std::string()> text = nullptr);
   // A line that only says something ("Version 1.1.0").
   SettingsPage &info(const char *label, std::function<std::string()> text);
   // A row that opens a card of this plugin (by its id in the manifest).
@@ -184,6 +186,9 @@ class Plugin {
   virtual void on_cards_closed() {}
   // An alert is about to show (a doorbell), 0.2.
   virtual void on_alert() {}
+  // A tap the screen took, on a tile, a key or a button, after the touch filter: for a click or a buzz, 0.3. It runs
+  // inside the touch event: start a sound, never wait for one.
+  virtual void on_touch() {}
   // Rows on the screen's settings page. Called once when the interface is up; true when the plugin added some.
   virtual bool settings(SettingsPage &page) { return false; }
   // An answer from the app to tessera::send(): {"re": <the number send returned>, "ok": true, "result": ...} or

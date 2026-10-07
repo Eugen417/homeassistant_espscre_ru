@@ -32,6 +32,15 @@ inline std::vector<std::function<bool()>> &away() {
   static std::vector<std::function<bool()>> list;
   return list;
 }
+// A tap the screen took: the touch filter let it through to a tile, a key or a button (screen_input::TouchGuard).
+// For feedback a finger can hear or feel; it runs inside the touch event, so what it does must be quick.
+inline std::vector<std::function<void()>> &touched() {
+  static std::vector<std::function<void()>> list;
+  return list;
+}
+inline void run_touched() {
+  for (auto &f : touched()) f();
+}
 // An alert is about to show, after the settings page closed and before its card is made.
 inline std::vector<std::function<void()>> &alert_show() {
   static std::vector<std::function<void()>> list;

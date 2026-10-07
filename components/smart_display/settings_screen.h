@@ -290,6 +290,7 @@ inline std::string value_text(const Row &row) {
       return row.option_keys != NO_TEXT ? screen_text::tr(row.option_keys + index) : row.options[index];
     }
     case Kind::info: return row.text ? row.text() : row.own && row.own->text ? row.own->text(row.own->ctx) : "";
+    case Kind::action: return row.own && row.own->text ? row.own->text(row.own->ctx) : "";
     default: return "";
   }
 }
@@ -846,8 +847,9 @@ inline void draw() {
       lv_obj_set_width(d.value, value_w - 8);
       lv_obj_set_pos(d.value, 4, (chip_h - label_h) / 2);
       lv_obj_set_width(d.label, right - value_w - left - 6);
-    } else if (row.kind == Kind::info) {
-      d.value = text(d.card, value_text(row), row_font, theme::MUTED, LV_TEXT_ALIGN_RIGHT);
+    } else if (row.kind == Kind::info || (row.kind == Kind::action && row.own && row.own->text)) {
+      // An action of a plugin may say how it is going on the right ("Playing"), as an info row does (plugin API 0.3).
+      d.value = text(d.card, value_text(row), row_font, asking ? theme::ON_ACCENT : theme::MUTED, LV_TEXT_ALIGN_RIGHT);
       int value_w = (m.width - 2 * m.pad) / 2;
       lv_obj_set_width(d.value, value_w);
       lv_obj_set_pos(d.value, right - value_w, (m.row_h - label_h) / 2);

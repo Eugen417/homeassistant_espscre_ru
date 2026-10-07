@@ -112,12 +112,14 @@ SettingsPage &SettingsPage::choice(const char *label, std::vector<std::string> o
   items.push_back(std::move(item));
   return *this;
 }
-SettingsPage &SettingsPage::action(const char *label, const char *icon, std::function<void()> run, const char *confirm) {
+SettingsPage &SettingsPage::action(const char *label, const char *icon, std::function<void()> run, const char *confirm,
+                                   std::function<std::string()> text) {
   Item item{Item::ACTION};
   item.label = label ? label : "";
   item.icon = icon ? icon : "";
   item.confirm = confirm ? confirm : "";
   item.run = std::move(run);
+  item.text = std::move(text);
   items.push_back(std::move(item));
   return *this;
 }
@@ -631,7 +633,7 @@ static void build_settings() {
       own->read = [](void *c) -> int32_t { auto *i = static_cast<Item *>(c); return i->read ? i->read() : 0; };
       own->write = [](void *c, int32_t v) { auto *i = static_cast<Item *>(c); if (i->write) i->write(v); };
       own->run = [](void *c) { auto *i = static_cast<Item *>(c); if (i->run) i->run(); };
-      own->text = [](void *c) -> std::string { auto *i = static_cast<Item *>(c); return i->text ? i->text() : ""; };
+      if (item.text) own->text = [](void *c) -> std::string { return static_cast<Item *>(c)->text(); };
       row.own = own.get();
       store.owns.push_back(std::move(own));
       rows->push_back(row);
@@ -666,6 +668,7 @@ void ready() {
   // away from page 1, as a camera full screen does, so Back to page 1 closes it in time.
   screen_hooks::cards_closed().push_back([]() { for (auto *p : tessera::plugins()) p->on_cards_closed(); });
   screen_hooks::alert_show().push_back([]() { for (auto *p : tessera::plugins()) p->on_alert(); });
+  screen_hooks::touched().push_back([]() { for (auto *p : tessera::plugins()) p->on_touch(); });
   screen_hooks::away().push_back([]() { return card_open(); });
   build_settings();
   for (auto *p : tessera::plugins()) p->on_ready();
@@ -677,6 +680,12 @@ void tick(uint32_t now_ms, bool dimmed) {
     standby(dimmed);
   }
   for (auto *p : tessera::plugins()) p->on_tick(now_ms);
+  // A plugin's page of the settings says again what its rows read (a test that runs, a level), once a second.
+  static uint32_t said = 0;
+  if (settings_screen::root && settings_screen::current_page >= settings_screen::PAGE_COUNT && now_ms - said >= 1000) {
+    said = now_ms;
+    settings_screen::refresh();
+  }
 }
 void standby(bool dark) { for (auto *p : tessera::plugins()) p->on_standby(dark); }
 void before_update() { for (auto *p : tessera::plugins()) p->before_update(); }

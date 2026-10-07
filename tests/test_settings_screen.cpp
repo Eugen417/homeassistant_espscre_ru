@@ -324,5 +324,21 @@ int main() {
     assert(has_plugin_pages() && page_total() == PAGE_COUNT + 2);
     assert(std::string(page_title(page_at(PLUGINS_PAGE + 1))) == "Audio" && page_at(PLUGINS_PAGE + 1).parent == PLUGINS_PAGE);
     plugin_pages.clear();
+    // An action says how it is going on its right when it has a text (plugin API 0.3), and nothing when it has none.
+    static bool playing = false;
+    Own test{};
+    test.words = "Test the speaker";
+    test.ctx = &playing;
+    test.run = [](void *c) { *static_cast<bool *>(c) = true; };
+    test.text = [](void *c) -> std::string { return *static_cast<bool *>(c) ? "Playing" : ""; };
+    Row action{};
+    action.kind = Kind::action; action.own = &test;
+    assert(value_text(action).empty());
+    act(action);
+    assert(playing && value_text(action) == "Playing");
+    Own plain{};
+    plain.words = "Restart";
+    action.own = &plain;
+    assert(value_text(action).empty());
   }
 }
