@@ -1292,6 +1292,8 @@ inline void lock_card_closed();
 // keypad: it never waits in memory for the next person at the screen.
 inline void hide_detail(){
   alarm_close_pad();lock_card_closed();
+  // A plugin's card closes on every way Tessera's own cards close (docs/PLUGINS.md).
+  plugin_host::close_card();
   if(detail_backdrop)lv_obj_add_flag(detail_backdrop,LV_OBJ_FLAG_HIDDEN);if(detail_root)lv_obj_add_flag(detail_root,LV_OBJ_FLAG_HIDDEN);
   // A player's library and speaker menu go with its card (firmware 0.24.0+), after it: the card stays as it was.
   media_library::close();}
@@ -5408,6 +5410,12 @@ inline void event(lv_event_t *event) {
   if (!fresh()) return;
   auto &tile = model.tiles[w.index];
   auto d = tile.domain();
+  // A tap set to a plugin's tap action (docs/PLUGINS.md): a short tap runs it, through the guard every tap passes; a
+  // hold still opens the tile's own card. A screen without that plugin does nothing on the tap.
+  if (code == LV_EVENT_SHORT_CLICKED && tile.tap.rfind("plugin:", 0) == 0) {
+    if (allowed(esphome::millis(), TILE_TOUCH + static_cast<int>(w.index), tile.entity)) plugin_host::tap_action(w.index);
+    return;
+  }
   // A tap that switches is a wish and takes every clean tap; one that opens or runs something keeps the guard.
   {
     const auto route = tile_controls::tap_route(tile, code == LV_EVENT_LONG_PRESSED);

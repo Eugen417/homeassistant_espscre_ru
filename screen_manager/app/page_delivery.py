@@ -155,7 +155,8 @@ def plugins_of(answer):
             continue
         tiles = [tile for tile in item.get("tiles") or [] if isinstance(tile, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,31}", tile)]
         version = item.get("version") if isinstance(item.get("version"), str) else ""
-        plugins.append({"id": item["id"], "version": version[:16], "tiles": tiles[:8]})
+        taps = [tap for tap in item.get("taps") or [] if isinstance(tap, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,31}", tap)]
+        plugins.append({"id": item["id"], "version": version[:16], "tiles": tiles[:8], "taps": taps[:8]})
         if len(plugins) == 16:
             break
     return api, plugins

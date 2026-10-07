@@ -42,6 +42,7 @@ struct TileContext {
   uint8_t columns, rows;     // the cells of the grid the tile covers
   const char *name;          // the name given to the tile in the editor, "" for none
   const char *entity;        // the Home Assistant entity it belongs to (manifest `entity`), "" for none
+  int tile;                  // its index in the layout, for tessera::open_card from on_tap
   JsonObjectConst options;   // the tile's options as the editor set them (the manifest's `options`)
 };
 
@@ -66,7 +67,49 @@ class Tile {
   virtual void on_tap() {}
 };
 
+// What a card gets when it opens. A card is a screen of its own over the page: Tessera draws its frame (the page's
+// ground, a round back key at the top left, the title in the middle), the card draws everything under it.
+struct CardContext {
+  lv_obj_t *parent;          // the room under the card's top bar: everything the card makes goes in here
+  int width, height;         // that room in pixels
+  const char *entity;        // the entity it was opened for (a tap action on a tile, a plugin tile's entity), "" for none
+  int tile;                  // the layout's tile it was opened from, -1 for none
+};
+
+// A card of a plugin: opened by a tap action, a plugin tile (tessera::open_card in its on_tap) or a settings row.
+// One is open at a time; it closes with Back, standby, Back to page 1 or another card, as every card does.
+class Card {
+ public:
+  virtual ~Card() = default;
+  virtual void open(const CardContext &context) = 0;
+  // The tile it was opened from changed: a plugin tile's data (as Tile::on_state), or {"state", "name"} of an entity.
+  virtual void on_state(JsonObjectConst data) {}
+  // Once a second while it is open, with the screen's clock.
+  virtual void on_tick(uint32_t epoch) {}
+  virtual void on_theme() {}
+  // Back was pressed: true keeps the card open (it went back a step of its own), false lets it close.
+  virtual bool on_back() { return false; }
+};
+
+// A tap action on a tile of Home Assistant's own (a thermostat that opens the plugin's schedule): what it was tapped on.
+struct TapContext {
+  const char *entity;        // the tile's entity
+  const char *name;          // the tile's name
+  int tile;                  // its index in the layout
+};
+
 class Plugin;
+struct CardType {
+  Plugin *plugin;
+  std::string id, key;       // the card's id in the manifest, and plugin:<plugin>.<card>
+  bool wide;                 // as wide as the glass (a picture, a timeline), else a hand's width like Tessera's cards
+  std::function<Card *()> make;
+};
+struct TapAction {
+  Plugin *plugin;
+  std::string id, key;       // the action's id in the manifest, and plugin:<plugin>.<action>
+  std::function<void(const TapContext &)> run;
+};
 struct TileType {
   Plugin *plugin;
   std::string id;            // the tile's id in the manifest
@@ -93,6 +136,11 @@ class Plugin {
   // A tile type of this plugin, by its id in the manifest. Call it in setup(). `make` returns a new card; the core
   // deletes it.
   void add_tile(const char *id, std::function<Tile *()> make);
+  // A card of this plugin, by its id in the manifest (`cards`). `wide`: it takes the whole width of the glass.
+  void add_card(const char *id, std::function<Card *()> make, bool wide = false);
+  // A tap action for tiles of Home Assistant's own (manifest `tap_actions`): a tile whose tap is set to it in the
+  // editor runs `run` on a short tap instead of its own action.
+  void add_tap_action(const char *id, std::function<void(const TapContext &)> run);
   // Set by the code generation (smart_display.register_plugin() in the plugin's __init__.py), from the plugin's
   // manifest and its translations/<language>.json (part "screen", in the language the screen is built with).
   void set_identity(const char *id, const char *version) { id_ = id; version_ = version; }
@@ -113,6 +161,8 @@ class Plugin {
 std::vector<Plugin *> &plugins();
 std::vector<TileType> &tile_types();
 const TileType *tile_type(const std::string &entity);
+std::vector<CardType> &card_types();
+std::vector<TapAction> &tap_actions();
 
 // ---- What the core offers a plugin ----
 // The screen's clock: seconds since 1970, 0 until Home Assistant set it.
@@ -130,6 +180,12 @@ std::string clock_text(uint32_t epoch);
 std::string format(const char *text, long n);
 // "{name}" in `text` replaced by `value`, wherever the language put it.
 std::string fill(const char *text, const char *name, const std::string &value);
+// Open a card of this plugin (`card`: its id in the manifest; plugin_id: the plugin's own). `title`: the words in its
+// top bar ("" for the tile's name). False when the plugin has no such card.
+bool open_card(const char *plugin_id, const char *card, const std::string &entity = "", int tile = -1,
+               const std::string &title = "");
+// Close the card that is open, as Back does.
+void close_card();
 // The card on the glass draws again in its next pass (after a change made outside on_state or on_tick).
 void refresh();
 // A Home Assistant action on an entity, as a tile's tap sends it: action("light.toggle", entity), or with one field

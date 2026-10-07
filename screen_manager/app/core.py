@@ -1829,6 +1829,10 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
                     raise ValueError(t('addon.errors.layout.invalid_setting', setting='guard'))
                 if options['guard'] == 'confirm':
                     options = {k: v for k, v in options.items() if k != 'guard'}
+            # A plugin's tap action (docs/PLUGINS.md, plugin:<plugin>.<action>) on any tile: which domains it takes is its
+            # manifest's, and a screen without that plugin does nothing on the tap.
+            if plugin_tile(options.get('tap')):
+                choices.pop('tap')
             for key, allowed in choices.items():
                 if key in options and options[key] not in allowed:
                     raise ValueError(t('addon.errors.layout.invalid_setting', setting=key))

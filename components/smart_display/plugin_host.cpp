@@ -24,7 +24,30 @@ const TileType *tile_type(const std::string &entity) {
   return nullptr;
 }
 
+std::vector<CardType> &card_types() {
+  static std::vector<CardType> list;
+  return list;
+}
+std::vector<TapAction> &tap_actions() {
+  static std::vector<TapAction> list;
+  return list;
+}
+
 Plugin::Plugin() { plugins().push_back(this); }
+
+void Plugin::add_card(const char *id, std::function<Card *()> make, bool wide) {
+  std::string key = std::string("plugin:") + plugin_id() + "." + id;
+  for (auto &type : card_types())
+    if (type.key == key) { type.make = std::move(make); type.wide = wide; return; }
+  card_types().push_back({this, id, std::move(key), wide, std::move(make)});
+}
+
+void Plugin::add_tap_action(const char *id, std::function<void(const TapContext &)> run) {
+  std::string key = std::string("plugin:") + plugin_id() + "." + id;
+  for (auto &action : tap_actions())
+    if (action.key == key) { action.run = std::move(run); return; }
+  tap_actions().push_back({this, id, std::move(key), std::move(run)});
+}
 
 void Plugin::add_tile(const char *id, std::function<Tile *()> make) {
   std::string entity = std::string("plugin:") + plugin_id() + "." + id;
@@ -84,6 +107,13 @@ bool action(const char *service, const std::string &entity, const char *key, con
   if (!service || !rt::valid_entity(entity) || entity.rfind("plugin:", 0) == 0) return false;
   return rt::action(service, entity, key ? key : "", value);
 }
+
+bool open_card(const char *plugin_id, const char *card, const std::string &entity, int tile, const std::string &title) {
+  return plugin_host::open_card(std::string("plugin:") + (plugin_id ? plugin_id : "") + "." + (card ? card : ""), entity,
+                                tile, title);
+}
+
+void close_card() { plugin_host::close_card(); }
 
 void refresh() {
   for (auto &w : rt::widgets)
@@ -201,7 +231,7 @@ void render(rt::Widgets &w, const rt::Tile &t, int width, int height) {
     if (extra.plugin_options.empty() || deserializeJson(doc, extra.plugin_options)) doc.to<JsonObject>();
     tessera::TileContext context{w.extra, width, height, static_cast<uint8_t>(t.column_span()),
                                  static_cast<uint8_t>(t.row_span()), t.name.c_str(), extra.plugin_entity.c_str(),
-                                 doc.as<JsonObjectConst>()};
+                                 static_cast<int>(w.index), doc.as<JsonObjectConst>()};
     card->tile->create(context);
   }
   const size_t state = hash(extra.plugin_state);
@@ -223,6 +253,7 @@ void tap(rt::Widgets &w) {
 }
 
 void tick_cards(uint32_t epoch) {
+  tick_card(epoch);
   for (auto &w : rt::widgets) {
     if (!w.plugin || !w.tile || !w.extra || w.extra_mode != "plugin" || w.index >= rt::model.count) continue;
     if (lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) || lv_obj_has_flag(w.extra, LV_OBJ_FLAG_HIDDEN)) continue;
@@ -233,6 +264,156 @@ void tick_cards(uint32_t epoch) {
 uint16_t bytes(const std::string &entity) {
   const tessera::TileType *type = tessera::tile_type(entity);
   return type ? type->plugin->memory(type->id) : PLACEHOLDER_BYTES;
+}
+
+// ---- A plugin's card over the page ----
+struct OpenCard {
+  std::unique_ptr<tessera::Card> card;
+  std::string key, entity;
+  int tile = -1;
+  size_t state = 0;
+  bool dark = false;
+  lv_obj_t *backdrop = nullptr, *root = nullptr;
+};
+static OpenCard *shown = nullptr;
+static bool closing = false;
+
+// What the tile a card was opened from says now: a plugin tile's data, or an entity's state and name.
+static std::string card_data(int tile) {
+  if (tile < 0 || static_cast<size_t>(tile) >= rt::model.count) return "";
+  const auto &t = rt::model.tiles[tile];
+  if (t.is_plugin()) return t.extra().plugin_state;
+  JsonDocument doc;
+  doc["state"] = t.state;
+  doc["name"] = t.name;
+  std::string out;
+  serializeJson(doc, out);
+  return out;
+}
+
+static void card_state(OpenCard &open, bool force) {
+  const std::string data = card_data(open.tile);
+  const size_t state = hash(data);
+  if (!force && state == open.state) return;
+  open.state = state;
+  JsonDocument doc;
+  if (data.empty() || deserializeJson(doc, data)) doc.to<JsonObject>();
+  open.card->on_state(doc.as<JsonObjectConst>());
+}
+
+bool card_open() { return shown != nullptr; }
+
+void close_card() {
+  if (!shown || closing) return;
+  closing = true;
+  OpenCard *open = shown;
+  shown = nullptr;
+  open->card.reset();  // its parts are the root's children: deleted with it, never by the card
+  if (open->root) lv_obj_delete(open->root);
+  if (open->backdrop) lv_obj_delete(open->backdrop);
+  delete open;
+  closing = false;
+}
+
+bool open_card(const std::string &key, const std::string &entity, int tile, const std::string &title) {
+  const tessera::CardType *type = nullptr;
+  for (const auto &t : tessera::card_types())
+    if (t.key == key) type = &t;
+  if (!type || !type->make) return false;
+  // One card at a time, as Tessera's own: the one open now, and a detail card of a tile, go first.
+  close_card();
+  if (rt::dismiss) rt::dismiss();
+  std::unique_ptr<tessera::Card> card(type->make());
+  if (!card) return false;
+  auto *open = new OpenCard();
+  open->card = std::move(card);
+  open->key = key;
+  open->entity = entity;
+  open->tile = tile;
+  open->dark = theme::dark;
+  const bool large = ::ui::large();
+  // The page's ground over everything, taking every press so nothing reaches the page under it.
+  open->backdrop = lv_obj_create(lv_screen_active());
+  lv_obj_remove_style_all(open->backdrop);
+  lv_obj_set_size(open->backdrop, lv_pct(100), lv_pct(100));
+  lv_obj_remove_flag(open->backdrop, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_flag(open->backdrop, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_style_bg_color(open->backdrop, theme::color(theme::PAGE), 0);
+  lv_obj_set_style_bg_opa(open->backdrop, LV_OPA_COVER, 0);
+  open->root = lv_obj_create(lv_screen_active());
+  lv_obj_remove_style_all(open->root);
+  lv_obj_remove_flag(open->root, LV_OBJ_FLAG_SCROLLABLE);
+  const auto kind = type->wide ? overlay_card::picture : overlay_card::controls;
+  overlay_card::frame(open->root, kind, 1);
+  const int width = overlay_card::content_width(kind, 1), height = overlay_card::screen_height();
+  // The same top bar as Tessera's cards: a round back key at the left, the title in the middle.
+  const int bar = ::ui::px(large ? 60 : 40), bar_x = ::ui::px(large ? 16 : 10), bar_y = ::ui::px(large ? 16 : 8);
+  auto *back = lv_obj_create(open->root);
+  lv_obj_remove_style_all(back);
+  lv_obj_set_pos(back, bar_x, bar_y);
+  lv_obj_set_size(back, bar, bar);
+  lv_obj_set_style_radius(back, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_bg_opa(back, LV_OPA_COVER, 0);
+  lv_obj_set_style_bg_color(back, theme::color(theme::KEY), 0);
+  lv_obj_set_style_bg_color(back, theme::color(theme::KEY_PRESSED), LV_STATE_PRESSED);
+  lv_obj_add_flag(back, LV_OBJ_FLAG_CLICKABLE);
+  auto *arrow = lv_label_create(back);
+  if (rt::mini_icon_font) lv_obj_set_style_text_font(arrow, rt::mini_icon_font, 0);
+  lv_obj_set_style_text_color(arrow, theme::color(theme::INK), 0);
+  lv_label_set_text(arrow, "\U000F004D");
+  lv_obj_center(arrow);
+  lv_obj_add_event_cb(back, [](lv_event_t *) {
+    if (!shown || !rt::allowed(esphome::millis(), 14, "plugin card back")) return;
+    if (!shown->card->on_back()) close_card();
+  }, LV_EVENT_SHORT_CLICKED, nullptr);
+  const lv_font_t *title_font = rt::watch_font ? rt::watch_font : tessera::ui::font(tessera::Font::TITLE);
+  std::string words = title;
+  if (words.empty() && tile >= 0 && static_cast<size_t>(tile) < rt::model.count) words = rt::model.tiles[tile].name;
+  auto *heading = lv_label_create(open->root);
+  lv_label_set_long_mode(heading, LV_LABEL_LONG_DOT);
+  lv_label_set_text(heading, words.c_str());
+  if (title_font) lv_obj_set_style_text_font(heading, title_font, 0);
+  lv_obj_set_style_text_color(heading, theme::color(theme::INK), 0);
+  lv_obj_set_style_text_align(heading, LV_TEXT_ALIGN_CENTER, 0);
+  const int line = title_font ? lv_font_get_line_height(title_font) : bar;
+  lv_obj_set_pos(heading, bar_x + bar + 8, bar_y + (bar - line) / 2);
+  lv_obj_set_size(heading, std::max(1, width - 2 * (bar_x + bar + 8)), line);
+  // The card's own room, under the bar, with the card's padding at the sides and the foot.
+  const int pad = overlay_card::pad(), top = bar_y + bar + ::ui::px(large ? 12 : 6);
+  auto *area = lv_obj_create(open->root);
+  lv_obj_remove_style_all(area);
+  lv_obj_remove_flag(area, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_pos(area, pad, top);
+  lv_obj_set_size(area, std::max(1, width - 2 * pad), std::max(1, height - top - pad));
+  shown = open;
+  tessera::CardContext context{area, std::max(1, width - 2 * pad), std::max(1, height - top - pad), open->entity.c_str(),
+                               tile};
+  open->card->open(context);
+  card_state(*open, true);
+  open->card->on_tick(rt::now_epoch());
+  return true;
+}
+
+void tick_card(uint32_t epoch) {
+  if (!shown) return;
+  card_state(*shown, false);
+  if (shown->dark != theme::dark) {
+    shown->dark = theme::dark;
+    shown->card->on_theme();
+  }
+  shown->card->on_tick(epoch);
+}
+
+bool tap_action(size_t index) {
+  if (index >= rt::model.count) return false;
+  const auto &t = rt::model.tiles[index];
+  for (const auto &action : tessera::tap_actions())
+    if (action.key == t.tap && action.run) {
+      tessera::TapContext context{t.entity.c_str(), t.name.c_str(), static_cast<int>(index)};
+      action.run(context);
+      return true;
+    }
+  return false;
 }
 
 void ready() { for (auto *p : tessera::plugins()) p->on_ready(); }
@@ -259,6 +440,9 @@ void hello(JsonObject root) {
     auto tiles = item["tiles"].to<JsonArray>();
     for (const auto &type : tessera::tile_types())
       if (type.plugin == p) tiles.add(type.id);
+    auto taps = item["taps"].to<JsonArray>();
+    for (const auto &action : tessera::tap_actions())
+      if (action.plugin == p) taps.add(action.id);
   }
 }
 

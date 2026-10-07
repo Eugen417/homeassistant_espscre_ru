@@ -56,6 +56,9 @@ export type Plugin = {
   blocked?: string | null;
   fits_api?: boolean;
   privacy?: string;
+  // Its cards and its tap actions for tiles of Home Assistant's own (the add-on's payload; docs/PLUGINS.md).
+  cards?: { id: string; name: Texts }[];
+  tap_actions?: { id: string; label: Texts; domains: string[] }[];
   adds: {
     tiles?: PluginTile[];
     tap_actions?: { label: Texts; domains: string[] }[];

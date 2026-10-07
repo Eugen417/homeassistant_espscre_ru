@@ -111,6 +111,14 @@ export function previewFor(entity: string, options: Record<string, unknown> | un
   return known ? known.items : null;
 }
 
+// The tap actions a tile of this domain can take on this screen: those of the plugins it runs, as tap choices.
+export function tapActionsFor(screen: Screen | undefined, domain: string): [string, string][] {
+  if (!screen || screen.virtual || plugins.example) return [];
+  return plugins.index.filter((plugin) => installedOn(screen, plugin.id)).flatMap((plugin) =>
+    (plugin.tap_actions || []).filter((action) => action.domains.includes(domain))
+      .map((action) => [`plugin:${plugin.id}.${action.id}`, text(action.label)] as [string, string]));
+}
+
 export const realScreens = () => state.inventory.screens.filter((screen) => !screen.virtual);
 // The tile types a screen can place: those of the plugins it runs (the library's Plugins group). A preview screen has none.
 export function tilesOn(screen: Screen | undefined) {

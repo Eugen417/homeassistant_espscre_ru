@@ -9,6 +9,7 @@ import { beginFieldEdit, endFieldEdit } from '../store';
 import { ACTS_ON_TAP, domainInfo, entriesOf, holdHintKey, inlineControlKind, pageTarget, SLIDER_DOMAINS, SWITCHES_ON_TAP, TOGGLE_BEFORE } from "../model/layout";
 import { glyph } from "../model/topbar";
 import { controlOption, drawable, fits, ofType } from "../model/catalogue";
+import { pluginsEnabled, tapActionsFor } from "../plugin-state";
 import { currentScreen, automaticIcon, entityName, liveOf, moveTileToPage, openPage, openTile, phone, screenBuiltinName, fullPage, loadSubtitleValues, setTileName, pictures, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
 import { titleOf } from "../model/pages";
 import { pluginTileOf } from "../model/plugins";
@@ -224,7 +225,11 @@ const taps = computed(() => {
   if ((caps.value ? caps.value.toggle : TOGGLE_BEFORE.includes(domain.value)) || tap.value === "toggle") keys.push("toggle");
   // A favourite plays on a tap and keeps no action of its own (the add-on drops it).
   if (display.value !== "favorite") keys.push("action");
-  return offer("tap", keys.map((key) => [key, t(`editor.tile.tap.${key}`)] as [string, string]), tap.value);
+  // A plugin on this screen may offer a tap of its own for this kind of tile (docs/PLUGINS.md): a thermostat that opens
+  // its schedule. A tap set to one whose plugin left the screen stays listed under its own name until it is changed.
+  const fromPlugins = pluginsEnabled.value ? tapActionsFor(currentScreen.value, domain.value) : [];
+  if (tap.value.startsWith("plugin:") && !fromPlugins.some(([key]) => key === tap.value)) fromPlugins.push([tap.value, tap.value]);
+  return [...offer("tap", keys.map((key) => [key, t(`editor.tile.tap.${key}`)] as [string, string]), tap.value), ...fromPlugins];
 });
 function pickTap(value: string) {
   choosingAction.value = value === "action" && !props.tile.options?.action;

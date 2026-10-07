@@ -28,7 +28,7 @@ PLACEHOLDER = re.compile(r'\{([a-z][a-z0-9_]*)\}')
 TEXT_KEY = re.compile(r'^[a-z][a-z0-9_]{0,47}$')
 
 TOP = {'id', 'version', 'api', 'icon', 'maintainer', 'license', 'requires', 'boards', 'flash_kb', 'permissions',
-       'attributes', 'privacy', 'inputs', 'parts', 'tiles', 'fetch'}
+       'attributes', 'privacy', 'inputs', 'parts', 'tiles', 'fetch', 'cards', 'tap_actions'}
 ATTRIBUTES = ('cloud', 'commercial', 'ai-developed', 'experimental')
 INPUT_KINDS = ('secret', 'text', 'gpio')
 OPTION_KINDS = ('text', 'choice', 'number', 'toggle')
@@ -577,6 +577,30 @@ def check(manifest, english=None):
                 raise ManifestError(f'tiles[{i}].preview.countdown', f'"{value}" must be a field with "as: epoch"')
     for name in sorted(fetch_ids - {f['id'] for f in fetches}):
         raise ManifestError('fetch', f'"{name}" is used but not described')
+
+    cards = []
+    for i, item in enumerate(_list(manifest.get('cards'), 'cards', 8)):
+        where = f'cards[{i}]'
+        item = _object(item, where, {'id', 'name', 'wide'}, ('id', 'name'))
+        if 'wide' in item and not isinstance(item['wide'], bool):
+            raise ManifestError(f'{where}.wide', 'true or false')
+        cards.append({'id': _id(item['id'], f'{where}.id'), 'name': _text_key(item['name'], f'{where}.name', keys),
+                      'wide': bool(item.get('wide', False))})
+    _unique(cards, 'cards')
+    out['cards'] = cards
+    taps = []
+    for i, item in enumerate(_list(manifest.get('tap_actions'), 'tap_actions', 8)):
+        where = f'tap_actions[{i}]'
+        item = _object(item, where, {'id', 'label', 'domains', 'card'}, ('id', 'label', 'domains'))
+        domains = _strings(item['domains'], f'{where}.domains', 16)
+        if not domains or not all(re.match(r'^[a-z_]+$', d) for d in domains):
+            raise ManifestError(f'{where}.domains', 'Home Assistant domains, such as climate')
+        if 'card' in item and item['card'] not in {c['id'] for c in cards}:
+            raise ManifestError(f'{where}.card', 'must name a card of this plugin')
+        taps.append({'id': _id(item['id'], f'{where}.id'), 'label': _text_key(item['label'], f'{where}.label', keys),
+                     'domains': domains, 'card': item.get('card')})
+    _unique(taps, 'tap_actions')
+    out['tap_actions'] = taps
 
     out['text_keys'] = sorted(keys)
     if english is not None:
