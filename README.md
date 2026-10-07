@@ -19,6 +19,12 @@
 </p>
 
 <p align="center">
+  <a href="https://discord.gg/M7x96AUzC"><img src="docs/images/discord-invite.svg" width="960" alt="Join the Tessera Discord server. Share your screen, ask a question and meet the community."></a>
+</p>
+
+<p align="center"><a href="https://discord.gg/M7x96AUzC"><b>Join the Discord server</b></a></p>
+
+<p align="center">
   <a href="https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FMaxGramser%2Fhomeassistant_espscreen"><img src="https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg" alt="Add the Tessera repository to your Home Assistant"></a>
 </p>
 
