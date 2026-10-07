@@ -2,7 +2,9 @@
 
 - **Zoom and move a map full screen.** A map opened full screen has round + and - keys at the bottom right, like the
   volume keys, and four arrows at the bottom left that move it about a centimetre each. The map follows at once and
-  sharpens when the new picture comes. Behind a map that is still on its way is the page's own colour, not black.
+  sharpens when the new picture comes, with a small spinner at the top right while it is on its way. The keys are
+  dark in the light look and light in the dark, and let the map show through a little. Behind a map that is still on
+  its way is the page's own colour, not black.
 
 - **Every page turns as quickly as the next.** A screen with PSRAM now keeps every page of its layout ready, not only
   seven, so paging through a long layout no longer feels quick on one page and slow on the next. Opening a new layout

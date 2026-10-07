@@ -10105,6 +10105,13 @@ struct MapMove {
 constexpr int MAP_ZOOM_OUT = -8, MAP_ZOOM_IN = 5;
 inline MapMove map_move, map_move_shown;
 inline lv_obj_t *map_zoom_keys = nullptr, *map_pad = nullptr;  // + and - at the right, the four arrows at the left
+inline lv_obj_t *map_waiting = nullptr;  // a small spinner at the top right while the picture of a move is on its way
+// The spinner turns only while the picture on the glass is not yet the view the keys asked for.
+inline void map_waiting_show() {
+  if (!map_waiting) return;
+  if (map_move == map_move_shown) lv_obj_add_flag(map_waiting, LV_OBJ_FLAG_HIDDEN);
+  else { lv_obj_remove_flag(map_waiting, LV_OBJ_FLAG_HIDDEN); lv_obj_move_foreground(map_waiting); }
+}
 inline void camera_map_sheet(const MapSheet &next);
 inline void camera_request(const std::string &entity, int size = 0, uint32_t background = 0);
 inline void camera_release();
@@ -10433,7 +10440,7 @@ inline void camera_close() {
   if (!camera_root) return;
   lv_obj_delete(camera_root);
   camera_root = camera_picture = camera_note = camera_back = camera_title = camera_spinner = map_card_obj = nullptr;
-  map_zoom_keys = map_pad = nullptr;
+  map_zoom_keys = map_pad = map_waiting = nullptr;
   saver_first = saver_second = nullptr;  // they went with the view
   saver_keys = {};
   map_focus.clear();
@@ -10516,14 +10523,17 @@ inline void map_focus_on(const std::string &entity) {
   map_focus = entity;
   map_move = map_move_shown = MapMove{};
   map_preview();
+  map_waiting_show();
   map_sheet.focus.clear();
   map_sheet_draw();
   // Another focus is another picture (camera_want): asked for at once.
   pictures_round();
 }
 
-// A round key of the full view: the back key, and a map's zoom and arrows (dev), in the back key's colours.
-inline lv_obj_t *view_key(lv_obj_t *parent, int size, const char *glyph) {
+// A round key of the full view: the back key, and a map's zoom and arrows (dev). On a map (`over_map`) the keys turn
+// the look round for contrast, the ink as their fill and the card's colour as their glyph (dark keys in the light look,
+// light ones in the dark), and let the map show through a little until a finger is on them.
+inline lv_obj_t *view_key(lv_obj_t *parent, int size, const char *glyph, bool over_map = false) {
   auto *key = lv_obj_create(parent);
   lv_obj_remove_style_all(key);
   lv_obj_set_size(key, size, size);
@@ -10531,11 +10541,17 @@ inline lv_obj_t *view_key(lv_obj_t *parent, int size, const char *glyph) {
   lv_obj_remove_flag(key, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_radius(key, LV_RADIUS_CIRCLE, 0);
   lv_obj_set_style_bg_opa(key, LV_OPA_COVER, 0);
-  lv_obj_set_style_bg_color(key, theme::color(theme::KEY), 0);
-  lv_obj_set_style_bg_color(key, theme::color(theme::KEY_PRESSED), LV_STATE_PRESSED);
+  if (over_map) {
+    lv_obj_set_style_bg_color(key, theme::color(theme::INK), 0);
+    lv_obj_set_style_bg_opa(key, LV_OPA_70, 0);
+    lv_obj_set_style_bg_opa(key, LV_OPA_COVER, LV_STATE_PRESSED);
+  } else {
+    lv_obj_set_style_bg_color(key, theme::color(theme::KEY), 0);
+    lv_obj_set_style_bg_color(key, theme::color(theme::KEY_PRESSED), LV_STATE_PRESSED);
+  }
   auto *label = lv_label_create(key);
   if (mini_icon_font) lv_obj_set_style_text_font(label, mini_icon_font, 0);
-  lv_obj_set_style_text_color(label, theme::color(theme::INK), 0);
+  lv_obj_set_style_text_color(label, theme::color(over_map ? theme::CARD : theme::INK), 0);
   lv_label_set_text(label, glyph);
   lv_obj_center(label);
   return key;
@@ -10565,6 +10581,7 @@ inline void map_key_event(lv_event_t *e) {
     else map_move.x += step;
   }
   map_preview();
+  map_waiting_show();
   pictures_round();
 }
 inline void map_keys_create() {
@@ -10577,7 +10594,7 @@ inline void map_keys_create() {
     return box;
   };
   auto key = [&](lv_obj_t *box, int x, int y, const char *glyph, int k) {
-    auto *obj = view_key(box, b.key, glyph);
+    auto *obj = view_key(box, b.key, glyph, true);
     lv_obj_set_pos(obj, x, y);
     lv_obj_add_event_cb(obj, map_key_event, LV_EVENT_SHORT_CLICKED, (void *) (intptr_t) k);
   };
@@ -10591,6 +10608,13 @@ inline void map_keys_create() {
   key(map_pad, 0, step, "\U000F0141", MK_LEFT);
   key(map_pad, 2 * step, step, "\U000F0142", MK_RIGHT);
   key(map_pad, step, 2 * step, "\U000F0140", MK_DOWN);
+  // The busy card's spinner (set_busy), in the top bar's row across from the back key.
+  const int spin = ui::px(ui::large() ? 30 : 20);
+  map_waiting = spinner_create(camera_root, spin, ui::px(ui::large() ? 4 : 3));
+  if (map_waiting) {
+    lv_obj_set_pos(map_waiting, overlay_card::screen_width() - b.x - (b.key + spin) / 2, b.y + (b.key - spin) / 2);
+    lv_obj_add_flag(map_waiting, LV_OBJ_FLAG_HIDDEN);
+  }
   map_keys_place();
 }
 // Over the bottom of the map, clear of its attribution; above a picked one's card, or hidden where there is no room.
@@ -10601,6 +10625,8 @@ inline void map_keys_place() {
   int bottom = overlay_card::screen_height() - b.y - ui::mm(3);
   if (map_card_obj) { lv_obj_update_layout(map_card_obj); bottom = lv_obj_get_y(map_card_obj) - b.gap; }
   const int width = overlay_card::screen_width();
+  // Their sizes are only measured once LVGL laid them out: right after the view opens they would read 0.
+  lv_obj_update_layout(camera_root);
   auto place = [&](lv_obj_t *box, int x) {
     const int h = lv_obj_get_height(box);
     if (bottom - h < top) { lv_obj_add_flag(box, LV_OBJ_FLAG_HIDDEN); return; }
@@ -10647,7 +10673,7 @@ inline void camera_open(const std::string &entity, const std::string &name, int 
   // The same top bar as a tile's card: a round back arrow at the left, the name centred.
   const auto vb = view_bar();
   const int bar = vb.key, bar_x = vb.x, bar_y = vb.y;
-  camera_back = view_key(camera_root, bar, "\U000F004D");
+  camera_back = view_key(camera_root, bar, "\U000F004D", map_index >= 0);
   lv_obj_set_pos(camera_back, bar_x, bar_y);
   lv_obj_add_event_cb(camera_back, [](lv_event_t *) {
     // A map focused on someone goes back to everyone first (firmware 0.21.0+); then the key closes the view.
@@ -10820,6 +10846,7 @@ inline void view_done(picture_loader::Outcome outcome) {
   if (!camera_root) return;
   if (!shows(outcome)) {
     if (!camera.shown && !saver_camera) camera_note_text(tr(txt::camera_no_image));
+    if (map_waiting) lv_obj_add_flag(map_waiting, LV_OBJ_FLAG_HIDDEN);  // no picture comes: nothing to wait for
     saver_follow_pending();
     return;
   }
@@ -10850,6 +10877,7 @@ inline void view_done(picture_loader::Outcome outcome) {
   if (camera_map_index >= 0 && camera_picture) {
     map_move_shown = map_move;
     map_preview();
+    map_waiting_show();
   }
   saver_follow_pending();
 }
