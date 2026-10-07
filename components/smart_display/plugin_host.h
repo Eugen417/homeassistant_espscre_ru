@@ -32,6 +32,8 @@ void close_card();
 bool card_open();
 // A tile whose tap is a plugin's tap action (plugin:<plugin>.<action>): run it. False when this screen lacks it.
 bool tap_action(size_t index);
+// An answer of the app for a plugin (op "plugin"): to its on_message.
+void message(const std::string &plugin, JsonObjectConst body);
 // What one tile costs of the layout memory: the plugin's own number, or the placeholder's.
 uint16_t bytes(const std::string &entity);
 

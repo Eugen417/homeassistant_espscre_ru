@@ -490,6 +490,14 @@ std::string receive(const std::string &payload) {
       result = model.ready() ? "Synced" : "Loading tiles";
       return true;
     }
+    // An answer of the app to a plugin's request (docs/PLUGINS.md, tessera::send): to that plugin, as it came.
+    if (op == "plugin") {
+      const std::string plugin = string(root["p"], 32);
+      if (plugin.empty() || !root["m"].is<JsonObject>()) return false;
+      plugin_host::message(plugin, root["m"].as<JsonObjectConst>());
+      result = model.ready() ? "Synced" : "Loading tiles";
+      return true;
+    }
     if (op == "options") {
       if (!root["view"].is<unsigned>() || root["view"].as<unsigned>() != options_view_id) {
         result = "Synced"; return true;

@@ -109,6 +109,8 @@ ENERGY_PREFS_SECONDS = 300
 ANSWER_TIMEOUT_SECONDS = 5
 ANSWER_RETRY_SECONDS = 30
 SERVICE_EVENTS = ('service_registered', 'service_removed')
+# A plugin on a screen asks the app something (docs/PLUGINS.md): the event its tessera::send() fires.
+PLUGIN_EVENT = 'esphome.screen_plugin'
 
 def samples(events, begin, span):
     """24 values, one per bucket: the last known value at the end of each bucket (None until the first)."""
@@ -235,6 +237,8 @@ class HomeAssistant:
         self.options_requests = asyncio.Queue()
         # A player's library (firmware 0.24.0+): a folder a screen opens and an item it plays, for Manager.media_loop.
         self.media_requests = asyncio.Queue()
+        # A plugin's question to the app (docs/PLUGINS.md, tessera::send): answered by Plugins.answer.
+        self.plugin_requests = asyncio.Queue()
         # The widest features a media player reported (media_library.FeatureMemory), set by the manager: what the
         # editor offers for a player at rest (GitHub #88).
         self.widen = None
@@ -277,6 +281,9 @@ class HomeAssistant:
                     self.camera_requests.put_nowait(body)
                 elif event.get('event_type') == light_effects.OPTIONS_EVENT:
                     self.options_requests.put_nowait(body)
+                elif event.get('event_type') == PLUGIN_EVENT:
+                    if self.plugin_requests.qsize() < 32:
+                        self.plugin_requests.put_nowait(body)
                 elif event.get('event_type') in (media_library.BROWSE_EVENT, media_library.PLAY_EVENT, speakers.SPEAKER_EVENT):
                     self.media_requests.put_nowait((event['event_type'], body))
                 elif event.get('event_type') == 'state_changed':
@@ -496,6 +503,7 @@ class HomeAssistant:
                     await self.request('subscribe_events', event_type='esphome.screen_history')
                     await self.request('subscribe_events', event_type='esphome.screen_camera')
                     await self.request('subscribe_events', event_type=light_effects.OPTIONS_EVENT)
+                    await self.request('subscribe_events', event_type=PLUGIN_EVENT)
                     await self.request('subscribe_events', event_type=media_library.BROWSE_EVENT)
                     await self.request('subscribe_events', event_type=media_library.PLAY_EVENT)
                     await self.request('subscribe_events', event_type=speakers.SPEAKER_EVENT)
@@ -1645,6 +1653,15 @@ class Manager:
                 await self.answer_options(request)
             except (ClientError, ConnectionError, TimeoutError, OSError, ValueError) as error:
                 LOG.info('No options for %s (%s)', request.get('entity') if isinstance(request, dict) else '?', type(error).__name__)
+
+    async def plugin_loop(self):
+        """Answer the plugins on the screens (docs/PLUGINS.md): a Home Assistant command their manifest names."""
+        while True:
+            request = await self.ha.plugin_requests.get()
+            try:
+                await self.plugins.answer(request)
+            except Exception as error:   # one plugin's question never stops the app
+                LOG.info('A plugin question went unanswered (%s)', type(error).__name__)
 
     async def answer_options(self, request):
         """One screen's request: a light on its own layout, or a select on that light's device; a page it asked for."""
@@ -4427,7 +4444,7 @@ async def main():
             await asyncio.gather(ha.run(), manager.run(), manager.history_loop(), manager.updates.run(),
                                  manager.alert_loop(), manager.tile_loop(), manager.card_history_loop(), manager.camera_loop(), manager.card_options_loop(),
                                  manager.media_loop(), manager.pairing_loop(),
-                                 *([manager.plugins.loop()] if core.plugins_enabled() else []))
+                                 *([manager.plugins.loop(), manager.plugin_loop()] if core.plugins_enabled() else []))
         finally:
             await cameras.cleanup()
             await runner.cleanup()

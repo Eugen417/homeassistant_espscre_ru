@@ -180,6 +180,9 @@ class Plugin {
   virtual void before_update() {}
   // Rows on the screen's settings page. Called once when the interface is up; true when the plugin added some.
   virtual bool settings(SettingsPage &page) { return false; }
+  // An answer from the app to tessera::send(): {"re": <the number send returned>, "ok": true, "result": ...} or
+  // {"re": ..., "ok": false, "error": "<why>"}. At most 4 KB; a long answer comes shortened (lists and texts cut).
+  virtual void on_message(JsonObjectConst message) {}
 
   // A tile type of this plugin, by its id in the manifest. Call it in setup(). `make` returns a new card; the core
   // deletes it.
@@ -238,6 +241,11 @@ bool open_card(const char *plugin_id, const char *card, const std::string &entit
                const std::string &title = "");
 // Close the card that is open, as Back does.
 void close_card();
+// Ask the app something on this plugin's behalf: a Home Assistant command its manifest names under
+// permissions.ha_commands, such as {"ask": "call_service:calendar.get_events", "data": {"entity_id": "calendar.waste",
+// "duration": {"days": 28}}}. Returns the number the answer carries as "re" (0 when it could not be sent: no app, or a
+// request over 512 bytes). The answer arrives in on_message, also when it failed.
+uint32_t send(const Plugin *plugin, JsonObjectConst request);
 // The card on the glass draws again in its next pass (after a change made outside on_state or on_tick).
 void refresh();
 // A Home Assistant action on an entity, as a tile's tap sends it: action("light.toggle", entity), or with one field

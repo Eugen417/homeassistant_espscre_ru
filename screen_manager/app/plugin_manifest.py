@@ -42,6 +42,12 @@ LICENSES = ('MIT', 'Apache-2.0', 'BSD-2-Clause', 'BSD-3-Clause', 'ISC', 'MPL-2.0
 # How the editor draws a tile with data (it cannot run the plugin's C++): the first item's fields in a badge, a title
 # and a value, or a countdown to a moment. Templates name fields as {field}.
 PREVIEW = ('badge', 'title', 'value', 'countdown')
+# What a plugin may ask Home Assistant through the app (tessera::send): a websocket command, or an action that answers
+# (call_service:<domain>.<service>, sent with return_response). Never one that reads or changes Home Assistant itself.
+HA_COMMAND = re.compile(r'^(call_service:[a-z_]+\.[a-z0-9_]+|[a-z_]+(/[a-z_]+)*)$')
+FORBIDDEN_COMMANDS = ('auth', 'config', 'subscribe_events', 'subscribe_trigger', 'execute_script', 'call_service',
+                      'fire_event', 'render_template', 'supervisor', 'hassio', 'get_config', 'lovelace', 'person', 'backup',
+                      'cloud', 'application_credentials', 'repairs', 'blueprint', 'trace', 'validate_config')
 MAX_ATTRIBUTES = 16
 MAX_TILES = 8
 MAX_OPTIONS = 12
@@ -422,7 +428,7 @@ def check(manifest, english=None):
     out['flash_kb'] = _number(manifest.get('flash_kb', 0), 'flash_kb', 0, 8192)
 
     permissions = _object(manifest.get('permissions') or {}, 'permissions',
-                          {'read_entities', 'home_assistant_actions', 'network'})
+                          {'read_entities', 'home_assistant_actions', 'network', 'ha_commands'})
     network = [host.lower() for host in _strings(permissions.get('network'), 'permissions.network', 8)]
     for i, host in enumerate(network):
         if not HOST.match(host) or is_private_host(host):
@@ -432,7 +438,14 @@ def check(manifest, english=None):
         'home_assistant_actions': _strings(permissions.get('home_assistant_actions'),
                                            'permissions.home_assistant_actions'),
         'network': network,
+        'ha_commands': _strings(permissions.get('ha_commands'), 'permissions.ha_commands', 8),
     }
+    for i, command in enumerate(out['permissions']['ha_commands']):
+        plain = ':' not in command
+        if not HA_COMMAND.match(command) or (plain and command.split('/')[0] in FORBIDDEN_COMMANDS):
+            raise ManifestError(f'permissions.ha_commands[{i}]', 'a Home Assistant websocket command such as '
+                                                                  'history/history_during_period, or call_service:<domain>.<service> '
+                                                                  'for an action that answers')
     attributes = _strings(manifest.get('attributes'), 'attributes', len(ATTRIBUTES))
     if any(a not in ATTRIBUTES for a in attributes):
         raise ManifestError('attributes', f'only {", ".join(ATTRIBUTES)}')

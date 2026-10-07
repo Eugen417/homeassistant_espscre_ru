@@ -179,6 +179,33 @@ bool open_card(const char *plugin_id, const char *card, const std::string &entit
 
 void close_card() { plugin_host::close_card(); }
 
+uint32_t send(const Plugin *plugin, JsonObjectConst request) {
+  static uint32_t next = 0;
+  if (!plugin || rt::inbox.empty() || !esphome::api::global_api_server) return 0;
+  JsonDocument doc;
+  doc.set(request);
+  const uint32_t number = ++next;
+  doc["re"] = number;
+  std::string body;
+  serializeJson(doc, body);
+  if (body.size() > 512) return 0;
+  esphome::api::HomeassistantActionRequest action;
+  action.service = esphome::StringRef("esphome.screen_plugin");
+  action.is_event = true;
+  const std::string session = rt::protocol_key(rt::transfer.lease);
+  const std::string keys[] = {"inbox", "plugin", "session", "rev", "body"};
+  const std::string values[] = {rt::inbox, plugin->plugin_id(), session, rt::layout_rev, body};
+  action.data.init(5);
+  for (int i = 0; i < 5; ++i) {
+    esphome::api::HomeassistantServiceMap entry;
+    entry.key = esphome::StringRef(keys[i]);
+    entry.value = esphome::StringRef(values[i]);
+    action.data.push_back(entry);
+  }
+  esphome::api::global_api_server->send_homeassistant_action(action);
+  return number;
+}
+
 void refresh() {
   for (auto &w : rt::widgets)
     if (w.plugin && w.index < rt::model.count) rt::mark_tile(w.index);
@@ -580,6 +607,11 @@ static header_bar::Shown bar_item(const std::string &key) {
       shown.text = now.text.substr(0, header_bar::TEXT_BYTES);
     }
   return shown;
+}
+
+void message(const std::string &plugin, JsonObjectConst body) {
+  for (auto *p : tessera::plugins())
+    if (plugin == p->plugin_id()) p->on_message(body);
 }
 
 void ready() {

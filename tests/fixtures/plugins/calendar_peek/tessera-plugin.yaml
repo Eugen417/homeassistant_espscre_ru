@@ -1,0 +1,16 @@
+# A plugin for the app's tests: asks Home Assistant for a calendar's events through the app.
+id: calendar_peek
+version: 1.0.0
+api: "0.1"
+icon: calendar
+maintainer: someone
+license: MIT
+permissions:
+  ha_commands: ["call_service:calendar.get_events"]
+tiles:
+  - id: next
+    name: tile
+    entity: calendar
+    attributes: [message, start_time]
+    sizes: { min: 1x1, max: 2x1 }
+    memory: 400

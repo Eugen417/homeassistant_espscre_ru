@@ -51,6 +51,25 @@ def glyph(name):
     return tile_icons.GLYPHS.get(name) or PLUGIN_ICON
 
 
+def bounded(value, limit=3200):
+    """An answer for a screen within `limit` bytes of JSON: long texts cut to 48 bytes, then lists shortened from the
+    end until it fits. A screen's message is at most 4 KB with everything around it."""
+    def cut(node, items):
+        if isinstance(node, str):
+            return core.short(node, 48)
+        if isinstance(node, list):
+            return [cut(child, items) for child in node[:items]]
+        if isinstance(node, dict):
+            return {str(key)[:32]: cut(child, items) for key, child in list(node.items())[:24]}
+        return node if isinstance(node, (int, float, bool)) or node is None else str(node)[:48]
+    size = lambda node: len(json.dumps(node, separators=(',', ':'), ensure_ascii=False).encode())
+    for items in (48, 24, 12, 8, 4, 2, 1, 0):
+        shaped = cut(value, items)
+        if size(shaped) <= limit:
+            return shaped
+    return None
+
+
 def trimmed(data):
     """A tile's data within X_BUDGET: the last items go first."""
     if not isinstance(data, dict):
@@ -684,6 +703,50 @@ class Plugins:
                 item['at'] = row.get(spec['countdown'])
             out.append(item)
         return {'items': out, **({'stale': True} if data.get('stale') else {})}
+
+    # ---- A plugin's question (tessera::send) ----
+
+    async def answer(self, request):
+        """One question of a plugin on a screen: a Home Assistant command its manifest names, asked on its behalf, the
+        answer sent back bounded (op "plugin"). Every command goes into the log with the screen, the plugin and the
+        command, never its values."""
+        if not isinstance(request, dict):
+            return
+        inbox = getattr(self.manager, 'aliases', {}).get(request.get('inbox'), request.get('inbox'))
+        plugin = request.get('plugin')
+        screen = self.manager.screen(inbox) if isinstance(inbox, str) else None
+        if not screen or not isinstance(plugin, str) or not self.store.get(inbox, plugin):
+            return
+        try:
+            body = json.loads(request.get('body') or '{}')
+        except ValueError:
+            return
+        if not isinstance(body, dict):
+            return
+        reply = {'re': body.get('re') if isinstance(body.get('re'), int) else 0}
+        entry = self.entry_for(self.store.get(inbox, plugin))
+        ask = body.get('ask')
+        data = body.get('data') if isinstance(body.get('data'), dict) else {}
+        if not entry or not isinstance(ask, str) or ask not in entry.manifest['permissions']['ha_commands']:
+            reply.update(ok=False, error='not_allowed')
+        else:
+            LOG.info('Plugin %s on %s asks Home Assistant: %s', plugin, screen.get('name') or inbox, ask)
+            try:
+                if ask.startswith('call_service:'):
+                    domain, service = ask.split(':', 1)[1].split('.', 1)
+                    target = {key: data[key] for key in ('entity_id', 'device_id', 'area_id') if key in data}
+                    fields = {key: value for key, value in data.items() if key not in target}
+                    result = await self.manager.ha.request('call_service', domain=domain, service=service,
+                                                           service_data=fields, target=target, return_response=True)
+                    result = (result or {}).get('response', result) if isinstance(result, dict) else result
+                else:
+                    result = await self.manager.ha.request(ask, **data)
+                reply.update(ok=True, result=bounded(result))
+            except Exception as error:   # Home Assistant said no, or did not answer
+                reply.update(ok=False, error=str(error)[:120] or type(error).__name__)
+        action = self.manager.transport(inbox, screen) if hasattr(self.manager, 'transport') else None
+        if action:
+            await self.manager.send_auxiliary(inbox, {'v': 2, 'op': 'plugin', 'p': plugin, 'm': reply}, action, request)
 
     def plugin_tiles(self):
         """Every plugin tile on a screen's pages: [(inbox, tile)]."""

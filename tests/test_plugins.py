@@ -287,13 +287,70 @@ class EntityTile(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(wrong, {'wait': 'wrong_entity'})
 
 
+class Questions(unittest.IsolatedAsyncioTestCase):
+    """A plugin asks Home Assistant something through the app: only what its manifest names, the answer bounded."""
+
+    async def test_named_commands_only_and_bounded(self):
+        import shutil
+        import plugins as plugin_service
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        config = Path(tmp.name) / 'esphome'
+        config.mkdir()
+        shutil.copytree(ROOT / 'tests' / 'fixtures' / 'plugins' / 'calendar_peek', Path(tmp.name) / 'tessera-plugins' / 'calendar_peek')
+        asked, sent = [], []
+
+        class FakeHA:
+            states, changed, dirty = {}, asyncio.Event(), set()
+
+            async def request(self, kind, **data):
+                asked.append((kind, data))
+                return {'response': {'calendar.waste': {'events': [{'summary': 'Paper ' * 20, 'start': '2026-10-09'}] * 100}}}
+
+        class FakeManager:
+            ha = FakeHA()
+            page_senders, aliases = {}, {}
+
+            def screen(self, inbox):
+                return {'id': inbox, 'node': inbox, 'name': 'Kitchen', 'board': 'guition', 'online': True}
+
+            def transport(self, inbox, screen=None):
+                return 'action'
+
+            async def send_auxiliary(self, inbox, message, action, request):
+                sent.append(message)
+        service = plugin_service.Plugins(FakeManager(), Path(tmp.name) / 'data', config)
+        service.scan_folders()
+        service.store.put('kitchen', {'id': 'calendar_peek', 'source': 'folder', 'state': 'active'})
+        body = {'re': 7, 'ask': 'call_service:calendar.get_events', 'data': {'entity_id': 'calendar.waste', 'duration': {'days': 28}}}
+        await service.answer({'inbox': 'kitchen', 'plugin': 'calendar_peek', 'body': json.dumps(body)})
+        self.assertEqual(asked[0][0], 'call_service')
+        self.assertEqual(asked[0][1]['target'], {'entity_id': 'calendar.waste'})
+        self.assertTrue(asked[0][1]['return_response'])
+        reply = sent[0]['m']
+        self.assertEqual((sent[0]['op'], sent[0]['p'], reply['re'], reply['ok']), ('plugin', 'calendar_peek', 7, True))
+        self.assertLessEqual(len(json.dumps(reply)), 3400)
+        await service.answer({'inbox': 'kitchen', 'plugin': 'calendar_peek', 'body': json.dumps({'re': 8, 'ask': 'get_states'})})
+        self.assertEqual(sent[1]['m'], {'re': 8, 'ok': False, 'error': 'not_allowed'})
+        self.assertEqual(len(asked), 1)
+        # A plugin the screen does not run gets nothing at all.
+        await service.answer({'inbox': 'kitchen', 'plugin': 'other', 'body': json.dumps(body)})
+        self.assertEqual(len(sent), 2)
+
+    def test_the_manifest_refuses_commands_that_reach_home_assistant_itself(self):
+        for wrong in ('call_service', 'config/entity_registry/update', 'auth/sign_path', 'fire_event', 'supervisor/api'):
+            with self.subTest(wrong), self.assertRaises(pm.ManifestError):
+                pm.check(manifest(permissions={'network': ['api.example.org'], 'ha_commands': [wrong]}), ENGLISH)
+        pm.check(manifest(permissions={'network': ['api.example.org'], 'ha_commands': ['history/history_during_period']}), ENGLISH)
+
+
 class Hello(unittest.TestCase):
     def test_plugins_of_a_hello(self):
         self.assertEqual(plugins_of({}), (None, []))
         api, plugins = plugins_of({'plugin_api': '0.1', 'plugins': [
-            {'id': 'bus', 'version': '1.0.0', 'tiles': ['next', 'Bad!']}, {'id': 'Nope'}, 'junk']})
+            {'id': 'bus', 'version': '1.0.0', 'tiles': ['next', 'Bad!'], 'taps': ['schedule']}, {'id': 'Nope'}, 'junk']})
         self.assertEqual(api, '0.1')
-        self.assertEqual(plugins, [{'id': 'bus', 'version': '1.0.0', 'tiles': ['next']}])
+        self.assertEqual(plugins, [{'id': 'bus', 'version': '1.0.0', 'tiles': ['next'], 'taps': ['schedule']}])
 
 
 class Sidecar(unittest.TestCase):
