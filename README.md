@@ -19,12 +19,6 @@
 </p>
 
 <p align="center">
-  <a href="https://discord.gg/M7x96AUzC"><img src="docs/images/discord-invite.svg" width="960" alt="Join the Tessera Discord server. Share your screen, ask a question and meet the community."></a>
-</p>
-
-<p align="center"><a href="https://discord.gg/M7x96AUzC"><b>Join the Discord server</b></a></p>
-
-<p align="center">
   <a href="https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FMaxGramser%2Fhomeassistant_espscreen"><img src="https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg" alt="Add the Tessera repository to your Home Assistant"></a>
 </p>
 
@@ -67,6 +61,12 @@ also be changed on the screen or by an automation, and your own YAML for one scr
 **[Install it](#installing-from-home-assistant)** · [The manual](https://tessera-maxgramser.on-forge.com/docs/) · [Pages](https://tessera-maxgramser.on-forge.com/docs/pages) · [Screen settings](https://tessera-maxgramser.on-forge.com/docs/screen-settings) · [Troubleshooting](https://tessera-maxgramser.on-forge.com/docs/troubleshooting) · [What's new](screen_manager/CHANGELOG.md)
 
 > **The manual is on the [Tessera website](https://tessera-maxgramser.on-forge.com/docs/):** from the [quick start](https://tessera-maxgramser.on-forge.com/docs/quick-start) to every tile, every screen setting, every supported screen and troubleshooting, with search. Anyone with a GitHub account can improve a page with **Edit this page**. This README is the overview; the files under `docs/` are the reference for contributors.
+
+<p align="center">
+  <a href="https://discord.gg/M7x96AUzC"><img src="docs/images/discord-invite.svg" width="560" alt="Join the Tessera Discord server. Share your screen, ask a question and meet the community."></a>
+</p>
+
+<p align="center"><a href="https://discord.gg/M7x96AUzC"><b>Join the Discord server</b></a></p>
 
 ## In real life
 
