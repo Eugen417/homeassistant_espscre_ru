@@ -40,11 +40,6 @@ class PackageTests(unittest.TestCase):
                 hotspot = ['packages/features/hotspot.yaml'] if profiles.hotspot(board) else []
                 self.assertEqual(sorted(checker.included(ROOT / name)),
                                  sorted(['packages/core.yaml', str(profiles.BOARDS[board].relative_to(ROOT)), *hotspot]), name)
-                # The board brings the cards of its grid.
-                cells = profiles.cells_of(profiles.BOARDS[board])
-                self.assertEqual(len(cells), 1, board)
-                grid = profiles.board_values(board)
-                self.assertEqual(cells[0].name, f"{int(grid['GRID_COLS']) * int(grid['GRID_ROWS'])}.yaml", board)
 
     def test_the_published_entry_takes_everything_from_github(self):
         for board in BOARDS:
@@ -127,10 +122,8 @@ class PackageTests(unittest.TestCase):
     def test_runtime_tiles_keep_what_they_bind_and_open(self):
         for board in BOARDS:
             package = profiles.text(f'packages/{board}.yaml')
-            # One card per cell of the board's grid, and the parts every screen has.
-            grid = profiles.board_values(board)
-            cells = int(grid['GRID_COLS']) * int(grid['GRID_ROWS'])
-            for key in [f'runtime_tiles::bind({cells - 1}, id(tile{cells})', 'runtime_tiles::enabled = true;', 'id: open_value_overlay',
+            # The cards of the grid, made at boot (firmware 0.53.0+), and the parts every screen has.
+            for key in ['runtime_tiles::make_cells(id(materialdesign_icons)->get_lv_font(), ${TILE_ICON_SIZE});', 'runtime_tiles::enabled = true;', 'id: open_value_overlay',
                         'id: ui_refresh', 'runtime_tiles::render(id(lbl_room));', 'id: color_detail_overlay']:
                 self.assertIn(key, package, board)
         # The CYD keeps its resistive calibration on the screen itself; the Guition's GT911 needs none.
@@ -158,9 +151,8 @@ class PackageTests(unittest.TestCase):
         for board, defined in names.items():
             own = defined - shared
             # What a feature brings (the resistive panel's calibration, the capacitive one's edge swipe, camera images)
-            # and the hardware a screen's own YAML may change on the board that has it. GRID_CELLS names the cards file of
-            # a board whose grid is a choice (the Guition's rows, app 0.4.31).
-            self.assertTrue(all(re.match(r'(TOUCH_AFFINE_|TOUCH_CAL_|TOUCH_CONTROLLER$|EDGE_SWIPE_|ALERT_\w*IMAGE|CAMERA_|DISPLAY_MODEL$|DISPLAY_DATA_RATE$|DISPLAY_INVERT_COLORS$|BACKLIGHT_FREQUENCY$|HOSTED_SDIO_FREQUENCY$|GRID_CELLS$)', n) for n in own), f'{board}: {sorted(own)}')
+            # and the hardware a screen's own YAML may change on the board that has it.
+            self.assertTrue(all(re.match(r'(TOUCH_AFFINE_|TOUCH_CAL_|TOUCH_CONTROLLER$|EDGE_SWIPE_|ALERT_\w*IMAGE|CAMERA_|DISPLAY_MODEL$|DISPLAY_DATA_RATE$|DISPLAY_INVERT_COLORS$|BACKLIGHT_FREQUENCY$|HOSTED_SDIO_FREQUENCY$)', n) for n in own), f'{board}: {sorted(own)}')
 
     def test_the_checker_refuses_a_fixed_home_assistant_subscription(self):
         source = (ROOT / 'tools/check_packages.py').read_text()

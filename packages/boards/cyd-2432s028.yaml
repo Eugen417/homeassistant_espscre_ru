@@ -17,8 +17,6 @@ packages:
   build: !include ../hardware/esp-idf.yaml
   # Wide update slots for 4 MB of flash, and the way a screen that is out there gets them.
   flash: !include ../hardware/flash-4mb.yaml
-  # The cards of this board's grid, one per cell (tools/generate_cells.py writes them; docs/RESPONSIVE.md).
-  cells: !include ../cells/6.yaml
   # Every size of the compact look, scaled to DISPLAY_DPI below. This glass is where that look was drawn.
   look: !include ../looks/compact.yaml
   touch: !include ../features/resistive-touch.yaml

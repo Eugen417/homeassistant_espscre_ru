@@ -21,7 +21,6 @@ sys.path.insert(0, str(ROOT / 'screen_manager' / 'app'))
 import profiles  # noqa: E402
 import core  # noqa: E402
 import firmware as firmware_module  # noqa: E402
-import generate_cells  # noqa: E402
 
 SHAPES = json.loads((ROOT / 'screen_manager/app/boards.json').read_text())
 
@@ -98,21 +97,12 @@ class Choices(unittest.TestCase):
         self.assertEqual(same(self.profile(choices={'DISPLAY_MODEL': 'ILI9341'})), same(self.profile()))
         self.assertNotIn('DISPLAY_MODEL', self.profile())
 
-    def test_the_guitions_four_rows_bring_the_cards_they_need(self):
-        # A Guition built with four rows (app 0.4.31, firmware 0.18.1): one line in the screen's YAML, and the board
-        # file's cards follow it (cells/${GRID_CELLS}.yaml), as ESPHome works the path out when it builds.
+    def test_the_guitions_four_rows_are_one_line_in_its_yaml(self):
+        # A Guition built with four rows (app 0.4.31, firmware 0.18.1): one line in the screen's YAML. Its cards are made
+        # at boot, one per cell of the grid it runs on (firmware 0.53.0+, runtime_tiles::make_cells).
         text = core.installation_yaml({'board': 'guition', 'name': 'hall', 'friendly_name': 'Hall', 'choices': {'GRID_ROWS': '4'}})
         self.assertIn('  GRID_ROWS: "4"', re.search(r'(?ms)^substitutions:\n(.*?)\n\n', text)[1].split('\n'))
         self.assertNotIn('GRID_ROWS', core.installation_yaml({'board': 'guition', 'name': 'hall', 'friendly_name': 'Hall'}))
-        board = profiles.BOARDS['guition']
-        include = re.search(r'cells: !include (\S+)', board.read_text())[1]
-        for rows, cards in (('3', 6), ('4', 8)):
-            values = profiles.evaluate({**profiles.substitutions_of(board), 'GRID_ROWS': rows})
-            path = (board.parent / profiles._render(include, values, strict=True)).resolve()
-            self.assertEqual(path.name, f'{cards}.yaml')
-            self.assertTrue(path.exists(), path)
-            self.assertEqual(path.read_text().count('runtime_tiles::bind('), cards)
-        self.assertIn(8, generate_cells.counts())
         # Offline, the screen's own YAML says it has four rows: the app counts its cells on 2 x 4, not the catalog's 2 x 3.
         import firmware
         self.assertEqual(firmware.profile_meta(text)['grid_rows'], 4)
@@ -130,14 +120,7 @@ class Choices(unittest.TestCase):
             'board': 'tab5', 'name': 'hall', 'friendly_name': 'Hall', 'choices': {'GRID_ROWS': '4'}
         })
         self.assertIn('  GRID_ROWS: "4"', re.search(r'(?ms)^substitutions:\n(.*?)\n\n', selected)[1].split('\n'))
-        board = profiles.BOARDS['tab5']
-        include = re.search(r'cells: !include (\S+)', board.read_text())[1]
-        for rows, cells in (('3', 9), ('4', 12)):
-            values = profiles.evaluate({**profiles.substitutions_of(board), 'GRID_ROWS': rows})
-            path = (board.parent / profiles._render(include, values, strict=True)).resolve()
-            self.assertEqual(path.name, f'{cells}.yaml')
-            self.assertTrue(path.exists(), path)
-            self.assertEqual(path.read_text().count('runtime_tiles::bind('), cells)
+        for rows in ('3', '4'):
             grid = core.grid_of({'board': 'tab5', 'grid_rows': int(rows)})
             self.assertEqual((grid.pages, grid.max_tiles), (8, 64))
             tiles = [{'entity': f'light.tab5_{n}', 'name': ''} for n in range(64)]
@@ -145,24 +128,12 @@ class Choices(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'at most 64'):
                 core.validate_layout({'title': 'Tab5', 'tiles': tiles + [{'entity': 'light.extra', 'name': ''}]},
                                      grid=grid)
-        import generate_cells
-        self.assertIn(12, generate_cells.counts())
 
-    def test_the_ten_inch_guitions_offer_more_rows_and_their_cells(self):
+    def test_the_ten_inch_guitions_offer_more_rows(self):
         rows_options = ['5', '6', '7', '8']
         for board in ('jc8012p4a1', 'jc8012p4a1v2', 'jc8012p4a1v3'):
             with self.subTest(board=board):
                 self.assertEqual(SHAPES[board]['catalog']['choices']['GRID_ROWS'], rows_options)
-                board_file = profiles.BOARDS[board]
-                include = re.search(r'cells: !include (\S+)', board_file.read_text())[1]
-                for rows in rows_options:
-                    count = 5 * int(rows)
-                    values = profiles.evaluate({**profiles.substitutions_of(board_file), 'GRID_ROWS': rows})
-                    cells = (board_file.parent / profiles._render(include, values, strict=True)).resolve()
-                    self.assertEqual(cells.name, f'{count}.yaml')
-                    self.assertTrue(cells.is_file(), cells)
-                    self.assertEqual(cells.read_text().count('runtime_tiles::bind('), count)
-                    self.assertIn(count, generate_cells.counts())
                 profile = core.installation_yaml({
                     'board': board, 'name': 'hall', 'friendly_name': 'Hall',
                     'choices': {'GRID_ROWS': '8'},

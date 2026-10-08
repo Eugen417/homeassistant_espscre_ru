@@ -248,10 +248,11 @@ esphome:
                                         id(alert_ok_label), id(alert_button2), id(alert_button2_label)};
           runtime_tiles::alert_place(false);
           runtime_tiles::setpoint_font = id(setpoint_digits)->get_lv_font();
-          // The cards of this board's grid (packages/cells/<number>.yaml), and their styles for the cards of kept pages
-          // (firmware 0.3.2+: runtime_tiles::make_card builds more of them on a board with PSRAM).
-          ${BIND_CELLS}
+          // The cards of the grid, one per cell, in the styles below (firmware 0.53.0+: made in C++, so the grid is
+          // no longer fixed by a file of cards per board); runtime_tiles::make_card builds more of them for the kept
+          // pages of a board with PSRAM (firmware 0.3.2+).
           runtime_tiles::card_look = {id(style_tile), id(style_icon_circle), id(style_title), id(style_value)};
+          runtime_tiles::make_cells(id(materialdesign_icons)->get_lv_font(), ${TILE_ICON_SIZE});
           runtime_tiles::detail = [](runtime_tiles::Tile &t) {
             light_controls::fallback = light_controls::State{};
             light_controls::fallback.hue = t.hue;
@@ -2076,9 +2077,9 @@ lvgl:
             pad_bottom: 0
             scrollable: false
             scrollbar_mode: 'OFF'
-            widgets:
-              # The cards themselves come from packages/cells/<number>.yaml, the file for this board's grid:
-              # ESPHome has no loop, so one file per number of cells, written by tools/generate_cells.py.
+            # The cards themselves are made at boot, one per cell of the grid (runtime_tiles::make_cells); ESPHome
+            # asks a grid for its widgets key all the same.
+            widgets: []
 
         # ---------- VALUE SLIDER OVERLAY ----------
         # ---------- PAGE NAVIGATION: the band under the tiles ----------

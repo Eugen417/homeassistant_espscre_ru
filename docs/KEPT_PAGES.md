@@ -18,10 +18,10 @@ The code is in three places:
 ## Kept cards
 
 `widgets` is always the set of cards on the glass. A page that leaves the glass takes its set onto the shelf, hidden,
-and a page that comes back brings its own set with it (`keep_page`). The board's own cards (`packages/cells/<n>.yaml`)
+and a page that comes back brings its own set with it (`keep_page`). The board's own cards (`make_cells`, at boot)
 are the first set; `make_card` builds more of the same card, with the styles `packages/core.yaml` hands over at boot
 (`runtime_tiles::card_look`) and the sizes of the first card, so a new set never lays out the grid to measure itself.
-Keep the two in step: a change to the card in `tools/generate_cells.py` belongs in `make_card` too.
+Both go through `build_card`, so there is one card to change.
 
 Three rules keep this safe:
 

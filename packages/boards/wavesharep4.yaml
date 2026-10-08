@@ -14,8 +14,6 @@
 packages:
   # The ESP32-P4, its memory, the ESP32-C6 for Wi-Fi and the touch bus, pin for pin the Guition P4 panels' own.
   hardware: !include ../hardware/esp32p4-c6.yaml
-  # The cards of this board's grid, one per cell (tools/generate_cells.py writes them; docs/RESPONSIVE.md).
-  cells: !include ../cells/${GRID_CELLS}.yaml
   look: !include ../looks/standard.yaml
   touch: !include ../features/capacitive-touch.yaml
   backlight: !include ../features/backlight.yaml
@@ -41,8 +39,6 @@ substitutions:
   SCREEN_MAX_TILES: "128"
   SCREEN_MAX_PAGES: "24"
   SCREEN_MAX_BAR_ITEMS: "12"                   # a wider top bar where the glass has the width for it
-  # The cells of a page, which name the cards file above; worked out, so a screen's own GRID_ROWS reaches it too.
-  GRID_CELLS: "${ (GRID_COLS | int) * (GRID_ROWS | int) }"
   LVGL_BUFFER_SIZE: "50%"                       # LVGL's draw buffer as a share of the screen, in PSRAM
 
   # Hardware a screen's own YAML may change (docs/EASY_SETUP.md, "Hardware-specific YAML overrides")

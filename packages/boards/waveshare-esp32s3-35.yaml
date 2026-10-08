@@ -4,7 +4,6 @@
 # CS (EXIO2) lines; no other on-board chips (RTC, IMU) are used.
 packages:
   build: !include ../hardware/esp-idf.yaml
-  cells: !include ../cells/4.yaml
   look: !include ../looks/standard.yaml
   touch: !include ../features/capacitive-touch.yaml
   backlight: !include ../features/backlight.yaml

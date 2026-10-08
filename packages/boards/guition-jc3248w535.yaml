@@ -11,7 +11,6 @@
 # packages/jc3248w535.yaml (the package a screen builds from over GitHub).
 packages:
   build: !include ../hardware/esp-idf.yaml
-  cells: !include ../cells/4.yaml
   look: !include ../looks/standard.yaml
   touch: !include ../features/capacitive-touch.yaml
   backlight: !include ../features/backlight.yaml

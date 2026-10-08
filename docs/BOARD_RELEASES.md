@@ -33,7 +33,7 @@ How a path is sorted:
 | the `screen` section of a file in `screen_manager/translations/` (the texts the firmware compiles in) | every board |
 | a new file in `screen_manager/translations/` (a new language: no screen speaks it yet, and one set to it is offered its update anyway) | no firmware |
 | a board file under `packages/boards/`, or its entry files `packages/<board>.yaml` and `checkout/<board>.yaml` | that board |
-| a file under `packages/features/`, `looks/`, `hardware/` or `cells/` | exactly the boards whose files include it |
+| a file under `packages/features/`, `looks/` or `hardware/` | exactly the boards whose files include it |
 | anything else: the add-on, the editor, docs, tests, tools, `boards.yaml`, the other translation texts | no firmware |
 
 A YAML file that changed in its comments or layout alone reaches no board: the tool compares what ESPHome reads of

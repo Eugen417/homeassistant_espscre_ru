@@ -15,8 +15,6 @@
 packages:
   # The 4.3-inch's board: the chip, the CH422G expander, the GT911, the backlight line, the flash and the panel.
   hardware: !include ../hardware/waveshare-esp32s3-43.yaml
-  # The cards of this board's grid, one per cell (tools/generate_cells.py writes them; docs/RESPONSIVE.md).
-  cells: !include ../cells/9.yaml
   look: !include ../looks/standard.yaml
   touch: !include ../features/capacitive-touch.yaml
   backlight: !include ../features/backlight.yaml

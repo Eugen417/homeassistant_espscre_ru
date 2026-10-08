@@ -35,7 +35,7 @@ fontTools and jinja2, and stops when one is missing, because a skipped test prov
 - **C++ tests**: every `tests/*.cpp`, compiled with `clang++ -std=c++17 -Wall -Wextra -Werror -I.` and run. They test
   the firmware's logic and layout arithmetic (cards, settings, theme, touch filter, protocol) on this computer.
 - **Generated files are current**: `tools/check_packages.py` (the boards define every name the core uses, and no board
-  file repeats what it would get anyway), and the `--check` of `tools/generate_cells.py`, `generate_board_shapes.py`,
+  file repeats what it would get anyway), and the `--check` of `tools/generate_board_shapes.py`,
   `generate_entries.py`, `generate_issue_templates.py`, `generate_icons.py` and `generate_catalogue.py`.
 - **Firmware numbers** (`tools/affected_boards.py --verify`): a change that reaches a board raises that board's
   number (docs/BOARD_RELEASES.md).

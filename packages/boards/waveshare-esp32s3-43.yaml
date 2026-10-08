@@ -14,8 +14,6 @@
 packages:
   # The chip, the CH422G expander, the GT911 and the backlight line this board shares with the other Waveshare.
   hardware: !include ../hardware/waveshare-ch422g.yaml
-  # The cards of this board's grid, one per cell (tools/generate_cells.py writes them; docs/RESPONSIVE.md).
-  cells: !include ../cells/9.yaml
   look: !include ../looks/standard.yaml
   touch: !include ../features/capacitive-touch.yaml
   backlight: !include ../features/backlight.yaml

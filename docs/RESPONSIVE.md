@@ -67,10 +67,10 @@ which cell a card takes and how many it spans: `lv_obj_set_grid_cell(tile, STRET
 a wide card two columns, the 0.3.1 taller cards two rows, and a full card the whole page. No coordinate is computed in C++ any more, and the cards grow
 by themselves when the page bar goes (the container then reaches the bottom edge, keeping the side margin).
 
-The cards themselves are LVGL widgets, so they live in YAML, and ESPHome has no loop: `tools/generate_cells.py`
-writes one file per number of cells (`packages/cells/6.yaml` for a 2 x 3 board) with the cards and the line that
-binds them, and a board includes the file for its own grid. A board therefore carries exactly the cards it can
-show: a CYD six, a 4 x 4 board sixteen. `tools/check.sh` fails when a file is out of date.
+The cards themselves are made in C++ at boot (firmware 0.53.0+): `runtime_tiles::make_cells` builds one per cell of
+the grid the screen runs on, in the four card styles of `packages/core.yaml` and with the board's `TILE_ICON_SIZE`,
+and `make_card` builds the cards of a kept page the same way. Before, they were YAML widgets, one file per number of
+cells under `packages/cells/`, which tied a screen to the grid it was built with.
 
 ## One set of fonts
 

@@ -47,9 +47,7 @@ __pycache__/
 /easy-cyd-test.yaml
 /portal-test-data/
 
-# Boards tried out in the responsive lab (tools/new_board.py, docs/RESPONSIVE.md) stay on this machine; the cards
-# of their grids are written with `tools/generate_cells.py --lab` and are not ignored, so a board that ships
-# never has its cards left out of Git.
+# Boards tried out in the responsive lab (tools/new_board.py, docs/RESPONSIVE.md) stay on this machine.
 packages/boards/lab-*.yaml
 
 # Claude Code's local state for this checkout (launch.json, settings.local.json). What Claude knows about the

@@ -1,7 +1,7 @@
 """Build a board of a source tree as an ESPHome host program: the real UI of the screens, drawn in an SDL window.
 
 A screen's firmware is packages/core.yaml plus the board's file under packages/boards/, which includes its own packages
-(looks, features, hardware, cells) with relative includes (docs/PROFILES.md). This walks that include tree and writes a
+(looks, features, hardware) with relative includes (docs/PROFILES.md). This walks that include tree and writes a
 copy of every file with the ESP32 hardware taken out, under the same relative layout, so the includes keep working. A
 small host-hw.yaml stands in for the hardware: an SDL display `my_display` at the panel's own pixels (LVGL turns the
 picture as on the glass), an SDL touchscreen `ts_touch` for the features' `!extend ts_touch`, and a template output for
@@ -182,7 +182,7 @@ class Chain:
 
 
 def host_file(text, chain, rel):
-    """One package of the chain (board file, hardware, look, feature, cells) without its ESP32 hardware."""
+    """One package of the chain (board file, hardware, look, feature) without its ESP32 hardware."""
     for key in HARDWARE_BLOCKS:
         text, removed = drop_blocks(text, key)
         for block in removed:
@@ -240,8 +240,8 @@ def walk(tree, source, mirror, chain):
     values = None
     for include in INCLUDE.findall(text):
         if '${' in include:
-            # A path worked out from the file's own substitutions (the Guition's cards follow its rows, GRID_CELLS):
-            # the mirror copies the file ESPHome takes with the values the render builds with.
+            # A path worked out from the file's own substitutions: the mirror copies the file ESPHome takes with the
+            # values the render builds with.
             values = values if values is not None else profiles.evaluate(profiles.substitutions_of(source))
             include = profiles._render(include, values, strict=True)
         target = (source.parent / include).resolve()

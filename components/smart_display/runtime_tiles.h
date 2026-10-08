@@ -538,14 +538,14 @@ struct Widgets {
 // A page is being built off the glass (warm_page): its cards ask for no pictures and wake nothing.
 inline bool warming=false;
 constexpr unsigned POINT_BUFFER = 128;
-// One widget per cell of the board's grid: the cards packages/cells/<number>.yaml brings, bound at boot.
+// One widget per cell of the grid the screen runs on: the cards make_cells makes at boot.
 inline std::array<Widgets, CELLS_MAX> widgets;
 // ---- Pages kept whole (firmware 0.3.2+, kept_pages.h) ----
 // A board with PSRAM keeps the cards of the pages it has shown. `widgets` is always the set on the glass; a page that
 // leaves the glass takes its set onto the shelf, hidden, and a page that comes back brings its own set with it. A card
 // keeps its index in whichever set holds it, and its callbacks name that index (or `&widgets[index]`), so a set is only
 // ever exchanged whole: a callback fires on the glass, where `widgets[index]` is that very card. Cards are drawn only
-// while they are on the glass. The first set is the board's own (packages/cells), make_card builds the others alike.
+// while they are on the glass. The first set is the board's own (make_cells), make_card builds the others alike.
 using CardSet = std::array<Widgets, CELLS_MAX>;
 inline kept_pages::Shelf shelf;
 inline kept_pages::Changes changes;  // what a card could show, numbered as it is asked for (kept_pages.h)
@@ -5709,22 +5709,19 @@ inline void bind_card(Widgets &into, size_t index, lv_obj_t *tile, lv_obj_t *tit
   lv_obj_add_event_cb(tile, event, LV_EVENT_LONG_PRESSED, &widgets[index]);
   lv_obj_add_event_cb(tile, ring_draw, LV_EVENT_DRAW_POST, nullptr);
 }
-// The board's own cards (packages/cells/<n>.yaml, bound at boot).
-inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value, lv_obj_t *circle, lv_obj_t *icon) {
-  bind_card(widgets[index], index, tile, title, value, circle, icon);
-}
-// A card like the ones packages/cells/<n>.yaml brings (tools/generate_cells.py writes those): the same four styles, the
-// same parts and flags, the board's icon size and icon font as its first card has them. Hidden until a page shows it.
-inline void make_card(Widgets &into, size_t index, const Widgets &like) {
+// A card: the four styles of packages/core.yaml (card_look), a circle of the board's icon size with its icon, and the
+// name and the state. Hidden until a page shows it. Without `like` it is measured in the grid's first cell (bind_card),
+// and only hidden after that, as LVGL's grid gives a hidden card no size.
+inline void build_card(Widgets &into, size_t index, int circle_size, const lv_font_t *icon_font, const Widgets *like) {
   auto *tile = lv_obj_create(tile_grid);
-  lv_obj_add_flag(tile, LV_OBJ_FLAG_HIDDEN);  // out of the grid's layout from the start
+  if (like) lv_obj_add_flag(tile, LV_OBJ_FLAG_HIDDEN);  // out of the grid's layout from the start
   lv_obj_add_style(tile, card_look.tile, 0);
   lv_obj_set_size(tile, 1, 1);
   auto *circle = lv_obj_create(tile);
   lv_obj_add_style(circle, card_look.circle, 0);
-  lv_obj_set_size(circle, like.base_circle, like.base_circle);
+  lv_obj_set_size(circle, circle_size, circle_size);
   auto *icon = lv_label_create(circle);
-  lv_obj_set_style_text_font(icon, like.icon_font, 0);
+  lv_obj_set_style_text_font(icon, icon_font, 0);
   lv_obj_align(icon, LV_ALIGN_CENTER, 0, 0);
   auto *title = lv_label_create(tile);
   lv_obj_add_style(title, card_look.title, 0);
@@ -5732,7 +5729,21 @@ inline void make_card(Widgets &into, size_t index, const Widgets &like) {
   lv_obj_add_style(value, card_look.value, 0);
   for (auto *o : {tile, circle}) { lv_obj_remove_flag(o, LV_OBJ_FLAG_SCROLLABLE); lv_obj_set_scrollbar_mode(o, LV_SCROLLBAR_MODE_OFF); }
   for (auto *o : {circle, icon, title, value}) lv_obj_remove_flag(o, LV_OBJ_FLAG_CLICKABLE);
-  bind_card(into, index, tile, title, value, circle, icon, &like);
+  bind_card(into, index, tile, title, value, circle, icon, like);
+  if (!like) lv_obj_add_flag(tile, LV_OBJ_FLAG_HIDDEN);
+}
+// A card like the first of the board's set, whose measurements it takes over: the cards of a kept page.
+inline void make_card(Widgets &into, size_t index, const Widgets &like) {
+  build_card(into, index, like.base_circle, like.icon_font, &like);
+}
+// The board's own cards, one per cell of the grid the screen runs on, made at boot (packages/core.yaml) from the board's
+// icon size and the icon font. They used to be widgets in YAML, a file of them per number of cells (packages/cells/,
+// before firmware 0.53.0), which tied a screen to the grid it was built with.
+inline void make_cells(const lv_font_t *icon_font, int circle_size) {
+  for (size_t i = 0; i < grid.slots(); ++i) {
+    if (i == 0) build_card(widgets[0], 0, circle_size, icon_font, nullptr);
+    else make_card(widgets[i], i, widgets[0]);
+  }
 }
 inline void label(lv_obj_t *obj, const std::string &text) {
   if (text != lv_label_get_text(obj)) lv_label_set_text(obj, text.c_str());

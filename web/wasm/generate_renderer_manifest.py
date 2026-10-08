@@ -41,7 +41,7 @@ for path in files:
     digest.update(str(path.relative_to(root)).encode())
     digest.update(path.read_bytes())
 # Hash the resolved UI portions, so changing a board's pins does not invalidate
-# the renderer but changing its look, glyph set, cell prototype or boot bindings does.
+# the renderer but changing its look, glyph set or boot bindings does.
 sys.path.insert(0, str(root / 'tools'))
 import profiles
 from preview_profiles import variants
@@ -57,7 +57,6 @@ for dpi, look, profile in variants():
         fonts = re.search(r'^font:\n.*?(?=^[a-z_]+:|\Z)', text, re.M | re.S)
         if fonts:
             digest.update(fonts[0].encode())
-digest.update((root / 'packages/cells/6.yaml').read_bytes())
 english = json.loads((root / 'screen_manager/translations/en.json').read_text())
 digest.update(json.dumps({key: english[key] for key in ('screen', '_meta')}).encode())
 digest.update(re.search(r'FROM ghcr.io/esphome/esphome:([^\s]+)', (root / 'screen_manager/Dockerfile').read_text())[1].encode())

@@ -20,7 +20,7 @@ Home Assistant entity belongs in a board file. docs/README.md lists every doc an
 | support a new entity type, or a new control on a tile | docs/CATALOGUE.md | `catalogue/<type>.yaml`, `catalogue/_ha.json` |
 | add a screen setting | docs/SETTINGS.md | `settings_screen.h`, `SETTING_RULES` in `screen_manager/app/core.py` |
 | add a board | docs/ADDING_A_BOARD.md, then docs/BOARD_RELEASES.md | `boards.yaml`, `packages/boards/<file>.yaml` |
-| change sizes, fonts or the grid | docs/RESPONSIVE.md | `ui_scale.h`, `packages/looks/`, `packages/cells/` |
+| change sizes, fonts or the grid | docs/RESPONSIVE.md | `ui_scale.h`, `packages/looks/`, `runtime_model.h` (`Grid`) |
 | give a board a battery in the top bar | docs/BATTERY.md | the board's `battery` sensors, `battery_status.h` |
 | change how a picture reaches the screen | docs/CAMERA.md | `picture_loader.h`, `picture_fetch.h`, `camera_view.h`, `screen_manager/app/camera_feed.py` |
 | change how a screen joins Home Assistant | docs/EASY_SETUP.md, chapter 3 | `screen_manager/app/ha_pairing.py`, Home Assistant's esphome config flow |
@@ -43,7 +43,7 @@ A screen's entry is `packages/<key>.yaml` (a screen installed from ESP Screens, 
 (a build from a clone). Both are written by `tools/generate_entries.py` from `boards.yaml`: don't edit them. An entry
 includes `packages/core.yaml` and the board file. The board file includes its hardware (`packages/hardware/`), its
 look (`packages/looks/standard.yaml` or `compact.yaml`, sizes in mm scaled by the glass's density), its features
-(`packages/features/`) and the cards of its grid (`packages/cells/<count>.yaml`, written by `tools/generate_cells.py`).
+(`packages/features/`); the cards of its grid are made at boot, one per cell (`runtime_tiles::make_cells`).
 What the add-on and the editor know of a board is `screen_manager/app/boards.json`, written by
 `tools/generate_board_shapes.py`. A board-dependent number is a `${NAME}` in the board file, board-only code inside a
 shared lambda is a hook substitution there, and `tools/check_packages.py` keeps every board complete. YAML files in the

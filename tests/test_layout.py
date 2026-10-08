@@ -65,22 +65,20 @@ class LayoutTests(unittest.TestCase):
             self.assertNotIn('PAGE_CHEVRON_INSET', text, look)
         self.assertIn('nav_align(previous,true);nav_align(next,false);', runtime_source())
 
-    def test_a_board_brings_a_card_for_every_cell_of_both_its_grids(self):
-        """One file of cards per board (packages/cells/<number>.yaml), and a screen is built lying down or standing up
-        from that one file: it has to hold the cells of whichever page asks for most."""
+    def test_the_cards_are_made_at_boot_one_per_cell(self):
+        """The cards are made in C++ at boot, one per cell of the grid the screen runs on (firmware 0.53.0+), so no
+        board brings a file of cards and the grid is not fixed by one."""
+        self.assertFalse((ROOT / 'packages' / 'cells').exists())
         for board, path in sorted(profiles.BOARDS.items()):
-            values = profiles.board_values(board)
-            v = lambda k: int(values[k])
-            wanted = max(v('GRID_COLS') * v('GRID_ROWS'), v('GRID_COLS_PORTRAIT') * v('GRID_ROWS_PORTRAIT'))
-            cells = profiles.cells_of(path)
-            self.assertEqual(len(cells), 1, board)
-            self.assertGreaterEqual(int(cells[0].stem), wanted, f'{board}: {cells[0].name} is short of cards')
+            self.assertNotIn('cells:', path.read_text(), board)
+        self.assertIn(f"runtime_tiles::make_cells(id(materialdesign_icons)->get_lv_font(), {profiles.board_values('cyd')['TILE_ICON_SIZE']});", SOURCE)
+        runtime = runtime_source()
+        self.assertIn('for (size_t i = 0; i < grid.slots(); ++i) {', runtime[runtime.index('inline void make_cells('):])
 
     def test_the_cards_are_cells_of_an_lvgl_grid(self):
         """No card carries a coordinate: the container is a grid and place_page only names a cell and its span."""
         self.assertIn('type: GRID', SOURCE)
         self.assertNotRegex(SOURCE, r'id: tile\d+\n\s+x: ')
-        self.assertEqual(SOURCE.count('grid_cell_row_pos: 0'), int(VALUES['GRID_COLS']) * int(VALUES['GRID_ROWS']))
         runtime = runtime_source()
         self.assertIn('lv_obj_set_grid_dsc_array(container, grid_columns_dsc.data(), grid_rows_dsc.data());', runtime)
         # A card's cell goes through set_cell, which sets it only when it changes (firmware 0.3.2+, kept pages).
@@ -89,10 +87,6 @@ class LayoutTests(unittest.TestCase):
 
     def test_runtime_binds_every_tile_and_guards_a_tap(self):
         """The tiles are bound by the runtime; it filters a tap before anything happens."""
-        cells = int(VALUES['GRID_COLS']) * int(VALUES['GRID_ROWS'])
-        for n in range(1, cells + 1):
-            self.assertIn(f'runtime_tiles::bind({n - 1}, id(tile{n})', SOURCE)
-        self.assertNotIn(f'runtime_tiles::bind({cells}, ', SOURCE)
         runtime = runtime_source()
         # A tap that switches is a wish and takes every clean tap (docs/OPTIMISTIC.md); any other keeps the 600 ms guard.
         self.assertIn('if (!(switches ? allowed_wish(esphome::millis(), TILE_TOUCH + static_cast<int>(w.index), tile.entity)', runtime)

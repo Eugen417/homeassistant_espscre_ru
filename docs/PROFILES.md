@@ -19,7 +19,6 @@ numbers.
 | `packages/features/` | What a board can do, once for every board that can: `capacitive-touch.yaml` or `resistive-touch.yaml` (how its touch panel is read), `backlight.yaml` (a backlight the firmware dims) and `backlight-always-on.yaml` (one that must never go dark), `camera.yaml` (camera images, needs PSRAM), `self-test.yaml` (the UI self test with its geometry check), `snapshot.yaml` (a picture of the screen over the log), `rgb-led.yaml` (the RGB LED on the back of a board that has one, on the outputs its board file names). | Board files |
 | `packages/hardware/` | Hardware that several boards share: `esp-idf.yaml` (how every firmware is built), `esp32s3-rgb.yaml` (an ESP32-S3 with octal PSRAM driving an RGB panel), `waveshare-ch422g.yaml` (the Waveshare boards whose panel, touch and backlight hang on a CH422G expander), `guition-esp32p4.yaml` (the Guition ESP32-P4 boards with an ESP32-C6 for Wi-Fi) and the Guition boards on it, `guition-jc1060p470.yaml` and `guition-jc8012p4a1.yaml`, `m5stack-tab5.yaml` (the Tab5's different ESP32-C6 pins and I/O expander), and `cyd-2432s028.yaml` (the CYD apart from its display controller). | Board files, and each other |
 | `packages/boards/` | One board: its word (`BOARD_ID`), its glass (`PANEL_W`, `PANEL_H`, `DISPLAY_DPI`, `ROTATION_LANDSCAPE`), its grid, its draw buffer, the packages it includes, and its own hardware sections. `TOUCH_CONTROLLER` may name the physical chip when the ESPHome platform uses another chip's protocol driver. | The entry files |
-| `packages/cells/` | The cards of a grid, one per cell, written by `tools/generate_cells.py`. | Board files |
 | `packages/<board>.yaml` | The entry a screen installed from Tessera builds from over GitHub. Tessera Screen Manager writes every screen's YAML with `files: [packages/<board>.yaml]`, so these names never change. | A screen's own YAML |
 | `checkout/<board>.yaml` | The same entry for a build from a clone of this repository (checkout/README.md), with the secrets from `checkout/secrets.yaml` and the components of the checkout. | You |
 
@@ -32,7 +31,6 @@ A board file reads like this (the 4-inch Guition, without its comments):
 ```yaml
 packages:
   hardware: !include ../hardware/esp32s3-rgb.yaml
-  cells: !include ../cells/${GRID_CELLS}.yaml
   look: !include ../looks/standard.yaml
   touch: !include ../features/capacitive-touch.yaml
   backlight: !include ../features/backlight.yaml
@@ -49,7 +47,6 @@ substitutions:
   DISPLAY_DPI: "170"
   GRID_COLS: "2"
   GRID_ROWS: "3"
-  GRID_CELLS: "${ (GRID_COLS | int) * (GRID_ROWS | int) }"
   LVGL_BUFFER_SIZE: "25%"
   BACKLIGHT_FREQUENCY: "150Hz"
 
@@ -173,7 +170,7 @@ YAML loads it.
 
 docs/ADDING_A_BOARD.md is the whole recipe. In short: `tools/new_board.py` writes the board file from the board that
 resembles it most, you replace its hardware sections, add its entry to `boards.yaml` (the catalog New screen is drawn from) and run
-`tools/generate_entries.py` (the entries `packages/<board>.yaml` and `checkout/<board>.yaml`), `tools/generate_cells.py`,
+`tools/generate_entries.py` (the entries `packages/<board>.yaml` and `checkout/<board>.yaml`),
 `tools/generate_board_shapes.py` and `tools/check.sh --firmware --board <key>`. A board that shares a family's hardware includes that family's file under
 `packages/hardware/` and states only what differs; a board with hardware like no other keeps it in its own file until
 a second board shares it.

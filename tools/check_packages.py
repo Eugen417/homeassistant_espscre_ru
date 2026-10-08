@@ -2,7 +2,7 @@
 
 A screen is packages/core.yaml plus one board file under packages/boards/, included by an entry file: packages/<board>.yaml
 for a screen that builds over GitHub, <profile>.yaml in the repository root for a build from a checkout. The board file
-includes its grid's cards (packages/cells/), one look (packages/looks/) and the features it has (packages/features/).
+includes one look (packages/looks/) and the features it has (packages/features/); the cards of its grid are made at boot.
 This checks what ESPHome would only tell one build at a time, and what no build tells at all:
 
 - every entry names files that exist, and the published entry and the checkout entry of a board include the same two;
@@ -226,18 +226,7 @@ def main():
     seen_ids = {}
     for path in sorted((ROOT / 'packages' / 'boards').glob('*.yaml')):
         values = profiles.evaluate({**profiles.raw_substitutions(profiles.CORE), **profiles.raw_substitutions(path)})
-        # As many cards as the page that holds most has cells, lying down or standing up: one file serves both. A board
-        # that raised its rows but kept the cells file of the old grid drew nothing in the cells it gained
-        # (Waveshare 3 x 2 -> 3 x 3, 2026-09-20).
-        if 'GRID_COLS' in values and 'GRID_ROWS' in values:
-            need = max(int(values['GRID_COLS']) * int(values['GRID_ROWS']),
-                       int(values['GRID_COLS_PORTRAIT']) * int(values['GRID_ROWS_PORTRAIT']))
-            for cells in profiles.cells_of(path):
-                if cells.stem.isdigit() and int(cells.stem) != need:
-                    fail(f'{path.relative_to(ROOT)} includes cells/{cells.name} but its larger page holds {need} cells: '
-                         f'the cards for the cells it gained are missing. Run tools/generate_cells.py and include '
-                         f'cells/{need}.yaml')
-        else:
+        if 'GRID_COLS' not in values or 'GRID_ROWS' not in values:
             fail(f'{path.relative_to(ROOT)} has no GRID_COLS / GRID_ROWS: every board says what its page holds')
         # And a word of its own for what it is. The screen reports it and ESP Screens goes by it (boards.json,
         # camera sizes); a board that kept the word of the board it was copied from would answer for that one.

@@ -18,8 +18,6 @@ packages:
   # The board apart from its chip revision and its LCD: the ESP32-P4 and its ESP32-C6 (shared with the 7-inch) and
   # the GSL3680, the same as on the first build.
   hardware: !include ../hardware/guition-jc8012p4a1.yaml
-  # The cards of this board's grid, one per cell (tools/generate_cells.py writes them; docs/RESPONSIVE.md).
-  cells: !include ../cells/${GRID_CELLS}.yaml
   look: !include ../looks/standard.yaml
   touch: !include ../features/capacitive-touch.yaml
   backlight: !include ../features/backlight.yaml
@@ -51,7 +49,6 @@ substitutions:
   # extra row fits more tiles on a page; the default keeps the tiles larger and easier to read.
   GRID_COLS: "5"
   GRID_ROWS: "5"
-  GRID_CELLS: "${ (GRID_COLS | int) * (GRID_ROWS | int) }"
   # More tiles and pages than the 64 and eight of a board without PSRAM (firmware 0.34.0+): an ESP32-P4 has the PSRAM and
   # the memory inside the chip for them, and the memory budget (tile_memory.h) says how many a layout really takes.
   SCREEN_MAX_TILES: "256"

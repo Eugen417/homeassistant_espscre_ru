@@ -61,10 +61,10 @@ python3 tools/new_board.py <name> --from waveshare43 --width 800 --height 480 --
 ```
 
 `tools/new_board.py` adds the whole board in one go: its board file, its entry in `boards.yaml`, its two entry files
-(`packages/<name>.yaml` and `checkout/<name>.yaml`, written by `tools/generate_entries.py`), the cards of its grid
-(`tools/generate_cells.py`), `boards.json` (`tools/generate_board_shapes.py`), and an override case in
-`tests/fixtures/overrides/<name>-contract.yaml`. A board only tried out is called `lab-<name>`: it gets its board file
-and its cards and stays out of the catalog and out of Git.
+(`packages/<name>.yaml` and `checkout/<name>.yaml`, written by `tools/generate_entries.py`), `boards.json`
+(`tools/generate_board_shapes.py`), and an override case in `tests/fixtures/overrides/<name>-contract.yaml`. A board
+only tried out is called `lab-<name>`: it gets its board file and stays out of the catalog and out of Git. The cards of
+its grid are made at boot, one per cell (`runtime_tiles::make_cells`), so a board brings none.
 
 `--from` is the key of the board that resembles the new one most (its entry in `boards.yaml`): the new file starts with
 its packages, its hardware sections and its own hardware values (a backlight frequency, a display model, calibration
@@ -81,10 +81,7 @@ but a board of the same size can be read as "more tiles" or "bigger tiles". Rend
 choices on glass that is not square, because a card keeps its size in millimetres: a screen that holds three
 columns lying down may hold one standing up, and Tessera offers the owner both when the screen is built.
 
-Two things to weigh for the standing grid. `tools/generate_cells.py` gives a board the cards of whichever of its
-two grids is larger, so a standing grid with more cells than the lying one costs every screen of that board those
-extra cards, whichever way it hangs; every board in `boards.yaml` is at the larger of its two lying down, so none of
-them pays for the second way round. And a screen holds 64 tiles in all over at most eight pages unless its board file says
+One thing to weigh for the standing grid: a screen holds 64 tiles in all over at most eight pages unless its board file says
 more (firmware 0.18.0+; `SCREEN_MAX_TILES` and `SCREEN_MAX_PAGES`, firmware 0.34.0+): a page need not be full, but a
 page of many cells fills its tiles in fewer pages. A board with PSRAM states 128 tiles on 24 pages on an ESP32-S3 and
 256 on 16 pages on an ESP32-P4; a board without keeps the 64 and eight. [TILE_MEMORY.md](TILE_MEMORY.md) says why and
@@ -137,7 +134,7 @@ differs between boards sold under one name, the `choices` someone makes when a s
 Screens needs: New screen and the screen list draw every board from the catalog and the board's own files (the size in
 inches from its pixels and density, the touch controller from its `touchscreen:` platform (or `TOUCH_CONTROLLER` if its driver name differs), a touch calibration on the first
 start from `features/resistive-touch.yaml`), so no board is written into the editor or its translations. After a
-change to its board file, run `tools/generate_cells.py` and `tools/generate_board_shapes.py` again, and after its
+change to its board file, run `tools/generate_board_shapes.py` again, and after its
 `boards.yaml` entry `tools/generate_issue_templates.py`, which lists it in the board dropdown of the GitHub issue forms.
 
 What else a new board touches (the Sunton 8048S070, the Waveshare 7B and the JC8012P4A1 V2 each did):

@@ -156,8 +156,6 @@ cpp_tests() {
 }
 
 packages_current() { cd "$ROOT" && "$PYTHON" tools/check_packages.py; }
-# One card per cell of a board's grid: the files are written, not hand-kept (docs/RESPONSIVE.md).
-cells_current() { cd "$ROOT" && "$PYTHON" tools/generate_cells.py --check; }
 icons_current() { cd "$ROOT" && "$PYTHON" tools/generate_icons.py --check; }
 # The tile catalogue (docs/CATALOGUE.md): what each entity type can do, from catalogue/*.yaml to what the add-on, the
 # editor and the firmware read. With HA_CORE naming a home-assistant/core checkout, also Home Assistant's own facts
@@ -469,7 +467,6 @@ if ((want_fast)); then
   run "Python tests" python_tests
   run "C++ tests" cpp_tests
   run "Packages fit together" packages_current
-  run "Cards of every grid" cells_current
   run "Board shapes for the manager" shapes_current
   run "Entry files of every board" entries_current
   run "Issue template boards" issue_templates_current
