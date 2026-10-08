@@ -114,6 +114,9 @@ class FakeFirmware:
 
     def profile_names(self): return self.names
 
+    # A screen's last image against its slot (Firmware.image_room): none here, these profiles were never built.
+    def image_room(self, name, word=None): return None
+
     def start(self, data):
         if self.task and not self.task.done(): raise ValueError('A build or install is already running.')
         self.calls.append(data)

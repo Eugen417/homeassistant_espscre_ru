@@ -64,6 +64,10 @@ class FakeFirmware:
     def profile_names(self):
         return {'office-1.yaml': {'node': 'office-1', 'friendly': 'Office 1'}}
 
+    # A screen's last image against its slot (Firmware.image_room): none here, the profile was never built.
+    def image_room(self, name, word=None):
+        return None
+
     def start(self, data):
         self.calls.append(data)
         self.job = {'state': 'running', **data}
