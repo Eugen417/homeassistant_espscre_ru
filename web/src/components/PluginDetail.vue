@@ -9,8 +9,8 @@ import { boardTitle } from "../model/boards";
 import { fit, flashShare, headroomKb, inEditorLanguage, text, type Plugin } from "../model/plugins";
 import { glyph } from "../model/topbar";
 import {
-  addPlugin, attachLine, buildingOn, copyAttach, fileOf, installedOn, labelOf, markAttached, needsAttach, partsKb, pluginsFile, realScreens,
-  needsConsent, plugins, removePlugin, setupReady, statusOn,
+  addPlugin, attachLine, buildingOn, copyAttach, fileOf, hasUpdate, installedOn, isTest, labelOf, markAttached, needsAttach, partsKb,
+  pluginsFile, realScreens, needsConsent, plugins, removePlugin, setupReady, statusOn,
 } from "../plugin-state";
 import type { Screen } from "../types";
 import PluginReadme from "./PluginReadme.vue";
@@ -64,8 +64,8 @@ function rowLine(screen: Screen) {
   if (buildingOn(screen, props.plugin.id)) return t("editor.plugins.state.building");
   if (wanted[screen.id] && !have) return t("editor.plugins.pending.add");
   if (!wanted[screen.id] && have) return t("editor.plugins.pending.remove");
-  if (have && have.source !== "index") return t(`editor.plugins.source.${have.source}`);
-  if (have && have.version !== props.plugin.version) return t("editor.plugins.screen_update", { from: have.version, to: props.plugin.version });
+  if (isTest(have)) return t(`editor.plugins.source.${have!.source}`);
+  if (hasUpdate(screen, props.plugin)) return t("editor.plugins.screen_update", { from: have!.version, to: props.plugin.version });
   if (have) return t("editor.plugins.screen_version", { version: have.version });
   const result = fit(props.plugin, screen);
   if (!result.ok) return t(`editor.plugins.misfit_short.${result.reason}`);
@@ -77,8 +77,7 @@ const removing = computed(() => screens.value.filter((s) => !wanted[s.id] && has
 // An update that asks for other rights waits for the person's yes, shown above the update keys.
 const askConsent = computed(() => screens.value.some((s) => installedOn(s, props.plugin.id) && needsConsent(s, props.plugin)));
 const agreed = computed(() => !askConsent.value || Boolean(plugins.consented[props.plugin.id]));
-const updatable = computed(() => screens.value.filter((s) => has(s) && installedOn(s, props.plugin.id)!.source === "index"
-  && installedOn(s, props.plugin.id)!.version !== props.plugin.version && !buildingOn(s, props.plugin.id)));
+const updatable = computed(() => screens.value.filter((s) => hasUpdate(s, props.plugin)));
 const needsTrust = computed(() => label.value === "community" && adding.value.length > 0);
 const applyText = computed(() => {
   const add = adding.value.length, drop = removing.value.length;

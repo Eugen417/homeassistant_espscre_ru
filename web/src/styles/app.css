@@ -1435,6 +1435,10 @@ section.advanced code { font-size: 11.5px; }
 .sp-actions { display: flex; align-items: center; gap: 14px; }
 .sp-actions .btn.link .ui-icon { margin: 0 0 0 2px; }
 .sp-group { display: grid; gap: 10px; }
+/* Update all on this screen: one build for every update, above the screen's own plugins. */
+.sp-updates { display: grid; gap: 10px; justify-items: start; padding: 12px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
+.sp-updates p { font-size: 12.5px; line-height: 1.45; color: var(--ink-2); }
+.sp-updates p b { display: block; color: var(--ink); font-weight: 600; font-size: 13px; margin-bottom: 2px; }
 .sp-group h3, .sp-misfits summary { font-size: 12px; font-weight: 600; color: var(--muted); }
 .sp-misfits summary { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; list-style: none; width: fit-content; }
 .sp-misfits summary::-webkit-details-marker { display: none; }

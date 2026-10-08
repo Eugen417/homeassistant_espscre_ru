@@ -1752,7 +1752,11 @@
         "all": "Wszystkie wtyczki",
         "here": "Na tym ekranie",
         "add": "Dodaj",
-        "misfits": "Nie pasuje do tego ekranu ({n}) | Nie pasują do tego ekranu ({n}) | Nie pasują do tego ekranu ({n})"
+        "misfits": "Nie pasuje do tego ekranu ({n}) | Nie pasują do tego ekranu ({n}) | Nie pasują do tego ekranu ({n})",
+        "updates": "Aktualizacja dla {n} wtyczki | Aktualizacje dla {n} wtyczek | Aktualizacje dla {n} wtyczek",
+        "updates_note": "Jedna kompilacja dla {screen}: {names}.",
+        "updates_rights": "{names} prosi o inne uprawnienia niż wcześniej. | {names} proszą o inne uprawnienia niż wcześniej. | {names} proszą o inne uprawnienia niż wcześniej.",
+        "update_all": "Zaktualizuj wszystko na tym ekranie"
       },
       "pending": {
         "add": "Zostanie dodana po zastosowaniu",

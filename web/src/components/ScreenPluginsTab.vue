@@ -3,8 +3,8 @@
 // what does not fit its board. The same cards and details as the Plugins page, with one button for this screen.
 import { computed, ref } from "vue";
 import { t } from "../i18n";
-import { fit, type Plugin } from "../model/plugins";
-import { buildingOn, installedOn, loadPlugins, plugins, statusOn, testsOn } from "../plugin-state";
+import { fit, text, type Plugin } from "../model/plugins";
+import { buildingOn, installedOn, loadPlugins, needsConsent, plugins, statusOn, testsOn, updateAll, updatesOn } from "../plugin-state";
 import { currentScreen, go } from "../store";
 import PluginCard from "./PluginCard.vue";
 import PluginDetail from "./PluginDetail.vue";
@@ -16,6 +16,13 @@ const screen = computed(() => currentScreen.value!);
 const here = computed(() => [...plugins.index.filter((p) => installedOn(screen.value, p.id) || buildingOn(screen.value, p.id)), ...testsOn(screen.value)]);
 const addable = computed(() => plugins.index.filter((p) => !here.value.includes(p) && fit(p, screen.value).ok));
 const misfits = computed(() => plugins.index.filter((p) => !here.value.includes(p) && !fit(p, screen.value).ok));
+// Update all on this screen: every plugin with an update in one build. Updates that ask for other rights are named, and
+// go only with one yes for all of them, which counts as the yes each one asks for in its details.
+const updates = computed(() => updatesOn(screen.value));
+const asking = computed(() => updates.value.filter((p) => needsConsent(screen.value, p)));
+const agreed = computed(() => asking.value.every((p) => plugins.consented[p.id]));
+const names = (list: Plugin[]) => list.map((p) => text(p.name)).join(", ");
+function agree(on: boolean) { for (const p of asking.value) plugins.consented[p.id] = on; }
 
 const panel = ref<"plugin" | "link" | null>(null);
 const openId = ref<string | null>(null);
@@ -33,6 +40,15 @@ function close() { panel.value = null; openId.value = null; }
           <button type="button" class="btn quiet" id="screen-plugin-link" :aria-pressed="panel === 'link'" @click="panel = 'link'; openId = null"><Icon name="link-variant" />{{ t("editor.plugins.add_link") }}</button>
           <button type="button" class="btn link" id="screen-plugin-all" @click="go('#plugins')">{{ t("editor.plugins.tab.all") }}<Icon name="arrow-right" /></button>
         </div>
+      </div>
+
+      <div v-if="updates.length" class="sp-updates" id="screen-plugin-updates">
+        <p><b>{{ t("editor.plugins.tab.updates", { n: updates.length }, updates.length) }}</b>{{ t("editor.plugins.tab.updates_note", { names: names(updates), screen: screen.name }) }}</p>
+        <label v-if="asking.length" class="pd-trust" id="screen-plugin-consent">
+          <input type="checkbox" :checked="agreed" @change="agree(($event.target as HTMLInputElement).checked)" />
+          <span><b>{{ t("editor.plugins.tab.updates_rights", { names: names(asking) }, asking.length) }}</b>{{ t("editor.plugins.consent.agree") }}</span>
+        </label>
+        <button type="button" class="btn primary" id="screen-plugin-update-all" :disabled="!agreed" @click="updateAll(screen, updates)">{{ t("editor.plugins.tab.update_all") }}</button>
       </div>
 
       <section class="sp-group">

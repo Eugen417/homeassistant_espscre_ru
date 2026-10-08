@@ -1752,7 +1752,11 @@
         "all": "Todos los plugins",
         "here": "En esta pantalla",
         "add": "Añadir",
-        "misfits": "No es compatible con esta pantalla ({n}) | No son compatibles con esta pantalla ({n})"
+        "misfits": "No es compatible con esta pantalla ({n}) | No son compatibles con esta pantalla ({n})",
+        "updates": "Una actualización para {n} plugin | Actualizaciones para {n} plugins",
+        "updates_note": "Una sola compilación para {screen}: {names}.",
+        "updates_rights": "{names} pide otros permisos que antes. | {names} piden otros permisos que antes.",
+        "update_all": "Actualizar todo en esta pantalla"
       },
       "pending": {
         "add": "Se añadirá al aplicar",

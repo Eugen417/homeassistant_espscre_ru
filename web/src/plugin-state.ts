@@ -140,6 +140,16 @@ export function needsConsent(screen: Screen, plugin: Plugin) {
 }
 
 export const realScreens = () => state.inventory.screens.filter((screen) => !screen.virtual);
+// A test (a branch or a folder) takes what it holds now at every build, so it never waits for an update; a release from
+// the index or a link does, pinned to its commit.
+export const isTest = (item: Installed | undefined) => item?.source === "branch" || item?.source === "folder";
+// Whether this screen has an older release of the plugin than the one on offer, and is not building it now.
+export function hasUpdate(screen: Screen, plugin: Plugin) {
+  const have = installedOn(screen, plugin.id);
+  return Boolean(have && !isTest(have) && have.version !== plugin.version && !buildingOn(screen, plugin.id));
+}
+// Every plugin of this screen with an update: "Update all on this screen" takes them in one build.
+export const updatesOn = (screen: Screen) => plugins.index.filter((plugin) => hasUpdate(screen, plugin));
 // The tile types a screen can place: those of the plugins it runs (the library's Plugins group). A preview screen has none.
 export function tilesOn(screen: Screen | undefined) {
   if (!screen || screen.virtual) return [];
@@ -149,12 +159,15 @@ export function tilesOn(screen: Screen | undefined) {
 // A screen built from its own YAML (in ESPHome Device Builder, with no profile in Tessera): the add-on cannot add a
 // plugin to it, so the page shows the lines to paste instead.
 export const ownYaml = (screen: Screen) => !screen.update?.profile;
+// What is chosen on this page, else what the add-on keeps for this screen (an update sends it again, so nothing filled in
+// when the plugin was added is lost), else the manifest's defaults.
 export const partsOn = (screen: Screen, plugin: Plugin) => plugins.parts[screen.node || screen.id]?.[plugin.id]
-  ?? (plugin.parts || []).filter((part) => part.default).map((part) => part.id);
+  ?? installedOn(screen, plugin.id)?.parts ?? (plugin.parts || []).filter((part) => part.default).map((part) => part.id);
 export function setParts(screen: Screen, plugin: Plugin, ids: string[]) {
   ((plugins.parts[screen.node || screen.id] ||= {})[plugin.id] = ids);
 }
-export const valueOf = (screen: Screen, plugin: Plugin, id: string) => plugins.values[screen.node || screen.id]?.[plugin.id]?.[id] ?? "";
+export const valueOf = (screen: Screen, plugin: Plugin, id: string) => plugins.values[screen.node || screen.id]?.[plugin.id]?.[id]
+  ?? installedOn(screen, plugin.id)?.values?.[id] ?? "";
 export function setValue(screen: Screen, plugin: Plugin, id: string, value: string) {
   const node = screen.node || screen.id;
   ((plugins.values[node] ||= {})[plugin.id] ||= {})[id] = value;
@@ -204,8 +217,8 @@ export function statusOn(plugin: Plugin, screen: Screen): Status {
     return { kind: "building", label: t(plugins.jobs[screen.id]?.state === "queued" ? "editor.plugins.state.queued" : "editor.plugins.state.building") };
   const have = installedOn(screen, plugin.id);
   if (have?.state === "failed") return { kind: "failed", label: t("editor.plugins.state.failed") };
-  if (have && have.source !== "index") return { kind: "test", label: t(`editor.plugins.source.${have.source}`) };
-  if (have && have.version !== plugin.version) return { kind: "update", label: t("editor.plugins.state.update", { version: plugin.version }) };
+  if (isTest(have)) return { kind: "test", label: t(`editor.plugins.source.${have!.source}`) };
+  if (hasUpdate(screen, plugin)) return { kind: "update", label: t("editor.plugins.state.update", { version: plugin.version }) };
   if (have) return { kind: "installed", label: t("editor.plugins.state.installed") };
   const result = fit(plugin, screen);
   return result.ok ? { kind: "", label: "" } : { kind: "misfit", label: t(`editor.plugins.misfit_short.${result.reason}`) };
@@ -217,7 +230,7 @@ export function statusOverall(plugin: Plugin): Status {
   // A test names its screen when it is on one; on more it counts them, so the line fits the card beside its chip.
   if (labelOf(plugin) === "test") return { kind: "test", label: on.length === 1 ? t("editor.plugins.state.test_on", { name: on[0].name })
     : on.length ? t("editor.plugins.state.on_screens", { n: on.length }, on.length) : "" };
-  const updates = on.filter((screen) => installedOn(screen, plugin.id)!.version !== plugin.version).length;
+  const updates = on.filter((screen) => hasUpdate(screen, plugin)).length;
   if (updates) return { kind: "update", label: t("editor.plugins.state.updates", { n: updates }, updates) };
   if (on.length) return { kind: "installed", label: t("editor.plugins.state.on_screens", { n: on.length }, on.length) };
   if (screens.length && !screens.some((screen) => fit(plugin, screen).ok)) return { kind: "misfit", label: t("editor.plugins.state.fits_none") };
@@ -252,6 +265,18 @@ export async function addPlugin(screens: Screen[], plugin: Plugin) {
       toast(error.message);
       break;
     }
+  }
+  await reloadPlugins();
+}
+// Every update of one screen in one build (the add-on takes several plugins in one request and builds the screen once).
+// An update that asks for other rights goes only with the person's yes (plugins.consented), as it does one by one.
+export async function updateAll(screen: Screen, list: Plugin[]) {
+  if (!list.length) return;
+  plugins.building[screen.id] = [...(plugins.building[screen.id] || []), ...list.map((plugin) => plugin.id)];
+  try {
+    await change(screen, { add: list.map((plugin) => addition(screen, plugin)) });
+  } catch (error: any) {
+    toast(error.message);
   }
   await reloadPlugins();
 }

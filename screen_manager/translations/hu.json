@@ -1752,7 +1752,11 @@
         "all": "Összes bővítmény",
         "here": "Ezen a kijelzőn",
         "add": "Hozzáadás",
-        "misfits": "Nem jó ehhez a kijelzőhöz ({n}) | Nem jók ehhez a kijelzőhöz ({n})"
+        "misfits": "Nem jó ehhez a kijelzőhöz ({n}) | Nem jók ehhez a kijelzőhöz ({n})",
+        "updates": "Frissítés {n} bővítményhez | Frissítések {n} bővítményhez",
+        "updates_note": "{screen}: egyetlen fordítás ({names}).",
+        "updates_rights": "{names} más jogosultságot kér, mint korábban. | {names} más jogosultságot kérnek, mint korábban.",
+        "update_all": "Minden frissítése ezen a kijelzőn"
       },
       "pending": {
         "add": "Alkalmazáskor kerül fel",

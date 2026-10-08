@@ -3024,7 +3024,11 @@
         "all": "All plugins",
         "here": "On this screen",
         "add": "Add",
-        "misfits": "Does not fit this screen ({n}) | Do not fit this screen ({n})"
+        "misfits": "Does not fit this screen ({n}) | Do not fit this screen ({n})",
+        "updates": "An update for {n} plugin | Updates for {n} plugins",
+        "updates_note": "One build for {screen}: {names}.",
+        "updates_rights": "{names} asks for other rights than before. | {names} ask for other rights than before.",
+        "update_all": "Update all on this screen"
       },
       "pending": {
         "add": "Will be added when you apply",

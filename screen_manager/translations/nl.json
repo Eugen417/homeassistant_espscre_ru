@@ -3024,7 +3024,11 @@
         "all": "Alle plugins",
         "here": "Op dit scherm",
         "add": "Toevoegen",
-        "misfits": "Past niet op dit scherm ({n}) | Passen niet op dit scherm ({n})"
+        "misfits": "Past niet op dit scherm ({n}) | Passen niet op dit scherm ({n})",
+        "updates": "Een update voor {n} plugin | Updates voor {n} plugins",
+        "updates_note": "Eén build voor {screen}: {names}.",
+        "updates_rights": "{names} vraagt om andere rechten dan eerst. | {names} vragen om andere rechten dan eerst.",
+        "update_all": "Alles bijwerken op dit scherm"
       },
       "pending": {
         "add": "Wordt toegevoegd als je toepast",

@@ -132,8 +132,12 @@ repository's `docs/FETCH.md`.
   a folder in `tessera-plugins/` beside the ESPHome folder (Test). A release added this way follows its repository:
   `Plugins.refresh_links` asks for its newest release at most every hour and offers it as an update, so a maker
   publishes a release and nothing goes through Tessera.
-- **An update** is a newer version in the index: the screen's Plugins tab and the Plugins page offer it, and the build
-  queue takes the screens one by one. An update whose rights differ from what the person agreed to
+- **An update** is a newer version in the index or of a linked repository: the screen's Plugins tab and the Plugins
+  page offer it, and the build queue takes the screens one by one. A screen with more than one update offers "Update all
+  on this screen": every update in one request, so the screen builds once (`updateAll` in the editor; `apply` takes up
+  to eight plugins at a time). An update keeps what was filled in when the plugin was added: the editor sends the
+  screen's stored values and parts again, and `apply` keeps a stored value the request leaves out. A test (a branch or
+  a folder) never waits for an update: every build takes what it holds. An update whose rights differ from what the person agreed to
   (`permission_hash`) waits for their yes in the editor; the add-on refuses it without (`consent`).
 
 ## What is not built yet

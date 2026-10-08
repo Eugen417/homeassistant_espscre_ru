@@ -649,6 +649,65 @@ class Queue(unittest.IsolatedAsyncioTestCase):
                          {'one': 'active', 'two': 'active', 'three': 'active'})
         self.assertIn('../tessera-plugins/clock_words/plugin.yaml', (config / 'one.plugins.yaml').read_text())
 
+    async def test_every_update_of_a_screen_in_one_build_keeps_what_was_filled_in(self):
+        """Update all on this screen: two plugins in one request build the screen once, and an update that sends no
+        values keeps the ones given when the plugin was added (a calendar, an optional part)."""
+        import shutil
+        import yaml
+        import plugins as plugin_service
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        config = Path(tmp.name) / 'esphome'
+        config.mkdir()
+        folders = Path(tmp.name) / 'tessera-plugins'
+        shutil.copytree(ROOT / 'tests' / 'fixtures' / 'plugins' / 'clock_words', folders / 'clock_words')
+        shutil.copytree(ROOT / 'tests' / 'fixtures' / 'plugins' / 'clock_words', folders / 'city_words')
+        manifest = yaml.safe_load((folders / 'city_words' / 'tessera-plugin.yaml').read_text())
+        manifest.update(id='city_words', inputs=[{'id': 'city', 'kind': 'text', 'label': 'tile'}],
+                        parts=[{'id': 'extra', 'file': 'extra.yaml', 'label': 'tile', 'flash_kb': 4}])
+        (folders / 'city_words' / 'tessera-plugin.yaml').write_text(yaml.safe_dump(manifest))
+        started = []
+
+        class FakeFirmware:
+            task = None
+            job = None
+
+            def save_plugins(self, profile, text):
+                (config / profile.replace('.yaml', '.plugins.yaml')).write_text(text)
+
+            def start(self, data):
+                started.append(data['file'])
+
+                async def build():
+                    self.job = {'state': 'success'}
+                self.task = asyncio.get_running_loop().create_task(build())
+
+        class FakeManager:
+            firmware = FakeFirmware()
+            ha = type('HA', (), {'changed': asyncio.Event(), 'dirty': set()})()
+            page_senders = {}
+
+            def screen(self, inbox):
+                return {'id': inbox, 'node': inbox, 'board': 'guition'}
+
+            def notify(self):
+                pass
+        FakeManager.updates = type('U', (), {'resolve': lambda self, screen: (screen['id'] + '.yaml', '10.0.0.1')})()
+        service = plugin_service.Plugins(FakeManager(), Path(tmp.name) / 'data', config)
+        await service.apply('hall', {'add': [{'id': 'city_words', 'source': 'folder', 'values': {'city': 'Utrecht'},
+                                              'parts': ['extra']}]})
+        await service.worker
+        started.clear()
+        await service.apply('hall', {'add': [{'id': 'clock_words', 'source': 'folder'}, {'id': 'city_words', 'source': 'folder'}]})
+        await service.worker
+        self.assertEqual(started, ['hall.yaml'])
+        record = service.store.get('hall', 'city_words')
+        self.assertEqual((record['values'], record['parts']), ({'city': 'Utrecht'}, ['extra']))
+        text = (config / 'hall.plugins.yaml').read_text()
+        self.assertIn('"CITY": "Utrecht"', text)
+        self.assertIn('extra.yaml', text)
+        self.assertIn('clock_words/plugin.yaml', text)
+
 
 if __name__ == '__main__':
     unittest.main()

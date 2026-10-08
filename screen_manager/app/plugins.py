@@ -625,6 +625,9 @@ class Plugins:
             values, secrets = item.get('values') or {}, item.get('secrets') or {}
             if not isinstance(values, dict) or not isinstance(secrets, dict):
                 raise ValueError(t('addon.errors.plugins.request'))
+            # What this screen has now: an update that leaves an input or its parts out keeps what was filled in when
+            # the plugin was added (a calendar, a part that is on), so nothing is lost by updating.
+            had = self.store.get(inbox, entry.id)
             kept = {}
             for spec in entry.manifest['inputs']:
                 given = secrets.get(spec['id']) if spec['kind'] == 'secret' else values.get(spec['id'])
@@ -635,9 +638,12 @@ class Plugins:
                         self.secrets.set(entry.id, spec['id'], given, 'all' if spec['scope'] == 'all' else inbox)
                 elif given:
                     kept[spec['id']] = given.strip()
-            parts = [p for p in item.get('parts') or [] if p in {x['id'] for x in entry.manifest['parts']}]
+                elif given is None and had and (had.get('values') or {}).get(spec['id']):
+                    kept[spec['id']] = had['values'][spec['id']]
+            known = {x['id'] for x in entry.manifest['parts']}
+            asked = item.get('parts')
+            parts = [p for p in (asked if isinstance(asked, list) else (had or {}).get('parts') or []) if p in known]
             # An update that asks for more than the person agreed to waits for their yes (the editor asks again).
-            had = self.store.get(inbox, entry.id)
             agreed = (had or {}).get('consent', {}).get('permissions') if had else None
             if had and agreed and agreed != pm.permission_hash(entry.manifest) and item.get('consent') is not True:
                 raise ValueError(t('addon.errors.plugins.consent', name=entry.text('name')))
