@@ -59,7 +59,7 @@ substitutions:
   # The branch the components and the fonts come from: main, or dev for a screen of the app's dev channel, which
   # writes GITHUB_REF into the screen's own YAML next to the `ref:` of this package (docs/RELEASING.md, "Testing dev").
   GITHUB_REF: "main"
-  FONT_DIR: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/${{GITHUB_REF}}/fonts"
+  FONT_DIR: "https://raw.githubusercontent.com/Eugen417/homeassistant_espscre_ru/${{GITHUB_REF}}/fonts"
 >>>>>>> upstream/main
 
 packages:

@@ -37,7 +37,7 @@
   follow the finger, and letting go turns the lamp on at that level as before.
 - **A picture on a tile in the editor keeps its rounded bottom corners.** The shade under a camera or favourite name
   had an invalid corner rule, and some browsers let a picture overflow the tile's corners.
-- **A new track without a flash on the media card** ([#177](https://github.com/MaxGramser/homeassistant_espscreen/issues/177)).
+- **A new track without a flash on the media card** ([#177](https://github.com/Eugen417/homeassistant_espscre_ru/issues/177)).
   The card changes its words and its bar at once, and its cover and colour together, in one go, once the new cover is
   here. Until then it keeps the cover and colour of the track before. Before, the card was drawn again on a black
   ground with an empty square, and once more when the new colour came, so the keys and the bar flashed and the cover

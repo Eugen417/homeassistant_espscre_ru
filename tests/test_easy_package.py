@@ -55,10 +55,10 @@ class PackageTests(unittest.TestCase):
             self.assertIn('url: https://github.com/Eugen417/homeassistant_espscre_ru.git', package)
             self.assertIn('FONT_DIR: "https://raw.githubusercontent.com/Eugen417/homeassistant_espscre_ru/main/fonts"', package)
 =======
-            self.assertIn('url: https://github.com/MaxGramser/homeassistant_espscreen.git', package)
+            self.assertIn('url: https://github.com/Eugen417/homeassistant_espscre_ru.git', package)
             # From main, unless the screen's own YAML names another branch (GITHUB_REF, the app's dev channel).
             self.assertIn('GITHUB_REF: "main"', package)
-            self.assertIn('FONT_DIR: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/${GITHUB_REF}/fonts"', package)
+            self.assertIn('FONT_DIR: "https://raw.githubusercontent.com/Eugen417/homeassistant_espscre_ru/${GITHUB_REF}/fonts"', package)
 >>>>>>> upstream/main
             # The fonts of the shared core come from that place; a checkout entry takes them from the checkout's own fonts/.
             self.assertIn('file: "${FONT_DIR}/Roboto-500.ttf"', profiles.CORE.read_text())

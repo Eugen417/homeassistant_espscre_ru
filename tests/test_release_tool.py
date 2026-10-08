@@ -82,8 +82,8 @@ class TheChangelog(unittest.TestCase):
 
 class TheIssues(unittest.TestCase):
     def test_the_issues_a_section_names(self):
-        notes = ('- **A fix** ([#169](https://github.com/MaxGramser/homeassistant_espscreen/issues/169)). Also #170 and '
-                 'again #169, a pull request https://github.com/MaxGramser/homeassistant_espscreen/pull/151, not '
+        notes = ('- **A fix** ([#169](https://github.com/Eugen417/homeassistant_espscre_ru/issues/169)). Also #170 and '
+                 'again #169, a pull request https://github.com/Eugen417/homeassistant_espscre_ru/pull/151, not '
                  'a colour like &#35;1 or a heading anchor docs/PAGES.md#updating, nor another repository '
                  'https://github.com/esphome/esphome/issues/9999.')
         self.assertEqual(release.issues_in(notes), [169, 170, 151])

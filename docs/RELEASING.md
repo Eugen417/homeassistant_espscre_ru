@@ -48,7 +48,7 @@ Someone who wants to try what is on dev before a release adds the repository wit
 Apps > App store > ⋮ > Repositories:
 
 ```
-https://github.com/MaxGramser/homeassistant_espscreen#dev
+https://github.com/Eugen417/homeassistant_espscre_ru#dev
 ```
 
 The store then shows a second Tessera Screen Manager, under that repository. It is another app for Home Assistant, so:
