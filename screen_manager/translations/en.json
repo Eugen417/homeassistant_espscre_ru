@@ -1910,7 +1910,13 @@
       },
       "energy": {
         "hint": "The power of the house right now, drawn the way Home Assistant's own Energy view draws it: solar, grid, battery and your devices, from the Energy settings in Home Assistant. A tap on a circle opens that sensor's history.",
-        "needs_firmware": "The energy card needs firmware 0.47.0 or newer: press Update on the screen after saving."
+        "needs_firmware": "The energy card needs firmware 0.47.0 or newer: press Update on the screen after saving.",
+        "flow": {
+          "label": "Flow",
+          "hint": "Dots run along each line, faster as more power flows. Lines and arrows is calmer: a line grows thicker with the power and an arrow shows which way it goes. A screen with older firmware keeps the dots.",
+          "dots": "Moving dots",
+          "lines": "Lines and arrows"
+        }
       }
     },
     "tile_card": {

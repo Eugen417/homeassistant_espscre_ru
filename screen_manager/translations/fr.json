@@ -2113,7 +2113,13 @@
       },
       "energy": {
         "hint": "La puissance de la maison en ce moment, dessinée comme la vue Énergie de Home Assistant la dessine : solaire, réseau, batterie et vos appareils, depuis les paramètres Énergie de Home Assistant. Un appui sur un cercle ouvre l'historique de ce capteur.",
-        "needs_firmware": "La carte énergie nécessite le firmware 0.47.0 ou plus récent : après l'enregistrement, appuyez sur Mettre à jour pour l'écran."
+        "needs_firmware": "La carte énergie nécessite le firmware 0.47.0 ou plus récent : après l'enregistrement, appuyez sur Mettre à jour pour l'écran.",
+        "flow": {
+          "label": "Flux",
+          "hint": "Des points parcourent chaque ligne, plus vite quand plus de puissance circule. Lignes et flèches est plus calme : une ligne s'épaissit avec la puissance et une flèche indique son sens. Un écran avec un firmware plus ancien garde les points.",
+          "dots": "Points animés",
+          "lines": "Lignes et flèches"
+        }
       }
     },
     "tile_card": {

@@ -138,6 +138,19 @@ static void draw(lv_event_t *e) {
     }
   };
   arcs(sc.arcs);
+  for (auto &arrow : sc.arrows) {
+    const float xs[] = {arrow.tip.x, arrow.left.x, arrow.right.x}, ys[] = {arrow.tip.y, arrow.left.y, arrow.right.y};
+    const int x1 = a.x1 + int(std::floor(*std::min_element(xs, xs + 3))), x2 = a.x1 + int(std::ceil(*std::max_element(xs, xs + 3)));
+    const int y1 = a.y1 + int(std::floor(*std::min_element(ys, ys + 3))), y2 = a.y1 + int(std::ceil(*std::max_element(ys, ys + 3)));
+    if (!meets(clip, x1, y1, x2, y2)) continue;
+    lv_draw_triangle_dsc_t dsc;
+    lv_draw_triangle_dsc_init(&dsc);
+    dsc.color = paint(arrow.paint); dsc.opa = LV_OPA_COVER;
+    dsc.p[0] = {a.x1 + int(std::lround(arrow.tip.x)), a.y1 + int(std::lround(arrow.tip.y))};
+    dsc.p[1] = {a.x1 + int(std::lround(arrow.left.x)), a.y1 + int(std::lround(arrow.left.y))};
+    dsc.p[2] = {a.x1 + int(std::lround(arrow.right.x)), a.y1 + int(std::lround(arrow.right.y))};
+    lv_draw_triangle(layer, &dsc);
+  }
   for (auto &dot : view->dots) {
     if (dot.pixels.empty()) continue;
     const int x1 = a.x1 + dot.x0, y1 = a.y1 + dot.y0;
@@ -293,7 +306,7 @@ void render(Widgets &w, const Tile &t, int width, int height) {
       const std::string s = ec::power(v, words.decimal);
       if (view.widest.empty() || m.width(ec::SMALL, s) > m.width(ec::SMALL, view.widest)) view.widest = s;
     }
-    sc = ec::build(*view.data, m, width, height, words, view.widest, &view.choice);
+    sc = ec::build(*view.data, m, width, height, words, view.widest, &view.choice, t.energy_lines ? ec::Style::LINES : ec::Style::DOTS);
     if (!sc.ok) {
       // Too small for the diagram (a size the editor does not offer): the house's use alone, as a watch card says it.
       const std::string value = ec::power(view.data->home, words.decimal);
@@ -325,7 +338,11 @@ void render(Widgets &w, const Tile &t, int width, int height) {
   };
   bool in_place = !resized && was.ok && sc.ok && was.circles.size() == sc.circles.size() && was.lines.size() == sc.lines.size() &&
                   was.flows.size() == sc.flows.size() && was.texts.size() == sc.texts.size() && view.dots.size() == sc.flows.size() &&
-                  same_arcs(was.arcs, sc.arcs) && was.dot_r == sc.dot_r;
+                  same_arcs(was.arcs, sc.arcs) && was.dot_r == sc.dot_r && was.arrows.size() == sc.arrows.size();
+  for (size_t i = 0; in_place && i < sc.arrows.size(); ++i) {
+    const auto &x = was.arrows[i], &y = sc.arrows[i];
+    in_place = same(x.tip, y.tip) && same(x.left, y.left) && same(x.right, y.right) && x.paint == y.paint;
+  }
   for (size_t i = 0; in_place && i < sc.circles.size(); ++i) {
     const auto &x = was.circles[i], &y = sc.circles[i];
     in_place = same(x.c, y.c) && x.d == y.d && x.border == y.border && x.paint == y.paint;

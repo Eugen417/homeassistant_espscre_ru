@@ -6,6 +6,10 @@ memory: {bytes: 32, extras: false}
 # with a small picture of each running dot: its own price, measured as docs/TILE_MEMORY.md says.
 cards:
   energy: {bytes: 6144, extras: true}
+# How the energy card shows power along a line: running dots (power-flow-card-plus's, the default), or calm lines that
+# grow with the power and carry an arrow the way it goes. A firmware before this one keeps the dots.
+energy:
+  flow: [dots, lines]
 firmware: 0.2.14   # the first firmware that draws these cards
 displays:
   # The clock's faces; the dial and the flip clock came with firmware 0.3.6.

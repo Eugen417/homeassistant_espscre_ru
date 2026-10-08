@@ -455,5 +455,9 @@
     "off",
     "all",
     "one"
+  ],
+  "energyFlow": [
+    "dots",
+    "lines"
   ]
 }

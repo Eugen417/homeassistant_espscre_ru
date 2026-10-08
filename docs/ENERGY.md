@@ -60,6 +60,16 @@ LVGL object that draws in its draw event, so a card costs one object however man
   search draws.
 - Nothing runs while the screen sleeps, while the card is off the glass, or while a card is open over it.
 
+### Dots or lines
+
+The editor's Flow choice (the tile's `flow`, `energy` in catalogue/screen.yaml) sets how power shows along a line.
+Moving dots is the default and is never stored. Lines and arrows is calm: no dot runs and no timer ticks. A line that
+carries power grows thicker in two steps up to 2 kW, the power at which a dot runs its fastest, and has an arrow halfway
+along it in its colour, pointing the way the power goes (`flow_width` and `Arrow` in `energy_card.h`). Each step adds
+the same even number of pixels, so a line stays centred on the pixel grid of its turns. No line grows past a quarter of
+the room between two neighbours, and an arrow is never longer than half the part of its line that shows between two
+circles. A firmware that doesn't know the choice keeps the dots.
+
 The card is responsive the way every card is: it takes the richest form and the largest of the board's fonts that fit.
 
 1. Both directions of a flow, then one direction.

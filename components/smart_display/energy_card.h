@@ -163,6 +163,9 @@ struct Flow {
   Paint paint = Paint::INK;
   float w = 0, seconds = 6;
 };
+// An arrow in the middle of a line that carries power (the card drawn with lines instead of dots): its tip points the
+// way the power goes.
+struct Arrow { P tip, left, right; Paint paint = Paint::INK; };
 struct Text {
   std::string s;
   Face face = SMALL;
@@ -180,9 +183,25 @@ struct Scene {
   std::vector<Arc> arcs;   // the turns of the lines, under the circles
   std::vector<Arc> ring;   // the house's ring, over its circle
   std::vector<Line> lines;
-  std::vector<Flow> flows;
+  std::vector<Flow> flows;   // the lines a dot runs along (none where the card draws lines instead)
+  std::vector<Arrow> arrows; // the arrows of a card drawn with lines
   std::vector<Text> texts;
 };
+
+// How the card shows power going along a line: power-flow-card-plus's running dots (the default), or a calm card whose
+// lines grow thicker with the power and carry an arrow the way it goes (the tile's `flow`, catalogue/screen.yaml).
+enum class Style : uint8_t { DOTS, LINES };
+// A line's width by its power in the calm card: its width at rest, then two steps up to 2 kW, the power at which a dot
+// runs its fastest (duration() above). Each step adds the same even number of pixels, so the line stays centred on the
+// pixel grid the circles and turns are built on, and no line grows past a quarter of the room between two neighbours
+// (`spacing` is half that room, the lines' distance from their middle).
+inline int flow_width(float watts, int lw, float spacing) {
+  if (watts <= 0) return lw;
+  const int step = std::max(1, lw / 2) * 2;
+  const int widest = std::max(lw, lw + int(std::floor((spacing * 0.5f - lw) / step)) * step);
+  const int k = watts >= 2000 * 2 / 3.f ? 2 : watts >= 2000 / 3.f ? 1 : 0;
+  return std::min(widest, lw + k * step);
+}
 
 // ---- The fit: the richest form and the largest fonts the room holds.
 struct Steps { Face value, arrow, icon, label; };
@@ -511,7 +530,7 @@ inline bool offered(int w, int h) {
 }
 
 inline Scene build(const Data &data, const Measure &m, int w, int h, const Words &words, const std::string &widest = "",
-                   ChoiceCache *cache = nullptr) {
+                   ChoiceCache *cache = nullptr, Style style = Style::DOTS) {
   Scene sc;
   const Choice ch = choose(data, m, w, h, words, widest, cache);
   const Fit &ft = ch.fit;
@@ -556,13 +575,15 @@ inline Scene build(const Data &data, const Measure &m, int w, int h, const Words
   const float turn = 0.55f * d;  // Home Assistant's turn spans about 42 of 80 px
   auto flow = [&](Path path, Paint paint, float watts, bool reverse = false) {
     path = stand(path);
+    // Lines drawn calm grow with their power; with dots every line keeps its width.
+    const int width = style == Style::LINES ? flow_width(watts, lw, o) : lw;
     for (size_t i = 0; i < path.size(); ++i) {
       const Seg &s = path[i];
       if (s.arc) {
-        const int n = int(std::lround(s.r + lw / 2.f));
+        const int n = int(std::lround(s.r + width / 2.f));
         float a0 = s.t0 * 180 / PI, a1 = s.t1 * 180 / PI;
         if (a1 < a0) std::swap(a0, a1);
-        sc.arcs.push_back({s.c, n, lw, std::fmod(a0 + 360, 360.f), std::fmod(a1 + 360, 360.f), paint});
+        sc.arcs.push_back({s.c, n, width, std::fmod(a0 + 360, 360.f), std::fmod(a1 + 360, 360.f), paint});
         continue;
       }
       if (s.length() < 0.5f) continue;
@@ -571,9 +592,27 @@ inline Scene build(const Data &data, const Measure &m, int w, int h, const Words
       const float l = s.length(), ux = (b.x - a.x) / l, uy = (b.y - a.y) / l;
       if (i > 0 && path[i - 1].arc) { a.x -= ux; a.y -= uy; }
       if (i + 1 < path.size() && path[i + 1].arc) { b.x += ux; b.y += uy; }
-      sc.lines.push_back({{float(g.pix(a.x)), float(g.pix(a.y))}, {float(g.pix(b.x)), float(g.pix(b.y))}, lw, paint});
+      sc.lines.push_back({{float(g.pix(a.x)), float(g.pix(a.y))}, {float(g.pix(b.x)), float(g.pix(b.y))}, width, paint});
     }
-    if (watts > 0) sc.flows.push_back({reverse ? reversed(path) : path, paint, watts, duration(watts)});
+    if (watts <= 0) return;
+    if (reverse) path = reversed(path);
+    if (style == Style::DOTS) { sc.flows.push_back({path, paint, watts, duration(watts)}); return; }
+    // Halfway along the line, an arrow the way the power goes: as long as a dot is wide and a half, and wide enough to
+    // stand out of the thickest line, but within the half of the line that shows between two close circles (a line
+    // runs on under a circle for a dot's width at each end).
+    const P mid = along(path, 0.5f), ahead = along(path, 0.52f), behind = along(path, 0.48f);
+    float ux = ahead.x - behind.x, uy = ahead.y - behind.y;
+    const float len = std::hypot(ux, uy);
+    if (len <= 0) return;
+    ux /= len; uy /= len;
+    float total = 0;
+    for (auto &sg : path) total += sg.length();
+    const float shown = total - 2 * (sc.dot_r + 1);
+    const float lng = std::min(std::max(3.f * sc.dot_r, width * 2.f), 0.5f * shown);
+    if (lng < 3) return;
+    const float half = lng * std::max(0.53f, width * 0.6f / lng);
+    const P tip{mid.x + ux * lng / 2, mid.y + uy * lng / 2}, back{mid.x - ux * lng / 2, mid.y - uy * lng / 2};
+    sc.arrows.push_back({tip, {back.x - uy * half, back.y + ux * half}, {back.x + uy * half, back.y - ux * half}, paint});
   };
   // A source above or below the middle row: down (or up) at x, a turn into the row at y, on to the circle at `to`.
   auto bend = [&](P from, float x, float y, P to) {

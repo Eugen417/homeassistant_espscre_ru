@@ -43,6 +43,9 @@
   charge stands beside its icon, as in Home Assistant's own card, on every size of the card; before, only large cards
   showed it. The names stand centred under their circles, also at the sides of the card. Needs this firmware on the
   screen.
+- **A calmer energy card, if you like.** The energy card's new Flow choice in the editor keeps the moving dots, or shows
+  lines and arrows instead: a line grows thicker as more power flows and an arrow in its middle shows which way it
+  goes, with nothing moving. Needs this firmware on the screen; until then the screen keeps the dots.
 
 ## 0.4.84 (firmware 0.52.0)
 

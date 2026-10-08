@@ -251,6 +251,19 @@ class Layout(unittest.TestCase):
         self.assertEqual(layout['tiles'][0]['options'], {'size': 'square'})
         self.assertEqual(core.builtin_name('screen.energy', core.english), 'Energy')
 
+    def test_flow_choice(self):
+        # How the card shows power along a line (catalogue/screen.yaml `energy`): the energy card's own, dots the default
+        # and never stored, so a layout without it means what it always meant.
+        import core
+        self.assertEqual(core.ENERGY_FLOWS, ('dots', 'lines'))
+        tiles = lambda options, entity='screen.energy': core.validate_layout({'title': 'House', 'tiles': [
+            {'entity': entity, 'name': '', 'options': {'size': 'square', **options}}]})['tiles'][0]['options']
+        self.assertEqual(tiles({'flow': 'lines'}), {'size': 'square', 'flow': 'lines'})
+        self.assertEqual(tiles({'flow': 'dots'}), {'size': 'square'})
+        self.assertEqual(tiles({'flow': 'lines'}, 'screen.clock'), {'size': 'square'})
+        with self.assertRaises(ValueError):
+            tiles({'flow': 'sparks'})
+
     def test_message_carries_the_house(self):
         import core
         prefs, states = load('full-noon')

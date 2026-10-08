@@ -154,6 +154,8 @@ const repeatChoices = computed(() => offer("repeat", (["keep", ...rules.favorite
   .map((value) => [value, t(`editor.tile.favorite.repeat_${value}`)] as [string, string]), current("repeat", "keep"), keepOr));
 function addMapEntity(id: string) { if (id) setTileOption(props.tile, "map", [...mapWith.value, id]); }
 function removeMapEntity(id: string) { setTileOption(props.tile, "map", mapWith.value.filter((item) => item !== id)); }
+// How the energy card shows power along a line: running dots, or calm lines that grow with it and an arrow each.
+const flowChoices = computed(() => offer("flow", rules.energyFlow.map((value) => [value, t(`editor.tile.energy.flow.${value}`)] as [string, string]), current("flow", rules.energyFlow[0])));
 const pictureChoices = (key: "fit" | "overlay") => offer(key, rules.picture[key].map((value) => [value, t(`editor.tile.picture.${key}.${value}`)] as [string, string]), current(key, rules.picture[key][0]));
 const refreshChoices = computed(() => offer("refresh", rules.refresh.map((seconds) => [seconds, t("editor.tile.refresh.seconds", { n: seconds })] as [number, string]), refresh.value));
 const historyChoices = computed(() => offer("history_hours", [1, 6, 24].map((hours) => [hours, t("editor.tile.history.hours", hours)] as [number, string]), history.value));
@@ -347,6 +349,9 @@ const backgroundName = computed(() => state.inventory.backgrounds?.[props.tile.o
     <template v-if="!phone || more">
     <Section v-if="lookShown || (!bedside && !key)" :title="t('editor.tile.sections.look')">
       <p v-if="energyTile" class="hint">{{ t(supports(0, 47, 0) ? "editor.tile.energy.hint" : "editor.tile.energy.needs_firmware") }}</p>
+      <PropRow v-if="energyTile" :label="t('editor.tile.energy.flow.label')" icon="flash" :hint="t('editor.tile.energy.flow.hint')">
+        <ChoiceField :choices="flowChoices" :value="current('flow', rules.energyFlow[0])" :tile="tile" preview-key="flow" :aria-label="t('editor.tile.energy.flow.label')" @pick="(v) => setTileOption(tile, 'flow', v)" />
+      </PropRow>
       <PropRow v-if="lookShown && tile.entity !== 'screen.settings' && !mapTile && !energyTile" :label="t('editor.tile.display.label')" icon="eye-outline" :hint="displayHint && !displayWarns ? displayHint : undefined">
         <ChoiceField :choices="displays" :value="display" :tile="tile" preview-key="display" :aria-label="t('editor.tile.display.label')" @pick="(v) => setTileOption(tile, 'display', v)" />
         <template v-if="displayHint && displayWarns" #note><small class="help warn">{{ displayHint }}</small></template>

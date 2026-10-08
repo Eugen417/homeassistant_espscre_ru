@@ -2113,7 +2113,13 @@
       },
       "energy": {
         "hint": "Die Leistung des Hauses in diesem Moment, gezeichnet wie die Energie-Ansicht von Home Assistant sie zeichnet: Solar, Netz, Batterie und deine Geräte, aus den Energie-Einstellungen von Home Assistant. Ein Tippen auf einen Kreis öffnet den Verlauf dieses Sensors.",
-        "needs_firmware": "Die Energiekarte braucht Firmware 0.47.0 oder neuer: Nach dem Speichern beim Bildschirm auf Aktualisieren drücken."
+        "needs_firmware": "Die Energiekarte braucht Firmware 0.47.0 oder neuer: Nach dem Speichern beim Bildschirm auf Aktualisieren drücken.",
+        "flow": {
+          "label": "Fluss",
+          "hint": "Punkte laufen über jede Linie, schneller, je mehr Leistung fließt. Linien und Pfeile ist ruhiger: Eine Linie wird mit der Leistung dicker und ein Pfeil zeigt, in welche Richtung sie fließt. Ein Bildschirm mit älterer Firmware behält die Punkte.",
+          "dots": "Bewegte Punkte",
+          "lines": "Linien und Pfeile"
+        }
       }
     },
     "tile_card": {

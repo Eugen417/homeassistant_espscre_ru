@@ -2113,7 +2113,13 @@
       },
       "energy": {
         "hint": "A potência da casa neste momento, desenhada como a vista de Energia do Home Assistant a desenha: solar, rede, bateria e os seus dispositivos, a partir das definições de Energia do Home Assistant. Um toque num círculo abre o histórico desse sensor.",
-        "needs_firmware": "O cartão de energia precisa do firmware 0.47.0 ou mais recente: depois de guardar, prima Atualizar no ecrã."
+        "needs_firmware": "O cartão de energia precisa do firmware 0.47.0 ou mais recente: depois de guardar, prima Atualizar no ecrã.",
+        "flow": {
+          "label": "Fluxo",
+          "hint": "Pontos percorrem cada linha, mais depressa quanto mais potência flui. Linhas e setas é mais calmo: uma linha fica mais grossa com a potência e uma seta mostra o sentido. Um ecrã com firmware mais antigo mantém os pontos.",
+          "dots": "Pontos em movimento",
+          "lines": "Linhas e setas"
+        }
       }
     },
     "tile_card": {

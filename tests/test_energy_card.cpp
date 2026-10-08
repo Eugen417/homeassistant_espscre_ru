@@ -272,6 +272,36 @@ int main() {
     const Choice night = choose(night_car(), m, 1230, 687, W());
     assert(night.shown.size() == 3 && night.shown[0].name == "EV" && night.shown[2].name == "Untracked");
   }
+  // Drawn calm (the tile's "flow": "lines"): the same diagram without a dot, an arrow halfway along each line that
+  // carries power, pointing the way it goes, and lines that grow with their power on the pixel grid of the rest.
+  for (const Board &b : BOARDS) {
+    const Measure m = measure(b);
+    for (const auto &size : b.sizes) {
+      if (!size.name || !size.fits) continue;
+      for (const Data &data : {noon(), night_car(), busy()}) {
+        ui::configure(b.dpi, b.standard ? "standard" : "compact");
+        const Scene dots = build(data, m, size.w, size.h, W());
+        const Scene calm = build(data, m, size.w, size.h, W(), "", nullptr, Style::LINES);
+        check(calm.ok && calm.flows.empty(), "no dots on a calm card", b, size.name);
+        check(calm.arrows.size() == dots.flows.size(), "an arrow on every line that carries power", b, size.name);
+        check(calm.circles.size() == dots.circles.size() && calm.texts.size() == dots.texts.size(), "the same diagram", b, size.name);
+        for (size_t i = 0; i < calm.arrows.size(); ++i) {
+          const Arrow &a = calm.arrows[i];
+          const P mid = along(dots.flows[i].path, 0.5f), ahead = along(dots.flows[i].path, 0.6f);
+          // The tip points the way the dot runs.
+          check((a.tip.x - mid.x) * (ahead.x - mid.x) + (a.tip.y - mid.y) * (ahead.y - mid.y) > 0, "the arrow points the way", b, size.name);
+          for (const P &q : {a.tip, a.left, a.right}) {
+            check(q.x >= 0 && q.x <= size.w && q.y >= 0 && q.y <= size.h, "the arrow inside the card", b, size.name);
+            for (auto &c : calm.circles) check(std::hypot(q.x - c.c.x, q.y - c.c.y) > c.d / 2.f, "the arrow clear of the circles", b, size.name);
+          }
+        }
+        for (auto &l : calm.lines) check(l.width % 2 == calm.lw % 2 && l.width >= calm.lw, "a line on the pixel grid", b, size.name);
+      }
+    }
+  }
+  check(flow_width(0, 1, 20) == 1 && flow_width(100, 1, 20) == 1 && flow_width(1000, 1, 20) == 3 && flow_width(5000, 1, 20) == 5,
+        "a line grows with its power", BOARDS[0], "widths");
+  check(flow_width(5000, 2, 20) == 6 && flow_width(5000, 1, 4) == 1, "even widths, and never past its room", BOARDS[0], "widths");
   // A tap finds the circle and its sensor; the house has none.
   {
     const Board &g = BOARDS[2];

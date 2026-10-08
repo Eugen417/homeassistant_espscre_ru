@@ -27,6 +27,8 @@ APPEARANCE = {
     # How a map looks and, on the map tile, whom it follows (app 0.4.36).
     "mapFollow": "follow", "mapMarkers": "markers", "mapNames": "names", "mapZones": "zones", "mapStreets": "streets",
     "mapLook": "look",
+    # How the energy card shows power along a line: running dots or calm lines (catalogue/screen.yaml `energy`).
+    "energyFlow": "flow",
 }
 # A favourite (app 0.4.42) keeps what it plays (`play`, Home Assistant's own ids) and on which speaker (`speaker`), and
 # since app 0.4.84 its own shuffle and repeat.

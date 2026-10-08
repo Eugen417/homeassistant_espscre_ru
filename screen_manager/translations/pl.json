@@ -2113,7 +2113,13 @@
       },
       "energy": {
         "hint": "Moc domu w tej chwili, narysowana tak, jak rysuje ją widok Energia w Home Assistant: słońce, sieć, bateria i twoje urządzenia, z ustawień Energii w Home Assistant. Dotknięcie koła otwiera historię tego czujnika.",
-        "needs_firmware": "Karta energii wymaga oprogramowania 0.47.0 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie."
+        "needs_firmware": "Karta energii wymaga oprogramowania 0.47.0 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie.",
+        "flow": {
+          "label": "Przepływ",
+          "hint": "Kropki biegną wzdłuż każdej linii, tym szybciej, im więcej mocy płynie. Linie i strzałki są spokojniejsze: linia grubieje wraz z mocą, a strzałka pokazuje kierunek. Ekran ze starszym firmware zachowuje kropki.",
+          "dots": "Ruchome kropki",
+          "lines": "Linie i strzałki"
+        }
       }
     },
     "tile_card": {

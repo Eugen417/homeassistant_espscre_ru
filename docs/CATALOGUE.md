@@ -81,6 +81,7 @@ taps: [run]                   # taps of this type beyond every tile's
 guards: [confirm, lock_only]  # a lock's guard choices
 picture: {fit: [...], overlay: [...], refresh: [...]}   # how a live picture sits on its tile
 map: {framing: [...], distance: [...], ...}             # a map card's choices, the first of each the default; needs the map display (docs/MAP.md)
+energy: {flow: [dots, lines]}  # the energy card's choices (screen.yaml only), the first the default (docs/ENERGY.md)
 keypad:                       # a remote's card: per integration, the command each key sends
   apple_tv: {up: up, down: down, left: left, right: right, ok: select, back: menu, ...}
 key: false                    # may not stand as a key under the bedside clock

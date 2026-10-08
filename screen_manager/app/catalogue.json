@@ -1825,7 +1825,13 @@
    "guards": [],
    "picture": null,
    "map": null,
-   "keypad": null
+   "keypad": null,
+   "energy": {
+    "flow": [
+     "dots",
+     "lines"
+    ]
+   }
   },
   "script": {
    "firmware": null,

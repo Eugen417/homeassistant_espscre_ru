@@ -2113,7 +2113,13 @@
       },
       "energy": {
         "hint": "A ház teljesítménye most, úgy rajzolva, ahogy a Home Assistant saját Energia nézete rajzolja: nap, hálózat, akkumulátor és az eszközeid, a Home Assistant Energia beállításaiból. Egy kör megérintése megnyitja annak az érzékelőnek az előzményeit.",
-        "needs_firmware": "Az energiakártyához 0.47.0 vagy újabb firmware kell: mentés után nyomd meg a Frissítés gombot a kijelzőnél."
+        "needs_firmware": "Az energiakártyához 0.47.0 vagy újabb firmware kell: mentés után nyomd meg a Frissítés gombot a kijelzőnél.",
+        "flow": {
+          "label": "Áramlás",
+          "hint": "Pontok futnak végig minden vonalon, annál gyorsabban, minél több teljesítmény áramlik. A vonalak és nyilak nyugodtabb: a vonal a teljesítménnyel vastagodik, és egy nyíl mutatja az irányt. A régebbi firmware-rel futó kijelző megtartja a pontokat.",
+          "dots": "Mozgó pontok",
+          "lines": "Vonalak és nyilak"
+        }
       }
     },
     "tile_card": {

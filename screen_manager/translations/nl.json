@@ -1910,7 +1910,13 @@
       },
       "energy": {
         "hint": "Het vermogen van het huis op dit moment, getekend zoals de Energie-weergave van Home Assistant het tekent: zon, net, batterij en je apparaten, uit de Energie-instellingen van Home Assistant. Een tik op een cirkel opent de geschiedenis van die sensor.",
-        "needs_firmware": "De energiekaart heeft firmware 0.47.0 of nieuwer nodig: druk na het opslaan op Bijwerken bij het scherm."
+        "needs_firmware": "De energiekaart heeft firmware 0.47.0 of nieuwer nodig: druk na het opslaan op Bijwerken bij het scherm.",
+        "flow": {
+          "label": "Stroom",
+          "hint": "Bolletjes lopen over elke lijn, sneller naarmate er meer stroom loopt. Lijnen en pijlen is rustiger: een lijn wordt dikker met het vermogen en een pijl laat zien welke kant het op gaat. Een scherm met oudere firmware houdt de bolletjes.",
+          "dots": "Bewegende bolletjes",
+          "lines": "Lijnen en pijlen"
+        }
       }
     },
     "tile_card": {

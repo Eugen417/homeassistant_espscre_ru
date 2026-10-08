@@ -31,7 +31,7 @@ VERSION = re.compile(r'^\d+\.\d+\.\d+$')
 FIRST_TYPES = frozenset('alarm_control_panel automation binary_sensor button camera climate cover fan image input_boolean input_button '
                         'input_number input_select light lock media_player number person scene screen script select sensor sun switch '
                         'timer vacuum weather'.split())
-TOP = {'domain', 'firmware', 'displays', 'controls', 'inline', 'toggle', 'taps', 'guards', 'picture', 'map', 'key', 'keypad', 'memory', 'cards', 'favorite'}
+TOP = {'domain', 'firmware', 'displays', 'controls', 'inline', 'toggle', 'taps', 'guards', 'picture', 'map', 'key', 'keypad', 'memory', 'cards', 'favorite', 'energy'}
 # What one tile of a type keeps in the memory inside a screen's chip (firmware 0.34.0+, docs/TILE_MEMORY.md): `bytes`
 # measured on a board with PSRAM, `extras` whether it keeps a block of extras. Every type says it, so a new one cannot
 # leave the screen's memory budget guessing; the most a tile may keep is a sanity bound, not a rule.
@@ -50,6 +50,11 @@ class CatalogueError(ValueError):
 
 def fail(where, message):
     raise CatalogueError(f'{where}: {message}')
+
+
+def cards_of(data):
+    """The screen's own cards a type's file prices (`cards`)."""
+    return data.get('cards') or {}
 
 
 def check_keys(where, value, allowed):
@@ -227,6 +232,12 @@ def normalise(tile, types, translations, facts, commands=None):
             check_keys(f'{where} favorite', favorite, {'shuffle', 'repeat'})
             if 'favorite' not in displays:
                 fail(where, 'favorite options need the favorite display')
+        # The energy card's choices: how it shows power along a line, the first the default.
+        energy = data.get('energy')
+        if energy is not None:
+            check_keys(f'{where} energy', energy, {'flow'})
+            if domain != 'screen' or 'energy' not in cards_of(data):
+                fail(where, 'energy options belong to the screen\'s energy card')
         memory = data.get('memory')
         if memory is None:
             fail(where, 'says what one tile of it keeps in the memory inside the chip (memory: {bytes: N, extras: true or '
@@ -262,6 +273,7 @@ def normalise(tile, types, translations, facts, commands=None):
             'keypad': keypad(f'{where} keypad', data['keypad'], commands) if 'keypad' in data else None,
             **({'favorite': [option(f'{where} favorite {key}', domain, key, value, favorite) for key, value in favorite.items()]}
                if favorite else {}),
+            **({'energy': energy} if energy else {}),
         }
     check_keys('catalogue/_tile.yaml', tile, {'taps', 'sizes', 'history_hours', 'memory'})
     choice = tile.get('memory')

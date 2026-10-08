@@ -15,7 +15,8 @@ import { PLUGIN_TILE } from "./plugins";
 
 const APPEARANCE = { display: "display", icon: "icon", background: "background", historyHours: "history_hours", refresh: "refresh", subtitle: "sub", fit: "fit", overlay: "overlay",
   mapEntities: "map", mapFraming: "framing", mapDistance: "distance",
-  mapFollow: "follow", mapMarkers: "markers", mapNames: "names", mapZones: "zones", mapStreets: "streets", mapLook: "look" } as const;
+  mapFollow: "follow", mapMarkers: "markers", mapNames: "names", mapZones: "zones", mapStreets: "streets", mapLook: "look",
+  energyFlow: "flow" } as const;
 const INTERACTION = ["tap", "inline", "controls", "action", "play", "speaker", "shuffle", "repeat"] as const;
 const PICTURE_OWN = ["refresh", ...Object.keys(rules.picture)];
 // A map card's own choices (app 0.4.33); its name on the picture is the live picture's `overlay`.
@@ -30,7 +31,7 @@ const SAMPLE_ACTION = { action: "homeassistant.turn_on" };
 // The value an option means when it is not stored, where the add-on drops the stored one (core.validate_layout).
 export const DEFAULTS: Record<string, unknown> = { sub: "auto", fit: rules.picture.fit[0], overlay: rules.picture.overlay[0],
   framing: MAP?.framing[0], distance: MAP?.distance[0], follow: MAP?.follow[0], markers: MAP?.markers[0], names: MAP?.names[0],
-  zones: MAP?.zones[0], streets: MAP?.streets[0], look: MAP?.look[0] };
+  zones: MAP?.zones[0], streets: MAP?.streets[0], look: MAP?.look[0], flow: rules.energyFlow[0] };
 
 const pageTile = (entity: string) => /^screen\.page_\d+$/.test(entity);
 
@@ -56,6 +57,8 @@ export function canonicalOptions(entity: string, options: TileOptions = {}, key 
   if (Array.isArray(out.map) && !out.map.length) delete out.map;
   // Following is the map tile's own; a person's map follows that person.
   if (entity !== MAP_TILE) delete out.follow;
+  // How power shows along a line is the energy card's own (catalogue/screen.yaml `energy`).
+  if (entity !== "screen.energy") delete out.flow;
   for (const [key, value] of Object.entries(DEFAULTS)) if (out[key] === value) delete out[key];
   // A Go to page tile has a name, an icon, a colour and a width, nothing else.
   if (pageTile(entity)) for (const key of ["display", "inline", "controls", "history_hours"]) delete out[key];

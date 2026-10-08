@@ -2113,7 +2113,13 @@
       },
       "energy": {
         "hint": "La potenza della casa in questo momento, disegnata come la disegna la vista Energia di Home Assistant: solare, rete, batteria e i tuoi dispositivi, dalle impostazioni Energia di Home Assistant. Un tocco su un cerchio apre la cronologia di quel sensore.",
-        "needs_firmware": "La scheda energia richiede il firmware 0.47.0 o successivo: dopo il salvataggio premi Aggiorna sullo schermo."
+        "needs_firmware": "La scheda energia richiede il firmware 0.47.0 o successivo: dopo il salvataggio premi Aggiorna sullo schermo.",
+        "flow": {
+          "label": "Flusso",
+          "hint": "Dei punti scorrono lungo ogni linea, più veloci quando passa più potenza. Linee e frecce è più calmo: una linea si ispessisce con la potenza e una freccia ne indica la direzione. Uno schermo con un firmware più vecchio mantiene i punti.",
+          "dots": "Punti in movimento",
+          "lines": "Linee e frecce"
+        }
       }
     },
     "tile_card": {

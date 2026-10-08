@@ -219,6 +219,9 @@ MAP_TILE_MIN_FIRMWARE = (0, 21, 0)
 # power-flow-card-plus draw it, from the Energy settings (energy_flow.py). It is a diagram and nothing else.
 ENERGY_TILE = 'screen.energy'
 ENERGY_MIN_FIRMWARE = (0, 47, 0)
+# How the energy card shows power along a line (catalogue/screen.yaml `energy`): running dots, the default and never
+# stored, or calm lines with an arrow. A firmware that doesn't know the choice keeps the dots.
+ENERGY_FLOWS = tuple(catalogue.of_type('screen')['energy']['flow'])
 MAP_DOMAINS = frozenset(MAP_CARD['with'])
 MAP_MAX_ENTITIES = MAP_CARD['max']
 MAP_OWN = ('map', *MAP_OPTIONS)
@@ -1269,7 +1272,9 @@ TILE_EVENT_OPTIONS = {'size': 'size', 'controls': 'controls', 'display': 'displa
                       # A favourite (app 0.4.42): what it plays, as Home Assistant's library names it, and on which speaker.
                       'play': 'play', 'speaker': 'speaker',
                       # Its own shuffle and repeat (app 0.4.84).
-                      'shuffle': 'shuffle', 'repeat': 'repeat'}
+                      'shuffle': 'shuffle', 'repeat': 'repeat',
+                      # How the energy card shows power along a line: dots or lines.
+                      'flow': 'flow'}
 TILE_SIZES = {'full': 'full', 'fullscreen': 'full', 'full screen': 'full', 'full-screen': 'full', 'page': 'full', 'whole page': 'full',
               'wide': 'wide', 'double': 'wide', 'large': 'wide', 'big': 'wide',
               'single': 'single', 'small': 'single', 'normal': 'single', 'tall': 'tall', 'high': 'tall', 'square': 'square'}
@@ -1815,7 +1820,7 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
             continue
         if 'options' in tile:
             options = tile['options']
-            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon', 'controls', 'action', 'refresh', 'sub', 'fit', 'overlay', 'guard', *MAP_OWN, *FAVORITE_OWN}:
+            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon', 'controls', 'action', 'refresh', 'sub', 'fit', 'overlay', 'guard', 'flow', *MAP_OWN, *FAVORITE_OWN}:
                 raise ValueError(t('addon.errors.layout.unknown_settings'))
             # A navigation tile (screen.page_<n>, firmware 0.2.62+) has a name, an icon, a colour and a width; never the page.
             if page_target(tile['entity']):
@@ -1842,6 +1847,12 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
             # The energy card draws its diagram on every size it takes, with no face, slider or second line of its own.
             if tile['entity'] == ENERGY_TILE:
                 options = {k: v for k, v in options.items() if k not in ('display', 'inline', 'controls', 'history_hours', 'sub')}
+                if 'flow' in options and options['flow'] not in ENERGY_FLOWS:
+                    raise ValueError(t('addon.errors.layout.invalid_setting', setting='flow'))
+                if options.get('flow') == ENERGY_FLOWS[0]:
+                    options = {k: v for k, v in options.items() if k != 'flow'}
+            elif 'flow' in options:
+                options = {k: v for k, v in options.items() if k != 'flow'}
             # Every tile's taps and its type's own (run, an automation's alone: firmware 0.7.0+), from the catalogue.
             taps = tuple(catalogue.taps(domain))
             choices = {'tap': taps, 'display': displays, 'inline': ('none', 'slider')}
