@@ -1,4 +1,4 @@
-static_assert(screen_text::KEYS_HASH == 0x589D7824u && screen_text::KEY_COUNT == 441,
+static_assert(screen_text::KEYS_HASH == 0xEA08138Du && screen_text::KEY_COUNT == 442,
               "screen_text_keys.h does not match screen_manager/translations/en.json: run tools/i18n.py header");
 const char *const screen_text::TABLE[] = {
     ".",
@@ -440,6 +440,7 @@ const char *const screen_text::TABLE[] = {
     "Battery",
     "Home",
     "Other",
+    "Untracked",
     "No power sensors in Home Assistant's energy settings",
     "Plugin missing"
 };
