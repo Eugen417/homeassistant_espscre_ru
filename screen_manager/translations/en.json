@@ -781,7 +781,8 @@
         "save_first": "Save a page document before saving document settings",
         "destination_exists": "Destination screen already has a saved layout",
         "update_tall": "Update the screen to use these tile sizes",
-        "memory": "The screen does not have enough free memory for this layout. Reduce the number of tiles."
+        "memory": "The screen does not have enough free memory for this layout. Reduce the number of tiles.",
+        "grid_range": "This screen does not take a grid of that size. Choose another grid beside the mockup."
       },
       "feedback": {
         "invalid": "This answer can't be shared. Choose yes or not quite, and only the listed problems.",
@@ -2694,7 +2695,7 @@
       "history_empty": "No recorded history",
       "grid_changed": "The screen grid has changed. Review tile positions before saving or sending.",
       "grid_review": "Review grid adaptation",
-      "grid_review_hint": "Compare the saved positions on the left with the proposed positions on the right. Every tile stays on its original page. Nothing is sent until you save.",
+      "grid_review_hint": "Compare the saved positions on the left with the proposed positions on the right. Tiles that no longer fit move on to a new page right after their own. Nothing is sent until you save.",
       "grid_accept": "Use these positions",
       "selected_full": "This page is full. Select an empty cell on another page.",
       "choose_page": "Page",
@@ -3089,6 +3090,20 @@
       "plugins": "Building with its plugins",
       "install": "Installing",
       "failed": "The last build of {screen} failed. The log says why."
+    },
+    "grid": {
+      "title": "Grid",
+      "columns": "Columns",
+      "rows": "Rows",
+      "columns_less": "Fewer columns",
+      "columns_more": "More columns",
+      "rows_less": "Fewer rows",
+      "rows_more": "More rows",
+      "hint": "Tiles that no longer fit on a page move on to a new page right after it. The screen gets the new grid when you save.",
+      "update_first": "Update this screen to choose its grid here.",
+      "pages_added": "1 page added for the tiles that no longer fit | {n} pages added for the tiles that no longer fit",
+      "new_page": "New page for what no longer fit",
+      "too_many_pages": "On {grid} these tiles need {needed} pages, and this screen takes {most}. Remove tiles or choose another grid; nothing was changed."
     }
   }
 }

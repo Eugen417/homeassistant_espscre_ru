@@ -781,7 +781,8 @@
         "save_first": "Enregistrez la disposition des pages avant ses paramètres",
         "destination_exists": "L’écran de destination possède déjà une disposition enregistrée",
         "update_tall": "Mettez l’écran à jour pour utiliser ces tailles de tuiles",
-        "memory": "L’écran ne dispose pas de suffisamment de mémoire libre pour cette disposition. Utilisez moins de tuiles."
+        "memory": "L’écran ne dispose pas de suffisamment de mémoire libre pour cette disposition. Utilisez moins de tuiles.",
+        "grid_range": "Cet écran n’accepte pas une grille de cette taille. Choisissez une autre grille à côté de l’aperçu."
       },
       "feedback": {
         "invalid": "Cette réponse ne peut pas être partagée. Choisissez oui ou pas vraiment, et seulement les problèmes proposés.",
@@ -2897,7 +2898,7 @@
       "history_empty": "Aucun historique enregistré",
       "grid_changed": "La grille de l’écran a changé. Vérifiez les positions avant d’enregistrer ou d’envoyer.",
       "grid_review": "Vérifier l’adaptation de la grille",
-      "grid_review_hint": "Comparez les positions enregistrées à gauche aux propositions à droite. Chaque tuile reste sur sa page. Rien n’est envoyé avant l’enregistrement.",
+      "grid_review_hint": "Comparez les positions enregistrées à gauche aux propositions à droite. Les tuiles qui ne tiennent plus passent sur une nouvelle page juste après la leur. Rien n’est envoyé avant l’enregistrement.",
       "grid_accept": "Utiliser ces positions",
       "selected_full": "Cette page est pleine. Sélectionnez une cellule vide sur une autre page.",
       "choose_page": "Page",
@@ -3089,6 +3090,20 @@
       "plugins": "Compilation avec ses plugins",
       "install": "Installation",
       "failed": "La dernière compilation de {screen} a échoué. Le journal dit pourquoi."
+    },
+    "grid": {
+      "title": "Grille",
+      "columns": "Colonnes",
+      "rows": "Lignes",
+      "columns_less": "Moins de colonnes",
+      "columns_more": "Plus de colonnes",
+      "rows_less": "Moins de lignes",
+      "rows_more": "Plus de lignes",
+      "hint": "Les tuiles qui ne tiennent plus sur une page passent sur une nouvelle page juste après. L’écran reçoit la nouvelle grille à l’enregistrement.",
+      "update_first": "Mettez cet écran à jour pour choisir sa grille ici.",
+      "pages_added": "1 page ajoutée pour les tuiles qui ne tenaient plus | {n} pages ajoutées pour les tuiles qui ne tenaient plus",
+      "new_page": "Nouvelle page pour ce qui ne tenait plus",
+      "too_many_pages": "Sur {grid}, ces tuiles demandent {needed} pages, et cet écran en accepte {most}. Retirez des tuiles ou choisissez une autre grille ; rien n’a été modifié."
     }
   }
 }

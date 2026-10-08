@@ -781,7 +781,8 @@
         "save_first": "Speichere zuerst das Seitenlayout und danach die Einstellungen",
         "destination_exists": "Der Zielbildschirm hat bereits ein gespeichertes Layout",
         "update_tall": "Aktualisiere den Bildschirm, um diese Kachelgrößen zu verwenden",
-        "memory": "Der Bildschirm hat nicht genug freien Speicher für dieses Layout. Verwende weniger Kacheln."
+        "memory": "Der Bildschirm hat nicht genug freien Speicher für dieses Layout. Verwende weniger Kacheln.",
+        "grid_range": "Dieser Bildschirm nimmt kein Raster dieser Größe an. Wähle neben der Vorschau ein anderes Raster."
       },
       "feedback": {
         "invalid": "Diese Antwort kann nicht geteilt werden. Wähle Ja oder Nicht ganz und nur die genannten Probleme.",
@@ -2897,7 +2898,7 @@
       "history_empty": "Kein aufgezeichneter Verlauf",
       "grid_changed": "Das Bildschirmraster hat sich geändert. Kachelpositionen vor dem Speichern oder Senden prüfen.",
       "grid_review": "Rasteranpassung prüfen",
-      "grid_review_hint": "Gespeicherte Positionen links mit dem Vorschlag rechts vergleichen. Jede Kachel bleibt auf ihrer Seite. Gesendet wird erst nach dem Speichern.",
+      "grid_review_hint": "Gespeicherte Positionen links mit dem Vorschlag rechts vergleichen. Kacheln, die nicht mehr passen, rücken auf eine neue Seite direkt hinter ihrer eigenen. Gesendet wird erst nach dem Speichern.",
       "grid_accept": "Diese Positionen verwenden",
       "selected_full": "Diese Seite ist voll. Eine freie Zelle auf einer anderen Seite auswählen.",
       "choose_page": "Seite",
@@ -3089,6 +3090,20 @@
       "plugins": "Baut mit seinen Plugins",
       "install": "Installiert",
       "failed": "Der letzte Build von {screen} ist fehlgeschlagen. Das Protokoll sagt, warum."
+    },
+    "grid": {
+      "title": "Raster",
+      "columns": "Spalten",
+      "rows": "Zeilen",
+      "columns_less": "Weniger Spalten",
+      "columns_more": "Mehr Spalten",
+      "rows_less": "Weniger Zeilen",
+      "rows_more": "Mehr Zeilen",
+      "hint": "Kacheln, die nicht mehr auf eine Seite passen, rücken auf eine neue Seite direkt dahinter. Der Bildschirm bekommt das neue Raster beim Speichern.",
+      "update_first": "Aktualisiere diesen Bildschirm, um sein Raster hier zu wählen.",
+      "pages_added": "1 Seite für die Kacheln hinzugefügt, die nicht mehr passten | {n} Seiten für die Kacheln hinzugefügt, die nicht mehr passten",
+      "new_page": "Neue Seite für das, was nicht mehr passte",
+      "too_many_pages": "Auf {grid} brauchen diese Kacheln {needed} Seiten, und dieser Bildschirm nimmt {most}. Entferne Kacheln oder wähle ein anderes Raster; nichts wurde geändert."
     }
   }
 }

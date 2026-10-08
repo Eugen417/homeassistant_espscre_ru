@@ -88,6 +88,14 @@ inline esphome::ESPPreferenceObject buttons_preference;
 inline esphome::ESPPreferenceObject swipe_preference;
 inline esphome::ESPPreferenceObject home_preference;
 inline esphome::ESPPreferenceObject dark_preference;
+// The grid chosen for each way the glass hangs (firmware 0.53.0+, regrid), lying down first.
+struct GridChoice { uint8_t columns[2], rows[2]; };
+inline esphome::ESPPreferenceObject grid_preference;
+inline void save_grids() {
+  GridChoice choice{};
+  for (int i = 0; i < 2; ++i) { choice.columns[i] = (uint8_t) chosen_grids[i].columns; choice.rows[i] = (uint8_t) chosen_grids[i].rows; }
+  grid_preference.save(&choice);
+}
 // The number format of Settings -> Language & region (app 0.2.90), kept for the next start: screen_text::number_style
 // (bits 0-3), number_group_min (4-5) and number_percent (6-7) in one word.
 inline esphome::ESPPreferenceObject numbers_preference;
@@ -451,6 +459,13 @@ inline void load_settings() {
   }
   // The turn the screen was left at (every board since firmware 0.2.80, the Guition before that). A quarter turn
   // saved on glass that cannot take one (a board file that changed) is left where it is.
+  // The grids ESP Screens gave this screen (firmware 0.53.0+); one this firmware cannot take (a screen's YAML that
+  // narrowed GRID_MAX_*) leaves the board's own for that way of the glass.
+  grid_preference=esphome::global_preferences->make_preference<GridChoice>(0x47524431);
+  GridChoice grids{};
+  if(grid_preference.load(&grids))
+    for(int i=0;i<2;++i)
+      if(GRID_RANGES[i].takes(grids.columns[i],grids.rows[i]))chosen_grids[i]=Grid{grids.columns[i],grids.rows[i]};
   rotation_preference=esphome::global_preferences->make_preference<uint32_t>(0x524F5431);
   uint32_t saved_turn=0;
   if(rotation_preference.load(&saved_turn) && saved_turn<=270 && saved_turn%90==0 && (saved_turn%180==0 || quarter_turns))rotation=(int32_t)saved_turn;
@@ -538,8 +553,21 @@ struct Widgets {
 // A page is being built off the glass (warm_page): its cards ask for no pictures and wake nothing.
 inline bool warming=false;
 constexpr unsigned POINT_BUFFER = 128;
-// One widget per cell of the grid the screen runs on: the cards make_cells makes at boot.
-inline std::array<Widgets, CELLS_MAX> widgets;
+// One widget per cell of the grid the screen runs on: the cards make_cells makes at boot. The table is sized for the
+// biggest grid the screen may be given (CELLS_MAX, about 700 bytes a cell), so a board with PSRAM keeps it there, beside
+// the kept pages' sets (firmware 0.53.0+): fifteen cells inside the chip would take 10 KB the 4-inch Guition does not
+// have to spare. Without PSRAM it stays inside the chip, as before.
+inline std::array<Widgets, CELLS_MAX> &glass_cards() {
+  using Table = std::array<Widgets, CELLS_MAX>;
+#ifdef USE_ESP32
+  void *memory = heap_caps_malloc(sizeof(Table), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (!memory) memory = heap_caps_malloc(sizeof(Table), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+#else
+  void *memory = std::malloc(sizeof(Table));
+#endif
+  return *new (memory) Table();
+}
+inline std::array<Widgets, CELLS_MAX> &widgets = glass_cards();
 // ---- Pages kept whole (firmware 0.3.2+, kept_pages.h) ----
 // A board with PSRAM keeps the cards of the pages it has shown. `widgets` is always the set on the glass; a page that
 // leaves the glass takes its set onto the shelf, hidden, and a page that comes back brings its own set with it. A card
@@ -574,6 +602,7 @@ inline std::array<int32_t, DIM_MAX + 1> grid_rows_dsc{};
 // canvas LVGL hands us says which way the glass hangs, so it picks the grid; the area then runs the full width
 // and from under the top bar down to where the page bar starts. A board states a margin, a gap and the height of
 // that bar, all of them a look and not an orientation, and no pixel here comes from a substitution.
+inline void grid_cells();
 inline void grid_bind(lv_obj_t *container, int margin, int page_bar_height) {
   tile_grid = container;
   grid_margin = margin;
@@ -588,12 +617,17 @@ inline void grid_bind(lv_obj_t *container, int margin, int page_bar_height) {
   lv_obj_update_layout(container);
   grid_base_height = canvas_h - lv_obj_get_y(container) - page_bar_height;
   lv_obj_set_height(container, grid_base_height);
+  grid_cells();
+}
+// The tile area's columns and rows as free units, for the grid in use (grid_bind, regrid).
+inline void grid_cells() {
+  if (!tile_grid) return;
   for (size_t c = 0; c < grid.columns; ++c) grid_columns_dsc[c] = LV_GRID_FR(1);
   grid_columns_dsc[grid.columns] = LV_GRID_TEMPLATE_LAST;
   for (size_t r = 0; r < grid.rows; ++r) grid_rows_dsc[r] = LV_GRID_FR(1);
   grid_rows_dsc[grid.rows] = LV_GRID_TEMPLATE_LAST;
-  lv_obj_set_grid_dsc_array(container, grid_columns_dsc.data(), grid_rows_dsc.data());
-  lv_obj_update_layout(container);
+  lv_obj_set_grid_dsc_array(tile_grid, grid_columns_dsc.data(), grid_rows_dsc.data());
+  lv_obj_update_layout(tile_grid);
 }
 
 inline void tile_picture_place(Widgets &w, const Tile &t, int size, int x, int y);
@@ -5739,7 +5773,11 @@ inline void make_card(Widgets &into, size_t index, const Widgets &like) {
 // The board's own cards, one per cell of the grid the screen runs on, made at boot (packages/core.yaml) from the board's
 // icon size and the icon font. They used to be widgets in YAML, a file of them per number of cells (packages/cells/,
 // before firmware 0.53.0), which tied a screen to the grid it was built with.
+inline const lv_font_t *cell_icon_font = nullptr;
+inline int cell_circle = 0;
 inline void make_cells(const lv_font_t *icon_font, int circle_size) {
+  cell_icon_font = icon_font;
+  cell_circle = circle_size;
   for (size_t i = 0; i < grid.slots(); ++i) {
     if (i == 0) build_card(widgets[0], 0, circle_size, icon_font, nullptr);
     else make_card(widgets[i], i, widgets[0]);
@@ -9401,16 +9439,44 @@ inline size_t kept_capacity() {
   while (made < room && kept_sets[made]) ++made;
   return room > made && psram_free() < KEEP_RESERVE ? made : room;
 }
+// A card and everything it made goes: its custom parts and their points, its energy scene, its plugin, its objects.
+inline void drop_card(Widgets &w) {
+  end_extra(w);
+  if (w.energy) energy_view::release(w);
+  if (w.plugin) plugin_host::release(w);
+  if (captured_slider && (captured_slider == w.slider || captured_slider == w.control_slider)) { captured_slider = nullptr; slider_changed = false; }
+  if (w.tile) lv_obj_delete(w.tile);
+  w = Widgets{};
+}
 // A kept set the board no longer needs (fewer pages, or a smaller limit) goes, cards and all.
 inline void release_kept(size_t from) {
   for (size_t i = from; i < kept_sets.size(); ++i) {
     if (!kept_sets[i]) continue;
-    for (auto &w : *kept_sets[i]) { if (w.energy) energy_view::release(w); if (w.plugin) plugin_host::release(w); if (w.tile) lv_obj_delete(w.tile); }
+    for (auto &w : *kept_sets[i]) drop_card(w);
     kept_sets[i]->~CardSet();
     kept_free(kept_sets[i]);
     kept_sets[i] = nullptr;
     shelf.entries[i] = kept_pages::Shelf::Entry{};
   }
+}
+// Told when the grid changed (packages/core.yaml: the Screen layout sensor says so at once).
+inline std::function<void()> grid_changed;
+// Another grid for the way the glass hangs now, sent by ESP Screens with a layout (firmware 0.53.0+, page_receiver.cpp):
+// every card goes, the kept ones too, as each was measured in a cell of the old grid, and the cards of the new one are
+// made, all under the loading screen the layout brings. The caller has closed what was open (cancel_layout_input). The
+// screen keeps the grid for its next start and reports it in its hello.
+inline void regrid(size_t columns, size_t rows) {
+  if (columns == grid.columns && rows == grid.rows) return;
+  shelf.forget();
+  release_kept(0);
+  for (auto &w : widgets) drop_card(w);
+  grid = Grid{columns, rows};
+  chosen_grids[canvas_upright ? 1 : 0] = grid;
+  save_grids();
+  grid_cells();
+  make_cells(cell_icon_font, cell_circle);
+  ESP_LOGI("grid", "grid %u x %u (%s)", (unsigned) columns, (unsigned) rows, canvas_upright ? "standing up" : "lying down");
+  if (grid_changed) grid_changed();
 }
 inline CardSet *new_card_set() {
   void *memory = kept_allocate(sizeof(CardSet));

@@ -281,7 +281,7 @@ class LayoutStore:
                 self._replace(records)
             return deepcopy(records)
 
-    def save(self, inbox, layout, expected_revision, workspace=None, *, settings=None, adapt_grid=False):
+    def save(self, inbox, layout, expected_revision, workspace=None, *, settings=None, adapt_grid=False, grid=None):
         with self._locked():
             self._reload()
             previous = self._records.get(inbox)
@@ -289,7 +289,8 @@ class LayoutStore:
                 raise LayoutError(t('addon.errors.pages.migration_pending'))
             if expected_revision != (previous["revision"] if previous else None):
                 raise Conflict(t('addon.errors.pages.layout_conflict'))
-            grid = self.grid_for(inbox) or (screen_grid_of_record(previous) if previous else None)
+            # `grid`: the one the caller counted this save on (a grid the editor chose, firmware 0.53.0+), else the screen's.
+            grid = grid or self.grid_for(inbox) or (screen_grid_of_record(previous) if previous else None)
             if grid is None:
                 raise LayoutError(t('addon.errors.pages.source_grid'))
             changed_grid = previous and grid != grid_of_record(previous)

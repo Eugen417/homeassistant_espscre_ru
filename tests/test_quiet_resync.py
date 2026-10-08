@@ -100,7 +100,8 @@ class Firmware(unittest.TestCase):
 
     def test_a_repeated_layout_does_not_redraw_the_page(self):
         block = RUNTIME[RUNTIME.index('if (op == "begin")'):RUNTIME.index('if (op == "ping")')]
-        unchanged = block.index('if (begin == page_protocol::Begin::unchanged)')
+        # A layout that comes again on the grid the screen has is no change (firmware 0.53.0+: another grid is one).
+        unchanged = block.index('if (begin == page_protocol::Begin::unchanged && !regridded)')
         self.assertLess(unchanged, block.index('cancel_layout_input();'))
         self.assertLess(unchanged, block.index('model.begin('))
         commit = RUNTIME[RUNTIME.index('if (op == "commit")'):RUNTIME.index('if (op == "camera")')]

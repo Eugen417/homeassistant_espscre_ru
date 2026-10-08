@@ -7,7 +7,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "screen_manager/app"))
 from core import Grid
 from layout_migrations import migrate_legacy
-from page_delivery import Sender, DeliveryError, Refused, Superseded, configuration, bar_value_messages
+from page_delivery import Sender, DeliveryError, Refused, Superseded, configuration, bar_value_messages, grids_of
 
 
 class Screen:
@@ -263,6 +263,40 @@ class DeliveryTests(unittest.IsolatedAsyncioTestCase):
 
     async def sync(self, alive=lambda: True):
         return await self.sender.synchronize("text.test_inbox", self.record, self.region, self.values, self.bars, alive)
+
+    GRIDS = {'upright': False, 'landscape': {'columns': 2, 'rows': 3, 'min': [1, 1], 'max': [3, 5]},
+             'portrait': {'columns': 1, 'rows': 4, 'min': [1, 1], 'max': [2, 6]}}
+
+    async def test_a_screen_that_takes_another_grid_gets_the_layouts_grid_with_begin(self):
+        # Firmware 0.53.0+: the grid the layout is counted on goes with begin, so the screen changes to it before the
+        # tiles come; a grid the way its glass hangs does not take is refused before anything but the hello.
+        async def newer(message):
+            answer = await self.screen.send(message)
+            answer['grids'] = deepcopy(self.GRIDS)
+            return answer
+        self.sender = Sender(newer)
+        await self.sync()
+        self.assertEqual(self.screen.begin['grid'], [2, 3])
+        self.assertEqual(self.sender.grids, self.GRIDS)
+        self.assertEqual(self.sender.last_grids, self.GRIDS)
+        self.screen.messages.clear()
+        self.record = {**deepcopy(self.record), 'sourceGrid': {'columns': 4, 'rows': 3}}
+        with self.assertRaises(Refused):
+            await self.sync()
+        self.assertEqual([message['op'] for message in self.screen.messages], ['hello'])
+
+    async def test_a_screen_that_keeps_its_grid_gets_no_grid(self):
+        await self.sync()
+        self.assertNotIn('grid', self.screen.begin)
+        self.assertIsNone(self.sender.grids)
+
+    def test_only_a_whole_and_sane_grids_answer_counts(self):
+        self.assertEqual(grids_of({'grids': self.GRIDS}), self.GRIDS)
+        for broken in (None, [], {'upright': 1}, {**self.GRIDS, 'portrait': None},
+                       {**self.GRIDS, 'landscape': {**self.GRIDS['landscape'], 'max': [10, 5]}},
+                       {**self.GRIDS, 'landscape': {**self.GRIDS['landscape'], 'columns': 4}},
+                       {**self.GRIDS, 'landscape': {**self.GRIDS['landscape'], 'min': [1]}}):
+            self.assertIsNone(grids_of({'grids': broken}), broken)
 
     async def test_complete_configuration_precedes_activation(self):
         await self.sync()

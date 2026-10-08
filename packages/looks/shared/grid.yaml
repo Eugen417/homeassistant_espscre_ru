@@ -1,0 +1,30 @@
+# ESP Screens - the grids a screen may be given, for every look (firmware 0.53.0+).
+#
+# A board states the grid a screen starts with (GRID_COLS x GRID_ROWS lying down, GRID_COLS_PORTRAIT x GRID_ROWS_PORTRAIT
+# standing up). ESP Screens may give it another with a layout, from one column and one row up to as many as the glass
+# holds at the look's smallest cell (GRID_CELL_MIN_W_MM x GRID_CELL_MIN_H_MM, which each look states). That smallest cell
+# is wide on purpose: a grid too fine to read well is for the owner to see and to change back, not for the firmware to
+# forbid. The tile area is the canvas less the margins, the top bar (SCROLL_Y) and the page bar (PAGE_BAR_H); a canvas
+# lying down is the panel's long side across. A grid never goes past nine either way (a size goes as "CxR", one digit
+# each), and always takes the board's own.
+#
+# A screen's own YAML may move any of these (docs/RESPONSIVE.md, "The grid"): GRID_MAX_ROWS: "6" lets a screen go to six
+# rows, GRID_MIN_COLUMNS: "2" keeps it at two columns or more. The firmware sizes its tables for the most (runtime_model.h).
+# Both looks include this file. ESPHome works these out within the board file, before packages/core.yaml joins: every
+# value here comes from the board, its look or this file, which is why the standing grid's default lives here.
+substitutions:
+  # The cells of a page standing up: the same as lying down on square glass; a board of another shape states its own.
+  GRID_COLS_PORTRAIT: ${GRID_COLS}
+  GRID_ROWS_PORTRAIT: ${GRID_ROWS}
+  GRID_MIN_COLUMNS: "1"
+  GRID_MIN_ROWS: "1"
+  GRID_CELL_MIN_W: ${ (GRID_CELL_MIN_W_MM | float) * (DISPLAY_DPI | float) / 25.4 }
+  GRID_CELL_MIN_H: ${ (GRID_CELL_MIN_H_MM | float) * (DISPLAY_DPI | float) / 25.4 }
+  GRID_AREA_LONG_W: ${ ([PANEL_W | int, PANEL_H | int] | max) - 2 * (GRID_MARGIN | int) }
+  GRID_AREA_SHORT_W: ${ ([PANEL_W | int, PANEL_H | int] | min) - 2 * (GRID_MARGIN | int) }
+  GRID_AREA_LONG_H: ${ ([PANEL_W | int, PANEL_H | int] | max) - (SCROLL_Y | int) - (PAGE_BAR_H | int) }
+  GRID_AREA_SHORT_H: ${ ([PANEL_W | int, PANEL_H | int] | min) - (SCROLL_Y | int) - (PAGE_BAR_H | int) }
+  GRID_MAX_COLUMNS: ${ [9, [GRID_COLS | int, (((GRID_AREA_LONG_W | float) + (GRID_GAP_X | int)) / ((GRID_CELL_MIN_W | float) + (GRID_GAP_X | int))) | int] | max] | min }
+  GRID_MAX_ROWS: ${ [9, [GRID_ROWS | int, (((GRID_AREA_SHORT_H | float) + (GRID_GAP_Y | int)) / ((GRID_CELL_MIN_H | float) + (GRID_GAP_Y | int))) | int] | max] | min }
+  GRID_MAX_COLUMNS_PORTRAIT: ${ [9, [GRID_COLS_PORTRAIT | int, (((GRID_AREA_SHORT_W | float) + (GRID_GAP_X | int)) / ((GRID_CELL_MIN_W | float) + (GRID_GAP_X | int))) | int] | max] | min }
+  GRID_MAX_ROWS_PORTRAIT: ${ [9, [GRID_ROWS_PORTRAIT | int, (((GRID_AREA_LONG_H | float) + (GRID_GAP_Y | int)) / ((GRID_CELL_MIN_H | float) + (GRID_GAP_Y | int))) | int] | max] | min }

@@ -1491,8 +1491,32 @@ function adopt(record: PageDocument, message: string) {
     toast(message);
   } catch (error: any) { toast(error.message); }
 }
+// The grids the open screen takes the way its glass hangs now (firmware 0.53.0+), null for a screen that keeps the grid
+// it was built with.
+export const gridWay = computed(() => {
+  const grids = currentScreen.value?.grids;
+  return grids ? grids[grids.upright ? 'portrait' : 'landscape'] : null;
+});
+export const takesGrid = (grid: PageGrid) => {
+  const way = gridWay.value;
+  return !!way && grid.columns >= way.min[0] && grid.columns <= way.max[0] && grid.rows >= way.min[1] && grid.rows <= way.max[1];
+};
+// A screen that takes the draft's grid is given it with the layout: only a grid it cannot take asks for a review.
 export const gridChanged = computed(() => !!state.documentGrid && !!currentScreen.value?.shape &&
-  !pages.sameGrid(state.documentGrid, currentScreen.value.shape));
+  !pages.sameGrid(state.documentGrid, currentScreen.value.shape) && !takesGrid(state.documentGrid));
+// Another grid for the open screen, chosen beside the mockup (app 0.4.85): the draft is laid out on it at once (adaptGrid:
+// what no longer fits moves on to a new page after its own) and goes to the screen with the next save. Undo takes it back.
+export function chooseGrid(columns: number, rows: number) {
+  if (!state.document || !state.documentGrid) return;
+  const target = { columns, rows };
+  if (pages.sameGrid(target, state.documentGrid) || !takesGrid(target)) return;
+  try {
+    const adapted = pages.adaptGrid(state.document, state.documentGrid, screenGridOf(target));
+    const added = adapted.pages.length - state.document.pages.length;
+    applyDocument(adapted, true, target);
+    if (added > 0) toast(t('editor.grid.pages_added', { n: added }, added));
+  } catch (error: any) { toast(error.message); }
+}
 function reviewGrid(record: PageDocument, target: PageGrid, copy: boolean, message = '') {
   try {
     if (record.layout.pages.length > editorLayout.grid.pages) throw new Error(t("addon.errors.pages.adapt_pages"));

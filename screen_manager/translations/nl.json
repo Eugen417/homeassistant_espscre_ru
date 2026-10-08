@@ -781,7 +781,8 @@
         "save_first": "Sla eerst de pagina-indeling op voordat je de instellingen opslaat",
         "destination_exists": "Het doelscherm heeft al een opgeslagen indeling",
         "update_tall": "Werk het scherm bij om deze tegelmaten te gebruiken",
-        "memory": "Het scherm heeft onvoldoende vrij geheugen voor deze indeling. Gebruik minder tegels."
+        "memory": "Het scherm heeft onvoldoende vrij geheugen voor deze indeling. Gebruik minder tegels.",
+        "grid_range": "Dit scherm neemt geen raster van deze grootte aan. Kies een ander raster naast het voorbeeld."
       },
       "feedback": {
         "invalid": "Dit antwoord kan niet gedeeld worden. Kies ja of niet helemaal, en alleen de genoemde problemen.",
@@ -2694,7 +2695,7 @@
       "history_empty": "Geen geschiedenis beschikbaar",
       "grid_changed": "Het raster van het scherm is gewijzigd. Bekijk de tegelposities voor je opslaat of verstuurt.",
       "grid_review": "Rasteraanpassing bekijken",
-      "grid_review_hint": "Vergelijk de opgeslagen posities links met het voorstel rechts. Elke tegel blijft op zijn eigen pagina. Pas na opslaan wordt de indeling verstuurd.",
+      "grid_review_hint": "Vergelijk de opgeslagen posities links met het voorstel rechts. Tegels die niet meer passen, schuiven door naar een nieuwe pagina direct na hun eigen pagina. Pas na opslaan wordt de indeling verstuurd.",
       "grid_accept": "Gebruik deze posities",
       "selected_full": "Deze pagina is vol. Kies een lege cel op een andere pagina.",
       "choose_page": "Pagina",
@@ -3089,6 +3090,20 @@
       "plugins": "Bouwt met zijn plugins",
       "install": "Installeert",
       "failed": "De laatste build van {screen} is mislukt. De log zegt waarom."
+    },
+    "grid": {
+      "title": "Raster",
+      "columns": "Kolommen",
+      "rows": "Rijen",
+      "columns_less": "Minder kolommen",
+      "columns_more": "Meer kolommen",
+      "rows_less": "Minder rijen",
+      "rows_more": "Meer rijen",
+      "hint": "Tegels die niet meer op een pagina passen, schuiven door naar een nieuwe pagina direct erachter. Het scherm krijgt het nieuwe raster als je opslaat.",
+      "update_first": "Werk dit scherm bij om hier zijn raster te kiezen.",
+      "pages_added": "1 pagina toegevoegd voor de tegels die niet meer pasten | {n} pagina’s toegevoegd voor de tegels die niet meer pasten",
+      "new_page": "Nieuwe pagina voor wat niet meer paste",
+      "too_many_pages": "Op {grid} hebben deze tegels {needed} pagina’s nodig, en dit scherm neemt er {most}. Haal tegels weg of kies een ander raster; er is niets veranderd."
     }
   }
 }

@@ -57,11 +57,42 @@ constexpr unsigned BEDSIDE_KEYS = 3;
 // follow from the cells, only the tiles of the whole screen (TILES_MAX) do. Before, a grid had 64 / cells pages, three
 // on a 5 x 4 grid, and a grid that grew lost the pages of a saved layout.
 constexpr size_t PAGES_MAX = page_protocol::MAX_PAGES;
-// The bigger of the two grids: what the cards, the page's own arrays and the grid descriptors are sized for. A
-// CYD carries six cards and shows four of them standing up; nothing is allocated twice.
-constexpr size_t CELLS_MAX = (GRID_COLS * GRID_ROWS) > (GRID_COLS_PORTRAIT * GRID_ROWS_PORTRAIT)
-                                 ? (GRID_COLS * GRID_ROWS)
-                                 : (GRID_COLS_PORTRAIT * GRID_ROWS_PORTRAIT);
+// The grids a screen may be given (firmware 0.53.0+): ESP Screens sends one with a layout and the screen keeps it, one
+// for each way the glass hangs. The board's own pair is where a screen starts. The least is one cell; the most is what
+// the glass holds at the look's smallest cell (GRID_CELL_MIN_W_MM x GRID_CELL_MIN_H_MM, packages/looks/shared/grid.yaml),
+// wide on purpose: a grid that is too fine is someone's to see and to change back. A screen's own YAML may move both.
+#ifndef GRID_MIN_COLUMNS
+#define GRID_MIN_COLUMNS 1
+#endif
+#ifndef GRID_MIN_ROWS
+#define GRID_MIN_ROWS 1
+#endif
+#ifndef GRID_MAX_COLUMNS
+#define GRID_MAX_COLUMNS GRID_COLS
+#endif
+#ifndef GRID_MAX_ROWS
+#define GRID_MAX_ROWS GRID_ROWS
+#endif
+#ifndef GRID_MAX_COLUMNS_PORTRAIT
+#define GRID_MAX_COLUMNS_PORTRAIT GRID_COLS_PORTRAIT
+#endif
+#ifndef GRID_MAX_ROWS_PORTRAIT
+#define GRID_MAX_ROWS_PORTRAIT GRID_ROWS_PORTRAIT
+#endif
+// The grids one way of the glass takes: from the least to the most columns and rows.
+struct GridRange {
+  size_t min_columns, min_rows, max_columns, max_rows;
+  constexpr bool takes(size_t columns, size_t rows) const {
+    return columns >= min_columns && columns <= max_columns && rows >= min_rows && rows <= max_rows;
+  }
+  constexpr size_t most_cells() const { return max_columns * max_rows; }
+};
+constexpr GridRange GRID_RANGES[2] = {{GRID_MIN_COLUMNS, GRID_MIN_ROWS, GRID_MAX_COLUMNS, GRID_MAX_ROWS},
+                                      {GRID_MIN_COLUMNS, GRID_MIN_ROWS, GRID_MAX_COLUMNS_PORTRAIT, GRID_MAX_ROWS_PORTRAIT}};
+// The biggest grid either way: what the page's own arrays and the grid descriptors are sized for. The cards themselves
+// are made for the grid in use only (make_cells), so a screen pays in cards for the grid it shows, not for the most.
+constexpr size_t CELLS_MAX = GRID_RANGES[0].most_cells() > GRID_RANGES[1].most_cells() ? GRID_RANGES[0].most_cells()
+                                                                                         : GRID_RANGES[1].most_cells();
 constexpr size_t dim_max(size_t a, size_t b, size_t c, size_t d) {
   size_t most = a;
   if (b > most) most = b;
@@ -69,8 +100,12 @@ constexpr size_t dim_max(size_t a, size_t b, size_t c, size_t d) {
   if (d > most) most = d;
   return most;
 }
-constexpr size_t DIM_MAX = dim_max(GRID_COLS, GRID_ROWS, GRID_COLS_PORTRAIT, GRID_ROWS_PORTRAIT);
+constexpr size_t DIM_MAX = dim_max(GRID_MAX_COLUMNS, GRID_MAX_ROWS, GRID_MAX_COLUMNS_PORTRAIT, GRID_MAX_ROWS_PORTRAIT);
 static_assert(GRID_COLS >= 1 && GRID_ROWS >= 1 && GRID_COLS_PORTRAIT >= 1 && GRID_ROWS_PORTRAIT >= 1, "a grid needs a cell");
+static_assert(GRID_RANGES[0].takes(GRID_COLS, GRID_ROWS) && GRID_RANGES[1].takes(GRID_COLS_PORTRAIT, GRID_ROWS_PORTRAIT),
+              "the board's own grid lies between GRID_MIN_* and GRID_MAX_*");
+// A size is sent as "CxR" with one digit each (page_protocol::span_of).
+static_assert(DIM_MAX <= 9, "at most nine columns and nine rows");
 static_assert(CELLS_MAX <= TILES_MAX, "a page holds at most as many cells as a screen holds tiles");
 // A slot (page * cells + cell) is kept in 16 bits (Model::slots): eight pages of a big grid pass 256, 512 on the
 // preview's eight by eight. Within its page (Placement) a cell still fits a byte.
@@ -98,12 +133,17 @@ struct Grid {
 // The grid this screen runs on. It stands at the board's landscape grid until grid_select reads the canvas, so a
 // host test or a board that never turns needs no boot step.
 inline Grid grid{GRID_COLS, GRID_ROWS};
+// The grid for each way the glass hangs, lying down first: the board's own until ESP Screens sends another with a layout
+// (firmware 0.53.0+), which the screen keeps (runtime_tiles::load_settings) and reports in its hello.
+inline Grid chosen_grids[2] = {{GRID_COLS, GRID_ROWS}, {GRID_COLS_PORTRAIT, GRID_ROWS_PORTRAIT}};
+// Whether the canvas stands up, as grid_select last read it.
+inline bool canvas_upright = false;
 // Pick the grid from the canvas LVGL draws on. A square canvas counts as lying down, as LVGL's own orientation
 // does, so a square board answers the same grid either way.
 inline void grid_select(int canvas_width, int canvas_height) {
 #ifndef ESP_SCREEN_HOST
-  const bool upright = canvas_height > canvas_width;
-  grid = upright ? Grid{GRID_COLS_PORTRAIT, GRID_ROWS_PORTRAIT} : Grid{GRID_COLS, GRID_ROWS};
+  canvas_upright = canvas_height > canvas_width;
+  grid = chosen_grids[canvas_upright ? 1 : 0];
 #endif
 }
 using page_protocol::TileSet;

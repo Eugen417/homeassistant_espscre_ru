@@ -75,12 +75,36 @@ class LayoutTests(unittest.TestCase):
         runtime = runtime_source()
         self.assertIn('for (size_t i = 0; i < grid.slots(); ++i) {', runtime[runtime.index('inline void make_cells('):])
 
+    def test_the_grids_a_screen_may_be_given_hold_its_own_and_are_worked_out_within_its_board(self):
+        """The grids ESP Screens may give a screen (firmware 0.53.0+, looks/shared/grid.yaml). ESPHome works a board's
+        substitutions out before packages/core.yaml joins, so every value here has to come from the board, its look or
+        grid.yaml itself: a value of the core reached the look as raw text and divided by zero (2026-10-08)."""
+        keys = ('GRID_MIN_COLUMNS', 'GRID_MIN_ROWS', 'GRID_MAX_COLUMNS', 'GRID_MAX_ROWS', 'GRID_MAX_COLUMNS_PORTRAIT', 'GRID_MAX_ROWS_PORTRAIT')
+        for board, path in sorted(profiles.BOARDS.items()):
+            with self.subTest(board=board):
+                within = profiles.evaluate(profiles.raw_substitutions(path))
+                values = profiles.board_values(board)
+                for key in keys:
+                    self.assertEqual(str(within[key]).strip('"'), str(values[key]).strip('"'), key)
+                v = {key: int(str(values[key]).strip('"')) for key in (*keys, 'GRID_COLS', 'GRID_ROWS', 'GRID_COLS_PORTRAIT', 'GRID_ROWS_PORTRAIT')}
+                self.assertTrue(1 <= v['GRID_MIN_COLUMNS'] <= v['GRID_COLS'] <= v['GRID_MAX_COLUMNS'] <= 9)
+                self.assertTrue(1 <= v['GRID_MIN_ROWS'] <= v['GRID_ROWS'] <= v['GRID_MAX_ROWS'] <= 9)
+                self.assertTrue(v['GRID_COLS_PORTRAIT'] <= v['GRID_MAX_COLUMNS_PORTRAIT'] <= 9)
+                self.assertTrue(v['GRID_ROWS_PORTRAIT'] <= v['GRID_MAX_ROWS_PORTRAIT'] <= 9)
+                # Every grid someone may choose when the screen is built (boards.yaml `choices`) lies in the range too.
+                for rows in (profiles.CATALOG[board].get('choices') or {}).get('GRID_ROWS', []):
+                    self.assertLessEqual(int(rows), v['GRID_MAX_ROWS'], rows)
+                # The tables hold the most cells either way, within the tiles the screen holds.
+                most = max(v['GRID_MAX_COLUMNS'] * v['GRID_MAX_ROWS'], v['GRID_MAX_COLUMNS_PORTRAIT'] * v['GRID_MAX_ROWS_PORTRAIT'])
+                self.assertLessEqual(most, int(str(values['SCREEN_MAX_TILES']).strip('"')))
+        self.assertIn('-DGRID_MAX_ROWS=${GRID_MAX_ROWS}', (ROOT / 'packages/core.yaml').read_text())
+
     def test_the_cards_are_cells_of_an_lvgl_grid(self):
         """No card carries a coordinate: the container is a grid and place_page only names a cell and its span."""
         self.assertIn('type: GRID', SOURCE)
         self.assertNotRegex(SOURCE, r'id: tile\d+\n\s+x: ')
         runtime = runtime_source()
-        self.assertIn('lv_obj_set_grid_dsc_array(container, grid_columns_dsc.data(), grid_rows_dsc.data());', runtime)
+        self.assertIn('lv_obj_set_grid_dsc_array(tile_grid, grid_columns_dsc.data(), grid_rows_dsc.data());', runtime)
         # A card's cell goes through set_cell, which sets it only when it changes (firmware 0.3.2+, kept pages).
         self.assertIn('set_cell(w.tile,column,span_x,row,span_y);', runtime)
         self.assertIn('lv_obj_set_grid_cell(obj, LV_GRID_ALIGN_STRETCH, column, span_x, LV_GRID_ALIGN_STRETCH, row, span_y);', runtime)

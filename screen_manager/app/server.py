@@ -940,7 +940,7 @@ class Manager:
         self.map_hits = {}
         # The action behind an alert's button (app 0.2.91): node -> (key, action, data) of the alert on that screen.
         self.alert_actions = {}
-        self.store = LayoutStore(self.path, self.verified_grid)
+        self.store = LayoutStore(self.path, self.record_grid)
         # An app from before Language & region (app 0.2.90): its screens keep the 24 hours they show, until Home Assistant
         # says every screen's own clock setting was 12 hours (resolve_clock_pin). A new install starts on Automatic, and
         # is stored right away so a restart never takes it for an old one.
@@ -986,6 +986,48 @@ class Manager:
         if board_of(screen) in SHAPES:
             return self.grid_of(screen)
         return Grid(2, 3).with_ceilings(*self.ceilings(inbox))
+
+    def screen_grids(self, inbox):
+        """The grids a screen takes and keeps, each way its glass hangs (firmware 0.53.0+): what its hello said, or the last
+        it said while it is offline (page_capabilities); None for a screen whose grid is the one it was built with."""
+        sender = self.page_senders.get(inbox) if inbox else None
+        return (getattr(sender, 'grids', None) or getattr(sender, 'last_grids', None)) if sender else None
+
+    def takes_grid(self, inbox, columns, rows):
+        """Columns x rows as a Grid with this screen's ceilings when the way its glass hangs now takes them, else None."""
+        grids = self.screen_grids(inbox)
+        if not grids or type(columns) is not int or type(rows) is not int:
+            return None
+        way = 'portrait' if grids['upright'] else 'landscape'
+        if not page_delivery.grid_takes(grids, way, columns, rows):
+            return None
+        return Grid(columns, rows, *self.ceilings(inbox))
+
+    def chosen_grid(self, inbox, data):
+        """The grid a save chooses for a screen that takes another (firmware 0.53.0+): its adaptation's target when the
+        way the screen's glass hangs takes it, else None (the save is counted on the grid the screen is given)."""
+        adaptation = data.get('adaptation') if isinstance(data, dict) else None
+        target = adaptation.get('to') if isinstance(adaptation, dict) else None
+        return self.takes_grid(inbox, target.get('columns'), target.get('rows')) if isinstance(target, dict) else None
+
+    def given_grid(self, inbox, record):
+        """The grid a screen that takes another runs on once `record` (its saved layout) reached it: that layout's, when
+        the screen takes it, else the one it keeps itself. None for a screen that takes no other grid. The record comes
+        from the caller: the store asks this while it holds its lock (record_grid), so this never reads the store."""
+        grids = self.screen_grids(inbox)
+        if not grids:
+            return None
+        source = record.get('sourceGrid') if isinstance(record, dict) and record.get('format') == PAGE_FORMAT else None
+        given = self.takes_grid(inbox, source['columns'], source['rows']) if isinstance(source, dict) else None
+        if given is not None:
+            return given
+        way = grids['portrait' if grids['upright'] else 'landscape']
+        return Grid(way['columns'], way['rows'], *self.ceilings(inbox))
+
+    def record_grid(self, inbox, record=None):
+        """The grid a saved layout of this screen is counted on: the one the screen is given (given_grid, firmware
+        0.53.0+), else the one it reports, its profile builds or its board has (verified_grid). The store's grid_for."""
+        return self.given_grid(inbox, record) or self.verified_grid(inbox)
 
     def ceilings(self, inbox):
         """The most pages, tiles and top-bar items a page this screen takes: what its hello said (firmware 0.34.0+,
@@ -1531,12 +1573,12 @@ class Manager:
         stays, so the next ping still matches."""
         base = self.layouts.get(inbox) or {'title': (screen or {}).get('name') or screen_t('screen.status.home'), 'tiles': []}
         previous = self.store.get(inbox)
-        grid = self.verified_grid(inbox) or (screen_grid_of_record(previous) if previous and previous['format'] == PAGE_FORMAT else None)
+        grid = self.record_grid(inbox, previous) or (screen_grid_of_record(previous) if previous and previous['format'] == PAGE_FORMAT else None)
         layout = validate_layout({**base, 'settings': settings}, grid=grid)
         if not previous:
             if grid is None: raise LayoutError(t('addon.errors.pages.source_grid'))
             record = migrate_legacy(base, grid)
-            self.store.save(inbox, record['layout'], None, settings=settings)
+            self.store.save(inbox, record['layout'], None, settings=settings, grid=grid)
         else:
             self.store.save_settings(inbox, settings)
         if on_screen and inbox in self.sent:
@@ -2235,7 +2277,9 @@ class Manager:
         # Every position on the grid of this screen's pages: two by three on the first boards, whatever a newer
         # screen reports or its profile builds from (Manager.grid_of).
         # With the pages its firmware takes: eight from 0.18.0, as many as 64 tiles fill before.
-        grid = self.grid_of(screen).for_firmware(self.firmware_version(inbox, screen))
+        # A screen that takes another grid is counted on the one its saved layout gives it (firmware 0.53.0+).
+        given = self.given_grid(inbox, self.store.get(inbox))
+        grid = (given or self.grid_of(screen)).for_firmware(self.firmware_version(inbox, screen))
         layout = validate_layout(data, grid=grid)
         # A CYD has no memory for camera images, whatever its firmware; say so before asking for an update.
         if any(t['entity'].split('.')[0] in CAMERA_DOMAINS for t in layout['tiles']) and board_of(screen) not in camera_feed.BOXES:
@@ -2300,7 +2344,7 @@ class Manager:
             document = legacy_edit(previous, layout)
         else:
             document = migrate_legacy(layout, grid)['layout']
-        self.store.save(inbox, document, previous['revision'] if previous else None, settings=layout.get('settings'))
+        self.store.save(inbox, document, previous['revision'] if previous else None, settings=layout.get('settings'), grid=given)
         self.sent.pop(inbox, None)
         self.status[inbox] = english('addon.status.saved')
         self.history_wake.set()
@@ -2317,7 +2361,7 @@ class Manager:
         inbox = self.aliases.get(inbox, inbox)
         screen = self.screen(inbox)
         if isinstance(data, dict) and data.get('format') == PAGE_FORMAT:
-            grid = self.grid_of(screen)
+            grid = self.chosen_grid(inbox, data) or self.grid_of(screen)
             document = validate_document(data.get('layout'), grid)
             layout = {'title': document['title'], 'tiles': compile_tiles(document, grid)}
         else:
@@ -3635,9 +3679,11 @@ def create_app(manager, development=False):
                                                            ('addon.errors.pages.source_grid', 'addon.errors.pages.migration_unreadable')
                                                            else 'addon.errors.pages.migration_unreadable')}
                                        if record and record['format'] == 'legacy-v1' else record)
-            source = manager.verified_grid(screen['id'])
-            screen['source_grid'] = {'columns': source.columns, 'rows': source.rows} if source else None
             sender = manager.page_sender(screen['id'], screen)
+            source = manager.record_grid(screen['id'], record)
+            screen['source_grid'] = {'columns': source.columns, 'rows': source.rows} if source else None
+            # The grids it takes each way its glass hangs (firmware 0.53.0+): the editor offers them beside the mockup.
+            screen['grids'] = manager.screen_grids(screen['id'])
             screen['tile_sizes'] = sorted(sender.tile_sizes if sender.protocol is not None else sender.last_tile_sizes) if sender else ['single', 'wide', 'full']
             screen['page_capability'] = ('offline' if not screen.get('online') or not sender or sender.protocol is None
                                          else 'ready' if sender.protocol == 2 else 'update_screen')
@@ -3683,6 +3729,10 @@ def create_app(manager, development=False):
             # And the rows it was built with, when its own YAML chose them (a Guition with four rows, app 0.4.31).
             screen['grid_rows'] = manager.built_as(screen, profiles).get('grid_rows')
             screen['shape'] = shape_of(screen)
+            # A screen that takes another grid runs on the one its saved layout gives it, offline too (firmware 0.53.0+):
+            # the mockup shows that grid, not the one the screen reported before the layout reached it.
+            if screen['grids'] and source:
+                screen['shape'] = {**screen['shape'], 'columns': source.columns, 'rows': source.rows}
             # And whether it has a battery for the top bar (firmware 0.41.0): what its hello said, else its board.
             screen['battery'] = manager.has_battery(screen)
             # Whether the board draws pictures (camera tiles, an alert's snapshot, an album cover): the boards with

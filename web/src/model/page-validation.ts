@@ -4,6 +4,7 @@
 import { t } from '../i18n';
 import { isWideSize } from './sizes';
 import { TILE, ofType, taps as catalogueTaps } from './catalogue';
+import { PLUGIN_TILE } from './plugins';
 import rules from './page-rules.json';
 import type { PageLayout, PageTile } from '../types';
 
@@ -118,7 +119,9 @@ export function validateCardOptions(tile: PageTile, entityId: string, size: stri
   const controls = ['none', ...((rules.controls as Record<string, string[]>)[domain] || [])];
   // Every choice from the tile catalogue (model/catalogue.ts): a type's taps, its guards, the hours a graph shows.
   for (const [value, choices] of [[a.display, displays], [a.background, rules.backgrounds], [a.historyHours, TILE.history_hours],
-    [i.tap, catalogueTaps(domain)], [i.inline, ['none', 'slider']], [i.controls, controls],
+    // A plugin's tap action (plugin:<plugin>.<action>, docs/PLUGINS.md) goes on any tile, as the add-on takes it
+    // (core.validate_layout): which tiles it suits is its manifest's, and a screen without the plugin does nothing.
+    [PLUGIN_TILE.test(String(i.tap ?? '')) ? undefined : i.tap, catalogueTaps(domain)], [i.inline, ['none', 'slider']], [i.controls, controls],
     [i.guard, ofType(domain)?.guards ?? []]] as [any, any[]][])
     if (value !== undefined && !choices.includes(value)) fail();
   if (a.icon !== undefined && !icon(a.icon)) fail();

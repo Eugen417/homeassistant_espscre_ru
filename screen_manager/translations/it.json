@@ -781,7 +781,8 @@
         "save_first": "Salva la disposizione delle pagine prima delle relative impostazioni",
         "destination_exists": "Lo schermo di destinazione ha già una disposizione salvata",
         "update_tall": "Aggiorna lo schermo per usare queste dimensioni di tessera",
-        "memory": "Lo schermo non ha abbastanza memoria libera per questo layout. Usa meno riquadri."
+        "memory": "Lo schermo non ha abbastanza memoria libera per questo layout. Usa meno riquadri.",
+        "grid_range": "Questo schermo non accetta una griglia di queste dimensioni. Scegli un’altra griglia accanto all’anteprima."
       },
       "feedback": {
         "invalid": "Questa risposta non può essere condivisa. Scegli sì o non del tutto, e solo i problemi elencati.",
@@ -2897,7 +2898,7 @@
       "history_empty": "Nessuna cronologia registrata",
       "grid_changed": "La griglia dello schermo è cambiata. Controlla le posizioni prima di salvare o inviare.",
       "grid_review": "Controlla adattamento della griglia",
-      "grid_review_hint": "Confronta le posizioni salvate a sinistra con quelle proposte a destra. Ogni riquadro resta nella propria pagina. Nulla viene inviato finché non salvi.",
+      "grid_review_hint": "Confronta le posizioni salvate a sinistra con quelle proposte a destra. Le tessere che non stanno più passano a una nuova pagina subito dopo la propria. Nulla viene inviato finché non salvi.",
       "grid_accept": "Usa queste posizioni",
       "selected_full": "Questa pagina è piena. Seleziona una cella vuota su un’altra pagina.",
       "choose_page": "Pagina",
@@ -3089,6 +3090,20 @@
       "plugins": "Compila con i suoi plugin",
       "install": "Installazione",
       "failed": "L'ultima compilazione di {screen} non è riuscita. Il log dice perché."
+    },
+    "grid": {
+      "title": "Griglia",
+      "columns": "Colonne",
+      "rows": "Righe",
+      "columns_less": "Meno colonne",
+      "columns_more": "Più colonne",
+      "rows_less": "Meno righe",
+      "rows_more": "Più righe",
+      "hint": "Le tessere che non stanno più in una pagina passano a una nuova pagina subito dopo. Lo schermo riceve la nuova griglia quando salvi.",
+      "update_first": "Aggiorna questo schermo per scegliere qui la sua griglia.",
+      "pages_added": "1 pagina aggiunta per le tessere che non stavano più | {n} pagine aggiunte per le tessere che non stavano più",
+      "new_page": "Nuova pagina per ciò che non stava più",
+      "too_many_pages": "Su {grid} queste tessere richiedono {needed} pagine, e questo schermo ne accetta {most}. Togli delle tessere o scegli un’altra griglia; non è cambiato nulla."
     }
   }
 }

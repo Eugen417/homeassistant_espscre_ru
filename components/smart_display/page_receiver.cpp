@@ -119,10 +119,22 @@ std::string receive(const std::string &payload) {
     }
     sequenced = true;
     if (op == "begin") {
+      // The grid the layout is counted on (firmware 0.53.0+, the hello's "grids"): an app that sends none means the grid
+      // the screen has. One this way of the glass cannot take is refused whole, before anything changes.
+      Grid target = grid;
+      if (!root["grid"].isNull()) {
+        auto cells = root["grid"].as<JsonArray>();
+        if (cells.isNull() || cells.size() != 2 || !cells[0].is<unsigned>() || !cells[1].is<unsigned>() ||
+            !GRID_RANGES[canvas_upright ? 1 : 0].takes(cells[0].as<unsigned>(), cells[1].as<unsigned>())) {
+          result = "Error: grid"; return false;
+        }
+        target = Grid{cells[0].as<unsigned>(), cells[1].as<unsigned>()};
+      }
+      const bool regridded = target.columns != grid.columns || target.rows != grid.rows;
       if (!root["tiles"].is<unsigned>() || !root["pages"].is<unsigned>() || !root["home"].is<unsigned>() ||
           !root["title"].is<const char *>() || root["title"].as<std::string>().size() > 96 ||
-          root["pages"].as<unsigned>() == 0 || root["pages"].as<unsigned>() > grid.pages() ||
-          root["tiles"].as<unsigned>() > grid.max_tiles() || root["home"].as<unsigned>() >= root["pages"].as<unsigned>() ||
+          root["pages"].as<unsigned>() == 0 || root["pages"].as<unsigned>() > target.pages() ||
+          root["tiles"].as<unsigned>() > target.max_tiles() || root["home"].as<unsigned>() >= root["pages"].as<unsigned>() ||
           !root["keepalive"].is<unsigned>() || root["keepalive"].as<unsigned>() < 5 || root["keepalive"].as<unsigned>() > 3600)
         return false;
       const bool was_active = transfer.active && model.ready();
@@ -130,7 +142,7 @@ std::string receive(const std::string &payload) {
       const auto begin = candidate.begin(revision, root["pages"].as<unsigned>(), root["tiles"].as<unsigned>());
       if (begin == page_protocol::Begin::reject) return false;
       const bool was_problem = protocol_problem != ProtocolProblem::none;
-      if (begin == page_protocol::Begin::unchanged) {
+      if (begin == page_protocol::Begin::unchanged && !regridded) {
         transfer = candidate;
         protocol_problem = ProtocolProblem::none;
         last_received = esphome::millis();
@@ -142,7 +154,15 @@ std::string receive(const std::string &payload) {
         previous_page_id = model.page_data.records[*shown_page].id;
         had_previous_page = true;
       }
+      // A new grid takes new cards: what was open closes first, as for any new layout, and the old layout goes with the
+      // cards it was drawn on (model.begin below replaces it).
+      if (regridded) {
+        cancel_layout_input();
+        regrid(target.columns, target.rows);
+      }
       if (!model.begin(root["tiles"].as<unsigned>(), root["pages"].as<unsigned>(), string(root["title"], 96), [] { cancel_layout_input(); })) {
+        // The layout of the old grid cannot stay on the new one: the screen says it has none (the refusal stays).
+        if (regridded) { const std::string refusal = model.refusal; model.begin(0, 1, ""); model.refusal = refusal; transfer.begun = false; }
         refresh_all(); result = model.refusal.empty() ? "Error: layout" : model.refusal; return false;
       }
       transfer = candidate;

@@ -16,6 +16,7 @@ import Library from "./Library.vue";
 import PageMap from "./PageMap.vue";
 import NavigationPreview from './NavigationPreview.vue';
 import GridReview from './GridReview.vue';
+import GridPicker from './GridPicker.vue';
 import MemoryMeter from './MemoryMeter.vue';
 import Icon from './ui/Icon.vue';
 import type { IconName } from '../model/ui-icons';
@@ -96,6 +97,7 @@ function onCanvasClick(e: MouseEvent) {
       </div>
       <button type="button" class="btn quiet" :title="t('editor.pages.try_navigation')" @click="state.previewOpen = true"><Icon name="play" />{{ t('editor.pages.preview') }}</button>
       <button type="button" id="toolbar-add-page" class="btn quiet" :disabled="!canAdd" :title="canAdd ? '' : t('editor.layout.max_pages', grid.pages)" @click="state.pageWizardOpen = true"><Icon name="plus" />{{ t('editor.layout.add_page') }}</button>
+      <GridPicker />
       <span class="spacer"></span>
       <span id="count" class="toolbar-count">{{ t("editor.layout.count", { tiles: layout.tiles.length, limit: tileLimit }, pages) }}</span>
       <MemoryMeter />

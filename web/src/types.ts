@@ -43,6 +43,9 @@ export type HeaderItem = { id?: string; type: string; entity?: string; content?:
 export type ScreenMemory = { room: number | null; used: number; psram: boolean; tile: number; extra: number; page?: number; short?: boolean; live?: boolean };
 // `barItems`: the items one page's top bar takes there (model/pages.ts barLimit).
 export type PageGrid = Readonly<{ columns: number; rows: number; pages?: number; barItems?: number }>;
+// The grids a screen takes one way its glass hangs, and the one it keeps for that way (firmware 0.53.0+, its hello).
+export type GridWay = { columns: number; rows: number; min: [number, number]; max: [number, number] };
+export type ScreenGrids = { upright: boolean; landscape: GridWay; portrait: GridWay };
 export type PageTarget = { kind: "page"; pageId: string } | { kind: "home" };
 export type PageTile = {
   id: string;
@@ -149,6 +152,9 @@ export type Screen = {
   screensaver?: ScreensaverView;
   page_document?: PageDocument | PendingMigration | null;
   source_grid?: PageGrid | null;
+  // The grids it takes (firmware 0.53.0+): the editor offers its columns and rows beside the mockup. None for a screen
+  // whose grid is the one it was built with.
+  grids?: ScreenGrids | null;
   tile_sizes?: string[];
   page_capability?: "ready" | "update_screen" | "offline";
   // Home Assistant ignores its taps: it may not perform actions (app 0.4.63, the ESPHome integration's own repair issue).

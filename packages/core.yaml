@@ -41,8 +41,6 @@ substitutions:
   TOUCH_SWAP_XY: "false"                           # the touch panel's axes against the display's own pixels
   TOUCH_MIRROR_X: "false"
   TOUCH_MIRROR_Y: "false"
-  GRID_COLS_PORTRAIT: "${GRID_COLS}"               # the cells of a page standing up: the same as lying down on
-  GRID_ROWS_PORTRAIT: "${GRID_ROWS}"               # square glass, a board of another shape states its own
   # The most tiles and pages one screen holds (firmware 0.34.0+), over all its pages whatever its grid. A board with
   # PSRAM states more; the memory the tiles need decides how many of them a layout really takes (tile_memory.h).
   SCREEN_MAX_TILES: "64"
@@ -100,6 +98,13 @@ esphome:
       # screen picks one at boot from its canvas, so one firmware serves a board either way round.
       - -DGRID_COLS_PORTRAIT=${GRID_COLS_PORTRAIT}
       - -DGRID_ROWS_PORTRAIT=${GRID_ROWS_PORTRAIT}
+      # The grids ESP Screens may give the screen (firmware 0.53.0+, looks/shared/grid.yaml): the tables are sized for the most.
+      - -DGRID_MIN_COLUMNS=${GRID_MIN_COLUMNS}
+      - -DGRID_MIN_ROWS=${GRID_MIN_ROWS}
+      - -DGRID_MAX_COLUMNS=${GRID_MAX_COLUMNS}
+      - -DGRID_MAX_ROWS=${GRID_MAX_ROWS}
+      - -DGRID_MAX_COLUMNS_PORTRAIT=${GRID_MAX_COLUMNS_PORTRAIT}
+      - -DGRID_MAX_ROWS_PORTRAIT=${GRID_MAX_ROWS_PORTRAIT}
       # The ceilings of one screen (firmware 0.34.0+): page_protocol.h sizes every per-tile and per-page table from them.
       - -DSCREEN_MAX_TILES=${SCREEN_MAX_TILES}
       - -DSCREEN_MAX_PAGES=${SCREEN_MAX_PAGES}
@@ -253,6 +258,8 @@ esphome:
           // pages of a board with PSRAM (firmware 0.3.2+).
           runtime_tiles::card_look = {id(style_tile), id(style_icon_circle), id(style_title), id(style_value)};
           runtime_tiles::make_cells(id(materialdesign_icons)->get_lv_font(), ${TILE_ICON_SIZE});
+          // Another grid from ESP Screens (firmware 0.53.0+) shows in the Screen layout sensor at once, not a minute later.
+          runtime_tiles::grid_changed = []() { id(screen_layout).update(); };
           runtime_tiles::detail = [](runtime_tiles::Tile &t) {
             light_controls::fallback = light_controls::State{};
             light_controls::fallback.hue = t.hue;
@@ -633,6 +640,24 @@ api:
                     root["max_tiles"] = runtime_tiles::grid.max_tiles();
                     root["max_pages"] = runtime_tiles::grid.pages();
                     root["max_bar_items"] = header_bar::MAX_ITEMS;
+                    // The grids this screen takes, each way its glass hangs, the one it keeps for each, and which way it
+                    // hangs now (firmware 0.53.0+): ESP Screens may send another grid with a layout ("grid" in begin).
+                    {
+                      auto grids = root["grids"].to<JsonObject>();
+                      grids["upright"] = runtime_tiles::canvas_upright;
+                      for (int i = 0; i < 2; ++i) {
+                        auto way = grids[i ? "portrait" : "landscape"].to<JsonObject>();
+                        const auto &range = runtime_tiles::GRID_RANGES[i];
+                        way["columns"] = runtime_tiles::chosen_grids[i].columns;
+                        way["rows"] = runtime_tiles::chosen_grids[i].rows;
+                        auto least = way["min"].to<JsonArray>();
+                        least.add(range.min_columns);
+                        least.add(range.min_rows);
+                        auto most = way["max"].to<JsonArray>();
+                        most.add(range.max_columns);
+                        most.add(range.max_rows);
+                      }
+                    }
                     // The memory its tiles may take, what they take now, and what the tile catalogue's prices need from
                     // this board to price a tile (tile_memory.h): whether it has PSRAM, the size of a tile and of its block
                     // of extras. In the reply to a hello or a ping: the app shows how full the screen is and refuses a
@@ -1552,6 +1577,7 @@ text_sensor:
   # instead of guessing from the board it was built for (core.parse_shape reads it). The canvas follows the
   # rotation, which is why it is read from the display and not from the board file.
   - platform: template
+    id: screen_layout
     name: "Screen layout"
     entity_category: diagnostic
     lambda: |-

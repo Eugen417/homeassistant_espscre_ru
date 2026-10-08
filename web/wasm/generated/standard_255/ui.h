@@ -214,52 +214,9 @@ lv_obj_add_style(root, style_page, (lv_state_t)(LV_PART_MAIN));
   lv_obj_remove_flag(lv_label_t_id_2, (lv_obj_flag_t)(LV_OBJ_FLAG_CLICKABLE));
   lv_label_set_text(lv_label_t_id_2, "\363\260\205\202");
 }
-static void setup_firmware_cell(size_t index) {
-lv_obj_t *tile1;
-lv_obj_t *tile1_icon_circle;
-lv_obj_t *tile1_icon_lbl;
-lv_obj_t *t1_title;
-lv_obj_t *t1_value;
-tile1 = lv_obj_create(tile_scroll);
-  lv_obj_add_style(tile1, _lv_theme_style_obj_main_default, (lv_state_t)(LV_PART_MAIN));
-  lv_obj_add_style(tile1, _lv_theme_style_obj_main_pressed, (lv_state_t)(LV_STATE_PRESSED));
-  lv_obj_add_style(tile1, style_tile, (lv_state_t)(LV_PART_MAIN));
-  lv_obj_set_style_height(tile1, 1, LV_PART_MAIN);
-  lv_obj_set_style_width(tile1, 1, LV_PART_MAIN);
-  lv_obj_set_style_grid_cell_row_pos(tile1, 0, LV_PART_MAIN);
-  lv_obj_set_style_grid_cell_column_pos(tile1, 0, LV_PART_MAIN);
-  lv_obj_set_style_grid_cell_x_align(tile1, LV_GRID_ALIGN_STRETCH, LV_PART_MAIN);
-  lv_obj_set_style_grid_cell_y_align(tile1, LV_GRID_ALIGN_STRETCH, LV_PART_MAIN);
-  lv_obj_remove_flag(tile1, (lv_obj_flag_t)(LV_OBJ_FLAG_SCROLLABLE));
-  lv_obj_set_scrollbar_mode(tile1, LV_SCROLLBAR_MODE_OFF);
-
-   tile1_icon_circle = lv_obj_create(tile1);
-  lv_obj_add_style(tile1_icon_circle, _lv_theme_style_obj_main_default, (lv_state_t)(LV_PART_MAIN));
-  lv_obj_add_style(tile1_icon_circle, _lv_theme_style_obj_main_pressed, (lv_state_t)(LV_STATE_PRESSED));
-  lv_obj_add_style(tile1_icon_circle, style_icon_circle, (lv_state_t)(LV_PART_MAIN));
-  lv_obj_set_style_height(tile1_icon_circle, 81, LV_PART_MAIN);
-  lv_obj_set_style_width(tile1_icon_circle, 81, LV_PART_MAIN);
-  lv_obj_remove_flag(tile1_icon_circle, (lv_obj_flag_t)(LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE));
-  lv_obj_set_scrollbar_mode(tile1_icon_circle, LV_SCROLLBAR_MODE_OFF);
-
-   tile1_icon_lbl = lv_label_create(tile1_icon_circle);
-  lv_obj_set_style_align(tile1_icon_lbl, LV_ALIGN_CENTER, LV_PART_MAIN);
-  lv_obj_set_style_text_font(tile1_icon_lbl, materialdesign_icons, LV_PART_MAIN);
-  lv_obj_remove_flag(tile1_icon_lbl, (lv_obj_flag_t)(LV_OBJ_FLAG_CLICKABLE));
-  lv_label_set_text(tile1_icon_lbl, "\363\260\200\252");
-
-   t1_title = lv_label_create(tile1);
-  lv_obj_add_style(t1_title, style_title, (lv_state_t)(LV_PART_MAIN));
-  lv_obj_remove_flag(t1_title, (lv_obj_flag_t)(LV_OBJ_FLAG_CLICKABLE));
-  lv_label_set_text(t1_title, "Tile 1");
-
-   t1_value = lv_label_create(tile1);
-  lv_obj_add_style(t1_value, style_value, (lv_state_t)(LV_PART_MAIN));
-  lv_obj_remove_flag(t1_value, (lv_obj_flag_t)(LV_OBJ_FLAG_CLICKABLE));
-  lv_label_set_text(t1_value, "\342\200\224");
-
-
-runtime_tiles::bind(index, tile1, t1_title, t1_value, tile1_icon_circle, tile1_icon_lbl);
+static void setup_firmware_cells() {
+runtime_tiles::card_look = {style_tile, style_icon_circle, style_title, style_value};
+runtime_tiles::make_cells(materialdesign_icons, 81);
 }
 static void bind_firmware_ui() {
 theme::paints = []() {

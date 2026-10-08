@@ -72,6 +72,43 @@ the grid the screen runs on, in the four card styles of `packages/core.yaml` and
 and `make_card` builds the cards of a kept page the same way. Before, they were YAML widgets, one file per number of
 cells under `packages/cells/`, which tied a screen to the grid it was built with.
 
+## The grid a screen is given
+
+A board states the grid a screen starts with (`GRID_COLS` x `GRID_ROWS` lying down, the `_PORTRAIT` pair standing up).
+Since firmware 0.53.0 (app 0.4.85) that is only where it starts: the owner chooses columns and rows beside the mockup in
+the editor, and the screen keeps what it was given. Nothing is built for it.
+
+- **The range.** A screen takes from one column and one row up to as many as its glass holds at the look's smallest
+  cell, `GRID_CELL_MIN_W_MM` x `GRID_CELL_MIN_H_MM` (20 x 8 mm in the standard look, 15 x 6.5 mm in the compact one),
+  and never more than nine either way. `packages/looks/shared/grid.yaml` works that out as `GRID_MAX_COLUMNS` and
+  `GRID_MAX_ROWS` (and their `_PORTRAIT` twins) from the tile area: the canvas less the margins, the top bar and the
+  page bar. The smallest cell is wide on purpose: a grid too fine to read well is the owner's to see and to change back,
+  not the firmware's to forbid. Every value there comes from the board, its look or the file itself, because ESPHome
+  works a board's substitutions out before `packages/core.yaml` joins (`tests/test_layout.py` keeps that true).
+- **An override moves it.** A screen's own YAML may state `GRID_MAX_ROWS`, `GRID_MIN_COLUMNS` or a smaller
+  `GRID_CELL_MIN_H_MM` (docs/EASY_SETUP.md, "Hardware-specific YAML overrides"); the firmware sizes its tables for the
+  most it allows (`runtime_model.h`, `GRID_RANGES` and `CELLS_MAX`).
+- **The screen says what it takes.** Every answer to ESP Screens carries `grids`: for lying down and standing up the
+  grid it keeps and its least and most, and which way it hangs now. ESP Screens keeps the last ones it heard
+  (`page_capabilities`), so a grid can be chosen while the screen is offline and goes out when it is back.
+- **The grid travels with the layout.** The saved layout keeps the grid it is counted on (`sourceGrid`), and a screen
+  that takes another gets it in `begin` (`"grid": [columns, rows]`). The screen changes to it before the tiles come:
+  every card goes, the kept pages' too, as each was measured in a cell of the old grid, and the cards of the new grid
+  are made (`runtime_tiles::regrid`), all under the loading screen the layout brings. It keeps the grid in its
+  preferences for the next start and reports it in the Screen layout sensor at once. A grid the way its glass hangs
+  does not take is refused whole (`Error: grid`), and ESP Screens says so before it sends anything.
+- **The cards cost what the grid shows.** `make_cells` makes the cards of the grid in use, not of the most. The table
+  of cards is sized for the most cells (about 700 bytes a cell); a board with PSRAM keeps it there, as it keeps the kept
+  pages' sets, so a wide range takes nothing from the memory inside the chip.
+- **A smaller grid moves tiles on, never out.** The editor lays the draft out on the new grid at once (`adaptGrid` in
+  `web/src/model/pages.ts`): every tile keeps its page and, where the new grid still has it free, its place; a tile
+  keeps its size where the grid takes it, else the largest part of it the grid holds. What no longer fits on its page
+  moves, in reading order, to a new page right after it with the same top bar, so a page's tiles stay together. A change
+  that needs more pages than the screen takes is refused before anything changes, with the number it would need. Going
+  back to the old grid does not merge the added pages again: that is the owner's to do.
+- **Firmware before 0.53.0** says no `grids`: it keeps the grid it was built with, the editor says to update it, and
+  ESP Screens counts its layout on the grid it reports, as before.
+
 ## One set of fonts
 
 Every board builds the same fifteen fonts, by id (firmware 0.17.0+): four text steps and the large value (`sublabel`,
@@ -99,7 +136,8 @@ shows as a box on the screen, so a new one goes into all five lists and `GLYPHS`
   and the Guition the scale is exactly 100.
 - `ui::large()`: the class of cards and pages is the look's, never a cell's momentary height. (A class
   that flipped when the rows grew reused a clock's numeral labels as tick lines: the lab's crash.)
-- `GRID_COLS`/`GRID_ROWS` reach the C++ as build flags; `SLOTS_PER_PAGE` follows. Every grid has all of a
+- `GRID_COLS`/`GRID_ROWS` reach the C++ as build flags, with the range a screen may be given (`GRID_MIN_*`,
+  `GRID_MAX_*`); the grid in use is `runtime_tiles::grid`, the board's or the one ESP Screens gave it. Every grid has all of a
   screen's pages (firmware 0.18.0+): eight and 64 tiles over them, or what a board with PSRAM states as
   `SCREEN_MAX_PAGES` and `SCREEN_MAX_TILES` (firmware 0.34.0+, [TILE_MEMORY.md](TILE_MEMORY.md)), so a page need not
   be full; before, the pages were capped at as many as 64 tiles fill (seven of nine, four of sixteen), and a grid
@@ -277,7 +315,9 @@ render says it is worth looking at.
 ## What the screen tells the add-on
 
 A screen reports two diagnostic sensors (firmware 0.2.80+): **Screen layout**, `800x480 3x3 217dpi standard`
-(the canvas after rotation, the grid, the density, the look), and **Screen board**, the key of its board file.
+(the canvas after rotation, the grid, the density, the look), and **Screen board**, the key of its board file. Since
+firmware 0.53.0 its answers also carry the grids it takes ("The grid a screen is given" above), and the grid of its saved
+layout is the one it runs on once that layout reached it.
 The add-on (`core.shape_of`, `core.grid_of`) takes what the screen says first, then the board the screen's
 profile YAML builds from (`screen_manager/app/boards.json`, written from the board files by
 `tools/generate_board_shapes.py`), and the smallest screen there is when it knows nothing. Firmware from

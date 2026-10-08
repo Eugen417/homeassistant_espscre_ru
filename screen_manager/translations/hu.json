@@ -781,7 +781,8 @@
         "save_first": "A dokumentumbeállítások mentése előtt mentsd az oldaldokumentumot",
         "destination_exists": "A célkijelzőnek már van mentett elrendezése",
         "update_tall": "Ezekhez a csempeméretekhez frissítsd a kijelzőt",
-        "memory": "A kijelzőn nincs elég szabad memória ehhez az elrendezéshez. Csökkentsd a csempék számát."
+        "memory": "A kijelzőn nincs elég szabad memória ehhez az elrendezéshez. Csökkentsd a csempék számát.",
+        "grid_range": "Ez a kijelző nem fogad el ekkora rácsot. Válassz másik rácsot az előnézet mellett."
       },
       "feedback": {
         "invalid": "Ez a válasz nem osztható meg. Válaszd az igent vagy a nem egészent, és csak a felsorolt problémákat.",
@@ -2897,7 +2898,7 @@
       "history_empty": "Nincsenek rögzített előzmények",
       "grid_changed": "A kijelző rácsa megváltozott. Mentés vagy küldés előtt nézd át a csempék pozícióit.",
       "grid_review": "Rácsigazítás áttekintése",
-      "grid_review_hint": "Hasonlítsd össze a bal oldali mentett pozíciókat a jobb oldali javasolt pozíciókkal. Minden csempe az eredeti oldalán marad. Mentésig semmi sem lesz elküldve.",
+      "grid_review_hint": "Hasonlítsd össze a bal oldali mentett pozíciókat a jobb oldali javasolt pozíciókkal. A már nem férő csempék egy új oldalra kerülnek közvetlenül a saját oldaluk után. Mentésig semmi sem lesz elküldve.",
       "grid_accept": "Ezek a pozíciók legyenek",
       "selected_full": "Ez az oldal megtelt. Jelölj ki egy üres cellát egy másik oldalon.",
       "choose_page": "Oldal",
@@ -3089,6 +3090,20 @@
       "plugins": "Fordítás a bővítményeivel",
       "install": "Telepítés",
       "failed": "{screen} legutóbbi fordítása nem sikerült. A napló megmondja, miért."
+    },
+    "grid": {
+      "title": "Rács",
+      "columns": "Oszlopok",
+      "rows": "Sorok",
+      "columns_less": "Kevesebb oszlop",
+      "columns_more": "Több oszlop",
+      "rows_less": "Kevesebb sor",
+      "rows_more": "Több sor",
+      "hint": "Az oldalra már nem férő csempék egy új oldalra kerülnek közvetlenül utána. A kijelző mentéskor kapja meg az új rácsot.",
+      "update_first": "Frissítsd ezt a kijelzőt, hogy itt választhasd ki a rácsát.",
+      "pages_added": "1 oldal hozzáadva a már nem férő csempéknek | {n} oldal hozzáadva a már nem férő csempéknek",
+      "new_page": "Új oldal annak, ami már nem fért el",
+      "too_many_pages": "{grid} rácson ezekhez a csempékhez {needed} oldal kell, ez a kijelző pedig {most} oldalt fogad el. Távolíts el csempéket vagy válassz másik rácsot; semmi sem változott."
     }
   }
 }

@@ -781,7 +781,8 @@
         "save_first": "Guarda a disposição das páginas antes de guardar as definições",
         "destination_exists": "O ecrã de destino já tem uma disposição guardada",
         "update_tall": "Atualiza o ecrã para usar estes tamanhos de cartão",
-        "memory": "O ecrã não tem memória livre suficiente para esta disposição. Use menos blocos."
+        "memory": "O ecrã não tem memória livre suficiente para esta disposição. Use menos blocos.",
+        "grid_range": "Este ecrã não aceita uma grelha deste tamanho. Escolha outra grelha ao lado da pré-visualização."
       },
       "feedback": {
         "invalid": "Esta resposta não pode ser partilhada. Escolha sim ou não totalmente, e apenas os problemas indicados.",
@@ -2897,7 +2898,7 @@
       "history_empty": "Sem histórico registado",
       "grid_changed": "A grelha do ecrã mudou. Reveja as posições antes de guardar ou enviar.",
       "grid_review": "Rever adaptação da grelha",
-      "grid_review_hint": "Compare as posições guardadas à esquerda com as propostas à direita. Cada cartão permanece na sua página. Nada é enviado até guardar.",
+      "grid_review_hint": "Compare as posições guardadas à esquerda com as propostas à direita. Os cartões que já não cabem passam para uma página nova logo a seguir à sua. Nada é enviado até guardar.",
       "grid_accept": "Usar estas posições",
       "selected_full": "Esta página está cheia. Selecione uma célula vazia noutra página.",
       "choose_page": "Página",
@@ -3089,6 +3090,20 @@
       "plugins": "A compilar com os seus plugins",
       "install": "A instalar",
       "failed": "A última compilação de {screen} falhou. O registo diz porquê."
+    },
+    "grid": {
+      "title": "Grelha",
+      "columns": "Colunas",
+      "rows": "Linhas",
+      "columns_less": "Menos colunas",
+      "columns_more": "Mais colunas",
+      "rows_less": "Menos linhas",
+      "rows_more": "Mais linhas",
+      "hint": "Os cartões que já não cabem numa página passam para uma página nova logo a seguir. O ecrã recebe a nova grelha quando guardar.",
+      "update_first": "Atualize este ecrã para escolher aqui a sua grelha.",
+      "pages_added": "1 página adicionada para os cartões que já não cabiam | {n} páginas adicionadas para os cartões que já não cabiam",
+      "new_page": "Página nova para o que já não cabia",
+      "too_many_pages": "Em {grid} estes cartões precisam de {needed} páginas, e este ecrã aceita {most}. Retire cartões ou escolha outra grelha; nada foi alterado."
     }
   }
 }

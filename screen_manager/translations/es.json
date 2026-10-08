@@ -781,7 +781,8 @@
         "save_first": "Guarda la distribución de páginas antes de guardar sus ajustes",
         "destination_exists": "La pantalla de destino ya tiene una distribución guardada",
         "update_tall": "Actualiza la pantalla para usar estos tamaños de tarjeta",
-        "memory": "La pantalla no tiene suficiente memoria libre para este diseño. Usa menos tarjetas."
+        "memory": "La pantalla no tiene suficiente memoria libre para este diseño. Usa menos tarjetas.",
+        "grid_range": "Esta pantalla no admite una cuadrícula de ese tamaño. Elige otra cuadrícula junto a la vista previa."
       },
       "feedback": {
         "invalid": "Esta respuesta no se puede compartir. Elige sí o no del todo, y solo los problemas indicados.",
@@ -2897,7 +2898,7 @@
       "history_empty": "No hay historial registrado",
       "grid_changed": "La cuadrícula ha cambiado. Revisa las posiciones antes de guardar o enviar.",
       "grid_review": "Revisar adaptación de la cuadrícula",
-      "grid_review_hint": "Compara las posiciones guardadas a la izquierda con las propuestas a la derecha. Cada tarjeta permanece en su página. No se envía nada hasta guardar.",
+      "grid_review_hint": "Compara las posiciones guardadas a la izquierda con las propuestas a la derecha. Las tarjetas que ya no caben pasan a una página nueva justo después de la suya. No se envía nada hasta guardar.",
       "grid_accept": "Usar estas posiciones",
       "selected_full": "Esta página está llena. Selecciona una celda vacía en otra página.",
       "choose_page": "Página",
@@ -3089,6 +3090,20 @@
       "plugins": "Compilando con sus plugins",
       "install": "Instalando",
       "failed": "La última compilación de {screen} falló. El registro dice por qué."
+    },
+    "grid": {
+      "title": "Cuadrícula",
+      "columns": "Columnas",
+      "rows": "Filas",
+      "columns_less": "Menos columnas",
+      "columns_more": "Más columnas",
+      "rows_less": "Menos filas",
+      "rows_more": "Más filas",
+      "hint": "Las tarjetas que ya no caben en una página pasan a una página nueva justo después. La pantalla recibe la nueva cuadrícula al guardar.",
+      "update_first": "Actualiza esta pantalla para elegir aquí su cuadrícula.",
+      "pages_added": "1 página añadida para las tarjetas que ya no cabían | {n} páginas añadidas para las tarjetas que ya no cabían",
+      "new_page": "Página nueva para lo que ya no cabía",
+      "too_many_pages": "En {grid} estas tarjetas necesitan {needed} páginas, y esta pantalla admite {most}. Quita tarjetas o elige otra cuadrícula; no se ha cambiado nada."
     }
   }
 }

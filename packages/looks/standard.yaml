@@ -10,9 +10,14 @@
 # files of a screen fit together.
 packages:
   digits: !include shared/digits.yaml
+  grid: !include shared/grid.yaml
 
 substitutions:
   LOOK: "standard"
+  # The smallest cell ESP Screens may give a screen of this look (looks/shared/grid.yaml): two lines of a tile's text and
+  # a finger's width of name, the least that still reads as a card.
+  GRID_CELL_MIN_W_MM: "20"
+  GRID_CELL_MIN_H_MM: "8"
   LOOK_SCALE: ${ (DISPLAY_DPI | float) / 170 }
 
   # The page: the strip whose hold opens the settings (the top bar and where the tiles start follow the fonts below)

@@ -781,7 +781,8 @@
         "save_first": "Zapisz układ stron przed zapisaniem ustawień",
         "destination_exists": "Ekran docelowy ma już zapisany układ",
         "update_tall": "Zaktualizuj ekran, aby używać tych rozmiarów kafelków",
-        "memory": "Ekran nie ma wystarczającej ilości wolnej pamięci dla tego układu. Użyj mniejszej liczby kafelków."
+        "memory": "Ekran nie ma wystarczającej ilości wolnej pamięci dla tego układu. Użyj mniejszej liczby kafelków.",
+        "grid_range": "Ten ekran nie przyjmuje siatki tej wielkości. Wybierz inną siatkę obok podglądu."
       },
       "feedback": {
         "invalid": "Tej odpowiedzi nie można udostępnić. Wybierz tak lub nie do końca i tylko wymienione problemy.",
@@ -2897,7 +2898,7 @@
       "history_empty": "Brak zapisanej historii",
       "grid_changed": "Siatka ekranu się zmieniła. Sprawdź pozycje kafelków przed zapisem lub wysłaniem.",
       "grid_review": "Sprawdź dostosowanie siatki",
-      "grid_review_hint": "Porównaj zapisane pozycje po lewej z proponowanymi po prawej. Każdy kafelek pozostaje na swojej stronie. Nic nie zostanie wysłane przed zapisem.",
+      "grid_review_hint": "Porównaj zapisane pozycje po lewej z proponowanymi po prawej. Kafelki, które się nie mieszczą, przechodzą na nową stronę zaraz za swoją. Nic nie zostanie wysłane przed zapisem.",
       "grid_accept": "Użyj tych pozycji",
       "selected_full": "Ta strona jest pełna. Wybierz pustą komórkę na innej stronie.",
       "choose_page": "Strona",
@@ -3089,6 +3090,20 @@
       "plugins": "Kompiluje z wtyczkami",
       "install": "Instaluje",
       "failed": "Ostatnia kompilacja {screen} się nie powiodła. Dziennik mówi dlaczego."
+    },
+    "grid": {
+      "title": "Siatka",
+      "columns": "Kolumny",
+      "rows": "Wiersze",
+      "columns_less": "Mniej kolumn",
+      "columns_more": "Więcej kolumn",
+      "rows_less": "Mniej wierszy",
+      "rows_more": "Więcej wierszy",
+      "hint": "Kafelki, które nie mieszczą się już na stronie, przechodzą na nową stronę zaraz za nią. Ekran dostaje nową siatkę po zapisaniu.",
+      "update_first": "Zaktualizuj ten ekran, aby wybrać tu jego siatkę.",
+      "pages_added": "Dodano 1 stronę na kafelki, które się nie mieściły | Dodano {n} strony na kafelki, które się nie mieściły | Dodano {n} stron na kafelki, które się nie mieściły",
+      "new_page": "Nowa strona na to, co się nie zmieściło",
+      "too_many_pages": "Na siatce {grid} te kafelki potrzebują {needed} stron, a ten ekran przyjmuje {most}. Usuń kafelki lub wybierz inną siatkę; nic nie zostało zmienione."
     }
   }
 }

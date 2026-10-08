@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { i18n, loadLanguage } from '../src/i18n';
-import type { PageGrid, PageLayout, PageTile } from "../src/types";
+import type { Page, PageGrid, PageLayout, PageTile } from "../src/types";
 import { arrangeTiles, changePages, clone, connections, deletePage, duplicatePage, emptyLayout, emptyPage,
   adaptGrid, initialPositions, instanceId, navigationFooter, navigationStep, navigationTarget, pagination, projectLayout, reachability, remapLayout, reorderPage, replaceBar, sequentialTarget, setBarItems, validatePages } from "../src/model/pages";
 
@@ -56,13 +56,32 @@ describe("page-owned document operations", () => {
     expect(source.pages[0]).toEqual(before.pages[0]);
     expect(adapted.pages[1].navigation.excludeFromPagination).toBe(true);
   });
-  it('refuses a grid adaptation that would lose tiles, and keeps every page on any grid', () => {
+  it('moves what no longer fits on a page to a new page right after it, and never drops a tile (app 0.4.85)', () => {
     const layout = emptyLayout('Full page');
     const full = arrangeTiles(layout, grid, Array.from({ length: 6 }, (_, slot) => ({ tile: { entity: `sensor.a${slot}`, name: '', slot }, slot })));
-    expect(() => adaptGrid(full, grid, { columns: 1, rows: 4 })).toThrow('No tiles were removed');
+    full.pages[0].topbar.title = { source: 'text', text: 'Kitchen' };
+    const adapted = adaptGrid(full, grid, { columns: 1, rows: 4 });
+    expect(adapted.pages).toHaveLength(2);
+    expect(adapted.pages[0].id).toBe(full.pages[0].id);
+    expect(adapted.homePageId).toBe(full.homePageId);
+    // The tiles that still stand where they stood keep their place; the rest follow in reading order.
+    const entities = (page: Page) => page.tiles.map((tile) => tile.content.kind === 'entity' ? tile.content.entityId : '');
+    expect(entities(adapted.pages[0])).toEqual(['sensor.a0', 'sensor.a2', 'sensor.a4', 'sensor.a1']);
+    expect(entities(adapted.pages[1])).toEqual(['sensor.a3', 'sensor.a5']);
+    expect(adapted.pages[1].topbar.title).toEqual({ source: 'text', text: 'Kitchen' });
+    expect(adapted.pages[1].navigation.excludeFromPagination).toBe(false);
+    expect(adapted.pages.flatMap((page) => page.tiles)).toHaveLength(6);
+    // Back to the old grid keeps both pages: an added page stays where it is.
+    expect(adaptGrid(adapted, { columns: 1, rows: 4 }, grid).pages).toHaveLength(2);
+  });
+  it('keeps every page on any grid, and refuses a change that needs more pages than the screen takes', () => {
     // Every grid has eight pages (firmware 0.18.0+), so a grid of nine cells keeps all eight.
     const eight = fixture(); while (eight.pages.length < 8) eight.pages.push(emptyPage());
     expect(adaptGrid(eight, grid, { columns: 3, rows: 3 }).pages).toHaveLength(8);
+    const layout = emptyLayout('Two pages');
+    const full = arrangeTiles(layout, grid, Array.from({ length: 6 }, (_, slot) => ({ tile: { entity: `sensor.b${slot}`, name: '', slot }, slot })));
+    expect(() => adaptGrid(full, grid, { columns: 1, rows: 1, pages: 4 })).toThrow('need 6 pages, and this screen takes 4');
+    expect(adaptGrid(full, grid, { columns: 1, rows: 1, pages: 6 }).pages).toHaveLength(6);
   });
   it('copies items without renaming pages, and whole bars only when explicitly chosen', () => {
     const layout = fixture(), [first, second, third] = layout.pages;
@@ -144,7 +163,11 @@ describe("page-owned document operations", () => {
     expect(arrangeTiles(layout, grid, projection.tiles.map((tile) => ({ tile, slot: tile.slot })))).toEqual(layout);
     const adapted = adaptGrid(layout, grid, { columns: 3, rows: 3 });
     expect(adapted.pages[1].tiles[0].placement).toEqual(layout.pages[1].tiles[0].placement);
-    expect(() => adaptGrid(layout, grid, { columns: 1, rows: 3 })).toThrow();
+    // On one column the square takes the largest part of it the grid holds: one cell across, two down.
+    const narrow = adaptGrid(layout, grid, { columns: 1, rows: 3 });
+    const square = narrow.pages.flatMap((page) => page.tiles).find((tile) => tile.content.kind === 'entity' && tile.content.entityId === 'climate.square')!;
+    expect(square.appearance.presentation).toBe('tall');
+    expect(square.placement).toMatchObject({ rows: 2, columns: 1 });
   });
 
   it("keeps page IDs, bars, Home and destinations when reordering", () => {

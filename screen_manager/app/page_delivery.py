@@ -161,6 +161,40 @@ def plugins_of(answer):
     return api, plugins
 
 
+GRID_WAYS = ("landscape", "portrait")
+
+
+def grids_of(answer):
+    """The grids a screen takes, each way its glass hangs, the one it keeps for each, and which way it hangs now (firmware
+    0.53.0+): {"upright": bool, "landscape": {"columns", "rows", "min": [c, r], "max": [c, r]}, "portrait": {...}}. None
+    for a screen that says nothing: its grid is the one it was built with, and no other can be sent to it."""
+    grids = answer.get("grids") if isinstance(answer, dict) else None
+    if not isinstance(grids, dict) or type(grids.get("upright")) is not bool:
+        return None
+    digit = lambda n: type(n) is int and 1 <= n <= 9  # noqa: E731 (a size goes as "CxR", one digit each)
+    out = {"upright": grids["upright"]}
+    for way in GRID_WAYS:
+        grid = grids.get(way)
+        if not isinstance(grid, dict):
+            return None
+        least, most = grid.get("min"), grid.get("max")
+        if not all(isinstance(pair, list) and len(pair) == 2 and all(digit(n) for n in pair) for pair in (least, most)):
+            return None
+        if not (digit(grid.get("columns")) and digit(grid.get("rows")) and least[0] <= grid["columns"] <= most[0]
+                and least[1] <= grid["rows"] <= most[1]):
+            return None
+        out[way] = {"columns": grid["columns"], "rows": grid["rows"], "min": list(least), "max": list(most)}
+    return out
+
+
+def grid_takes(grids, way, columns, rows):
+    """Whether a screen's grids (grids_of) take columns x rows the way named ("landscape" or "portrait")."""
+    if not grids or way not in GRID_WAYS:
+        return False
+    least, most = grids[way]["min"], grids[way]["max"]
+    return least[0] <= columns <= most[0] and least[1] <= rows <= most[1]
+
+
 def ceiling_of(value, most):
     """A ceiling from a hello (firmware 0.34.0+): a whole number from 1 to `most`, or None for anything else."""
     return value if type(value) is int and 1 <= value <= most else None
@@ -221,6 +255,9 @@ class Sender:
         # for editing while it is offline (page_capabilities keeps them across restarts of the app).
         self.max_tiles = self.max_pages = self.max_bar_items = self.memory = None
         self.last_max_tiles = self.last_max_pages = self.last_max_bar_items = self.last_memory = None
+        # The grids it takes and keeps (firmware 0.53.0+, grids_of): None while it has not said, and the last it said for
+        # editing while it is offline (page_capabilities keeps them across restarts of the app).
+        self.grids = self.last_grids = None
         self.structure, self.appearance = None, None
 
     def disconnected(self):
@@ -235,6 +272,7 @@ class Sender:
         self.features = set()
         self.plugin_api, self.plugins = None, []
         self.max_tiles = self.max_pages = self.max_bar_items = self.memory = None
+        self.grids = None
         self.structure, self.appearance = None, None
         self.phase = "waiting"
         self.failed_revision = self.failure = None
@@ -288,13 +326,14 @@ class Sender:
         raise DeliveryError("The running screen's protocol could not be verified")
 
     def heard(self, answer):
-        """The memory figures of a hello or a ping, kept as the last ones too. Both come from the running firmware, so an
-        answer without them means a firmware that keeps no budget (a screen flashed back to an older release): the figures
-        of the firmware before it go, as its ceilings do in the hello. While the screen is still measuring (no room yet,
-        firmware 0.51.0) the last figures it measured stay the last ones."""
+        """The memory figures and the grids of a hello or a ping, kept as the last ones too. Both come from the running
+        firmware, so an answer without them means a firmware that keeps no budget or no choice of grid (a screen flashed
+        back to an older release): the figures of the firmware before it go, as its ceilings do in the hello. While the
+        screen is still measuring (no room yet, firmware 0.51.0) the last figures it measured stay the last ones."""
         self.memory = memory_of(answer)
         if self.memory is None or self.memory["room"] is not None:
             self.last_memory = self.memory
+        self.grids = self.last_grids = grids_of(answer)
 
     async def probe(self, empty=False):
         async with self.lock:
@@ -386,6 +425,14 @@ class Sender:
                     most_items = self.max_bar_items or FIRMWARE_MAX_BAR_ITEMS
                     if any(len(items) > most_items for items in bars):
                         raise Refused(english('addon.errors.top_bar.full', n=most_items))
+                    # The grid the layout is counted on, to a screen that takes another (firmware 0.53.0+): it changes to it
+                    # under its loading screen before the tiles come. One its glass does not take is the editor's to fix.
+                    if self.grids is not None:
+                        source = record["sourceGrid"]
+                        way = "portrait" if self.grids["upright"] else "landscape"
+                        if not grid_takes(self.grids, way, source["columns"], source["rows"]):
+                            raise Refused(english('addon.errors.pages.grid_range'))
+                        begin = {**begin, "grid": [source["columns"], source["rows"]]}
                     current()
                     answer = await self._packet(begin, revision)
                     self.revision = revision
@@ -398,6 +445,10 @@ class Sender:
                         current()
                     if not answer.get("applied"):
                         raise DeliveryError("The complete page configuration was not activated")
+                    # What the screen keeps now: the grid it was just given (every answer says its grids; the memory
+                    # figures only a hello's or a ping's, so this is not heard()).
+                    if grids_of(answer) is not None:
+                        self.grids = self.last_grids = grids_of(answer)
                     # A resumed active revision still needs the latest values.
                     self.values, self.bars = [], []
                 for i, message in enumerate(live_values):

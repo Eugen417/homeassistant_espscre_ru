@@ -20,7 +20,7 @@ def preflight_update(manager, inbox):
     if record is None: return  # A newly installed screen has no saved layout yet.
     if record['format'] != PAGE_FORMAT:
         raise LayoutError(t('addon.errors.pages.migration_pending'))
-    grid = manager.verified_grid(inbox)
+    grid = manager.record_grid(inbox, record)
     if grid is None or grid != grid_of_record(record):
         raise LayoutError(t('addon.errors.pages.adaptation'))
     validate_document(record['layout'], grid)
@@ -53,10 +53,15 @@ def save_pages(manager, inbox, data):
     screen = manager.screen(inbox)
     if screen is None: raise LayoutError(t('addon.errors.not_paired'))
     previous = manager.store.get(inbox)
-    grid = manager.verified_grid(inbox) or (screen_grid_of_record(previous) if previous and previous['format'] == PAGE_FORMAT else None)
+    grid = manager.record_grid(inbox, previous) or (screen_grid_of_record(previous) if previous and previous['format'] == PAGE_FORMAT else None)
     if grid is None: raise LayoutError(t('addon.errors.pages.source_grid'))
     adaptation = data.get('adaptation')
     if adaptation is not None:
+        # A screen that takes another grid (firmware 0.53.0+) takes any its glass holds now: the editor's own choice of
+        # columns and rows, which the layout carries to the screen. Any other screen only follows its own grid.
+        chosen = manager.chosen_grid(inbox, data)
+        if chosen is not None:
+            grid = chosen
         expected = {'from': previous.get('sourceGrid') if previous else None, 'to': {'columns': grid.columns, 'rows': grid.rows}}
         if not previous or previous['format'] != PAGE_FORMAT or adaptation != expected or manager.verified_grid(inbox) is None:
             raise LayoutError(t('addon.errors.pages.adaptation'))
@@ -117,7 +122,7 @@ def save_pages(manager, inbox, data):
     # durable save. Delivery checks the full refreshed state again because
     # forecasts, history and HA attributes can change independently.
     manager.preflight_pages(inbox, candidate)
-    record = manager.store.save(inbox, document, data.get('revision'), data.get('workspace'), adapt_grid=adaptation is not None)
+    record = manager.store.save(inbox, document, data.get('revision'), data.get('workspace'), adapt_grid=adaptation is not None, grid=grid)
     manager.sent.pop(inbox, None)
     manager.status[inbox] = 'Saved, waiting for screen'
     manager.history_wake.set()
@@ -133,6 +138,10 @@ def grow_record(manager, inbox, record):
     grid = manager.reported_grid(inbox)
     if grid is None or grid == grid_of_record(record):
         return record
+    # A screen that takes the layout's grid is given it (firmware 0.53.0+): what it reports now is only what it had.
+    source = record['sourceGrid']
+    if manager.takes_grid(inbox, source['columns'], source['rows']) is not None:
+        return record
     try:
         layout = grown(record['layout'], grid_of_record(record), grid)
         if layout is None: return record
@@ -146,7 +155,7 @@ def grow_record(manager, inbox, record):
 
 async def sync_pages(manager, inbox, record, screen, dirty=None, force=False, context=None):
     record = grow_record(manager, inbox, record)
-    grid = manager.verified_grid(inbox)
+    grid = manager.record_grid(inbox, record)
     if grid is None or grid != grid_of_record(record):
         manager.status[inbox] = english('addon.errors.pages.adaptation')
         return False

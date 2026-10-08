@@ -1,5 +1,12 @@
 ## Unreleased
 
+- **Choose a screen's columns and rows in the editor.** Beside the pages, the grid button shows the screen's columns and
+  rows and changes them, from one by one up to as many as its glass holds, without a new build. The layout follows at
+  once: tiles that no longer fit on a page move on to a new page right after it, and none is ever dropped. The screen
+  gets its new grid with the next save, under its loading screen, and keeps it. A change made while the screen is offline
+  waits for it. Needs this firmware on the screen; an Override YAML can widen the range (`GRID_MAX_ROWS` and more).
+- **A plugin's tap action on a tile no longer blocks the editor.** A tile set to a plugin's action made every later edit
+  of that screen fail with "Invalid or unsupported page configuration fields".
 - **A save shows a loading screen, then the new layout.** When you save in the editor, the screen now covers itself
   with the loading screen while the new tiles arrive and its pages are prepared, and then shows the finished layout in
   one step. Before, the new tiles appeared one by one over the loading text and the page flickered.
