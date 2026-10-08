@@ -2940,11 +2940,18 @@
         "hardware": "Hardware",
         "behaviour": "Feature"
       },
+      "stage": {
+        "beta": "Beta",
+        "example": "Example"
+      },
+      "stage_hint": {
+        "beta": "Beta: it works, but it is still finding its feet. Tell the maker how it goes.",
+        "example": "An example: made to show what a plugin can do. Try it, and read its code to make your own."
+      },
       "attribute": {
         "cloud": "Uses a cloud service",
         "commercial": "Commercial",
-        "ai-developed": "Made with AI",
-        "experimental": "Experimental"
+        "ai-developed": "Made with AI"
       },
       "test_note": "A test: every build takes the newest version, and Tessera offers no updates for it.",
       "remove": "Remove from {screen}",

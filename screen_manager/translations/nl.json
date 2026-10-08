@@ -2940,11 +2940,18 @@
         "hardware": "Hardware",
         "behaviour": "Functie"
       },
+      "stage": {
+        "beta": "Beta",
+        "example": "Voorbeeld"
+      },
+      "stage_hint": {
+        "beta": "Beta: het werkt, maar is nog in ontwikkeling. Laat de maker weten hoe het gaat.",
+        "example": "Een voorbeeld: gemaakt om te laten zien wat een plugin kan. Probeer het, en lees de code om je eigen plugin te maken."
+      },
       "attribute": {
         "cloud": "Gebruikt een clouddienst",
         "commercial": "Commercieel",
-        "ai-developed": "Gemaakt met AI",
-        "experimental": "Experimenteel"
+        "ai-developed": "Gemaakt met AI"
       },
       "test_note": "Een test: elke build neemt de nieuwste versie, en Tessera biedt er geen updates voor aan.",
       "remove": "Verwijderen van {screen}",

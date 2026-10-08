@@ -1673,11 +1673,18 @@
         "hardware": "Hardver",
         "behaviour": "Funkció"
       },
+      "stage": {
+        "beta": "Béta",
+        "example": "Példa"
+      },
+      "stage_hint": {
+        "beta": "Béta: működik, de még csiszolják. Írd meg a készítőnek, hogy megy.",
+        "example": "Egy példa: azt mutatja meg, mire képes egy bővítmény. Próbáld ki, és olvasd el a kódját, hogy elkészítsd a sajátodat."
+      },
       "attribute": {
         "cloud": "Felhőszolgáltatást használ",
         "commercial": "Kereskedelmi",
-        "ai-developed": "MI-vel készült",
-        "experimental": "Kísérleti"
+        "ai-developed": "MI-vel készült"
       },
       "test_note": "Teszt: minden fordítás a legújabb verziót veszi, és a Tessera nem kínál hozzá frissítést.",
       "remove": "Eltávolítás innen: {screen}",

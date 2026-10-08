@@ -147,7 +147,8 @@ export const updatesOn = (screen: Screen) => plugins.index.filter((plugin) => ha
 export function tilesOn(screen: Screen | undefined) {
   if (!screen || screen.virtual) return [];
   return plugins.index.filter((plugin) => installedOn(screen, plugin.id)).flatMap((plugin) =>
-    (plugin.tiles || []).map((tile) => ({ id: pluginTileId(plugin.id, tile.id), name: text(tile.name), plugin: text(plugin.name), tile: true })));
+    (plugin.tiles || []).map((tile) => ({ id: pluginTileId(plugin.id, tile.id), name: text(tile.name), tile: true,
+      plugin: [text(plugin.name), stageOf(plugin) && t(`editor.plugins.stage.${stageOf(plugin)}`)].filter(Boolean).join(" · ") })));
 }
 // A screen built from its own YAML (in ESPHome Device Builder, with no profile in Tessera): the add-on cannot add a
 // plugin to it, so the page shows the lines to paste instead.
@@ -206,6 +207,9 @@ export const allTests = () => {
 // Tessera's own, someone else's from the index, or a test the screen runs from a branch, a folder or a link.
 export const labelOf = (plugin: Plugin) => plugin.label
   || (plugin.tessera ? "tessera" : plugins.index.some((p) => p.id === plugin.id) ? "community" : "test");
+// The badge of its stage: beta or example, none for a stable plugin or one under test (its label says that already).
+export const stageOf = (plugin: Plugin): "beta" | "example" | "" =>
+  labelOf(plugin) !== "test" && (plugin.stage === "beta" || plugin.stage === "example") ? plugin.stage : "";
 
 // ---- One line of state: for one screen (its tab), or over all screens (the page) ----
 export type Status = { kind: "installed" | "update" | "building" | "test" | "misfit" | "failed" | ""; label: string };

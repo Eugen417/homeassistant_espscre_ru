@@ -1673,11 +1673,18 @@
         "hardware": "Sprzęt",
         "behaviour": "Funkcja"
       },
+      "stage": {
+        "beta": "Beta",
+        "example": "Przykład"
+      },
+      "stage_hint": {
+        "beta": "Beta: działa, ale wciąż jest dopracowywana. Napisz autorowi, jak działa.",
+        "example": "Przykład: pokazuje, co potrafi wtyczka. Wypróbuj go i przeczytaj kod, aby zrobić własną."
+      },
       "attribute": {
         "cloud": "Korzysta z usługi w chmurze",
         "commercial": "Komercyjna",
-        "ai-developed": "Stworzona z pomocą AI",
-        "experimental": "Eksperymentalna"
+        "ai-developed": "Stworzona z pomocą AI"
       },
       "test_note": "Test: każda kompilacja bierze najnowszą wersję, a Tessera nie oferuje dla niej aktualizacji.",
       "remove": "Usuń z {screen}",

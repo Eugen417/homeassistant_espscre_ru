@@ -1394,6 +1394,8 @@ section.advanced code { font-size: 11.5px; }
 .plugin-chip.tessera { background: var(--accent-soft); color: var(--accent); }
 .plugin-chip.community { background: var(--seg); color: var(--ink-2); }
 .plugin-chip.test { background: var(--warn-soft); color: var(--warn); }
+.plugin-chip.beta { background: var(--warn-soft); color: var(--warn); }
+.plugin-chip.example { background: var(--good-soft); color: var(--good); }
 .plugin-chip.attribute { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line-strong); }
 .plugin-state { margin-left: auto; min-width: 0; overflow: hidden; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; color: var(--muted); white-space: nowrap; }
 .plugin-state .ui-icon { font-size: 15px; }
@@ -1415,6 +1417,7 @@ section.advanced code { font-size: 11.5px; }
 .pd-by { color: var(--muted); font-size: 12.5px; overflow-wrap: anywhere; }
 .pd-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .pd-description { color: var(--ink-2); font-size: 13.5px; line-height: 1.55; }
+.pd-stage { color: var(--muted); font-size: 12.5px; line-height: 1.5; margin-top: -4px; }
 .pd-action { display: grid; gap: 12px; padding: 14px; border-radius: 12px; background: var(--surface-2); }
 .pd-action .btn { height: 36px; font-size: 13px; }
 .pd-buttons { display: flex; flex-wrap: wrap; gap: 8px; }

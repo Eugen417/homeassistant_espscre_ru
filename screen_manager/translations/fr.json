@@ -1673,11 +1673,18 @@
         "hardware": "Matériel",
         "behaviour": "Fonction"
       },
+      "stage": {
+        "beta": "Bêta",
+        "example": "Exemple"
+      },
+      "stage_hint": {
+        "beta": "Bêta : ça marche, mais c’est encore en rodage. Dites à son auteur ce que ça donne.",
+        "example": "Un exemple : fait pour montrer ce qu’un plugin peut faire. Essayez-le, et lisez son code pour créer le vôtre."
+      },
       "attribute": {
         "cloud": "Utilise un service cloud",
         "commercial": "Commercial",
-        "ai-developed": "Créé avec l'IA",
-        "experimental": "Expérimental"
+        "ai-developed": "Créé avec l'IA"
       },
       "test_note": "Un test : chaque compilation prend la version la plus récente, et Tessera ne propose pas de mises à jour pour celui-ci.",
       "remove": "Retirer de {screen}",

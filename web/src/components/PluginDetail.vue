@@ -9,7 +9,7 @@ import { boardTitle } from "../model/boards";
 import { fit, flashShare, headroomKb, inEditorLanguage, text, type Plugin } from "../model/plugins";
 import { glyph } from "../model/topbar";
 import {
-  addPlugin, attachLine, buildingOn, copyAttach, fileOf, hasUpdate, installedOn, isTest, labelOf, markAttached, needsAttach, partsKb,
+  addPlugin, attachLine, buildingOn, copyAttach, fileOf, hasUpdate, installedOn, isTest, labelOf, stageOf, markAttached, needsAttach, partsKb,
   pluginsFile, realScreens, needsConsent, plugins, removePlugin, setupReady, statusOn,
 } from "../plugin-state";
 import type { Screen } from "../types";
@@ -21,6 +21,7 @@ const props = defineProps<{ plugin: Plugin; screen?: Screen | null }>();
 defineEmits<{ close: [] }>();
 
 const label = computed(() => labelOf(props.plugin));
+const stage = computed(() => stageOf(props.plugin));
 const marks = () => languageMarks(editorLanguage());
 const kb = (value: number) => numberText(value, marks());
 const percent = (share: number) => `${numberText((share * 100).toFixed(1), marks())} %`;
@@ -108,12 +109,14 @@ watch(() => screens.value.map((s) => `${s.id}:${installedOn(s, props.plugin.id)?
     </p>
     <p class="pd-chips">
       <em class="plugin-chip" :class="label">{{ t(`editor.plugins.label.${label}`) }}</em>
+      <em v-if="stage" class="plugin-chip" :class="stage" id="plugin-stage">{{ t(`editor.plugins.stage.${stage}`) }}</em>
       <em v-if="label !== 'test'" class="plugin-chip">{{ t(`editor.plugins.kind.${plugin.kind}`) }}</em>
       <em v-for="mark in plugin.attributes" :key="mark" class="plugin-chip attribute">{{ t(`editor.plugins.attribute.${mark}`) }}</em>
       <em v-if="englishOnly" class="plugin-chip attribute" id="plugin-english-only">{{ t("editor.plugins.english_only") }}</em>
     </p>
   </div>
   <p v-if="text(plugin.summary)" class="pd-description">{{ text(plugin.summary) }}</p>
+  <p v-if="stage" class="pd-stage" id="plugin-stage-hint">{{ t(`editor.plugins.stage_hint.${stage}`) }}</p>
 
   <!-- In a screen's tab, for a screen with its own YAML that is not attached yet: one line, once. After that the add-on
        keeps its plugins file and the screen is like any other; ESPHome Device Builder builds it as always. -->

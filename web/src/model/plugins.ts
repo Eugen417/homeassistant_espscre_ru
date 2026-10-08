@@ -27,6 +27,7 @@ export type PluginTile = {
 export type PluginSource = "index" | "link" | "branch" | "folder";
 export type PluginLabel = "tessera" | "community" | "test";
 export type PluginKind = "hardware" | "behaviour";
+export type PluginStage = "stable" | "beta" | "example";
 export type Plugin = {
   id: string;
   name: Texts;
@@ -38,6 +39,7 @@ export type Plugin = {
   repo: string;
   ref?: string | null;                // the commit it is pinned to (a branch's name for one to test), from the add-on
   license: string;
+  stage?: PluginStage;                // how far along, in the maker's word (the manifest's `stage`, beta when it says none)
   kind: PluginKind;
   boards: string[] | "any";
   board_names?: string[];             // how a person knows those boards; the add-on fills it from boards.json
@@ -48,7 +50,7 @@ export type Plugin = {
   languages: string[];                // the languages its own texts are complete in
   inputs?: PluginInput[];             // what a person fills in when adding it: a key, a pin, a name
   parts?: PluginPart[];               // optional parts, on or off per screen, each with its own room
-  attributes: string[];               // cloud, commercial, ai-developed, experimental
+  attributes: string[];               // cloud, commercial, ai-developed
   // From the add-on (plugins.py): where it comes from (the index, or a folder someone is making it in), its label, the
   // reason it is blocked, whether this app's plugin API takes it, and its privacy statement.
   source?: PluginSource;

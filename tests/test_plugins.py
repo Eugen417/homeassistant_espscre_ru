@@ -79,6 +79,12 @@ class Manifest(unittest.TestCase):
             with self.subTest(wrong), self.assertRaises(pm.ManifestError):
                 pm.check(with_preview(wrong), ENGLISH)
 
+    def test_stage_is_the_makers_word_and_beta_without_one(self):
+        self.assertEqual(pm.check(manifest(), ENGLISH)['stage'], 'beta')
+        for stage in pm.STAGES:
+            with self.subTest(stage):
+                self.assertEqual(pm.check(manifest(stage=stage), ENGLISH)['stage'], stage)
+
     def test_mistakes_say_where(self):
         cases = [
             (manifest(colour='red'), 'unknown field'),
@@ -87,6 +93,8 @@ class Manifest(unittest.TestCase):
             (manifest(license='Proprietary'), 'license'),
             (manifest(privacy=None, attributes=['cloud']), 'privacy'),
             (manifest(attributes=[]), 'cloud'),
+            (manifest(attributes=['cloud', 'experimental']), 'attributes'),
+            (manifest(stage='test'), 'stage'),
             (manifest(permissions={'network': ['192.168.1.2']}), 'public host'),
             (manifest(permissions={'network': ['router.local']}), 'public host'),
         ]

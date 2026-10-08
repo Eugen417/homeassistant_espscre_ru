@@ -450,7 +450,7 @@ class Plugins:
             'id': entry.id, 'name': words('name'), 'summary': words('summary'),
             'icon': glyph(manifest['icon']), 'maintainer': manifest['maintainer'], 'tessera': entry.label == 'tessera',
             'version': entry.version, 'repo': entry.link(), 'ref': entry.ref, 'license': manifest['license'],
-            'kind': 'hardware' if gpio or manifest['boards'] != 'any' else 'behaviour', 'boards': manifest['boards'],
+            'stage': manifest['stage'], 'kind': 'hardware' if gpio or manifest['boards'] != 'any' else 'behaviour', 'boards': manifest['boards'],
             'board_names': None if manifest['boards'] == 'any' else [board_name(key) for key in manifest['boards']],
             'requires': {'psram': manifest['requires']['psram']}, 'flash_kb': manifest['flash_kb'],
             'permissions': {'home_assistant': manifest['permissions']['home_assistant_actions'] + manifest['permissions']['ha_commands'],

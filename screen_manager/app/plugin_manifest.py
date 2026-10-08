@@ -27,9 +27,12 @@ MDI = re.compile(r'^[a-z0-9]+(-[a-z0-9]+)*$')
 PLACEHOLDER = re.compile(r'\{([a-z][a-z0-9_]*)\}')
 TEXT_KEY = re.compile(r'^[a-z][a-z0-9_]{0,47}$')
 
-TOP = {'id', 'version', 'api', 'icon', 'maintainer', 'license', 'requires', 'boards', 'flash_kb', 'permissions',
-       'attributes', 'privacy', 'inputs', 'parts', 'tiles', 'fetch', 'cards', 'tap_actions', 'bar_items', 'settings'}
-ATTRIBUTES = ('cloud', 'commercial', 'ai-developed', 'experimental')
+TOP = {'id', 'version', 'api', 'icon', 'maintainer', 'license', 'stage', 'requires', 'boards', 'flash_kb',
+       'permissions', 'attributes', 'privacy', 'inputs', 'parts', 'tiles', 'fetch', 'cards', 'tap_actions', 'bar_items', 'settings'}
+ATTRIBUTES = ('cloud', 'commercial', 'ai-developed')
+# How far along a plugin is, in the maker's word: ready for every day, still finding its feet, or there to show what a
+# plugin can do and to learn from. The editor shows a badge for the last two; a manifest without it is beta.
+STAGES = ('stable', 'beta', 'example')
 INPUT_KINDS = ('secret', 'text', 'gpio', 'entity')
 OPTION_KINDS = ('text', 'choice', 'number', 'toggle')
 FIELD_KINDS = ('text', 'number', 'epoch')
@@ -405,6 +408,10 @@ def check(manifest, english=None):
     if manifest['license'] not in LICENSES:
         raise ManifestError('license', f'an SPDX name that goes with AGPL-3.0: {", ".join(LICENSES)}')
     out['license'] = manifest['license']
+    stage = manifest.get('stage', 'beta')
+    if stage not in STAGES:
+        raise ManifestError('stage', f'one of {", ".join(STAGES)}')
+    out['stage'] = stage
 
     requires = _object(manifest.get('requires') or {}, 'requires', {'esphome', 'psram', 'plugins'})
     out['requires'] = {'psram': bool(requires.get('psram', False)),

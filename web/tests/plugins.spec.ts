@@ -1,6 +1,7 @@
 // Plugins (docs/PLUGINS.md): whether a plugin fits a screen, the one rule the Plugins page and its details share.
 import { describe, expect, it } from "vitest";
 import { fit, flashShare, headroomKb, type Plugin } from "../src/model/plugins";
+import { stageOf } from "../src/plugin-state";
 import type { Screen } from "../src/types";
 
 // A plugin as the add-on describes it (plugins.editor_plugin), with only what fit() reads changed per test.
@@ -13,6 +14,13 @@ const screen = (board: string, more: Partial<Screen> = {}) =>
   ({ id: `text.${board}`, name: board, online: true, board, firmware: "0.52.0", pictures: board !== "cyd", layout: {}, ...more }) as Screen;
 
 describe("plugins", () => {
+  it("shows a badge for a beta plugin and an example, none for a stable one or a test", () => {
+    expect(stageOf(plugin({ stage: "example", label: "tessera" }))).toBe("example");
+    expect(stageOf(plugin({ stage: "beta", label: "community" }))).toBe("beta");
+    expect(stageOf(plugin({ stage: "stable", label: "tessera" }))).toBe("");
+    expect(stageOf(plugin({ stage: "example", label: "test" }))).toBe("");
+  });
+
   it("offers a plugin for one board only on that board", () => {
     const audio = plugin({ boards: ["wavesharep4"], kind: "hardware" });
     expect(fit(audio, screen("wavesharep4"))).toEqual({ ok: true });

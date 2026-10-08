@@ -15,6 +15,9 @@
   or fold it to its icons with the button beside the logo; drag it very narrow and it folds by itself. Folded, every
   screen and button says what it is when you point at it, and a screen name that is cut short shows in full the same
   way. The editor remembers the width in this browser.
+- **Plugins say how far along they are.** A plugin marked Beta or Example carries that badge on the Plugins page, in a
+  screen's Plugins tab and beside its tiles in the tile list, and its page says what it means. Examples are there to
+  show what a plugin can do and to learn from.
 - **A plugin's tap action on a tile no longer blocks the editor.** A tile set to a plugin's action made every later edit
   of that screen fail with "Invalid or unsupported page configuration fields".
 - **A save shows a loading screen, then the new layout.** When you save in the editor, the screen now covers itself
