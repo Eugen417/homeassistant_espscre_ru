@@ -80,7 +80,7 @@ the editor, and the screen keeps what it was given. Nothing is built for it.
 
 - **The range.** A screen takes from one column and one row up to as many as its glass holds at the look's smallest
   cell, `GRID_CELL_MIN_W_MM` x `GRID_CELL_MIN_H_MM` (20 x 8 mm in the standard look, 15 x 6.5 mm in the compact one),
-  and never more than nine either way. `packages/looks/shared/grid.yaml` works that out as `GRID_MAX_COLUMNS` and
+  and never more than eight either way (the editor's preview holds eight by eight). `packages/looks/shared/grid.yaml` works that out as `GRID_MAX_COLUMNS` and
   `GRID_MAX_ROWS` (and their `_PORTRAIT` twins) from the tile area: the canvas less the margins, the top bar and the
   page bar. The smallest cell is wide on purpose: a grid too fine to read well is the owner's to see and to change back,
   not the firmware's to forbid. Every value there comes from the board, its look or the file itself, because ESPHome

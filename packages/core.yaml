@@ -120,6 +120,12 @@ esphome:
     priority: -100
     then:
       - lambda: |-
+          // Which way the glass hangs (firmware 0.53.0+): as it was built, or as ESP Screens stood it up or laid it down
+          // since. Before anything else measures the canvas: the touch filter, the grid, the top bar, the alert card.
+          runtime_tiles::hang_at_boot(${ROTATION_LANDSCAPE}, ${LVGL_ROTATION}, ${PANEL_W} == ${PANEL_H});
+          const auto hung = static_cast<esphome::display::DisplayRotation>(runtime_tiles::base_turn);
+          if (id(screen_lvgl).get_rotation() != hung) id(screen_lvgl).set_rotation(hung);
+      - lambda: |-
           ${BOOT_TOUCH}
       - lambda: |-
           auto &settings = screen_settings::current;
@@ -2436,12 +2442,13 @@ script:
           const auto &settings = screen_settings::current;
           // Dark mode (firmware 0.2.54+): a look the screen already has costs nothing.
           theme::set_dark(settings_screen::dark_mode != 0);
-          // Turning the screen: the chosen angle on top of the board's own LVGL rotation (${LVGL_ROTATION} here; a CYD's
-          // panel is portrait and starts at 90). LVGL turns the display and the touch together. Not while the
+          // Turning the screen: the chosen angle on top of the way it hangs (runtime_tiles::base_turn: LVGL_ROTATION, or
+          // the way ESP Screens stood it up or laid it down; a CYD's panel is portrait and starts at 90). LVGL turns the
+          // display and the touch together. Not while the
           // calibration wizard measures: its crosses are laid out for the board's own orientation, and the next
           // settings change or restart turns the screen.
           if (runtime_tiles::enabled && !id(calibration_active)) {
-            const auto wanted = static_cast<esphome::display::DisplayRotation>((${LVGL_ROTATION} + settings_screen::rotation) % 360);
+            const auto wanted = static_cast<esphome::display::DisplayRotation>((runtime_tiles::base_turn + settings_screen::rotation) % 360);
             if (id(screen_lvgl).get_rotation() != wanted) {
               screen_input::touch_guard.consume();
               if (lv_indev_get_act()) lv_indev_wait_release(lv_indev_get_act());

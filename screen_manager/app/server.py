@@ -17,6 +17,7 @@ import math
 from urllib.parse import urlsplit
 import camera_feed
 import claude_skill
+import screen_hang
 import screen_labels
 import screen_saver
 import feedback
@@ -876,6 +877,8 @@ class Manager:
         self.feedback = feedback.Feedback(self.path.parent / 'feedback.json')
         # The names the editor shows instead of Home Assistant's (app 0.4.2).
         self.labels = screen_labels.ScreenLabels(self.path.parent / 'screen-labels.json')
+        # Which way each screen is to hang, as the editor chose beside the mockup (app 0.4.85, firmware 0.53.0+).
+        self.hangs = screen_hang.ScreenHang(self.path.parent / 'screen-hang.json')
         # Screens this app made, added to Home Assistant with their actions allowed once it finds them (app 0.4.73).
         self.pairing = ha_pairing.Pairing()
         self._pairing_trouble = None
@@ -993,12 +996,30 @@ class Manager:
         sender = self.page_senders.get(inbox) if inbox else None
         return (getattr(sender, 'grids', None) or getattr(sender, 'last_grids', None)) if sender else None
 
-    def takes_grid(self, inbox, columns, rows):
-        """Columns x rows as a Grid with this screen's ceilings when the way its glass hangs now takes them, else None."""
+    def turnable(self, inbox):
+        """Whether ESP Screens may stand this screen up or lay it down (firmware 0.53.0+): it says the grids it takes,
+        and its glass is not square (a square screen turns with its own Rotation setting and keeps its grid)."""
+        if not self.screen_grids(inbox):
+            return False
+        shape = (self._discovered(inbox) or {}).get('shape')
+        return isinstance(shape, dict) and isinstance(shape.get('width'), int) and shape.get('width') != shape.get('height')
+
+    def wanted_way(self, inbox):
+        """The way a screen that takes grids is to hang, 'landscape' or 'portrait': the one the editor chose for it
+        (screen_hang), else the way it hangs now. None for a screen that takes no other grid."""
+        grids = self.screen_grids(inbox)
+        if not grids:
+            return None
+        chosen = self.hangs.get((self._discovered(inbox) or {}).get('device_id')) if self.turnable(inbox) else None
+        return chosen or ('portrait' if grids['upright'] else 'landscape')
+
+    def takes_grid(self, inbox, columns, rows, way=None):
+        """Columns x rows as a Grid with this screen's ceilings when `way` of its glass (the way it is to hang when
+        none is named, wanted_way) takes them, else None."""
         grids = self.screen_grids(inbox)
         if not grids or type(columns) is not int or type(rows) is not int:
             return None
-        way = 'portrait' if grids['upright'] else 'landscape'
+        way = way or self.wanted_way(inbox)
         if not page_delivery.grid_takes(grids, way, columns, rows):
             return None
         return Grid(columns, rows, *self.ceilings(inbox))
@@ -1008,7 +1029,14 @@ class Manager:
         way the screen's glass hangs takes it, else None (the save is counted on the grid the screen is given)."""
         adaptation = data.get('adaptation') if isinstance(data, dict) else None
         target = adaptation.get('to') if isinstance(adaptation, dict) else None
-        return self.takes_grid(inbox, target.get('columns'), target.get('rows')) if isinstance(target, dict) else None
+        if not isinstance(target, dict):
+            return None
+        # Standing up or lying down as well (app 0.4.85): the grid of that way, on glass that turns.
+        upright = adaptation.get('upright')
+        if upright is not None and (type(upright) is not bool or not self.turnable(inbox)):
+            return None
+        way = None if upright is None else 'portrait' if upright else 'landscape'
+        return self.takes_grid(inbox, target.get('columns'), target.get('rows'), way)
 
     def given_grid(self, inbox, record):
         """The grid a screen that takes another runs on once `record` (its saved layout) reached it: that layout's, when
@@ -1021,7 +1049,7 @@ class Manager:
         given = self.takes_grid(inbox, source['columns'], source['rows']) if isinstance(source, dict) else None
         if given is not None:
             return given
-        way = grids['portrait' if grids['upright'] else 'landscape']
+        way = grids[self.wanted_way(inbox)]
         return Grid(way['columns'], way['rows'], *self.ceilings(inbox))
 
     def record_grid(self, inbox, record=None):
@@ -1134,10 +1162,15 @@ class Manager:
         sender = self.page_senders.get(inbox)
         return {'session': sender.session, 'rev': sender.confirmed} if sender else {}
 
-    def page_region(self):
-        return {'keepalive': KEEPALIVE_SECONDS, 'clock_24h': self.region.clock_24h(),
-                'numbers': self.region.number_style(), 'group_min': self.region.group_min(),
-                'percent_space': self.region.percent_space()}
+    def page_region(self, inbox=None):
+        """What a layout's begin says besides its pages: the region, and for a screen that may be turned the way it is to
+        hang (firmware 0.53.0+, "upright"), so a turn is another configuration and goes out even with the same grid."""
+        region = {'keepalive': KEEPALIVE_SECONDS, 'clock_24h': self.region.clock_24h(),
+                  'numbers': self.region.number_style(), 'group_min': self.region.group_min(),
+                  'percent_space': self.region.percent_space()}
+        if inbox and self.turnable(inbox):
+            region['upright'] = self.wanted_way(inbox) == 'portrait'
+        return region
 
     def preflight_update(self, inbox):
         return page_service.preflight_update(self, inbox=inbox)
@@ -1396,6 +1429,7 @@ class Manager:
         self.forget_inbox(inbox)
         self.plugins.forget_screen(inbox)
         self.labels.forget(screen.get('device_id'))
+        self.hangs.forget(screen.get('device_id'))
         self.savers.forget(screen.get('device_id'))
         # The registry again at once, so the screen leaves the page now instead of when Home Assistant's own
         # event arrives; the editor opens another screen as soon as it does.
@@ -3682,8 +3716,10 @@ def create_app(manager, development=False):
             sender = manager.page_sender(screen['id'], screen)
             source = manager.record_grid(screen['id'], record)
             screen['source_grid'] = {'columns': source.columns, 'rows': source.rows} if source else None
-            # The grids it takes each way its glass hangs (firmware 0.53.0+): the editor offers them beside the mockup.
+            # The grids it takes each way its glass hangs (firmware 0.53.0+): the editor offers them beside the mockup,
+            # and which way it is to hang on glass that turns ('landscape' or 'portrait', None on square glass).
             screen['grids'] = manager.screen_grids(screen['id'])
+            screen['hang'] = manager.wanted_way(screen['id']) if manager.turnable(screen['id']) else None
             screen['tile_sizes'] = sorted(sender.tile_sizes if sender.protocol is not None else sender.last_tile_sizes) if sender else ['single', 'wide', 'full']
             screen['page_capability'] = ('offline' if not screen.get('online') or not sender or sender.protocol is None
                                          else 'ready' if sender.protocol == 2 else 'update_screen')
@@ -3733,6 +3769,9 @@ def create_app(manager, development=False):
             # the mockup shows that grid, not the one the screen reported before the layout reached it.
             if screen['grids'] and source:
                 screen['shape'] = {**screen['shape'], 'columns': source.columns, 'rows': source.rows}
+                # And the way it is to hang, before it turned: the other way round, the canvas is the other way round.
+                if screen['hang'] and (screen['hang'] == 'portrait') != screen['grids']['upright']:
+                    screen['shape'] = {**screen['shape'], 'width': screen['shape']['height'], 'height': screen['shape']['width']}
             # And whether it has a battery for the top bar (firmware 0.41.0): what its hello said, else its board.
             screen['battery'] = manager.has_battery(screen)
             # Whether the board draws pictures (camera tiles, an alert's snapshot, an album cover): the boards with

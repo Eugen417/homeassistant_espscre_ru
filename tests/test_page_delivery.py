@@ -285,6 +285,30 @@ class DeliveryTests(unittest.IsolatedAsyncioTestCase):
             await self.sync()
         self.assertEqual([message['op'] for message in self.screen.messages], ['hello'])
 
+    async def test_a_screen_stood_up_gets_the_way_and_the_grid_of_that_way(self):
+        # App 0.4.85: the way a screen is to hang goes in begin (region "upright") and its grid is held to that way's
+        # range; the screen answers that it starts again, which is no applied layout yet.
+        async def turning(message):
+            answer = await self.screen.send(message)
+            answer['grids'] = deepcopy(self.GRIDS)
+            if message['op'] == 'begin' and message.get('upright'):
+                answer['status'] = 'Restarting'
+            return answer
+        self.sender = Sender(turning)
+        self.record = {**deepcopy(self.record), 'sourceGrid': {'columns': 2, 'rows': 6}}
+        self.region = {**self.region, 'upright': True}
+        with self.assertRaisesRegex(DeliveryError, 'Restarting'):
+            await self.sync()
+        self.assertEqual(self.screen.begin['upright'], True)
+        self.assertEqual(self.screen.begin['grid'], [2, 6])
+        self.assertNotIn('commit', [message['op'] for message in self.screen.messages])
+        # Two columns of six lying down are past that way's range: refused before begin.
+        self.screen.messages.clear()
+        self.region = {**self.region, 'upright': False}
+        with self.assertRaises(Refused):
+            await self.sync()
+        self.assertEqual([message['op'] for message in self.screen.messages], ['hello'])
+
     async def test_a_screen_that_keeps_its_grid_gets_no_grid(self):
         await self.sync()
         self.assertNotIn('grid', self.screen.begin)

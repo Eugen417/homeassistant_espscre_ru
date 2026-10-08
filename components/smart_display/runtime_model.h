@@ -104,8 +104,8 @@ constexpr size_t DIM_MAX = dim_max(GRID_MAX_COLUMNS, GRID_MAX_ROWS, GRID_MAX_COL
 static_assert(GRID_COLS >= 1 && GRID_ROWS >= 1 && GRID_COLS_PORTRAIT >= 1 && GRID_ROWS_PORTRAIT >= 1, "a grid needs a cell");
 static_assert(GRID_RANGES[0].takes(GRID_COLS, GRID_ROWS) && GRID_RANGES[1].takes(GRID_COLS_PORTRAIT, GRID_ROWS_PORTRAIT),
               "the board's own grid lies between GRID_MIN_* and GRID_MAX_*");
-// A size is sent as "CxR" with one digit each (page_protocol::span_of).
-static_assert(DIM_MAX <= 9, "at most nine columns and nine rows");
+// The editor's preview holds eight by eight (web/wasm/build.py), and a size goes as "CxR" with one digit each.
+static_assert(DIM_MAX <= 8, "at most eight columns and eight rows");
 static_assert(CELLS_MAX <= TILES_MAX, "a page holds at most as many cells as a screen holds tiles");
 // A slot (page * cells + cell) is kept in 16 bits (Model::slots): eight pages of a big grid pass 256, 512 on the
 // preview's eight by eight. Within its page (Placement) a cell still fits a byte.

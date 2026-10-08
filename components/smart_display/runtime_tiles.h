@@ -96,6 +96,36 @@ inline void save_grids() {
   for (int i = 0; i < 2; ++i) { choice.columns[i] = (uint8_t) chosen_grids[i].columns; choice.rows[i] = (uint8_t) chosen_grids[i].rows; }
   grid_preference.save(&choice);
 }
+// Which way the glass hangs (firmware 0.53.0+): the LVGL angle the screen is turned to, before the turn its Rotation
+// setting adds. A screen is built lying down or standing up (LVGL_ROTATION, its board's ROTATION_LANDSCAPE or a quarter
+// further); ESP Screens may stand it up or lay it down with a layout (begin's "upright"), and the screen keeps that. A
+// square screen keeps the angle it was built with: a quarter turn there is its Rotation setting and keeps the canvas.
+inline int landscape_turn = 0, base_turn = 0;
+inline bool square_glass = true;
+inline esphome::ESPPreferenceObject upright_preference;
+// At the start, before anything measures the canvas (packages/core.yaml turns LVGL to base_turn right after).
+inline void hang_at_boot(int landscape, int built, bool square) {
+  landscape_turn = ((landscape % 360) + 360) % 360;
+  square_glass = square;
+  base_turn = ((built % 360) + 360) % 360;
+  if (square) return;
+  upright_preference = esphome::global_preferences->make_preference<uint32_t>(0x55505231);
+  uint32_t upright = 0;
+  if (upright_preference.load(&upright) && upright <= 1) base_turn = (landscape_turn + (upright ? 90 : 0)) % 360;
+}
+// When the screen was asked to hang the other way, 0 for never: it starts again a moment later (tick), standing or lying
+// as asked, because every size it measures from its canvas is measured at its start. ESP Screens sends the layout again
+// once it is back.
+inline uint32_t turn_restart_at = 0;
+inline void hang(bool upright) {
+  if (square_glass) return;
+  uint32_t value = upright ? 1 : 0;
+  upright_preference.save(&value);
+  esphome::global_preferences->sync();
+  base_turn = (landscape_turn + (upright ? 90 : 0)) % 360;
+  turn_restart_at = std::max<uint32_t>(1, esphome::millis());
+  ESP_LOGI("grid", "the screen stands %s now: starting again", upright ? "up" : "lying down");
+}
 // The number format of Settings -> Language & region (app 0.2.90), kept for the next start: screen_text::number_style
 // (bits 0-3), number_group_min (4-5) and number_percent (6-7) in one word.
 inline esphome::ESPPreferenceObject numbers_preference;
@@ -9758,6 +9788,10 @@ inline uint32_t last_live_second=0;
 inline int last_clock_minute=-2;
 inline bool was_fresh=false;
 inline void tick() {
+#ifndef ESP_SCREEN_HOST
+  // Asked to hang the other way (hang): the answer went out, the preferences are written, the screen starts again.
+  if (turn_restart_at && esphome::millis() - turn_restart_at > 500) { turn_restart_at = 0; esphome::App.safe_reboot(); }
+#endif
   // The network lost or found again changes the whole glass: the Wi-Fi message over everything, or the pages back.
   static bool wifi_shown = false;
   if (const bool shown = wifi_status::problem().shown; shown != wifi_shown) {

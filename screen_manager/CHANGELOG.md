@@ -5,6 +5,9 @@
   once: tiles that no longer fit on a page move on to a new page right after it, and none is ever dropped. The screen
   gets its new grid with the next save, under its loading screen, and keeps it. A change made while the screen is offline
   waits for it. Needs this firmware on the screen; an Override YAML can widen the range (`GRID_MAX_ROWS` and more).
+- **Stand a screen up or lay it down in the editor.** On a screen whose glass is not square, the grid button also offers
+  Landscape and Portrait. The layout goes on that way's grid at once, and with the next save the screen turns, starts
+  again once and comes back the other way round, without a new build.
 - **A plugin's tap action on a tile no longer blocks the editor.** A tile set to a plugin's action made every later edit
   of that screen fail with "Invalid or unsupported page configuration fields".
 - **A save shows a loading screen, then the new layout.** When you save in the editor, the screen now covers itself

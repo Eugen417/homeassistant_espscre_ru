@@ -3103,7 +3103,11 @@
       "update_first": "Frissítsd ezt a kijelzőt, hogy itt választhasd ki a rácsát.",
       "pages_added": "1 oldal hozzáadva a már nem férő csempéknek | {n} oldal hozzáadva a már nem férő csempéknek",
       "new_page": "Új oldal annak, ami már nem fért el",
-      "too_many_pages": "{grid} rácson ezekhez a csempékhez {needed} oldal kell, ez a kijelző pedig {most} oldalt fogad el. Távolíts el csempéket vagy válassz másik rácsot; semmi sem változott."
+      "too_many_pages": "{grid} rácson ezekhez a csempékhez {needed} oldal kell, ez a kijelző pedig {most} oldalt fogad el. Távolíts el csempéket vagy válassz másik rácsot; semmi sem változott.",
+      "way": "Tájolás",
+      "landscape": "Fekvő",
+      "portrait": "Álló",
+      "turn_hint": "Elforgatáskor a kijelző egyszer újraindul, hogy felmérje az új képét."
     }
   }
 }

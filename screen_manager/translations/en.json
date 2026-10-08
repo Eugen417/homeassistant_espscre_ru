@@ -3103,7 +3103,11 @@
       "update_first": "Update this screen to choose its grid here.",
       "pages_added": "1 page added for the tiles that no longer fit | {n} pages added for the tiles that no longer fit",
       "new_page": "New page for what no longer fit",
-      "too_many_pages": "On {grid} these tiles need {needed} pages, and this screen takes {most}. Remove tiles or choose another grid; nothing was changed."
+      "too_many_pages": "On {grid} these tiles need {needed} pages, and this screen takes {most}. Remove tiles or choose another grid; nothing was changed.",
+      "way": "Way",
+      "landscape": "Landscape",
+      "portrait": "Portrait",
+      "turn_hint": "When it turns, the screen starts again once to measure its new canvas."
     }
   }
 }

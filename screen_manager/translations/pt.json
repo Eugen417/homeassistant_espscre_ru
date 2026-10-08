@@ -3103,7 +3103,11 @@
       "update_first": "Atualize este ecrã para escolher aqui a sua grelha.",
       "pages_added": "1 página adicionada para os cartões que já não cabiam | {n} páginas adicionadas para os cartões que já não cabiam",
       "new_page": "Página nova para o que já não cabia",
-      "too_many_pages": "Em {grid} estes cartões precisam de {needed} páginas, e este ecrã aceita {most}. Retire cartões ou escolha outra grelha; nada foi alterado."
+      "too_many_pages": "Em {grid} estes cartões precisam de {needed} páginas, e este ecrã aceita {most}. Retire cartões ou escolha outra grelha; nada foi alterado.",
+      "way": "Orientação",
+      "landscape": "Horizontal",
+      "portrait": "Vertical",
+      "turn_hint": "Ao rodar, o ecrã reinicia uma vez para medir a nova imagem."
     }
   }
 }

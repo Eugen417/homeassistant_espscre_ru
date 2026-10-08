@@ -3103,7 +3103,11 @@
       "update_first": "Aktualisiere diesen Bildschirm, um sein Raster hier zu wählen.",
       "pages_added": "1 Seite für die Kacheln hinzugefügt, die nicht mehr passten | {n} Seiten für die Kacheln hinzugefügt, die nicht mehr passten",
       "new_page": "Neue Seite für das, was nicht mehr passte",
-      "too_many_pages": "Auf {grid} brauchen diese Kacheln {needed} Seiten, und dieser Bildschirm nimmt {most}. Entferne Kacheln oder wähle ein anderes Raster; nichts wurde geändert."
+      "too_many_pages": "Auf {grid} brauchen diese Kacheln {needed} Seiten, und dieser Bildschirm nimmt {most}. Entferne Kacheln oder wähle ein anderes Raster; nichts wurde geändert.",
+      "way": "Ausrichtung",
+      "landscape": "Quer",
+      "portrait": "Hoch",
+      "turn_hint": "Beim Drehen startet der Bildschirm einmal neu, um sein neues Bild auszumessen."
     }
   }
 }

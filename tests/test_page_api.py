@@ -276,6 +276,51 @@ class PageApiTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(await self.manager.sync_pages('text.screen', self.record(), screen))
         self.assertEqual(sync.await_args.args[1]['sourceGrid'], {'columns': 2, 'rows': 4})
 
+    async def test_a_screen_on_glass_that_turns_is_stood_up_with_its_layout(self):
+        # Firmware 0.53.0+ on glass that is not square: the editor stands it up on the grid it keeps standing up, the app
+        # keeps which way it is to hang, and the layout's begin says so (region "upright"), so the screen turns.
+        before = self.record()
+        screen = {**self.manager.screen('text.screen'), 'device_id': 'turning-device',
+                  'shape': {'width': 320, 'height': 240, 'columns': 2, 'rows': 3, 'dpi': 143, 'look': 'compact'}}
+        grids = {'upright': False, 'landscape': {'columns': 2, 'rows': 3, 'min': [1, 1], 'max': [3, 4]},
+                 'portrait': {'columns': 1, 'rows': 4, 'min': [1, 1], 'max': [2, 6]}}
+        sender = self.manager.page_sender('text.screen', screen)
+        sender.grids = grids
+        with patch.object(self.manager, '_discovered', return_value=screen), patch.object(self.manager, 'screen', return_value=screen), \
+                patch.object(self.manager, 'screens', side_effect=lambda: [deepcopy(screen)]):
+            self.assertTrue(self.manager.turnable('text.screen'))
+            self.assertEqual(self.manager.wanted_way('text.screen'), 'landscape')
+            self.assertFalse(self.manager.page_region('text.screen')['upright'])
+            request = {'format': 'pages-v2', 'revision': before['revision'], 'layout': before['layout'],
+                       'adaptation': {'from': before['sourceGrid'], 'to': {'columns': 3, 'rows': 4}, 'upright': True}}
+            # Three columns standing up are more than this glass takes that way: refused, nothing kept.
+            response = await self.client.put('/api/screens/text.screen', headers=self.headers, json=request)
+            self.assertEqual(response.status, 400)
+            self.assertIsNone(self.manager.hangs.get('turning-device'))
+            request['adaptation']['to'] = {'columns': 1, 'rows': 4}
+            response = await self.client.put('/api/screens/text.screen', headers=self.headers, json=request)
+            self.assertEqual(response.status, 200, await response.text())
+            self.assertEqual(self.record()['sourceGrid'], {'columns': 1, 'rows': 4})
+            self.assertEqual(self.manager.hangs.get('turning-device'), 'portrait')
+            self.assertEqual(self.manager.wanted_way('text.screen'), 'portrait')
+            self.assertTrue(self.manager.page_region('text.screen')['upright'])
+            self.assertEqual(self.manager.record_grid('text.screen', self.record()), Grid(1, 4))
+            # The editor draws it standing up before it turned.
+            inventory = await (await self.client.get('/api/inventory?light=1')).json()
+            listed = next(s for s in inventory['screens'] if s['id'] == 'text.screen')
+            self.assertEqual(listed['hang'], 'portrait')
+            self.assertEqual((listed['shape']['width'], listed['shape']['height'], listed['shape']['columns'], listed['shape']['rows']), (240, 320, 1, 4))
+        # Square glass turns with its own Rotation setting: no way to choose, and a save that asks for one is refused.
+        square = {**screen, 'shape': {'width': 480, 'height': 480, 'columns': 2, 'rows': 3, 'dpi': 170, 'look': 'standard'}}
+        with patch.object(self.manager, '_discovered', return_value=square), patch.object(self.manager, 'screen', return_value=square):
+            self.assertFalse(self.manager.turnable('text.screen'))
+            self.assertNotIn('upright', self.manager.page_region('text.screen'))
+            after = self.record()
+            request = {'format': 'pages-v2', 'revision': after['revision'], 'layout': after['layout'],
+                       'adaptation': {'from': after['sourceGrid'], 'to': {'columns': 1, 'rows': 4}, 'upright': False}}
+            response = await self.client.put('/api/screens/text.screen', headers=self.headers, json=request)
+            self.assertEqual(response.status, 400)
+
     async def test_offline_the_grid_choice_waits_for_the_screen(self):
         # The last grids a screen said (page_capabilities) let a change be made while it is offline; it goes out when the
         # screen is back. A screen that never said any keeps the grid it was built with.

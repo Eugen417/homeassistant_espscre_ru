@@ -32,7 +32,7 @@ def preflight_pages(manager, inbox, record):
     flat = compile_tiles(record['layout'], grid_of_record(record))
     values = [state_message(i, tile, manager.ha.states) for i, tile in enumerate(flat)]
     bars = [manager.header_message({'header': {'items': bar_items(page)}})['items'] for page in record['layout']['pages']]
-    try: page_delivery.prepare(inbox, record, manager.page_region(), values, bars)
+    try: page_delivery.prepare(inbox, record, manager.page_region(inbox), values, bars)
     except page_delivery.Refused as error: raise LayoutError(shown(error.message)) from error
 
 
@@ -63,6 +63,9 @@ def save_pages(manager, inbox, data):
         if chosen is not None:
             grid = chosen
         expected = {'from': previous.get('sourceGrid') if previous else None, 'to': {'columns': grid.columns, 'rows': grid.rows}}
+        # Standing up or lying down with it (app 0.4.85): only on a screen whose glass turns, and then on that way's grid.
+        if isinstance(adaptation, dict) and 'upright' in adaptation and chosen is not None:
+            expected['upright'] = adaptation['upright']
         if not previous or previous['format'] != PAGE_FORMAT or adaptation != expected or manager.verified_grid(inbox) is None:
             raise LayoutError(t('addon.errors.pages.adaptation'))
     document = validate_document(data.get('layout'), grid)
@@ -123,6 +126,8 @@ def save_pages(manager, inbox, data):
     # forecasts, history and HA attributes can change independently.
     manager.preflight_pages(inbox, candidate)
     record = manager.store.save(inbox, document, data.get('revision'), data.get('workspace'), adapt_grid=adaptation is not None, grid=grid)
+    if isinstance(adaptation, dict) and 'upright' in adaptation:
+        manager.hangs.set(screen.get('device_id'), 'portrait' if adaptation['upright'] else 'landscape')
     manager.sent.pop(inbox, None)
     manager.status[inbox] = 'Saved, waiting for screen'
     manager.history_wake.set()
@@ -184,14 +189,14 @@ async def sync_pages(manager, inbox, record, screen, dirty=None, force=False, co
         saved = manager.store.get(inbox)
         return saved is not None and saved.get('revision') == expected
     before = sender.confirmed
-    wanted = page_delivery.configuration(record, manager.page_region())
+    wanted = page_delivery.configuration(record, manager.page_region(inbox))
     # A layout this screen already refused is refused again without a word to it (Sender.failed_revision): the status keeps
     # the reason, instead of saying Applying on every pass and pushing the editor each time.
     if before != wanted and sender.failed_revision != wanted:
         manager.status[inbox] = 'Applying'
         manager.notify()
     try:
-        rev = await sender.synchronize(inbox, record, manager.page_region(), values, bars, current)
+        rev = await sender.synchronize(inbox, record, manager.page_region(inbox), values, bars, current)
     except page_delivery.Superseded:
         manager.ha.changed.set()
         return True

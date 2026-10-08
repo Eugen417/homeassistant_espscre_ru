@@ -119,18 +119,25 @@ std::string receive(const std::string &payload) {
     }
     sequenced = true;
     if (op == "begin") {
-      // The grid the layout is counted on (firmware 0.53.0+, the hello's "grids"): an app that sends none means the grid
-      // the screen has. One this way of the glass cannot take is refused whole, before anything changes.
-      Grid target = grid;
+      // The way the glass is to hang and the grid the layout is counted on (firmware 0.53.0+, the hello's "grids"): an
+      // app that sends neither means the way and the grid the screen has. Glass that is not square stands up or lies
+      // down with the grid of that way; a square screen hangs as it is, its Rotation setting turns it without a new
+      // grid. A grid that way of the glass cannot take is refused whole, before anything changes.
+      bool upright = canvas_upright;
+      if (!root["upright"].isNull()) {
+        if (!root["upright"].is<bool>()) return false;
+        if (!square_glass) upright = root["upright"].as<bool>();
+      }
+      Grid target = upright == canvas_upright ? grid : chosen_grids[upright ? 1 : 0];
       if (!root["grid"].isNull()) {
         auto cells = root["grid"].as<JsonArray>();
         if (cells.isNull() || cells.size() != 2 || !cells[0].is<unsigned>() || !cells[1].is<unsigned>() ||
-            !GRID_RANGES[canvas_upright ? 1 : 0].takes(cells[0].as<unsigned>(), cells[1].as<unsigned>())) {
+            !GRID_RANGES[upright ? 1 : 0].takes(cells[0].as<unsigned>(), cells[1].as<unsigned>())) {
           result = "Error: grid"; return false;
         }
         target = Grid{cells[0].as<unsigned>(), cells[1].as<unsigned>()};
       }
-      const bool regridded = target.columns != grid.columns || target.rows != grid.rows;
+      const bool regridded = upright != canvas_upright || target.columns != grid.columns || target.rows != grid.rows;
       if (!root["tiles"].is<unsigned>() || !root["pages"].is<unsigned>() || !root["home"].is<unsigned>() ||
           !root["title"].is<const char *>() || root["title"].as<std::string>().size() > 96 ||
           root["pages"].as<unsigned>() == 0 || root["pages"].as<unsigned>() > target.pages() ||
@@ -149,6 +156,14 @@ std::string receive(const std::string &payload) {
         keepalive_seconds = root["keepalive"].as<unsigned>();
         if (was_problem) refresh_all();
         result = "Synced"; return true;
+      }
+      if (upright != canvas_upright) {
+        // The other way round: the grid it is given that way is kept with it, and the screen starts again (hang).
+        chosen_grids[upright ? 1 : 0] = target;
+        save_grids();
+        hang(upright);
+        result = "Restarting";
+        return true;
       }
       if (was_active && shown_page && *shown_page >= 0 && static_cast<size_t>(*shown_page) < model.page_data.records.size()) {
         previous_page_id = model.page_data.records[*shown_page].id;

@@ -3103,7 +3103,11 @@
       "update_first": "Actualiza esta pantalla para elegir aquí su cuadrícula.",
       "pages_added": "1 página añadida para las tarjetas que ya no cabían | {n} páginas añadidas para las tarjetas que ya no cabían",
       "new_page": "Página nueva para lo que ya no cabía",
-      "too_many_pages": "En {grid} estas tarjetas necesitan {needed} páginas, y esta pantalla admite {most}. Quita tarjetas o elige otra cuadrícula; no se ha cambiado nada."
+      "too_many_pages": "En {grid} estas tarjetas necesitan {needed} páginas, y esta pantalla admite {most}. Quita tarjetas o elige otra cuadrícula; no se ha cambiado nada.",
+      "way": "Orientación",
+      "landscape": "Horizontal",
+      "portrait": "Vertical",
+      "turn_hint": "Al girar, la pantalla se reinicia una vez para medir su nueva imagen."
     }
   }
 }

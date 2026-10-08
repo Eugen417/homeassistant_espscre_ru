@@ -5,7 +5,7 @@
 import { computed } from "vue";
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from "reka-ui";
 import { t } from "../i18n";
-import { chooseGrid, gridWay, screenShape, state } from "../store";
+import { chooseGrid, chooseHang, currentScreen, gridWay, screenShape, state } from "../store";
 import Icon from "./ui/Icon.vue";
 
 const grid = computed(() => state.documentGrid);
@@ -20,6 +20,9 @@ function step(axis: "columns" | "rows", index: 0 | 1, by: number) {
   chooseGrid(axis === "columns" ? grid.value.columns + by : grid.value.columns, axis === "rows" ? grid.value.rows + by : grid.value.rows);
 }
 const cells = computed(() => (grid.value ? grid.value.columns * grid.value.rows : 0));
+// Standing up or lying down, on glass that turns (the add-on says which way it is to hang; null on square glass).
+const turns = computed(() => !!currentScreen.value?.hang && state.documentUpright !== null);
+const ways = [[false, "landscape", "crop-landscape"], [true, "portrait", "crop-portrait"]] as const;
 </script>
 
 <template>
@@ -33,6 +36,12 @@ const cells = computed(() => (grid.value ? grid.value.columns * grid.value.rows 
       <PopoverContent class="ui-popover grid-pop" align="start" :side-offset="8" :collision-padding="12">
         <h4>{{ t("editor.grid.title") }}</h4>
         <template v-if="gridWay">
+          <div v-if="turns" class="seg grid-ways" role="group" :aria-label="t('editor.grid.way')">
+            <button v-for="[upright, word, icon] in ways" :key="word" type="button" :id="`grid-${word}`"
+              :aria-pressed="state.documentUpright === upright ? 'true' : 'false'" @click="chooseHang(upright)">
+              <Icon :name="icon" />{{ t(`editor.grid.${word}`) }}
+            </button>
+          </div>
           <div class="grid-body">
             <div class="grid-steps">
               <div v-for="[axis, index] in axes" :key="axis" class="grid-step">
@@ -49,7 +58,7 @@ const cells = computed(() => (grid.value ? grid.value.columns * grid.value.rows 
               <i v-for="cell in cells" :key="cell"></i>
             </div>
           </div>
-          <p class="grid-hint">{{ t("editor.grid.hint") }}</p>
+          <p class="grid-hint">{{ t("editor.grid.hint") + (turns ? " " + t("editor.grid.turn_hint") : "") }}</p>
         </template>
         <p v-else class="grid-hint">{{ t("editor.grid.update_first") }}</p>
       </PopoverContent>
@@ -61,6 +70,8 @@ const cells = computed(() => (grid.value ? grid.value.columns * grid.value.rows 
 /* Not scoped: the popover is drawn in a portal, outside this component's elements (as .help-pop in app.css). */
 .grid-pop { width: 300px; padding: 14px 16px; display: grid; gap: 12px; }
 .grid-pop h4 { font-size: 13.5px; }
+.grid-pop .grid-ways { display: flex; }
+.grid-pop .grid-ways button { flex: 1; justify-content: center; }
 .grid-pop .grid-body { display: flex; gap: 16px; align-items: center; }
 .grid-pop .grid-steps { display: grid; gap: 8px; flex: 1; min-width: 0; }
 .grid-pop .grid-step { display: grid; grid-template-columns: 1fr auto 26px auto; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); }

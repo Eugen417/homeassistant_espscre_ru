@@ -202,16 +202,20 @@ def boards():
             o = shape['orientations'].get(side)
             if not o:
                 continue
-            grids = [o['rows']] + ([rows for rows in choices if rows != o['rows']] if o['width'] >= o['height'] else [])
-            for rows in grids:
+            grids = [(o['columns'], rows) for rows in [o['rows']] + ([rows for rows in choices if rows != o['rows']] if o['width'] >= o['height'] else [])]
+            # And the finest grid the editor offers that way (firmware 0.53.0+, looks/shared/grid.yaml): the smallest cells.
+            if o.get('max'):
+                grids.append(tuple(o['max']))
+            for columns, rows in grids:
                 # A board without pictures draws its cards without a cover's place (firmware 0.46.0), so it is a shape of
                 # its own even on the glass of a board with them.
                 pictures = bool(shape.get('camera'))
-                shape_key = (o['width'], o['height'], o['columns'], rows, shape['dpi'], pictures)
+                shape_key = (o['width'], o['height'], columns, rows, shape['dpi'], pictures)
                 if shape_key in seen:
                     continue
-                name = f'{key}-{side}' if rows == o['rows'] else f'{key}-{side}-{rows}rows'
-                seen[shape_key] = {'key': name, 'width': o['width'], 'height': o['height'], 'columns': o['columns'],
+                name = (f'{key}-{side}' if (columns, rows) == (o['columns'], o['rows']) else
+                        f'{key}-{side}-{rows}rows' if columns == o['columns'] else f'{key}-{side}-{columns}x{rows}')
+                seen[shape_key] = {'key': name, 'width': o['width'], 'height': o['height'], 'columns': columns,
                                    'rows': rows, 'dpi': shape['dpi'], 'pictures': pictures}
                 found.append(seen[shape_key])
     return found

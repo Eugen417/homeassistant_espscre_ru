@@ -50,6 +50,8 @@ export const state = reactive({
   gridReview: null as { record: PageDocument; layout: PageLayout; target: PageGrid; copy: boolean; message: string } | null,
   documentRevision: null as string | null,
   documentGrid: null as PageGrid | null,
+  // Whether the draft stands the screen up (app 0.4.85, firmware 0.53.0+): true or false on glass that turns, null else.
+  documentUpright: null as boolean | null,
   workspace: { revision: "", positions: {} } as PageWorkspace,
   workspaceDirty: false,
   editorMode: "simple" as "simple" | "advanced",
@@ -271,7 +273,10 @@ export const drawsPictures = (screen?: Screen) =>
 const SMALLEST = { width: 320, height: 240, columns: 2, rows: 3, dpi: 143, look: "compact" };
 export const screenShape = computed(() => {
   const shape = currentScreen.value?.shape;
-  return shape && shape.columns > 0 && shape.rows > 0 ? shape : SMALLEST;
+  if (!shape || !(shape.columns > 0 && shape.rows > 0)) return SMALLEST;
+  // A draft that stands the screen up or lays it down (app 0.4.85): the canvas of that way, before the screen turned.
+  const upright = state.documentUpright;
+  return upright !== null && (shape.height > shape.width) !== upright ? { ...shape, width: shape.height, height: shape.width } : shape;
 });
 // The top bar of the mockup at the screen's own width and density (topbar.ts).
 export const barMetrics = computed(() => barMetricsFor(screenShape.value));
@@ -612,15 +617,16 @@ export function goHome() {
 let edits = 0;
 let committedLayout: PageLayout | null = null;
 let committedGrid: PageGrid | null = null;
+let committedUpright: boolean | null = null;
 let selectionEpoch = 0;
 export function markDirty() {
-  state.dirty = !sameValue(state.document, committedLayout) || !sameValue(state.documentGrid, committedGrid);
+  state.dirty = !sameValue(state.document, committedLayout) || !sameValue(state.documentGrid, committedGrid) || state.documentUpright !== committedUpright;
   state.saved = 0;
   edits++;
 }
-type DraftSnapshot = { layout: PageLayout; grid: PageGrid; positions: PageWorkspace["positions"]; page: string | null; tile: string | null };
+type DraftSnapshot = { layout: PageLayout; grid: PageGrid; upright: boolean | null; positions: PageWorkspace["positions"]; page: string | null; tile: string | null };
 const draftHistory = new DraftHistory<DraftSnapshot>();
-const snapshot = (): DraftSnapshot => ({ layout: pages.clone(state.document!), grid: pages.clone(state.documentGrid!), positions: pages.clone(state.workspace.positions),
+const snapshot = (): DraftSnapshot => ({ layout: pages.clone(state.document!), grid: pages.clone(state.documentGrid!), upright: state.documentUpright, positions: pages.clone(state.workspace.positions),
   page: state.selectedPageId, tile: state.selectedTile?.id || null });
 function historyCounts() {
   // A removal toast only belongs to the latest history entry. Once another
@@ -680,7 +686,9 @@ function restoreSnapshot(value: DraftSnapshot, scope: HistoryScope) {
   endFieldEdit();
   if (scope === 'document') {
     const positions = pages.clone(state.workspace.positions);
+    state.documentUpright = value.upright;
     applyDocument(value.layout, false, value.grid);
+    markDirty();
     // Keep current positions; recover a deleted page's position from its snapshot.
     state.workspace.positions = Object.fromEntries(value.layout.pages.flatMap((page) => {
       const point = positions[page.id] || value.positions[page.id];
@@ -726,6 +734,7 @@ function loadDocument(screen: Screen) {
     : screen.source_grid ? pages.clone(screen.source_grid) : null;
   committedLayout = pages.clone(state.document);
   committedGrid = pages.clone(state.documentGrid);
+  state.documentUpright = committedUpright = screen.hang ? screen.hang === 'portrait' : null;
   state.gridReview = null;
   state.documentRevision = record?.format === "pages-v2" ? record.revision : null;
   state.workspace = record?.format === "pages-v2" && record.workspace ? pages.clone(record.workspace) : { revision: "", positions: {} };
@@ -1246,7 +1255,7 @@ function acceptSave(record: PageDocument, submitted: PageLayout, submittedWorksp
       state.workspace.positions = pages.clone(record.workspace.positions); state.workspaceDirty = false;
     }
   }
-  state.dirty = !sameValue(state.document, committedLayout) || !sameValue(state.documentGrid, committedGrid);
+  state.dirty = !sameValue(state.document, committedLayout) || !sameValue(state.documentGrid, committedGrid) || state.documentUpright !== committedUpright;
   state.conflict = false;
   if (edits === sent) { state.saved = Date.now(); toast(t("editor.screen_view.saved.current")); }
   else toast(t("editor.screen_view.saved.newer_edit"));
@@ -1271,11 +1280,14 @@ export async function save() {
   state.busy = true;
   const sent = edits, screen = state.selected, selection = selectionEpoch, submitted = pages.clone(state.document), submittedGrid = pages.clone(state.documentGrid);
   const workspace = state.workspaceDirty ? pages.clone(state.workspace) : undefined;
-  const adaptation = committedGrid && !pages.sameGrid(committedGrid, submittedGrid) ? { from: committedGrid, to: submittedGrid } : undefined;
+  // Another grid, or the screen stood up or laid down (app 0.4.85): the add-on takes it as a reviewed adaptation.
+  const submittedUpright = state.documentUpright, turned = submittedUpright !== null && submittedUpright !== committedUpright;
+  const adaptation = committedGrid && (turned || !pages.sameGrid(committedGrid, submittedGrid))
+    ? { from: committedGrid, to: submittedGrid, ...(turned ? { upright: submittedUpright } : {}) } : undefined;
   const request = { format: "pages-v2", revision: state.documentRevision, layout: submitted, ...(workspace ? { workspace } : {}), ...(adaptation ? { adaptation } : {}) };
   try {
     const result = await send<{ saved: boolean; document: PageDocument }>(`screens/${encodeURIComponent(screen)}`, "PUT", request);
-    if (state.selected === screen && selection === selectionEpoch) acceptSave(result.document, submitted, workspace, sent);
+    if (state.selected === screen && selection === selectionEpoch) { committedUpright = submittedUpright; acceptSave(result.document, submitted, workspace, sent); }
     else toast(t("editor.screen_view.saved.other", { name: state.inventory.screens.find((s) => s.id === screen)?.name || screen }));
     await refresh(false);
   } catch (error: any) {
@@ -1468,6 +1480,7 @@ function forgetOpenScreen() {
   state.selected = null;
   state.document = null;
   state.documentGrid = null;
+  state.documentUpright = null;
   state.gridReview = null;
   state.selectedTile = null;
   state.inspector = null;
@@ -1493,9 +1506,12 @@ function adopt(record: PageDocument, message: string) {
 }
 // The grids the open screen takes the way its glass hangs now (firmware 0.53.0+), null for a screen that keeps the grid
 // it was built with.
+// The way of the draft: standing up or lying down as the draft says on glass that turns, else as the screen hangs.
 export const gridWay = computed(() => {
   const grids = currentScreen.value?.grids;
-  return grids ? grids[grids.upright ? 'portrait' : 'landscape'] : null;
+  if (!grids) return null;
+  const upright = state.documentUpright ?? grids.upright;
+  return grids[upright ? 'portrait' : 'landscape'];
 });
 export const takesGrid = (grid: PageGrid) => {
   const way = gridWay.value;
@@ -1504,6 +1520,39 @@ export const takesGrid = (grid: PageGrid) => {
 // A screen that takes the draft's grid is given it with the layout: only a grid it cannot take asks for a review.
 export const gridChanged = computed(() => !!state.documentGrid && !!currentScreen.value?.shape &&
   !pages.sameGrid(state.documentGrid, currentScreen.value.shape) && !takesGrid(state.documentGrid));
+// Stand the open screen up or lay it down (app 0.4.85, on glass that turns): the draft goes on the grid the screen keeps
+// for that way, or where its tiles need more pages than the screen takes there, on the grid of that way nearest to it that
+// holds them; laid out on it at once as for any other grid. The screen turns and starts again with the next save.
+export function chooseHang(upright: boolean) {
+  const grids = currentScreen.value?.grids;
+  if (!state.document || !state.documentGrid || !grids || state.documentUpright === null || state.documentUpright === upright) return;
+  const way = grids[upright ? 'portrait' : 'landscape'], kept = way.columns * way.rows;
+  const candidates: PageGrid[] = [];
+  for (let columns = way.min[0]; columns <= way.max[0]; columns++)
+    for (let rows = way.min[1]; rows <= way.max[1]; rows++) candidates.push({ columns, rows });
+  candidates.sort((a, b) => Number(!pages.sameGrid(a, way)) - Number(!pages.sameGrid(b, way))
+    || Math.abs(a.columns * a.rows - kept) - Math.abs(b.columns * b.rows - kept) || Math.abs(a.columns - way.columns) - Math.abs(b.columns - way.columns));
+  let first: Error | null = null;
+  for (const target of candidates) {
+    try {
+      pages.adaptGrid(state.document, state.documentGrid, screenGridOf(target));
+      return hangOn(upright, target);
+    } catch (error: any) { first ??= error; }
+  }
+  if (first) toast(first.message);
+}
+function hangOn(upright: boolean, target: PageGrid) {
+  if (!state.document || !state.documentGrid) return;
+  try {
+    const adapted = pages.adaptGrid(state.document, state.documentGrid, screenGridOf(target));
+    const added = adapted.pages.length - state.document.pages.length;
+    const before = snapshot();
+    if (!applyDocument(adapted, true, target)) { draftHistory.remember(before); historyCounts(); }
+    state.documentUpright = upright;
+    markDirty();
+    if (added > 0) toast(t('editor.grid.pages_added', { n: added }, added));
+  } catch (error: any) { toast(error.message); }
+}
 // Another grid for the open screen, chosen beside the mockup (app 0.4.85): the draft is laid out on it at once (adaptGrid:
 // what no longer fits moves on to a new page after its own) and goes to the screen with the next save. Undo takes it back.
 export function chooseGrid(columns: number, rows: number) {

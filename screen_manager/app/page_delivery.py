@@ -429,7 +429,8 @@ class Sender:
                     # under its loading screen before the tiles come. One its glass does not take is the editor's to fix.
                     if self.grids is not None:
                         source = record["sourceGrid"]
-                        way = "portrait" if self.grids["upright"] else "landscape"
+                        # The way it is to hang (region "upright", app 0.4.85), else the way it hangs now.
+                        way = "portrait" if region.get("upright", self.grids["upright"]) else "landscape"
                         if not grid_takes(self.grids, way, source["columns"], source["rows"]):
                             raise Refused(english('addon.errors.pages.grid_range'))
                         begin = {**begin, "grid": [source["columns"], source["rows"]]}

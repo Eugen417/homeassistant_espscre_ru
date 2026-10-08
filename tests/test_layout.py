@@ -87,10 +87,10 @@ class LayoutTests(unittest.TestCase):
                 for key in keys:
                     self.assertEqual(str(within[key]).strip('"'), str(values[key]).strip('"'), key)
                 v = {key: int(str(values[key]).strip('"')) for key in (*keys, 'GRID_COLS', 'GRID_ROWS', 'GRID_COLS_PORTRAIT', 'GRID_ROWS_PORTRAIT')}
-                self.assertTrue(1 <= v['GRID_MIN_COLUMNS'] <= v['GRID_COLS'] <= v['GRID_MAX_COLUMNS'] <= 9)
-                self.assertTrue(1 <= v['GRID_MIN_ROWS'] <= v['GRID_ROWS'] <= v['GRID_MAX_ROWS'] <= 9)
-                self.assertTrue(v['GRID_COLS_PORTRAIT'] <= v['GRID_MAX_COLUMNS_PORTRAIT'] <= 9)
-                self.assertTrue(v['GRID_ROWS_PORTRAIT'] <= v['GRID_MAX_ROWS_PORTRAIT'] <= 9)
+                self.assertTrue(1 <= v['GRID_MIN_COLUMNS'] <= v['GRID_COLS'] <= v['GRID_MAX_COLUMNS'] <= 8)
+                self.assertTrue(1 <= v['GRID_MIN_ROWS'] <= v['GRID_ROWS'] <= v['GRID_MAX_ROWS'] <= 8)
+                self.assertTrue(v['GRID_COLS_PORTRAIT'] <= v['GRID_MAX_COLUMNS_PORTRAIT'] <= 8)
+                self.assertTrue(v['GRID_ROWS_PORTRAIT'] <= v['GRID_MAX_ROWS_PORTRAIT'] <= 8)
                 # Every grid someone may choose when the screen is built (boards.yaml `choices`) lies in the range too.
                 for rows in (profiles.CATALOG[board].get('choices') or {}).get('GRID_ROWS', []):
                     self.assertLessEqual(int(rows), v['GRID_MAX_ROWS'], rows)

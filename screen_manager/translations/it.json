@@ -3103,7 +3103,11 @@
       "update_first": "Aggiorna questo schermo per scegliere qui la sua griglia.",
       "pages_added": "1 pagina aggiunta per le tessere che non stavano più | {n} pagine aggiunte per le tessere che non stavano più",
       "new_page": "Nuova pagina per ciò che non stava più",
-      "too_many_pages": "Su {grid} queste tessere richiedono {needed} pagine, e questo schermo ne accetta {most}. Togli delle tessere o scegli un’altra griglia; non è cambiato nulla."
+      "too_many_pages": "Su {grid} queste tessere richiedono {needed} pagine, e questo schermo ne accetta {most}. Togli delle tessere o scegli un’altra griglia; non è cambiato nulla.",
+      "way": "Orientamento",
+      "landscape": "Orizzontale",
+      "portrait": "Verticale",
+      "turn_hint": "Quando ruota, lo schermo si riavvia una volta per misurare la nuova immagine."
     }
   }
 }

@@ -3103,7 +3103,11 @@
       "update_first": "Werk dit scherm bij om hier zijn raster te kiezen.",
       "pages_added": "1 pagina toegevoegd voor de tegels die niet meer pasten | {n} pagina’s toegevoegd voor de tegels die niet meer pasten",
       "new_page": "Nieuwe pagina voor wat niet meer paste",
-      "too_many_pages": "Op {grid} hebben deze tegels {needed} pagina’s nodig, en dit scherm neemt er {most}. Haal tegels weg of kies een ander raster; er is niets veranderd."
+      "too_many_pages": "Op {grid} hebben deze tegels {needed} pagina’s nodig, en dit scherm neemt er {most}. Haal tegels weg of kies een ander raster; er is niets veranderd.",
+      "way": "Stand",
+      "landscape": "Liggend",
+      "portrait": "Staand",
+      "turn_hint": "Bij een draai start het scherm één keer opnieuw om zijn nieuwe beeld op te meten."
     }
   }
 }

@@ -155,6 +155,8 @@ export type Screen = {
   // The grids it takes (firmware 0.53.0+): the editor offers its columns and rows beside the mockup. None for a screen
   // whose grid is the one it was built with.
   grids?: ScreenGrids | null;
+  // Which way it is to hang on glass that turns (app 0.4.85): what the editor chose, else the way it hangs; null on square glass.
+  hang?: "landscape" | "portrait" | null;
   tile_sizes?: string[];
   page_capability?: "ready" | "update_screen" | "offline";
   // Home Assistant ignores its taps: it may not perform actions (app 0.4.63, the ESPHome integration's own repair issue).

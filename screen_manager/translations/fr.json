@@ -3103,7 +3103,11 @@
       "update_first": "Mettez cet écran à jour pour choisir sa grille ici.",
       "pages_added": "1 page ajoutée pour les tuiles qui ne tenaient plus | {n} pages ajoutées pour les tuiles qui ne tenaient plus",
       "new_page": "Nouvelle page pour ce qui ne tenait plus",
-      "too_many_pages": "Sur {grid}, ces tuiles demandent {needed} pages, et cet écran en accepte {most}. Retirez des tuiles ou choisissez une autre grille ; rien n’a été modifié."
+      "too_many_pages": "Sur {grid}, ces tuiles demandent {needed} pages, et cet écran en accepte {most}. Retirez des tuiles ou choisissez une autre grille ; rien n’a été modifié.",
+      "way": "Orientation",
+      "landscape": "Paysage",
+      "portrait": "Portrait",
+      "turn_hint": "Quand il tourne, l’écran redémarre une fois pour mesurer sa nouvelle image."
     }
   }
 }

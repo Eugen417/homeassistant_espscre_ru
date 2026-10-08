@@ -3103,7 +3103,11 @@
       "update_first": "Zaktualizuj ten ekran, aby wybrać tu jego siatkę.",
       "pages_added": "Dodano 1 stronę na kafelki, które się nie mieściły | Dodano {n} strony na kafelki, które się nie mieściły | Dodano {n} stron na kafelki, które się nie mieściły",
       "new_page": "Nowa strona na to, co się nie zmieściło",
-      "too_many_pages": "Na siatce {grid} te kafelki potrzebują {needed} stron, a ten ekran przyjmuje {most}. Usuń kafelki lub wybierz inną siatkę; nic nie zostało zmienione."
+      "too_many_pages": "Na siatce {grid} te kafelki potrzebują {needed} stron, a ten ekran przyjmuje {most}. Usuń kafelki lub wybierz inną siatkę; nic nie zostało zmienione.",
+      "way": "Orientacja",
+      "landscape": "Poziomo",
+      "portrait": "Pionowo",
+      "turn_hint": "Po obróceniu ekran raz uruchamia się ponownie, aby zmierzyć nowy obraz."
     }
   }
 }

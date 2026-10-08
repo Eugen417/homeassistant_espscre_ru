@@ -40,14 +40,18 @@ def orientations(values):
     panel = (int(values['PANEL_W']), int(values['PANEL_H']))
     angle = int(values['ROTATION_LANDSCAPE']) % 360
     wide = (panel[1], panel[0]) if angle in (90, 270) else panel
+    # The grids a screen may be given that way (firmware 0.53.0+, looks/shared/grid.yaml): the least and the most.
+    least = [int(values['GRID_MIN_COLUMNS']), int(values['GRID_MIN_ROWS'])]
     lying = {'width': wide[0], 'height': wide[1],
-             'columns': int(values['GRID_COLS']), 'rows': int(values['GRID_ROWS']), 'rotation': angle}
+             'columns': int(values['GRID_COLS']), 'rows': int(values['GRID_ROWS']), 'rotation': angle,
+             'min': least, 'max': [int(values['GRID_MAX_COLUMNS']), int(values['GRID_MAX_ROWS'])]}
     if wide[0] == wide[1]:
         return {'landscape': lying, 'portrait': dict(lying)}
     return {'landscape': lying,
             'portrait': {'width': wide[1], 'height': wide[0],
                          'columns': int(values['GRID_COLS_PORTRAIT']), 'rows': int(values['GRID_ROWS_PORTRAIT']),
-                         'rotation': (angle + 90) % 360}}
+                         'rotation': (angle + 90) % 360,
+                         'min': list(least), 'max': [int(values['GRID_MAX_COLUMNS_PORTRAIT']), int(values['GRID_MAX_ROWS_PORTRAIT'])]}}
 
 
 def alert_lines(values):
