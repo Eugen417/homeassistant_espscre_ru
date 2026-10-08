@@ -3064,9 +3064,12 @@ class Manager:
 
     async def sync_saver(self, inbox, screen):
         """Tell a screen that takes a screensaver (its hello lists it, firmware 0.29.0+) what it shows now, whenever that
-        changes and once in every new session. A small message in the screen's session, as a camera's answer is."""
+        changes and once in every new session. A small message in the screen's session, as a camera's answer is. Only
+        once the screen holds a layout: before it confirmed one (a saved layout that waits for its grid to be adapted,
+        say) the screen refuses a message without a revision, and its refusal would stand in place of the real status."""
         sender = self.page_senders.get(inbox)
-        if not sender or sender.protocol != 2 or screen_saver.FEATURE not in (getattr(sender, 'features', None) or ()):
+        if not sender or sender.protocol != 2 or not sender.confirmed \
+                or screen_saver.FEATURE not in (getattr(sender, 'features', None) or ()):
             return
         message = self.saver_message(screen)
         key = (sender.session, json.dumps(message, sort_keys=True))

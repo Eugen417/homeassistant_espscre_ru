@@ -352,6 +352,15 @@ class TheApp(unittest.IsolatedAsyncioTestCase):
             await m.sync_saver('text.d1_tiles', screen)
             self.assertEqual(sent[-1][0]['wi'], [{'k': 'text', 't': 'On'}])
             count = len(sent)
+            # A screen with a session but no layout yet (one that waits for its grid to be adapted) hears nothing: it
+            # would refuse a message without a revision, and that refusal would hide why it waits.
+            sender.session, sender.confirmed = 'S4', None
+            await m.sync_saver('text.d1_tiles', screen)
+            self.assertEqual(len(sent), count)
+            sender.confirmed = 'R4'
+            await m.sync_saver('text.d1_tiles', screen)
+            self.assertEqual(len(sent), count + 1)
+            count = len(sent)
             # A screen whose hello does not list it hears nothing.
             sender.features = set()
             m.savers.set('d1', {})
