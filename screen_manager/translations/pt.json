@@ -1609,7 +1609,6 @@
     "plugins": {
       "title": "Plugins",
       "intro": "Extras para os seus ecrãs: hardware na placa, ou algo mais que um ecrã consegue fazer. Um plugin é integrado no firmware de um ecrã, por isso escolhe para cada ecrã quais recebe.",
-      "example": "Plugins de exemplo: a lista real chega com o índice de plugins",
       "search": "Procurar por nome, autor ou o que faz",
       "filter": "Mostrar",
       "filters": {
@@ -1646,7 +1645,6 @@
         "psram": "Precisa de PSRAM",
         "firmware": "Precisa de firmware mais recente",
         "flash": "Demasiado grande para este ecrã",
-        "pins": "Nenhum pino livre",
         "blocked": "Bloqueado"
       },
       "misfit": {
@@ -1654,7 +1652,6 @@
         "psram": "Este plugin precisa de uma placa com PSRAM, e {screen} não tem.",
         "firmware": "{screen} precisa de uma atualização de firmware antes de poder receber este plugin.",
         "flash": "{screen} tem espaço para cerca de mais {kb} KB, e este plugin é maior.",
-        "pins": "{screen} não tem nenhum pino livre que este plugin possa usar.",
         "blocked": "Esta versão do plugin está bloqueada: sabe-se que é prejudicial ou que não funciona."
       },
       "none_installed": "Ainda não há plugins neste ecrã.",
@@ -1688,12 +1685,10 @@
         "tile_sizes": "De {min} a {max} numa página",
         "tap": "Ação ao tocar «{name}»",
         "tap_on": "Em mosaicos de {domains}",
-        "card": "Uma vista própria no ecrã",
+        "card": "«{name}», uma vista própria no ecrã",
+        "bar": "Elemento da barra superior «{name}»",
         "settings": "Definições",
-        "settings_where": "Na página de definições do ecrã e em Definições do ecrã",
-        "inputs": "Pinos e nomes que escolhe",
-        "ha_package": "Um pacote para o Home Assistant",
-        "ha_package_why": "Instala-se uma vez no Home Assistant; o editor disponibiliza a transferência"
+        "settings_where": "Na página de definições do ecrã e em Definições do ecrã"
       },
       "may": {
         "title": "O que pode fazer",
@@ -1718,7 +1713,6 @@
       },
       "source_code": "Código-fonte",
       "issues": "Comunicar um problema",
-      "example_install": "Exemplo: {name} em {screens}. Com o índice de plugins, o Tessera escreve-o no YAML de cada ecrã e compila.",
       "removed": "{name} removido de {screens}. O ecrã perde-o na próxima compilação.",
       "add_link": "Adicionar com uma ligação",
       "link": {
@@ -1739,7 +1733,6 @@
         },
         "fetch": "Ler o plugin",
         "test": "Adicionar a {screen} como teste",
-        "example": "Exemplo: com o índice de plugins, o Tessera lê a descrição do plugin a partir desta ligação.",
         "not_found": "Não há nenhuma descrição de plugin nesta ligação.",
         "on_screen": "No ecrã"
       },
@@ -1772,9 +1765,7 @@
         "secret_set": "Definido. Introduza um novo para o substituir."
       },
       "readme": {
-        "title": "Leia-me",
-        "package": "Descarregar o pacote para o Home Assistant",
-        "package_example": "Exemplo: com o índice de plugins, o Tessera descarrega o pacote a partir do plugin."
+        "title": "Leia-me"
       },
       "english_only": "Apenas em inglês",
       "build_note": "Compila com o ESPHome Device Builder ou noutro computador? O plugin está no YAML do ecrã; compile-o lá como sempre.",

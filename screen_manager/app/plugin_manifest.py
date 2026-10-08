@@ -500,7 +500,7 @@ def check(manifest, english=None):
     tiles, choice_lists, option_ids_of = [], set(), {}
     for i, item in enumerate(_list(manifest.get('tiles'), 'tiles', MAX_TILES)):
         where = f'tiles[{i}]'
-        item = _object(item, where, {'id', 'name', 'icon', 'sizes', 'memory', 'entity', 'data', 'options',
+        item = _object(item, where, {'id', 'name', 'icon', 'sizes', 'memory', 'domains', 'data', 'options',
                                      'example', 'preview', 'attributes'}, ('id', 'name', 'sizes', 'memory'))
         tile = {'id': _id(item['id'], f'{where}.id'), 'name': _text_key(item['name'], f'{where}.name', keys)}
         icon = item.get('icon', out['icon'])
@@ -518,16 +518,16 @@ def check(manifest, english=None):
         if isinstance(memory, dict):
             memory = _object(memory, f'{where}.memory', {'bytes'}, ('bytes',))['bytes']
         tile['memory'] = _number(memory, f'{where}.memory', 64, MAX_TILE_BYTES, whole=True)
-        entity = item.get('entity')
-        if entity is not None:
-            entity = [entity] if isinstance(entity, str) else _strings(entity, f'{where}.entity', 8)
-            if not all(re.match(r'^[a-z_]+$', domain) for domain in entity):
-                raise ManifestError(f'{where}.entity', 'Home Assistant domains, such as climate')
-        tile['entity'] = entity
+        # A tile that belongs to an entity names the domains it takes, as a tap action and an input of kind entity do
+        # (`domains: [calendar]`); the inspector then offers the entities of those domains.
+        domains = _strings(item.get('domains'), f'{where}.domains', 8)
+        if not all(re.match(r'^[a-z_]+$', domain) for domain in domains):
+            raise ManifestError(f'{where}.domains', 'Home Assistant domains, such as [climate]')
+        tile['domains'] = domains
         # What the tile gets of its entity besides its state: the attributes it names, bounded as every tile's.
         attributes = _strings(item.get('attributes'), f'{where}.attributes', MAX_ATTRIBUTES)
-        if attributes and not entity:
-            raise ManifestError(f'{where}.attributes', 'only a tile with an "entity" gets attributes')
+        if attributes and not domains:
+            raise ManifestError(f'{where}.attributes', 'only a tile with "domains" belongs to an entity and gets attributes')
         if not all(re.match(r'^[a-z_][a-z0-9_]{0,47}$', a) for a in attributes):
             raise ManifestError(f'{where}.attributes', 'attribute names such as next_date')
         tile['attributes'] = attributes
@@ -545,9 +545,9 @@ def check(manifest, english=None):
         if 'example' in item:
             tile['example'] = _text_key(item['example'], f'{where}.example', keys)
         if 'preview' in item:
-            if 'data' not in tile and not tile['entity']:
+            if 'data' not in tile and not tile['domains']:
                 raise ManifestError(f'{where}.preview', 'a preview is drawn from the tile\'s data or entity: it needs '
-                                                        '"data" or "entity"')
+                                                        '"data" or "domains"')
             preview = _object(item['preview'], f'{where}.preview', set(PREVIEW))
             for key, value in preview.items():
                 if not isinstance(value, str) or not 0 < len(value) <= 64:

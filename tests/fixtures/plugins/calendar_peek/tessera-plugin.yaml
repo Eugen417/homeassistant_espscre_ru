@@ -10,7 +10,7 @@ permissions:
 tiles:
   - id: next
     name: tile
-    entity: calendar
+    domains: [calendar]
     attributes: [message, start_time]
     sizes: { min: 1x1, max: 2x1 }
     memory: 400

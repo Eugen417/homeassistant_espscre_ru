@@ -675,9 +675,9 @@ api:
                     // battery (firmware 0.41.0): this screen has a battery sensor (runtime_tiles::find_battery), so the
                     // top bar can show it; a screen without one never says so, and ESP Screens does not offer the item.
                     if (battery_status::level) features.add("battery");
-                    // The plugin API this firmware offers and the plugins built into it, with their tile types
-                    // (docs/PLUGINS.md): ESP Screens says which plugins a screen runs from this.
-                    // plugins (docs/PLUGINS.md): the top bar takes a plugin's own item.
+                    // plugins (docs/PLUGINS.md): this firmware takes plugin tiles and a plugin's item in the top bar.
+                    // plugin_api and plugins say which API it offers and which plugins are built in, with their tile
+                    // types (plugin_host::hello).
                     features.add("plugins");
                     plugin_host::hello(root);
                     auto sizes = root["tile_sizes"].to<JsonArray>();

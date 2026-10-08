@@ -23,9 +23,9 @@ std::vector<TileType> &tile_types() {
   static std::vector<TileType> list;
   return list;
 }
-const TileType *tile_type(const std::string &entity) {
+const TileType *tile_type(const std::string &key) {
   for (const auto &type : tile_types())
-    if (type.entity == entity) return &type;
+    if (type.key == key) return &type;
   return nullptr;
 }
 
@@ -67,10 +67,10 @@ void Plugin::add_tap_action(const char *id, std::function<void(const TapContext 
 }
 
 void Plugin::add_tile(const char *id, std::function<Tile *()> make) {
-  std::string entity = std::string("plugin:") + plugin_id() + "." + id;
+  std::string key = std::string("plugin:") + plugin_id() + "." + id;
   for (auto &type : tile_types())
-    if (type.entity == entity) { type.make = std::move(make); return; }
-  tile_types().push_back({this, id, std::move(entity), std::move(make)});
+    if (type.key == key) { type.make = std::move(make); return; }
+  tile_types().push_back({this, id, std::move(key), std::move(make)});
 }
 
 const char *Plugin::text(const char *key) const {
@@ -714,12 +714,6 @@ void hello(JsonObject root) {
     auto tiles = item["tiles"].to<JsonArray>();
     for (const auto &type : tessera::tile_types())
       if (type.plugin == p) tiles.add(type.id);
-    auto bar = item["bar"].to<JsonArray>();
-    for (const auto &entry : tessera::bar_items())
-      if (entry.plugin == p) bar.add(entry.id);
-    auto taps = item["taps"].to<JsonArray>();
-    for (const auto &action : tessera::tap_actions())
-      if (action.plugin == p) taps.add(action.id);
   }
 }
 

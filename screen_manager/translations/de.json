@@ -1609,7 +1609,6 @@
     "plugins": {
       "title": "Plugins",
       "intro": "Extras für deine Bildschirme: Hardware auf dem Board oder etwas, das ein Bildschirm zusätzlich kann. Ein Plugin wird in die Firmware eines Bildschirms eingebaut, deshalb wählst du für jeden Bildschirm, welche er bekommt.",
-      "example": "Beispiel-Plugins: Die echte Liste kommt mit dem Plugin-Index",
       "search": "Nach Name, Autor oder Funktion suchen",
       "filter": "Zeigen",
       "filters": {
@@ -1646,7 +1645,6 @@
         "psram": "Braucht PSRAM",
         "firmware": "Braucht neuere Firmware",
         "flash": "Zu groß für diesen Bildschirm",
-        "pins": "Kein freier Pin",
         "blocked": "Gesperrt"
       },
       "misfit": {
@@ -1654,7 +1652,6 @@
         "psram": "Dieses Plugin braucht ein Board mit PSRAM, und {screen} hat keinen.",
         "firmware": "{screen} braucht zuerst ein Firmware-Update, erst dann kann dieses Plugin darauf.",
         "flash": "{screen} hat noch Platz für etwa {kb} KB, und dieses Plugin ist größer.",
-        "pins": "{screen} hat keinen freien Pin, den dieses Plugin nutzen kann.",
         "blocked": "Diese Version des Plugins ist gesperrt: Sie ist bekanntermaßen schädlich oder defekt."
       },
       "none_installed": "Noch keine Plugins auf diesem Bildschirm.",
@@ -1688,12 +1685,10 @@
         "tile_sizes": "Von {min} bis {max} auf einer Seite",
         "tap": "Tippaktion „{name}“",
         "tap_on": "Auf Kacheln von {domains}",
-        "card": "Eine eigene Ansicht auf dem Bildschirm",
+        "card": "„{name}“, eine eigene Ansicht auf dem Bildschirm",
+        "bar": "Element der Kopfleiste „{name}“",
         "settings": "Einstellungen",
-        "settings_where": "Auf der Einstellungsseite des Bildschirms und unter Bildschirmeinstellungen",
-        "inputs": "Pins und Namen, die du selbst wählst",
-        "ha_package": "Ein Paket für Home Assistant",
-        "ha_package_why": "Einmal in Home Assistant installieren; der Editor bietet den Download an"
+        "settings_where": "Auf der Einstellungsseite des Bildschirms und unter Bildschirmeinstellungen"
       },
       "may": {
         "title": "Was es darf",
@@ -1718,7 +1713,6 @@
       },
       "source_code": "Quellcode",
       "issues": "Problem melden",
-      "example_install": "Beispiel: {name} auf {screens}. Mit dem Plugin-Index schreibt Tessera es in die YAML jedes Bildschirms und erstellt die Firmware.",
       "removed": "{name} von {screens} entfernt. Der Bildschirm verliert es mit der nächsten Erstellung.",
       "add_link": "Mit Link hinzufügen",
       "link": {
@@ -1739,7 +1733,6 @@
         },
         "fetch": "Plugin lesen",
         "test": "Als Test zu {screen} hinzufügen",
-        "example": "Beispiel: Mit dem Plugin-Index liest Tessera die Beschreibung des Plugins über diesen Link.",
         "not_found": "Unter diesem Link gibt es keine Plugin-Beschreibung.",
         "on_screen": "Auf Bildschirm"
       },
@@ -1772,9 +1765,7 @@
         "secret_set": "Gesetzt. Gib einen neuen Wert ein, um ihn zu ersetzen."
       },
       "readme": {
-        "title": "Lies mich",
-        "package": "Paket für Home Assistant herunterladen",
-        "package_example": "Beispiel: Mit dem Plugin-Index lädt Tessera das Paket aus dem Plugin herunter."
+        "title": "Lies mich"
       },
       "english_only": "Nur auf Englisch",
       "build_note": "Erstellst du mit ESPHome Device Builder oder auf einem anderen Computer? Das Plugin steht in der YAML des Bildschirms; erstelle ihn dort wie immer.",

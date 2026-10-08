@@ -42,9 +42,10 @@ plugins move with it in the same release. A test keeps the number equal in `plug
    the tile and its extras on a board without PSRAM. The screen counts the same (`plugin_host::bytes`, from the same
    manifest through `register_plugin`). A tile of a plugin the app does not know costs `PLUGIN_PLACEHOLDER_BYTES` (64),
    as on the screen.
-4. **Negotiation**: the screen's hello says `plugin_api` and `plugins: [{id, version, tiles}]`. A layout with a plugin
-   tile goes only to a screen that says `plugin_api`; one without gets the refusal "update the firmware". No firmware
-   number gates it, so dev screens work before a release numbers them.
+4. **Negotiation**: the screen's hello lists the feature `plugins` (it takes plugin tiles and a plugin's item in the
+   top bar), with `plugin_api` (the version) and `plugins: [{id, version, tiles}]` (what is built in). A layout with a
+   plugin tile, and a top bar with a plugin's item, go only to a screen whose features say `plugins`; one without gets
+   the refusal "update the firmware". No firmware number gates it, so dev screens work before a release numbers them.
 5. **The state message** of a plugin tile (`Plugins.tile_message`) has `state: "ok"`, no attributes, `o.plugin` (its
    options with the manifest's defaults) and `x`, the mapped answer of its fetch, kept under 2.6 KB.
 6. **On the screen** `page_receiver` keeps `o.plugin` and `x` as JSON in the tile's `Extra` (`plugin_options`,
@@ -99,6 +100,10 @@ repository's `docs/FETCH.md`.
   page comes back) and with `KEPT_PAGES_HOST=1` (the kept path of a board with PSRAM), docs/TESTING.md, "The plugin
   host": the probe's log lines are the only proof that a card is made, fed, ticked and deleted at the right moments. A
   new moment of the API gets a line in the probe and a wait in `plugin_round`.
+- **One name per thing.** A plugin's part is keyed `plugin:<plugin>.<part>` (`plugin_key()` on the screen,
+  `core.plugin_tile()` in the add-on, `TileType::key` and its siblings in the API); the Home Assistant entity a plugin
+  tile belongs to is `plugin_entity` (the option, `Extra::plugin_entity`, `TileContext::entity`). The domains a tile, a
+  tap action or an input takes are `domains` in the manifest. Keep it so: a new part takes the existing word.
 - **The manifest is the plugin's word, not a fence.** What the add-on enforces is `permissions.network` (every fetch)
   and `permissions.ha_commands` (every question through `tessera::send`). `home_assistant_actions` and
   `read_entities` are declarations the screen does not check: code built into the firmware can do what the firmware
@@ -109,7 +114,7 @@ repository's `docs/FETCH.md`.
 | Part | Firmware | Add-on | Editor |
 |---|---|---|---|
 | A tile, with data from a fetch | `Tile`, `add_tile` | `Plugins.tile_message`, `plugin_fetch.py` | library, inspector, `preview` drawn from the data |
-| A tile of an entity | `TileContext.entity`, `tessera::action` | `Plugins.entity_part` (state, name, named attributes), `related_entities` | entity picker of the manifest's domains, also ones Tessera draws no tile for |
+| A tile of an entity | `TileContext.entity`, `tessera::action` | the manifest's `domains` and `attributes`; `Plugins.entity_part` (state, name, named attributes), `related_entities` | entity picker of those domains, also ones Tessera draws no tile for |
 | A card | `Card`, `add_card`, `open_card`; closed by `hide_detail` | nothing | nothing |
 | A tap action | `add_tap_action`; `event()` runs a tile's `plugin:` tap | `validate_layout` takes a `plugin:` tap | the tile inspector's tap choices |
 | A top bar item | `add_bar_item`; `header_bar::Kind::plugin` | `validate_header` type `plugin`, sent to a screen whose hello says `plugins` | "From plugins" in Top bar, Add |

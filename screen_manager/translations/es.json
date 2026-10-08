@@ -1609,7 +1609,6 @@
     "plugins": {
       "title": "Plugins",
       "intro": "Extras para tus pantallas: hardware en la placa, o algo más que una pantalla puede hacer. Un plugin se integra en el firmware de una pantalla, así que eliges para cada pantalla cuáles recibe.",
-      "example": "Plugins de ejemplo: la lista real llegará con el índice de plugins",
       "search": "Busca por nombre, autor o lo que hace",
       "filter": "Mostrar",
       "filters": {
@@ -1646,7 +1645,6 @@
         "psram": "Necesita PSRAM",
         "firmware": "Necesita un firmware más reciente",
         "flash": "Demasiado grande para esta pantalla",
-        "pins": "Ningún pin libre",
         "blocked": "Bloqueado"
       },
       "misfit": {
@@ -1654,7 +1652,6 @@
         "psram": "Este plugin necesita una placa con PSRAM, y {screen} no la tiene.",
         "firmware": "{screen} necesita una actualización de firmware antes de poder recibir este plugin.",
         "flash": "A {screen} le queda sitio para unos {kb} KB más, y este plugin es más grande.",
-        "pins": "{screen} no tiene ningún pin libre que este plugin pueda usar.",
         "blocked": "Esta versión del plugin está bloqueada: se sabe que es dañina o que no funciona."
       },
       "none_installed": "Todavía no hay plugins en esta pantalla.",
@@ -1688,12 +1685,10 @@
         "tile_sizes": "De {min} a {max} en una página",
         "tap": "Acción al tocar «{name}»",
         "tap_on": "En mosaicos de {domains}",
-        "card": "Una vista propia en la pantalla",
+        "card": "«{name}», una vista propia en la pantalla",
+        "bar": "Elemento de la barra superior «{name}»",
         "settings": "Configuración",
-        "settings_where": "En la página de configuración de la pantalla y en Configuración de pantalla",
-        "inputs": "Pines y nombres que eliges tú",
-        "ha_package": "Un paquete para Home Assistant",
-        "ha_package_why": "Se instala una vez en Home Assistant; el editor ofrece la descarga"
+        "settings_where": "En la página de configuración de la pantalla y en Configuración de pantalla"
       },
       "may": {
         "title": "Qué puede hacer",
@@ -1718,7 +1713,6 @@
       },
       "source_code": "Código fuente",
       "issues": "Informar de un problema",
-      "example_install": "Ejemplo: {name} en {screens}. Con el índice de plugins, Tessera lo escribe en el YAML de cada pantalla y compila.",
       "removed": "{name} eliminado de {screens}. La pantalla lo pierde en su próxima compilación.",
       "add_link": "Añadir con un enlace",
       "link": {
@@ -1739,7 +1733,6 @@
         },
         "fetch": "Leer el plugin",
         "test": "Añadir a {screen} como prueba",
-        "example": "Ejemplo: con el índice de plugins, Tessera lee la descripción del plugin desde este enlace.",
         "not_found": "No hay ninguna descripción de plugin en este enlace.",
         "on_screen": "En la pantalla"
       },
@@ -1772,9 +1765,7 @@
         "secret_set": "Configurado. Escribe uno nuevo para sustituirlo."
       },
       "readme": {
-        "title": "Léeme",
-        "package": "Descargar el paquete de Home Assistant",
-        "package_example": "Ejemplo: con el índice de plugins, Tessera descarga el paquete desde el plugin."
+        "title": "Léeme"
       },
       "english_only": "Solo en inglés",
       "build_note": "¿Compilas con ESPHome Device Builder o en otro ordenador? El plugin está en el YAML de la pantalla; compílala allí como siempre.",

@@ -453,7 +453,7 @@ class EntityTile(unittest.IsolatedAsyncioTestCase):
                 'time_zone': 'Europe/Amsterdam', 'changed': asyncio.Event(), 'dirty': set()})()
             page_senders = {}
         service = plugin_service.Plugins(FakeManager(), Path(tmp.name) / 'data', Path(tmp.name) / 'esphome')
-        kind = {'id': 'next', 'entity': ['sensor'], 'attributes': ['next_date', 'days']}
+        kind = {'id': 'next', 'domains': ['sensor'], 'attributes': ['next_date', 'days']}
         entity, part = service.entity_part(kind, {'options': {'plugin_entity': 'sensor.waste_next'}})
         self.assertEqual(entity, 'sensor.waste_next')
         self.assertEqual(part['state'], 'paper')
@@ -565,9 +565,9 @@ class Hello(unittest.TestCase):
     def test_plugins_of_a_hello(self):
         self.assertEqual(plugins_of({}), (None, []))
         api, plugins = plugins_of({'plugin_api': '0.1', 'plugins': [
-            {'id': 'bus', 'version': '1.0.0', 'tiles': ['next', 'Bad!'], 'taps': ['schedule']}, {'id': 'Nope'}, 'junk']})
+            {'id': 'bus', 'version': '1.0.0', 'tiles': ['next', 'Bad!']}, {'id': 'Nope'}, 'junk']})
         self.assertEqual(api, '0.1')
-        self.assertEqual(plugins, [{'id': 'bus', 'version': '1.0.0', 'tiles': ['next'], 'taps': ['schedule']}])
+        self.assertEqual(plugins, [{'id': 'bus', 'version': '1.0.0', 'tiles': ['next']}])
 
 
 class Sidecar(unittest.TestCase):

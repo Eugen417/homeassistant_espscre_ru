@@ -2881,7 +2881,6 @@
     "plugins": {
       "title": "Plugins",
       "intro": "Extras for your screens: hardware on the board, or something more a screen can do. A plugin is built into a screen's firmware, so you choose per screen which ones it gets.",
-      "example": "Example plugins: the real list arrives with the plugin index",
       "search": "Search by name, maker or what it does",
       "filter": "Show",
       "filters": {
@@ -2918,7 +2917,6 @@
         "psram": "Needs PSRAM",
         "firmware": "Needs newer firmware",
         "flash": "Too large for this screen",
-        "pins": "No free pin",
         "blocked": "Blocked"
       },
       "misfit": {
@@ -2926,7 +2924,6 @@
         "psram": "This plugin needs a board with PSRAM, and {screen} has none.",
         "firmware": "{screen} needs a firmware update before it can take this plugin.",
         "flash": "{screen} has room for about {kb} KB more, and this plugin is larger.",
-        "pins": "{screen} has no free pin this plugin can use.",
         "blocked": "This version of the plugin is blocked: it is known to be harmful or broken."
       },
       "none_installed": "No plugins on this screen yet.",
@@ -2960,12 +2957,10 @@
         "tile_sizes": "From {min} to {max} on a page",
         "tap": "Tap action “{name}”",
         "tap_on": "On tiles of {domains}",
-        "card": "A screen of its own on the glass",
+        "card": "“{name}”, a screen of its own on the glass",
+        "bar": "Top bar item “{name}”",
         "settings": "Settings",
-        "settings_where": "On the screen's settings page and under Screen settings",
-        "inputs": "Pins and names you choose",
-        "ha_package": "A package for Home Assistant",
-        "ha_package_why": "Installed once in Home Assistant; the editor offers the download"
+        "settings_where": "On the screen's settings page and under Screen settings"
       },
       "may": {
         "title": "What it may do",
@@ -2990,7 +2985,6 @@
       },
       "source_code": "Source code",
       "issues": "Report a problem",
-      "example_install": "Example: {name} on {screens}. With the plugin index, Tessera writes it into each screen's YAML and builds.",
       "removed": "{name} removed from {screens}. The screen loses it with its next build.",
       "add_link": "Add with a link",
       "link": {
@@ -3011,7 +3005,6 @@
         },
         "fetch": "Read the plugin",
         "test": "Add to {screen} as a test",
-        "example": "Example: with the plugin index, Tessera reads the plugin's description from this link.",
         "not_found": "No plugin description at this link.",
         "on_screen": "On screen"
       },
@@ -3044,9 +3037,7 @@
         "secret_set": "Set. Fill in a new one to replace it."
       },
       "readme": {
-        "title": "Read me",
-        "package": "Download the Home Assistant package",
-        "package_example": "Example: with the plugin index, Tessera downloads the package from the plugin."
+        "title": "Read me"
       },
       "english_only": "In English only",
       "build_note": "Built with ESPHome Device Builder or on another computer? The plugin is in the screen's YAML; build it there as you always do.",

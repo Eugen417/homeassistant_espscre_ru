@@ -18,8 +18,6 @@ import time
 from pathlib import Path
 
 VERSION = 1
-STATES = ('building', 'active', 'failed', 'removing')
-SOURCES = ('index', 'folder', 'link')
 
 
 def _write(path, data, mode=0o600):

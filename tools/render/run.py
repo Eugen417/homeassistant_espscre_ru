@@ -621,9 +621,9 @@ class Run:
         region = dict(keepalive=120, clock_24h=True, numbers='point', group_min=1, percent_space=False)
         start = len(self.lines)
         await self.sender.synchronize(self.inbox.object_id, record, region, values(1), bars)
-        # The hello names the API and the plugin with its tile, bar item and tap action (plugin_host::hello).
+        # The hello says the firmware takes plugins, names the API, and the plugin with its tile (plugin_host::hello).
         mine = next((p for p in self.sender.plugins if p['id'] == 'host_probe'), None)
-        assert self.sender.plugin_api and mine and 'probe' in mine['tiles'] and 'open' in mine['taps'], \
+        assert 'plugins' in self.sender.features and self.sender.plugin_api and mine and mine['tiles'] == ['probe'], \
             f'the hello says plugin_api={self.sender.plugin_api} plugins={self.sender.plugins}'
         self.warnings.append(f'hello: plugin API {self.sender.plugin_api}, host_probe {mine["version"]}')
         await self.call('render_page', page=0)

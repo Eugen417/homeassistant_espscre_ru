@@ -447,7 +447,7 @@ class Plugins:
                                if o.get('choices') else {})}
         gpio = any(item['kind'] == 'gpio' for item in manifest['inputs'])
         return {
-            'id': entry.id, 'name': words('name'), 'summary': words('summary'), 'description': words('summary'),
+            'id': entry.id, 'name': words('name'), 'summary': words('summary'),
             'icon': glyph(manifest['icon']), 'maintainer': manifest['maintainer'], 'tessera': entry.label == 'tessera',
             'version': entry.version, 'repo': entry.link(), 'ref': entry.ref, 'license': manifest['license'],
             'kind': 'hardware' if gpio or manifest['boards'] != 'any' else 'behaviour', 'boards': manifest['boards'],
@@ -463,12 +463,13 @@ class Plugins:
             'parts': [{'id': p['id'], 'label': words(p['label']), 'hint': words(p['hint']) or {'en': ''},
                        'flash_kb': p['flash_kb'], 'default': p['default']} for p in manifest['parts']],
             'attributes': manifest['attributes'],
-            'adds': {'tiles': [{'id': tile['id'], 'name': words(tile['name']), 'icon': glyph(tile['icon']),
-                                'min': tile['min'], 'max': tile['max'], 'memory': tile['memory'],
-                                'entity': tile['entity'], 'data': tile.get('data'),
-                                'options': [option(o) for o in tile['options']],
-                                'example': words(tile.get('example')), 'preview': bool(tile.get('preview'))}
-                               for tile in manifest['tiles']]},
+            'tiles': [{'id': tile['id'], 'name': words(tile['name']), 'icon': glyph(tile['icon']),
+                       'min': tile['min'], 'max': tile['max'], 'memory': tile['memory'],
+                       'domains': tile['domains'], 'data': tile.get('data'),
+                       'options': [option(o) for o in tile['options']],
+                       'example': words(tile.get('example')), 'preview': bool(tile.get('preview'))}
+                      for tile in manifest['tiles']],
+            'settings': [{'key': s['key'], 'label': words(s['label'])} for s in manifest['settings']],
             'cards': [{'id': c['id'], 'name': words(c['name'])} for c in manifest['cards']],
             'tap_actions': [{'id': a['id'], 'label': words(a['label']), 'domains': a['domains']} for a in manifest['tap_actions']],
             'bar_items': [{'id': b['id'], 'label': words(b['label']), 'icon': glyph(b['icon']), 'example': words(b['example'])}
@@ -515,7 +516,7 @@ class Plugins:
                     secrets.setdefault(entry.id, {})[item['id']] = self.secrets.has(entry.id, item['id'])
         # The entities of every domain a plugin names (a tile's `entity`, an input of kind entity): the editor's own list
         # has only the domains Tessera draws tiles for, and a plugin may add one it does not (a calendar).
-        domains = {d for entry in listed.values() for tile in entry.manifest['tiles'] for d in (tile['entity'] or [])}
+        domains = {d for entry in listed.values() for tile in entry.manifest['tiles'] for d in tile['domains']}
         domains |= {d for entry in listed.values() for item in entry.manifest['inputs'] for d in item['domains']}
         states = getattr(self.manager.ha, 'states', {}) or {}
         entities = sorted(({'id': eid, 'name': (state.get('attributes') or {}).get('friendly_name') or eid}
@@ -535,8 +536,6 @@ class Plugins:
         """The text of `<name>.plugins.yaml` for this screen's records."""
         packages, components = [], []
         for record in self.store.of(inbox):
-            if record.get('state') == 'removing':
-                continue
             entry = self.entry_for(record)
             if not entry:
                 continue
@@ -775,9 +774,9 @@ class Plugins:
         attributes its manifest names, bounded as every tile's (48 bytes a text, 16 items a list). An attribute named
         ..._at, ..._time or ...date that holds a moment goes as seconds since 1970, so the screen says it in its words."""
         entity = (tile.get('options') or {}).get('plugin_entity')
-        if not kind or not kind['entity'] or not entity:
+        if not kind or not kind['domains'] or not entity:
             return None, None
-        if entity.split('.')[0] not in kind['entity']:
+        if entity.split('.')[0] not in kind['domains']:
             return entity, {'wait': 'wrong_entity'}
         state = self.manager.ha.states.get(entity) or {}
         attrs = state.get('attributes') or {}

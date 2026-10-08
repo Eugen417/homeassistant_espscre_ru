@@ -145,7 +145,7 @@ def prepare(inbox, record, region, values, bars):
 
 
 def plugins_of(answer):
-    """The plugin API and plugins of a hello (docs/PLUGINS.md): ("0.1", [{"id", "version", "tiles"}]), or (None, [])."""
+    """The plugin API and plugins of a hello (docs/PLUGINS.md): ("0.4", [{"id", "version", "tiles"}]), or (None, [])."""
     api = answer.get("plugin_api") if isinstance(answer, dict) else None
     if not isinstance(api, str) or not re.fullmatch(r"\d+\.\d+", api):
         return None, []
@@ -155,8 +155,7 @@ def plugins_of(answer):
             continue
         tiles = [tile for tile in item.get("tiles") or [] if isinstance(tile, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,31}", tile)]
         version = item.get("version") if isinstance(item.get("version"), str) else ""
-        taps = [tap for tap in item.get("taps") or [] if isinstance(tap, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,31}", tap)]
-        plugins.append({"id": item["id"], "version": version[:16], "tiles": tiles[:8], "taps": taps[:8]})
+        plugins.append({"id": item["id"], "version": version[:16], "tiles": tiles[:8]})
         if len(plugins) == 16:
             break
     return api, plugins
@@ -372,7 +371,7 @@ class Sender:
                         raise Refused(english('addon.errors.layout.firmware_first', version='.'.join(map(str, ENTITY_REPEAT_MIN_FIRMWARE))))
                     # A plugin's tile goes only to a screen that offers the plugin API; one without the plugin itself draws
                     # it as a plain card that says so (plugin_host.h), which is never an error.
-                    if not self.plugin_api and any(message.get("entity", "").startswith("plugin:") for message in initial_tiles):
+                    if "plugins" not in self.features and any(message.get("entity", "").startswith("plugin:") for message in initial_tiles):
                         raise Refused(english('addon.errors.plugins.firmware'))
                     if not self.free_pages and begin["pages"] > grid_of_record(record).legacy_pages:
                         raise Refused(english('addon.errors.layout.firmware_first', version='.'.join(map(str, FREE_PAGES_MIN_FIRMWARE))))

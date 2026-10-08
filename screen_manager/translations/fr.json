@@ -1609,7 +1609,6 @@
     "plugins": {
       "title": "Plugins",
       "intro": "Des extras pour vos écrans : du matériel sur la carte, ou quelque chose de plus qu'un écran sait faire. Un plugin est intégré au firmware d'un écran, vous choisissez donc pour chaque écran ceux qu'il reçoit.",
-      "example": "Plugins d'exemple : la vraie liste arrivera avec l'index des plugins",
       "search": "Rechercher par nom, auteur ou fonction",
       "filter": "Afficher",
       "filters": {
@@ -1646,7 +1645,6 @@
         "psram": "Nécessite de la PSRAM",
         "firmware": "Nécessite un firmware plus récent",
         "flash": "Trop volumineux pour cet écran",
-        "pins": "Aucune broche libre",
         "blocked": "Bloqué"
       },
       "misfit": {
@@ -1654,7 +1652,6 @@
         "psram": "Ce plugin nécessite une carte avec PSRAM, et {screen} n'en a pas.",
         "firmware": "{screen} a besoin d'une mise à jour du firmware avant de pouvoir recevoir ce plugin.",
         "flash": "{screen} a encore de la place pour environ {kb} Ko, et ce plugin est plus gros.",
-        "pins": "{screen} n'a aucune broche libre utilisable par ce plugin.",
         "blocked": "Cette version du plugin est bloquée : elle est connue pour être nuisible ou défectueuse."
       },
       "none_installed": "Aucun plugin sur cet écran pour l'instant.",
@@ -1688,12 +1685,10 @@
         "tile_sizes": "De {min} à {max} sur une page",
         "tap": "Action au toucher « {name} »",
         "tap_on": "Sur les tuiles de {domains}",
-        "card": "Sa propre vue sur l'écran",
+        "card": "« {name} », sa propre vue sur l'écran",
+        "bar": "Élément de la barre supérieure « {name} »",
         "settings": "Paramètres",
-        "settings_where": "Sur la page des paramètres de l'écran et sous Paramètres de l'écran",
-        "inputs": "Des broches et des noms que vous choisissez",
-        "ha_package": "Un paquet pour Home Assistant",
-        "ha_package_why": "À installer une seule fois dans Home Assistant ; l'éditeur propose le téléchargement"
+        "settings_where": "Sur la page des paramètres de l'écran et sous Paramètres de l'écran"
       },
       "may": {
         "title": "Ce qu'il peut faire",
@@ -1718,7 +1713,6 @@
       },
       "source_code": "Code source",
       "issues": "Signaler un problème",
-      "example_install": "Exemple : {name} sur {screens}. Avec l'index des plugins, Tessera l'écrit dans le YAML de chaque écran et compile.",
       "removed": "{name} retiré de {screens}. L'écran le perd à sa prochaine compilation.",
       "add_link": "Ajouter avec un lien",
       "link": {
@@ -1739,7 +1733,6 @@
         },
         "fetch": "Lire le plugin",
         "test": "Ajouter à {screen} comme test",
-        "example": "Exemple : avec l'index des plugins, Tessera lit la description du plugin via ce lien.",
         "not_found": "Aucune description de plugin à ce lien.",
         "on_screen": "Sur l'écran"
       },
@@ -1772,9 +1765,7 @@
         "secret_set": "Défini. Saisissez-en un nouveau pour le remplacer."
       },
       "readme": {
-        "title": "Lisez-moi",
-        "package": "Télécharger le paquet Home Assistant",
-        "package_example": "Exemple : avec l'index des plugins, Tessera télécharge le paquet depuis le plugin."
+        "title": "Lisez-moi"
       },
       "english_only": "En anglais uniquement",
       "build_note": "Vous compilez avec ESPHome Device Builder ou sur un autre ordinateur ? Le plugin est dans le YAML de l'écran ; compilez-le là-bas comme d'habitude.",

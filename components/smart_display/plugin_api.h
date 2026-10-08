@@ -172,8 +172,7 @@ struct TapAction {
 };
 struct TileType {
   Plugin *plugin;
-  std::string id;            // the tile's id in the manifest
-  std::string entity;        // plugin:<plugin>.<tile>
+  std::string id, key;       // the tile's id in the manifest, and plugin:<plugin>.<tile> (its entity in a layout)
   std::function<Tile *()> make;
 };
 
@@ -237,7 +236,7 @@ class Plugin {
 // The register. Each list is made on first use, so the order components are made in does not matter.
 std::vector<Plugin *> &plugins();
 std::vector<TileType> &tile_types();
-const TileType *tile_type(const std::string &entity);
+const TileType *tile_type(const std::string &key);
 std::vector<CardType> &card_types();
 std::vector<TapAction> &tap_actions();
 std::vector<BarItemType> &bar_items();

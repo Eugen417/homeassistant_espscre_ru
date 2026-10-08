@@ -21,7 +21,6 @@ const reading = reactive({ busy: false });
 // The add-on reads the plugin's description first (api/plugins/link): a release opens its details, a test goes on the
 // chosen screen at once, as a test with no updates.
 async function read() {
-  if (plugins.example) { toast(t("editor.plugins.link.example")); return; }
   reading.busy = true;
   try {
     const body = link.source === "folder" ? { folder: link.folder.trim() }

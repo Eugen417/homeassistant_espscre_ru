@@ -12,7 +12,6 @@ import {
   addPlugin, attachLine, buildingOn, copyAttach, fileOf, installedOn, labelOf, markAttached, needsAttach, partsKb, pluginsFile, realScreens,
   needsConsent, plugins, removePlugin, setupReady, statusOn,
 } from "../plugin-state";
-import { toast } from "../store";
 import type { Screen } from "../types";
 import PluginReadme from "./PluginReadme.vue";
 import PluginSetup from "./PluginSetup.vue";
@@ -33,7 +32,6 @@ const domainName = (domain: string) => (te(`editor.domains.${domain}`) ? t(`edit
 const englishOnly = computed(() => !editorLanguage().startsWith("en") && !inEditorLanguage(props.plugin.readme));
 const trust = ref(false);
 watch(() => props.plugin.id, () => { trust.value = false; });
-const packageDownload = () => toast(t("editor.plugins.readme.package_example"));
 
 // ---- One screen (its Plugins tab) ----
 const here = computed(() => props.screen || null);
@@ -116,7 +114,7 @@ watch(() => screens.value.map((s) => `${s.id}:${installedOn(s, props.plugin.id)?
       <em v-if="englishOnly" class="plugin-chip attribute" id="plugin-english-only">{{ t("editor.plugins.english_only") }}</em>
     </p>
   </div>
-  <p v-if="text(plugin.description)" class="pd-description">{{ text(plugin.description) }}</p>
+  <p v-if="text(plugin.summary)" class="pd-description">{{ text(plugin.summary) }}</p>
 
   <!-- In a screen's tab, for a screen with its own YAML that is not attached yet: one line, once. After that the add-on
        keeps its plugins file and the screen is like any other; ESPHome Device Builder builds it as always. -->
@@ -127,9 +125,9 @@ watch(() => screens.value.map((s) => `${s.id}:${installedOn(s, props.plugin.id)?
       <button type="button" class="btn quiet" id="plugin-copy-line" @click="copyAttach(here)"><Icon name="content-copy" />{{ t("editor.plugins.attach.copy") }}</button>
       <button type="button" class="btn primary" id="plugin-attached" @click="markAttached(here)">{{ t("editor.plugins.attach.done") }}</button>
     </div>
-    <details class="pd-file">
+    <details v-if="pluginsFile(here)" class="pd-file">
       <summary><Icon name="chevron-right" />{{ t("editor.plugins.attach.file", { file: fileOf(here) }) }}</summary>
-      <pre class="pd-yaml">{{ pluginsFile(here, plugin) }}</pre>
+      <pre class="pd-yaml">{{ pluginsFile(here) }}</pre>
     </details>
   </div>
 
@@ -205,18 +203,16 @@ watch(() => screens.value.map((s) => `${s.id}:${installedOn(s, props.plugin.id)?
   <section v-if="text(plugin.readme)" class="pd-section" id="plugin-readme">
     <h3>{{ t("editor.plugins.readme.title") }}</h3>
     <PluginReadme :source="text(plugin.readme)" :repo="plugin.repo" />
-    <button v-if="plugin.adds.ha_package" type="button" class="btn quiet pd-package" id="plugin-package" @click="packageDownload"><Icon name="tray-arrow-down" />{{ t("editor.plugins.readme.package") }}</button>
   </section>
 
   <section v-if="label !== 'test'" class="pd-section">
     <h3>{{ t("editor.plugins.adds.title") }}</h3>
     <ul class="pd-list">
-      <li v-for="tile in plugin.adds.tiles || []" :key="text(tile.name)"><Icon name="view-dashboard-outline" /><span><b>{{ t("editor.plugins.adds.tile", { name: text(tile.name) }) }}</b><small>{{ t("editor.plugins.adds.tile_sizes", { min: tile.min, max: tile.max }) }}</small></span></li>
-      <li v-for="action in plugin.adds.tap_actions || []" :key="text(action.label)"><Icon name="gesture-tap" /><span><b>{{ t("editor.plugins.adds.tap", { name: text(action.label) }) }}</b><small>{{ t("editor.plugins.adds.tap_on", { domains: action.domains.map(domainName).join(", ") }) }}</small></span></li>
-      <li v-if="plugin.adds.card"><Icon name="monitor-eye" /><span><b>{{ t("editor.plugins.adds.card") }}</b></span></li>
-      <li v-if="plugin.adds.settings"><Icon name="cog-outline" /><span><b>{{ t("editor.plugins.adds.settings") }}</b><small>{{ t("editor.plugins.adds.settings_where") }}</small></span></li>
-      <li v-if="plugin.adds.inputs"><Icon name="tune-variant" /><span><b>{{ t("editor.plugins.adds.inputs") }}</b></span></li>
-      <li v-if="plugin.adds.ha_package"><Icon name="tray-arrow-down" /><span><b>{{ t("editor.plugins.adds.ha_package") }}</b><small>{{ t("editor.plugins.adds.ha_package_why") }}</small></span></li>
+      <li v-for="tile in plugin.tiles || []" :key="`tile-${tile.id}`"><Icon name="view-dashboard-outline" /><span><b>{{ t("editor.plugins.adds.tile", { name: text(tile.name) }) }}</b><small>{{ t("editor.plugins.adds.tile_sizes", { min: tile.min, max: tile.max }) }}</small></span></li>
+      <li v-for="card in plugin.cards || []" :key="`card-${card.id}`"><Icon name="monitor-eye" /><span><b>{{ t("editor.plugins.adds.card", { name: text(card.name) }) }}</b></span></li>
+      <li v-for="action in plugin.tap_actions || []" :key="`tap-${action.id}`"><Icon name="gesture-tap" /><span><b>{{ t("editor.plugins.adds.tap", { name: text(action.label) }) }}</b><small>{{ t("editor.plugins.adds.tap_on", { domains: action.domains.map(domainName).join(", ") }) }}</small></span></li>
+      <li v-for="bar in plugin.bar_items || []" :key="`bar-${bar.id}`"><Icon name="page-layout-header" /><span><b>{{ t("editor.plugins.adds.bar", { name: text(bar.label) }) }}</b></span></li>
+      <li v-if="plugin.settings?.length"><Icon name="cog-outline" /><span><b>{{ t("editor.plugins.adds.settings") }}</b><small>{{ t("editor.plugins.adds.settings_where") }}</small></span></li>
     </ul>
   </section>
 

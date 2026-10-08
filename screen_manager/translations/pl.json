@@ -1609,7 +1609,6 @@
     "plugins": {
       "title": "Wtyczki",
       "intro": "Dodatki do Twoich ekranów: sprzęt na płytce albo coś, co ekran może robić dodatkowo. Wtyczka jest wbudowywana w firmware ekranu, więc dla każdego ekranu wybierasz, które dostanie.",
-      "example": "Przykładowe wtyczki: prawdziwa lista pojawi się wraz z indeksem wtyczek",
       "search": "Szukaj po nazwie, autorze lub funkcji",
       "filter": "Pokaż",
       "filters": {
@@ -1646,7 +1645,6 @@
         "psram": "Wymaga PSRAM",
         "firmware": "Wymaga nowszego firmware",
         "flash": "Za duża dla tego ekranu",
-        "pins": "Brak wolnego pinu",
         "blocked": "Zablokowana"
       },
       "misfit": {
@@ -1654,7 +1652,6 @@
         "psram": "Ta wtyczka wymaga płytki z PSRAM, a {screen} jej nie ma.",
         "firmware": "{screen} potrzebuje aktualizacji firmware, zanim przyjmie tę wtyczkę.",
         "flash": "{screen} ma miejsce na około {kb} KB więcej, a ta wtyczka jest większa.",
-        "pins": "{screen} nie ma wolnego pinu, którego ta wtyczka mogłaby użyć.",
         "blocked": "Ta wersja wtyczki jest zablokowana: wiadomo, że jest szkodliwa lub uszkodzona."
       },
       "none_installed": "Na tym ekranie nie ma jeszcze wtyczek.",
@@ -1688,12 +1685,10 @@
         "tile_sizes": "Od {min} do {max} na stronie",
         "tap": "Akcja po dotknięciu „{name}”",
         "tap_on": "Na kafelkach {domains}",
-        "card": "Własny widok na ekranie",
+        "card": "„{name}”, własny widok na ekranie",
+        "bar": "Element górnego paska „{name}”",
         "settings": "Ustawienia",
-        "settings_where": "Na stronie ustawień ekranu i w Ustawieniach ekranu",
-        "inputs": "Piny i nazwy, które sam wybierasz",
-        "ha_package": "Pakiet dla Home Assistant",
-        "ha_package_why": "Instalowany raz w Home Assistant; edytor udostępnia go do pobrania"
+        "settings_where": "Na stronie ustawień ekranu i w Ustawieniach ekranu"
       },
       "may": {
         "title": "Co może robić",
@@ -1718,7 +1713,6 @@
       },
       "source_code": "Kod źródłowy",
       "issues": "Zgłoś problem",
-      "example_install": "Przykład: {name} na {screens}. Z indeksem wtyczek Tessera wpisuje ją do YAML każdego ekranu i kompiluje.",
       "removed": "Usunięto {name} z {screens}. Ekran straci ją przy następnej kompilacji.",
       "add_link": "Dodaj przez link",
       "link": {
@@ -1739,7 +1733,6 @@
         },
         "fetch": "Odczytaj wtyczkę",
         "test": "Dodaj do {screen} jako test",
-        "example": "Przykład: z indeksem wtyczek Tessera odczytuje opis wtyczki z tego linku.",
         "not_found": "Pod tym linkiem nie ma opisu wtyczki.",
         "on_screen": "Na ekranie"
       },
@@ -1772,9 +1765,7 @@
         "secret_set": "Ustawiono. Wpisz nową wartość, aby ją zastąpić."
       },
       "readme": {
-        "title": "Przeczytaj",
-        "package": "Pobierz pakiet dla Home Assistant",
-        "package_example": "Przykład: z indeksem wtyczek Tessera pobiera pakiet z wtyczki."
+        "title": "Przeczytaj"
       },
       "english_only": "Tylko po angielsku",
       "build_note": "Kompilujesz w ESPHome Device Builder albo na innym komputerze? Wtyczka jest w YAML ekranu; skompiluj go tam jak zawsze.",

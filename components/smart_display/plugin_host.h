@@ -43,6 +43,6 @@ void ready();
 void tick(uint32_t now_ms, bool dimmed);
 void standby(bool dark);
 void before_update();
-// plugin_api and plugins in the screen's answer to the add-on's hello.
+// plugin_api and plugins ([{id, version, tiles}]) in the screen's answer to the add-on's hello.
 void hello(JsonObject root);
 }  // namespace plugin_host

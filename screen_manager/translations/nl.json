@@ -2881,7 +2881,6 @@
     "plugins": {
       "title": "Plugins",
       "intro": "Extra's voor je schermen: hardware op het bordje, of iets wat een scherm extra kan. Een plugin wordt in de firmware van een scherm gebouwd, dus je kiest per scherm welke het krijgt.",
-      "example": "Voorbeeldplugins: de echte lijst komt met de plugin-index",
       "search": "Zoek op naam, maker of wat hij doet",
       "filter": "Toon",
       "filters": {
@@ -2918,7 +2917,6 @@
         "psram": "Heeft PSRAM nodig",
         "firmware": "Heeft nieuwere firmware nodig",
         "flash": "Te groot voor dit scherm",
-        "pins": "Geen vrije pin",
         "blocked": "Geblokkeerd"
       },
       "misfit": {
@@ -2926,7 +2924,6 @@
         "psram": "Deze plugin heeft een bordje met PSRAM nodig, en {screen} heeft dat niet.",
         "firmware": "{screen} heeft eerst een firmware-update nodig voordat deze plugin erop kan.",
         "flash": "{screen} heeft nog ruimte voor ongeveer {kb} KB, en deze plugin is groter.",
-        "pins": "{screen} heeft geen vrije pin die deze plugin kan gebruiken.",
         "blocked": "Deze versie van de plugin is geblokkeerd: hij is schadelijk of kapot."
       },
       "none_installed": "Nog geen plugins op dit scherm.",
@@ -2960,12 +2957,10 @@
         "tile_sizes": "Van {min} tot {max} op een pagina",
         "tap": "Tikactie “{name}”",
         "tap_on": "Op tegels van {domains}",
-        "card": "Een eigen scherm op het glas",
+        "card": "“{name}”, een eigen scherm op het glas",
+        "bar": "Bovenbalk-item “{name}”",
         "settings": "Instellingen",
-        "settings_where": "Op de instellingenpagina van het scherm en onder Scherminstellingen",
-        "inputs": "Pinnen en namen die je zelf kiest",
-        "ha_package": "Een pakket voor Home Assistant",
-        "ha_package_why": "Eenmalig in Home Assistant te installeren; de editor biedt de download"
+        "settings_where": "Op de instellingenpagina van het scherm en onder Scherminstellingen"
       },
       "may": {
         "title": "Wat hij mag",
@@ -2990,7 +2985,6 @@
       },
       "source_code": "Broncode",
       "issues": "Probleem melden",
-      "example_install": "Voorbeeld: {name} op {screens}. Met de plugin-index zet Tessera hem in de YAML van elk scherm en bouwt.",
       "removed": "{name} verwijderd van {screens}. Het scherm verliest hem bij de volgende build.",
       "add_link": "Toevoegen met link",
       "link": {
@@ -3011,7 +3005,6 @@
         },
         "fetch": "Plugin lezen",
         "test": "Als test toevoegen aan {screen}",
-        "example": "Voorbeeld: met de plugin-index leest Tessera de beschrijving van de plugin via deze link.",
         "not_found": "Geen pluginbeschrijving gevonden op deze link.",
         "on_screen": "Op scherm"
       },
@@ -3044,9 +3037,7 @@
         "secret_set": "Ingesteld. Vul een nieuwe in om hem te vervangen."
       },
       "readme": {
-        "title": "Lees mij",
-        "package": "Pakket voor Home Assistant downloaden",
-        "package_example": "Voorbeeld: met de plugin-index downloadt Tessera het pakket uit de plugin."
+        "title": "Lees mij"
       },
       "english_only": "Alleen in het Engels",
       "build_note": "Bouw je met ESPHome Device Builder of op een andere computer? De plugin staat in de YAML van het scherm; bouw hem daar zoals altijd.",

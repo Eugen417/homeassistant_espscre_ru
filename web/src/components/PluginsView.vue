@@ -43,14 +43,13 @@ function close() { panel.value = null; openId.value = null; }
       <span class="setup-brand">{{ t("editor.plugins.title") }}</span>
       <span class="setup-steps-spacer"></span>
       <div class="plugins-head-actions">
-        <button v-if="plugins.example" type="button" class="btn quiet" id="plugin-add-link" :aria-pressed="panel === 'link'" @click="panel = 'link'; openId = null"><Icon name="link-variant" />{{ t("editor.plugins.add_link") }}</button>
+        <button type="button" class="btn quiet" id="plugin-add-link" :aria-pressed="panel === 'link'" @click="panel = 'link'; openId = null"><Icon name="link-variant" />{{ t("editor.plugins.add_link") }}</button>
         <button type="button" class="icon-btn" id="close-plugins" :aria-label="t('editor.common.close')" :title="t('editor.common.close')" @click="go('')"><Icon name="close" /></button>
       </div>
     </header>
 
     <div class="plugins-frame">
       <section class="plugins-list">
-        <p v-if="plugins.example" class="plugins-example" id="plugins-example"><Icon name="information-outline" />{{ t("editor.plugins.example") }}</p>
         <h1>{{ t("editor.plugins.title") }}</h1>
         <p class="setup-lead">{{ t("editor.plugins.intro") }}</p>
         <div class="pick-tools">
@@ -67,7 +66,7 @@ function close() { panel.value = null; openId.value = null; }
           {{ t("editor.plugins.make") }}
           <a href="https://github.com/MaxGramser/tessera-plugins/tree/main/template" target="_blank" rel="noopener">{{ t("editor.plugins.template") }}</a>
         </p>
-        <p v-if="!plugins.example && plugins.folders.path" class="plugins-make" id="plugins-folder">{{ t("editor.plugins.folder_note", { path: folderShown(plugins.folders.path) }) }}</p>
+        <p v-if="plugins.folders.path" class="plugins-make" id="plugins-folder">{{ t("editor.plugins.folder_note", { path: folderShown(plugins.folders.path) }) }}</p>
         <p v-for="(why, folder) in plugins.folders.errors" :key="folder" class="pd-misfit plugins-folder-error"><Icon name="information-outline" />{{ t("editor.plugins.folder_error", { folder, why }) }}</p>
       </section>
 

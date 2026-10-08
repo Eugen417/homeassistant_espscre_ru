@@ -1609,7 +1609,6 @@
     "plugins": {
       "title": "Bővítmények",
       "intro": "Extrák a kijelzőidhez: hardver a lapkán, vagy valami, amivel egy kijelző többet tud. A bővítmény a kijelző firmware-ébe kerül, ezért kijelzőnként választod ki, melyiket kapja meg.",
-      "example": "Példabővítmények: a valódi lista a bővítményindexszel érkezik",
       "search": "Keresés név, készítő vagy funkció szerint",
       "filter": "Mutat",
       "filters": {
@@ -1646,7 +1645,6 @@
         "psram": "PSRAM kell hozzá",
         "firmware": "Újabb firmware kell hozzá",
         "flash": "Túl nagy ehhez a kijelzőhöz",
-        "pins": "Nincs szabad láb",
         "blocked": "Letiltva"
       },
       "misfit": {
@@ -1654,7 +1652,6 @@
         "psram": "Ehhez a bővítményhez PSRAM-os lapka kell, a(z) {screen} kijelzőben pedig nincs.",
         "firmware": "A(z) {screen} kijelzőnek előbb firmware-frissítés kell, csak utána kaphatja meg ezt a bővítményt.",
         "flash": "A(z) {screen} kijelzőn még kb. {kb} KB hely van, ez a bővítmény pedig nagyobb.",
-        "pins": "A(z) {screen} kijelzőn nincs olyan szabad láb, amelyet ez a bővítmény használhatna.",
         "blocked": "A bővítmény ezen verziója le van tiltva: ismerten ártalmas vagy hibás."
       },
       "none_installed": "Ezen a kijelzőn még nincs bővítmény.",
@@ -1688,12 +1685,10 @@
         "tile_sizes": "{min} és {max} között egy oldalon",
         "tap": "„{name}” koppintási művelet",
         "tap_on": "Csempéken: {domains}",
-        "card": "Saját nézet a kijelzőn",
+        "card": "„{name}”, saját nézet a kijelzőn",
+        "bar": "„{name}” elem a felső sávban",
         "settings": "Beállítások",
-        "settings_where": "A kijelző beállításoldalán és a Kijelzőbeállítások alatt",
-        "inputs": "Általad választott lábak és nevek",
-        "ha_package": "Csomag a Home Assistanthoz",
-        "ha_package_why": "Egyszer kell telepíteni a Home Assistantban; a szerkesztő felkínálja a letöltést"
+        "settings_where": "A kijelző beállításoldalán és a Kijelzőbeállítások alatt"
       },
       "may": {
         "title": "Mit tehet",
@@ -1718,7 +1713,6 @@
       },
       "source_code": "Forráskód",
       "issues": "Hiba bejelentése",
-      "example_install": "Példa: {name} ezeken: {screens}. A bővítményindexszel a Tessera beírja minden kijelző YAML-jébe, és lefordítja.",
       "removed": "{name} eltávolítva innen: {screens}. A kijelző a következő fordításkor veszíti el.",
       "add_link": "Hozzáadás hivatkozással",
       "link": {
@@ -1739,7 +1733,6 @@
         },
         "fetch": "Bővítmény beolvasása",
         "test": "Hozzáadás tesztként ehhez: {screen}",
-        "example": "Példa: a bővítményindexszel a Tessera erről a hivatkozásról olvassa be a bővítmény leírását.",
         "not_found": "Ezen a hivatkozáson nincs bővítményleírás.",
         "on_screen": "Kijelzőn"
       },
@@ -1772,9 +1765,7 @@
         "secret_set": "Beállítva. Írj be újat a cseréjéhez."
       },
       "readme": {
-        "title": "Olvass el",
-        "package": "A Home Assistant-csomag letöltése",
-        "package_example": "Példa: a bővítményindexszel a Tessera a bővítményből tölti le a csomagot."
+        "title": "Olvass el"
       },
       "english_only": "Csak angolul",
       "build_note": "ESPHome Device Builderrel vagy másik gépen fordítasz? A bővítmény a kijelző YAML-jében van; fordítsd ott, ahogy mindig.",

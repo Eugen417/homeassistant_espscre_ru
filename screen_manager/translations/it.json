@@ -1609,7 +1609,6 @@
     "plugins": {
       "title": "Plugin",
       "intro": "Extra per i tuoi schermi: hardware sulla scheda, o qualcosa in più che uno schermo sa fare. Un plugin viene integrato nel firmware di uno schermo, quindi scegli per ogni schermo quali riceve.",
-      "example": "Plugin di esempio: l'elenco vero arriva con l'indice dei plugin",
       "search": "Cerca per nome, autore o funzione",
       "filter": "Mostra",
       "filters": {
@@ -1646,7 +1645,6 @@
         "psram": "Richiede PSRAM",
         "firmware": "Richiede un firmware più recente",
         "flash": "Troppo grande per questo schermo",
-        "pins": "Nessun pin libero",
         "blocked": "Bloccato"
       },
       "misfit": {
@@ -1654,7 +1652,6 @@
         "psram": "Questo plugin richiede una scheda con PSRAM, e {screen} non ce l'ha.",
         "firmware": "{screen} ha bisogno di un aggiornamento del firmware prima di poter ricevere questo plugin.",
         "flash": "{screen} ha spazio per circa {kb} KB in più, e questo plugin è più grande.",
-        "pins": "{screen} non ha nessun pin libero che questo plugin possa usare.",
         "blocked": "Questa versione del plugin è bloccata: è nota per essere dannosa o non funzionante."
       },
       "none_installed": "Ancora nessun plugin su questo schermo.",
@@ -1688,12 +1685,10 @@
         "tile_sizes": "Da {min} a {max} su una pagina",
         "tap": "Azione al tocco «{name}»",
         "tap_on": "Sui riquadri di {domains}",
-        "card": "Una vista tutta sua sullo schermo",
+        "card": "«{name}», una vista tutta sua sullo schermo",
+        "bar": "Elemento della barra superiore «{name}»",
         "settings": "Impostazioni",
-        "settings_where": "Nella pagina delle impostazioni dello schermo e in Impostazioni schermo",
-        "inputs": "Pin e nomi che scegli tu",
-        "ha_package": "Un pacchetto per Home Assistant",
-        "ha_package_why": "Da installare una volta in Home Assistant; l'editor offre il download"
+        "settings_where": "Nella pagina delle impostazioni dello schermo e in Impostazioni schermo"
       },
       "may": {
         "title": "Cosa può fare",
@@ -1718,7 +1713,6 @@
       },
       "source_code": "Codice sorgente",
       "issues": "Segnala un problema",
-      "example_install": "Esempio: {name} su {screens}. Con l'indice dei plugin, Tessera lo scrive nello YAML di ogni schermo e compila.",
       "removed": "{name} rimosso da {screens}. Lo schermo lo perde alla prossima compilazione.",
       "add_link": "Aggiungi con un link",
       "link": {
@@ -1739,7 +1733,6 @@
         },
         "fetch": "Leggi il plugin",
         "test": "Aggiungi a {screen} come test",
-        "example": "Esempio: con l'indice dei plugin, Tessera legge la descrizione del plugin da questo link.",
         "not_found": "Nessuna descrizione di plugin a questo link.",
         "on_screen": "Sullo schermo"
       },
@@ -1772,9 +1765,7 @@
         "secret_set": "Impostato. Inseriscine uno nuovo per sostituirlo."
       },
       "readme": {
-        "title": "Leggimi",
-        "package": "Scarica il pacchetto per Home Assistant",
-        "package_example": "Esempio: con l'indice dei plugin, Tessera scarica il pacchetto dal plugin."
+        "title": "Leggimi"
       },
       "english_only": "Solo in inglese",
       "build_note": "Compili con ESPHome Device Builder o su un altro computer? Il plugin è nello YAML dello schermo; compilalo lì come sempre.",

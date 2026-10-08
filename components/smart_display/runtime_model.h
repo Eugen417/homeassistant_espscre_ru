@@ -117,9 +117,10 @@ inline unsigned page_number(const std::string &entity) {
   return static_cast<unsigned>(entity[12] - '0') * 10 + static_cast<unsigned>(entity[13] - '0');
 }
 inline bool page_entity(const std::string &entity) { return page_number(entity) > 0; }
-// A tile of a plugin (docs/PLUGINS.md): plugin:<plugin>.<tile>, each an id of a-z, 0-9 and _ that starts with a letter.
-// Whether this screen has that plugin decides only how the tile is drawn (plugin_host::known); any such tile is valid.
-inline bool plugin_entity(const std::string &entity) {
+// A key of a plugin's part (docs/PLUGINS.md): plugin:<plugin>.<part>, each an id of a-z, 0-9 and _ that starts with a
+// letter; a tile in a layout, an item in a top bar, a tap action. Whether this screen has that plugin decides only how
+// it is drawn (plugin_host::known); any such key is valid. (A plugin tile's Home Assistant entity is Extra::plugin_entity.)
+inline bool plugin_key(const std::string &entity) {
   if (entity.size() > 72 || entity.rfind("plugin:", 0) != 0) return false;
   const size_t dot = entity.find('.', 7);
   if (dot == std::string::npos || dot == 7 || dot + 1 == entity.size() || dot - 7 > 32 || entity.size() - dot - 1 > 32) return false;
@@ -133,7 +134,7 @@ inline bool plugin_entity(const std::string &entity) {
 }
 inline bool valid_entity(const std::string &entity) {
   if (entity.size() > 120) return false;
-  if (entity.rfind("plugin:", 0) == 0) return plugin_entity(entity);
+  if (entity.rfind("plugin:", 0) == 0) return plugin_key(entity);
   auto dot = entity.find('.');
   if (dot == std::string::npos || dot == 0 || dot + 1 == entity.size()) return false;
   for (size_t i = 0; i < entity.size(); ++i)
