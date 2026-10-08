@@ -5,8 +5,15 @@ from a web service, hardware on one board, a feature not everyone needs. How to 
 [github.com/MaxGramser/tessera-plugins](https://github.com/MaxGramser/tessera-plugins) (its `docs/` and `AGENTS.md`).
 This page is the core's side: what the firmware, the add-on and the editor do, and the rules a change here keeps.
 
-Plugins are on dev while the plugin API is 0.x (0.3 now): in an app added from the `#dev` URL, a local copy of the app, and the
-editor's development server (`core.plugins_enabled()`). The stable app has no Plugins page, no routes and no loop.
+Plugins are on dev while the plugin API is 0.x (the plugin API is 0.4 now): in an app added from the `#dev` URL, a
+local copy of the app, and the editor's development server (`core.plugins_enabled()`). The stable app has no Plugins
+page, no routes and no loop.
+
+**The API's number.** A plugin builds on every core with the same major and at least its minor. From 1.0 on that is a
+promise: a minor only adds, only a break raises the major. Major 0 is the time before the promise: a minor may still
+change a name or a signature while the API settles (0.4 renamed `Plugin::on_tick` to `on_interval`), and Tessera's own
+plugins move with it in the same release. A test keeps the number equal in `plugin_api.h`, `__init__.py`,
+`plugin_manifest.py`, this page and the host probe's manifest.
 
 ## The pieces
 
@@ -21,6 +28,7 @@ editor's development server (`core.plugins_enabled()`). The stable app has no Pl
 | Add-on | `screen_manager/app/plugins.py` | The index and test folders, the editor's payload, the plugins file, adding and removing, a plugin tile's state message, the fetch loop. |
 | Add-on | `firmware.py` (`PLUGINS_SUFFIX`, `save_plugins`), `page_layout.py`, `core.py` (`plugin_tile`, `PLUGIN_MEMORY`), `page_delivery.py` (`plugins_of`) | The sidecar, the document, the layout check and price, the negotiation. |
 | Editor | `web/src/model/plugins.ts`, `web/src/plugin-state.ts`, `web/src/components/Plugin*.vue`, `ScreenPluginsTab.vue` | The Plugins page, the screen's Plugins tab, a plugin tile in the library and the inspector. |
+| Test | `tests/fixtures/plugins/host_probe/`, `tools/render/run.py --plugin` | The host probe: a complete plugin that logs every moment of the API; the render harness builds it into a board's firmware for this computer and reads the moments back (docs/TESTING.md, "The plugin host"). |
 
 ## A plugin tile, end to end
 
@@ -86,8 +94,17 @@ repository's `docs/FETCH.md`.
   log.
 - **Test against real data**: the plugins repository's `tools/check.py` uses this `plugin_manifest.py`; change both in
   step.
+- **The host proves the host.** A change to `plugin_host.cpp`, `plugin_api.h` or the receiver's plugin fields runs
+  `tools/render/run.py --plugin tests/fixtures/plugins/host_probe`, plain (the CYD's path: a card made anew when its
+  page comes back) and with `KEPT_PAGES_HOST=1` (the kept path of a board with PSRAM), docs/TESTING.md, "The plugin
+  host": the probe's log lines are the only proof that a card is made, fed, ticked and deleted at the right moments. A
+  new moment of the API gets a line in the probe and a wait in `plugin_round`.
+- **The manifest is the plugin's word, not a fence.** What the add-on enforces is `permissions.network` (every fetch)
+  and `permissions.ha_commands` (every question through `tessera::send`). `home_assistant_actions` and
+  `read_entities` are declarations the screen does not check: code built into the firmware can do what the firmware
+  can. The editor says so (`editor.plugins.warning`); never write as if the screen enforced them.
 
-## What a plugin can add (plugin API 0.3)
+## What a plugin can add
 
 | Part | Firmware | Add-on | Editor |
 |---|---|---|---|
@@ -98,7 +115,7 @@ repository's `docs/FETCH.md`.
 | A top bar item | `add_bar_item`; `header_bar::Kind::plugin` | `validate_header` type `plugin`, sent to a screen whose hello says `plugins` | "From plugins" in Top bar, Add |
 | Settings rows | `settings(SettingsPage&)`; `settings_screen::plugin_pages` | `Plugins.settings_for`, `set_setting`: the manifest's `settings`, entities of the screen's own device | under Screen settings (`PluginSettings.vue`) |
 | A question to Home Assistant | `tessera::send`, `on_message` (op `plugin`) | `Plugins.answer`: only `permissions.ha_commands`, logged, answer bounded | the commands under "What it may do" |
-| The moments | `on_ready`, `on_tick`, `on_standby`, `before_update`, `on_cards_closed`, `on_alert`, `on_touch` (0.3: every tap `screen_input::TouchGuard` takes, through `screen_hooks::touched()`) | | |
+| The moments | `on_ready`, `on_interval` (every 250 ms; `on_tick` before 0.4), `on_standby`, `before_update`, `on_cards_closed`, `on_alert`, `on_touch` (0.3: every tap `screen_input::TouchGuard` takes, through `screen_hooks::touched()`) | | |
 | A board's own hardware | the plugin's `plugin.yaml` (audio codecs, a relay), its `boards` in the manifest | offered only to the screens of those boards | the Plugins page says which boards |
 
 ## Where a plugin comes from

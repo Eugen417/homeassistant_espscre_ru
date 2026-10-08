@@ -256,22 +256,22 @@ void refresh() {
 }
 
 namespace ui {
+// The screen's fixed fonts (docs/RESPONSIVE.md, "Fonts"), the ones packages/core.yaml hands runtime_tiles at boot: the
+// same ids on every board, sized by its look. Nothing here depends on which tiles happen to stand on the glass.
 const lv_font_t *font(Font f) {
-  const lv_font_t *title = nullptr, *value = nullptr;
-  for (auto &w : rt::widgets) {
-    if (!title && w.title_font) title = w.title_font;
-    if (!value && w.value_font) value = w.value_font;
-  }
+  const lv_font_t *face = nullptr;
   switch (f) {
-    case Font::VALUE: return rt::watch_value_font ? rt::watch_value_font : rt::watch_font;
-    case Font::HEADLINE: return rt::watch_font ? rt::watch_font : title;
-    case Font::TITLE: return title ? title : rt::control_font;
-    case Font::BODY_LARGE: return rt::control_font ? rt::control_font : value;
-    case Font::BODY: return value ? value : rt::small_font;
-    case Font::ICON: return rt::tile_icon_font();
-    case Font::ICON_SMALL: return rt::mini_icon_font ? rt::mini_icon_font : rt::tile_icon_font();
+    case Font::VALUE: face = rt::watch_value_font; break;       // watch_value
+    case Font::HEADLINE: face = rt::watch_font; break;          // headline
+    case Font::TITLE: face = rt::label_font; break;             // label: a tile's name
+    case Font::BODY_LARGE: face = rt::control_font; break;      // sublabel_big: the words on a key
+    case Font::BODY: face = rt::small_font; break;              // sublabel: a tile's value, a card's second line
+    case Font::ICON: face = rt::tile_icon_font(); break;        // materialdesign_icons
+    case Font::ICON_SMALL: face = rt::mini_icon_font; break;    // materialdesign_icons_mini
   }
-  return value;
+  // Before boot handed them over (never on a screen: plugins are made after on_boot), the nearest that is there.
+  if (!face) face = rt::small_font ? rt::small_font : rt::control_font ? rt::control_font : rt::detail_font;
+  return face;
 }
 
 int text_width(const std::string &text, Font f) {
@@ -593,6 +593,9 @@ static void build_settings() {
     row.opens = static_cast<uint8_t>(settings_screen::PLUGINS_PAGE + 1 + i);
     list->push_back(row);
   }
+  // The settings page draws twelve rows at most (settings_screen::draw): a thirteenth plugin's page is out of reach.
+  if (list->size() > 12)
+    ESP_LOGW("plugins", "%u plugins have settings; the settings page lists the first 12", (unsigned) list->size());
   settings_screen::plugin_pages.push_back({screen_text::txt::settings_plugins, list->data(),
                                            static_cast<uint8_t>(std::min<size_t>(list->size(), 12)), 0, nullptr});
   store.rows.push_back(std::move(list));
@@ -642,7 +645,11 @@ static void build_settings() {
       row.own = own.get();
       store.owns.push_back(std::move(own));
       rows->push_back(row);
-      if (rows->size() == 12) break;   // what one page draws (settings_screen::draw)
+      if (rows->size() == 12 && page->items.size() > 12) {   // what one page draws (settings_screen::draw)
+        ESP_LOGW("plugins", "%s added %u settings rows; the page draws the first 12", plugin->plugin_id(),
+                 (unsigned) page->items.size());
+        break;
+      }
     }
     settings_screen::plugin_pages.push_back({0, rows->data(), static_cast<uint8_t>(rows->size()),
                                              settings_screen::PLUGINS_PAGE, page->title.c_str()});
@@ -684,7 +691,7 @@ void tick(uint32_t now_ms, bool dimmed) {
     was_dimmed = dimmed;
     standby(dimmed);
   }
-  for (auto *p : tessera::plugins()) p->on_tick(now_ms);
+  for (auto *p : tessera::plugins()) p->on_interval(now_ms);
   // A plugin's page of the settings says again what its rows read (a test that runs, a level), once a second.
   static uint32_t said = 0;
   if (settings_screen::root && settings_screen::current_page >= settings_screen::PAGE_COUNT && now_ms - said >= 1000) {

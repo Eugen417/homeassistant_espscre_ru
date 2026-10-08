@@ -42,6 +42,14 @@ const hereInstalled = computed(() => (here.value ? installedOn(here.value, props
 const hereFit = computed(() => (here.value ? fit(props.plugin, here.value) : { ok: true as const }));
 const hereFlash = computed(() => (here.value ? flashShare(props.plugin, here.value, partsKb(here.value, props.plugin)) : null));
 const hereAttach = computed(() => Boolean(here.value && needsAttach(here.value)));
+// What an update changes: GitHub's compare of the commit this screen runs with the one offered. The only thing a person
+// can really judge an update by, since the manifest's rights are the maker's own word (docs/PLUGINS.md).
+const changes = computed(() => {
+  const have = hereInstalled.value?.ref, next = props.plugin.ref;
+  const sha = /^[0-9a-f]{40}$/;
+  if (!props.plugin.repo || !have || !next || have === next || !sha.test(have) || !sha.test(next)) return null;
+  return `${props.plugin.repo.replace(/\/tree\/.*$/, "")}/compare/${have}...${next}`;
+});
 
 // ---- Every screen (the Plugins page): a box per screen, applied together ----
 const screens = computed(() => realScreens());
@@ -151,6 +159,7 @@ watch(() => screens.value.map((s) => `${s.id}:${installedOn(s, props.plugin.id)?
       </label>
       <div class="pd-buttons">
         <button v-if="hereStatus.kind === 'update'" type="button" class="btn primary" id="plugin-update" :disabled="!agreed" @click="addPlugin([here], plugin)">{{ t("editor.plugins.update", { version: plugin.version }) }}</button>
+        <a v-if="hereStatus.kind === 'update' && changes" class="btn quiet" id="plugin-changes" :href="changes" target="_blank" rel="noopener">{{ t("editor.plugins.changes") }}</a>
         <button type="button" class="btn quiet" id="plugin-remove" @click="removePlugin([here], plugin)">{{ t("editor.plugins.remove", { screen: here.name }) }}</button>
       </div>
     </template>

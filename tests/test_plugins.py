@@ -51,7 +51,7 @@ class Manifest(unittest.TestCase):
 
     def test_the_real_plugins_pass(self):
         plugins = ROOT.parent / 'tessera-plugins'
-        for folder in [*(plugins / 'plugins').glob('*'), plugins / 'template']:
+        for folder in [*(plugins / 'plugins').glob('*'), plugins / 'template', *(ROOT / 'tests' / 'fixtures' / 'plugins').glob('*')]:
             if (folder / 'tessera-plugin.yaml').is_file():
                 import yaml
                 with self.subTest(folder.name):
@@ -132,6 +132,19 @@ class Manifest(unittest.TestCase):
         component = (ROOT / 'components/smart_display/__init__.py').read_text()
         self.assertIn(f'PLUGIN_API = ({major}, {minor})', component)
         self.assertEqual(pm.PLUGIN_API, (int(major), int(minor)))
+        # The docs name the same number, once, and the host probe is written for it: it uses the newest moments.
+        doc = (ROOT / 'docs/PLUGINS.md').read_text()
+        self.assertEqual(re.findall(r'the plugin API is (\d+\.\d+) now', doc), [f'{major}.{minor}'])
+        import yaml
+        probe = yaml.safe_load((ROOT / 'tests/fixtures/plugins/host_probe/tessera-plugin.yaml').read_text())
+        self.assertEqual(probe['api'], f'{major}.{minor}')
+
+    def test_the_two_ticks_have_two_names(self):
+        """A plugin's 250 ms moment with millis() is on_interval; on_tick is a tile's or a card's second with the clock."""
+        header = (ROOT / 'components/smart_display/plugin_api.h').read_text()
+        plugin = header[header.index('class Plugin {'):header.index('// The register.')]
+        self.assertIn('virtual void on_interval(uint32_t now_ms)', plugin)
+        self.assertNotIn('void on_tick', plugin)
 
     def test_placeholder_price_is_the_screens(self):
         host = (ROOT / 'components/smart_display/plugin_host.h').read_text()
@@ -214,6 +227,28 @@ class Links(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(asked), 2)
         await service.refresh_links(force=True)
         self.assertEqual(read, [('https://github.com/someone/tessera-bus', '.')])
+
+
+class LinkPath(unittest.IsolatedAsyncioTestCase):
+    """The folder in a link goes into the screen's plugins file and into git's path: only plain names, never a step up."""
+
+    async def test_a_strange_folder_is_refused_before_github_is_asked(self):
+        import plugins as plugin_service
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        manager = type('Manager', (), {'page_senders': {}})()
+        service = plugin_service.Plugins(manager, Path(tmp.name) / 'data', Path(tmp.name) / 'esphome')
+        asked = []
+
+        async def github(url, text=False):
+            asked.append(url)
+            raise AssertionError('GitHub was asked')
+        service._github = github
+        for folder in ('plugins/../secrets', 'a b', "x'y", 'plugins/bus:', 'plugins/bus #'):
+            with self.subTest(folder):
+                with self.assertRaises(ValueError):
+                    await service.resolve_link(f'https://github.com/someone/repo/tree/main/{folder}')
+        self.assertEqual(asked, [])
 
 
 class LinkFolder(unittest.IsolatedAsyncioTestCase):

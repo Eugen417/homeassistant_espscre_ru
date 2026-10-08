@@ -358,6 +358,10 @@ class Plugins:
             raise ValueError(t('addon.errors.plugins.link_invalid'))
         owner, repo, tree_ref, path_in_link = match.groups()
         path = (path or path_in_link or '.').strip('/') or '.'
+        # The folder goes into the screen's plugins file and into git's path: letters, digits, . _ - and /, never a
+        # step up or a character YAML or a shell reads as something else.
+        if path != '.' and (not re.fullmatch(r'[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*', path) or '..' in path.split('/')):
+            raise ValueError(t('addon.errors.plugins.link_invalid'))
         api = GITHUB_API.format(owner=owner, repo=repo)
         wanted = (branch or '').strip() or None
         if wanted and not re.fullmatch(r'[A-Za-z0-9_./-]{1,100}', wanted):
@@ -445,7 +449,7 @@ class Plugins:
         return {
             'id': entry.id, 'name': words('name'), 'summary': words('summary'), 'description': words('summary'),
             'icon': glyph(manifest['icon']), 'maintainer': manifest['maintainer'], 'tessera': entry.label == 'tessera',
-            'version': entry.version, 'repo': entry.link(), 'license': manifest['license'],
+            'version': entry.version, 'repo': entry.link(), 'ref': entry.ref, 'license': manifest['license'],
             'kind': 'hardware' if gpio or manifest['boards'] != 'any' else 'behaviour', 'boards': manifest['boards'],
             'board_names': None if manifest['boards'] == 'any' else [board_name(key) for key in manifest['boards']],
             'requires': {'psram': manifest['requires']['psram']}, 'flash_kb': manifest['flash_kb'],

@@ -455,6 +455,21 @@ PROBES = '''    - action: render_finger
             sdl->mouse_x = ${TOUCH_SWAP_XY} ? ay : ax;
             sdl->mouse_y = ${TOUCH_SWAP_XY} ? ax : ay;
             sdl->mouse_down = down;
+    - action: render_close_cards
+      then:
+        - lambda: |-
+            id(close_cards).execute();
+            ESP_LOGI("render", "cards closed");
+    - action: render_tile_center
+      variables:
+        index: int
+      then:
+        - lambda: |-
+            lv_obj_update_layout(lv_screen_active());
+            lv_area_t a{0, 0, -2, -2};
+            for (auto &w : runtime_tiles::widgets)
+              if (w.tile && w.index == (size_t) index && !lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN)) lv_obj_get_coords(w.tile, &a);
+            ESP_LOGI("render", "tile_center index=%d x=%d y=%d", index, (int) ((a.x1 + a.x2) / 2), (int) ((a.y1 + a.y2) / 2));
     - action: render_offline_swipe
       variables:
         forward: bool
@@ -698,10 +713,13 @@ SKIP_CALIBRATION = '''    - action: render_skip_calibration
 class Build:
     """The host build of one variant of one tree, under `work` (the tree's own .esphome/render/ by default)."""
 
-    def __init__(self, item, tree=REPO, work=None, esphome=('esphome',)):
+    def __init__(self, item, tree=REPO, work=None, esphome=('esphome',), plugin=None):
         self.variant, self.tree = item, Path(tree).resolve()
         self.work = Path(work or REPO / '.esphome' / 'render' / 'build').resolve()
         self.esphome = list(esphome)  # the command, which may be more than one word ('python -m esphome')
+        # A plugin folder (docs/PLUGINS.md) built into the program, the way a screen's plugins file adds one: its
+        # plugin.yaml as a package and its components as a local external component.
+        self.plugin = Path(plugin).resolve() if plugin else None
 
     @property
     def program(self):
@@ -736,6 +754,15 @@ class Build:
         actions = ACTIONS + PROBES + ALARM_PROBE + MEDIA_PROBE + SAVER_PROBE + (SKIP_CALIBRATION if 'screen_calibration::' in chain_text else '')
         turned = f'\n  LVGL_ROTATION: "{item.rotation}"' if item.rotation else ''
         rel = f'host/{item.key}'
+        plugin_package = plugin_component = ''
+        if self.plugin:
+            # As plugins.sidecar writes it for a test folder: the package by its path, the components beside it.
+            plugins = self.work / 'plugins'
+            shutil.rmtree(plugins, ignore_errors=True)
+            plugins.mkdir()
+            (plugins / self.plugin.name).symlink_to(self.plugin)
+            plugin_package = f'\n  plugin_{self.plugin.name}: !include plugins/{self.plugin.name}/plugin.yaml'
+            plugin_component = f'\n  - source:\n      type: local\n      path: plugins/{self.plugin.name}/components'
         return f'''# Host build of {item.key} from {tree} (tools/render/host.py): core and board chain, hardware swapped for SDL.
 substitutions:
   FONT_DIR: "{tree / 'fonts'}"{turned}
@@ -743,13 +770,13 @@ substitutions:
 packages:
   core: !include {rel}/packages/core.yaml
   board: !include {rel}/packages/boards/{item.file}
-  host_hw: !include {rel}/host-hw.yaml
+  host_hw: !include {rel}/host-hw.yaml{plugin_package}
 
 external_components:
   - source:
       type: local
       path: components
-    components: [smart_display]
+    components: [smart_display]{plugin_component}
 
 globals:
   - id: render_offline_verified

@@ -1,0 +1,24 @@
+# A plugin for the host render (tools/render/run.py --plugin, docs/TESTING.md): it writes every moment of the plugin
+# API to the log, so the harness reads the life of a tile, a card, a tap action, a bar item and the plugin's own moments
+# on the real firmware built for this computer. It is never on a screen, and never in the index.
+id: host_probe
+version: 1.0.0
+api: "0.4"
+icon: puzzle-outline
+maintainer: tessera
+license: MIT
+permissions:
+  ha_commands: ["call_service:calendar.get_events"]
+tiles:
+  - id: probe
+    name: tile
+    sizes: { min: 1x1, max: 2x2 }
+    memory: 300
+    options:
+      - { id: word, kind: text, label: word, default: "Probe" }
+cards:
+  - { id: detail, name: card }
+tap_actions:
+  - { id: open, label: open, domains: [sensor] }
+bar_items:
+  - { id: mark, label: mark, example: mark }

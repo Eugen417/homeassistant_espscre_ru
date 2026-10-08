@@ -1795,7 +1795,8 @@
         "title": "Cette mise à jour demande d'autres droits",
         "agree": "J'accepte ce qu'il peut faire maintenant"
       },
-      "settings_missing": "Pas encore sur cet écran : il arrive avec la prochaine compilation du plugin."
+      "settings_missing": "Pas encore sur cet écran : il arrive avec la prochaine compilation du plugin.",
+      "changes": "Ce qui a changé"
     },
     "plugin_tile": {
       "from": "Une tuile du plugin {plugin}",

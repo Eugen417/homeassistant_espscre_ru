@@ -1795,7 +1795,8 @@
         "title": "Questo aggiornamento chiede permessi diversi",
         "agree": "Accetto ciò che può fare ora"
       },
-      "settings_missing": "Non ancora su questo schermo: arriva con la prossima build del plugin."
+      "settings_missing": "Non ancora su questo schermo: arriva con la prossima build del plugin.",
+      "changes": "Cosa è cambiato"
     },
     "plugin_tile": {
       "from": "Un riquadro del plugin {plugin}",

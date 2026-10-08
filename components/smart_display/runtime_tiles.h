@@ -120,6 +120,8 @@ inline const lv_font_t *bedside_font = nullptr;
 inline const lv_font_t *display_font = nullptr;
 // Text in the -/+ pill and the run key of direct controls; the board profile sets it.
 inline const lv_font_t *control_font = nullptr;
+// A tile's name (the `label` font): the plugin API's Font::TITLE (plugin_host.cpp).
+inline const lv_font_t *label_font = nullptr;
 // The smallest regular text (sublabel): axis labels and the legend of the history card.
 inline const lv_font_t *small_font = nullptr;
 inline lv_obj_t *room_label = nullptr;  // remembered by render() so page switches can render synchronously

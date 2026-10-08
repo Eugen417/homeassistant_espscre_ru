@@ -143,6 +143,7 @@ esphome:
           runtime_tiles::big_icon_font = id(materialdesign_icons_big)->get_lv_font();
           runtime_tiles::control_font = id(sublabel_big)->get_lv_font();
           runtime_tiles::small_font = id(sublabel)->get_lv_font();
+          runtime_tiles::label_font = id(label)->get_lv_font();
           // A plain card's name where it has room, in the compact look (runtime_tiles::name_font, firmware 0.6.0+).
           runtime_tiles::wide_name_font = id(${WIDE_NAME_FONT})->get_lv_font();
           // Top bar (0.2.32+): values in the text font, icons in the small icon font; the clock

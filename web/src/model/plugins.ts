@@ -1,6 +1,6 @@
-// Plugins (design, docs: the plugins proposal): what the index says about a plugin, and whether it fits a screen.
-// Pure functions only, so the store page and its tests share one rule. The index itself comes from the add-on once it
-// serves one (tessera-plugins/index.json); until then the page shows EXAMPLE_INDEX and says that it does.
+// Plugins (docs/PLUGINS.md): what the add-on says about a plugin (plugins.editor_plugin, from the index, a link or a
+// test folder), and whether it fits a screen. Pure functions only, so the Plugins page and its tests share one rule.
+// EXAMPLE_INDEX and EXAMPLE_INSTALLED are the tests' and the development server's stand-ins.
 import { editorLanguage } from "../i18n";
 import type { Screen } from "../types";
 
@@ -38,6 +38,7 @@ export type Plugin = {
   tessera: boolean;                   // a plugin Tessera ships and reviews itself
   version: string;
   repo: string;
+  ref?: string | null;                // the commit it is pinned to (a branch's name for one to test), from the add-on
   license: string;
   kind: PluginKind;
   boards: string[] | "any";

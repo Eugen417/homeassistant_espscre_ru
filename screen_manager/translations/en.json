@@ -3067,7 +3067,8 @@
         "title": "This update asks for other rights",
         "agree": "I agree to what it may do now"
       },
-      "settings_missing": "Not on this screen yet: it comes with the plugin's next build."
+      "settings_missing": "Not on this screen yet: it comes with the plugin's next build.",
+      "changes": "What changed"
     },
     "plugin_tile": {
       "from": "A tile of the plugin {plugin}",

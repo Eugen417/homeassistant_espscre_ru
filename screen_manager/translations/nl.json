@@ -3067,7 +3067,8 @@
         "title": "Deze update vraagt andere rechten",
         "agree": "Ik ga akkoord met wat hij nu mag"
       },
-      "settings_missing": "Nog niet op dit scherm: het komt met de volgende build van de plugin."
+      "settings_missing": "Nog niet op dit scherm: het komt met de volgende build van de plugin.",
+      "changes": "Wat er veranderde"
     },
     "plugin_tile": {
       "from": "Een tegel van de plugin {plugin}",

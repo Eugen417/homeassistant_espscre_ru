@@ -1795,7 +1795,8 @@
         "title": "Diese Aktualisierung verlangt andere Rechte",
         "agree": "Ich stimme zu, was es jetzt darf"
       },
-      "settings_missing": "Noch nicht auf diesem Bildschirm: kommt mit dem nächsten Build des Plugins."
+      "settings_missing": "Noch nicht auf diesem Bildschirm: kommt mit dem nächsten Build des Plugins.",
+      "changes": "Was sich geändert hat"
     },
     "plugin_tile": {
       "from": "Eine Kachel des Plugins {plugin}",

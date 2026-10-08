@@ -1795,7 +1795,8 @@
         "title": "Esta atualização pede outras permissões",
         "agree": "Aceito o que pode fazer agora"
       },
-      "settings_missing": "Ainda não está neste ecrã: chega com a próxima compilação do plugin."
+      "settings_missing": "Ainda não está neste ecrã: chega com a próxima compilação do plugin.",
+      "changes": "O que mudou"
     },
     "plugin_tile": {
       "from": "Um mosaico do plugin {plugin}",

@@ -3,7 +3,8 @@
 // about the screen's moments, without the core knowing that plugin exists.
 //
 // A plugin is a component of its own (`components/<name>/` in its repository) that derives from tessera::Plugin and
-// registers its tile types in its constructor or setup(). The core keeps a list; nothing in the core names a plugin.
+// registers its tile types in setup(), never in its constructor: the code generation hands it its id after it is made
+// (set_identity), and a tile type is keyed by that id. The core keeps a list; nothing in the core names a plugin.
 // A tile of a plugin is `plugin:<plugin>.<tile>` in a layout. The core gives it a card's drawing area while its page is
 // on the glass, hands it what the add-on sent for it, ticks it once a second and lets it go when the card shows
 // something else. A tile type the screen does not have (the plugin is not, or no longer, on this screen) is drawn by
@@ -22,13 +23,17 @@
 
 namespace tessera {
 
-// Major.minor (plugin_manifest.PLUGIN_API in the add-on is the same; a test keeps them equal). A plugin's manifest
-// names the API it was written for (`api: "0.2"`); its component checks it when it is built, so a core that is too old
-// says so in one sentence instead of a compiler error. Something new raises the minor, and a plugin builds on every core
-// with the same major and at least its minor; only a break raises the major. Major 0 is the time before the API is
-// promised to anyone outside Tessera. 0.1: tiles and the moments. 0.2: tiles of an entity, cards, tap actions, top bar
-// items, settings rows, questions to the app, date words.
-constexpr uint8_t PLUGIN_API_MAJOR = 0, PLUGIN_API_MINOR = 3;
+// Major.minor (plugin_manifest.PLUGIN_API in the add-on and PLUGIN_API in __init__.py are the same; a test keeps them
+// equal, and docs/PLUGINS.md names the same number). A plugin's manifest names the API it was written for
+// (`api: "0.2"`); its component checks it when it is built, so a core that is too old says so in one sentence instead
+// of a compiler error. A plugin builds on every core with the same major and at least its minor.
+// From 1.0 on that is a promise: a minor only adds, and only a break raises the major. Major 0 is the time before
+// the API is promised to anyone: a minor may still change a name or a signature while the API settles, and Tessera's
+// own plugins move with it in the same release (the plugins repository, docs/FIRMWARE_API.md "Versions").
+// 0.1: tiles and the moments. 0.2: tiles of an entity, cards, tap actions, top bar items, settings rows, questions to
+// the app, date words. 0.3: on_touch, a settings action that says how it is going. 0.4: Plugin::on_tick (every 250 ms,
+// with millis()) became on_interval, so that on_tick everywhere means once a second with the clock.
+constexpr uint8_t PLUGIN_API_MAJOR = 0, PLUGIN_API_MINOR = 4;
 
 // The screen's fixed fonts, largest first. A tile takes the largest that fits; a plugin brings no font of its own.
 // VALUE is the big number of a watch card, HEADLINE a card's large words, TITLE a card's name, BODY its second line,
@@ -37,15 +42,16 @@ constexpr uint8_t PLUGIN_API_MAJOR = 0, PLUGIN_API_MINOR = 3;
 // icon set only.
 enum class Font : uint8_t { VALUE, HEADLINE, TITLE, BODY_LARGE, BODY, ICON, ICON_SMALL };
 
-// What a tile gets when its card is made.
+// What a tile gets when its card is made. It is valid during create() only: `name`, `entity` and `options` point into
+// the core's own storage and the JSON document of the call, so a tile copies what it needs into members of its own.
 struct TileContext {
   lv_obj_t *parent;          // the card's drawing area: everything the tile makes goes in here, and dies with it
   int width, height;         // that area in pixels (the card's own padding is already off)
   uint8_t columns, rows;     // the cells of the grid the tile covers
-  const char *name;          // the name given to the tile in the editor, "" for none
-  const char *entity;        // the Home Assistant entity it belongs to (manifest `entity`), "" for none
+  const char *name;          // the name given to the tile in the editor, "" for none (copy it)
+  const char *entity;        // the Home Assistant entity it belongs to (manifest `entity`), "" for none (copy it)
   int tile;                  // its index in the layout, for tessera::open_card from on_tap
-  JsonObjectConst options;   // the tile's options as the editor set them (the manifest's `options`)
+  JsonObjectConst options;   // the tile's options as the editor set them (the manifest's `options`); gone after create()
 };
 
 // A tile type's card. One object per card on the glass; a page switch on a board without PSRAM makes a new one.
@@ -180,8 +186,9 @@ class Plugin {
   const char *plugin_version() const { return version_; }
   // The screen's interface is up and its first page is on the glass.
   virtual void on_ready() {}
-  // Every 250 ms, with millis(). Keep it short: the screen draws and takes taps in the same loop.
-  virtual void on_tick(uint32_t now_ms) {}
+  // Every 250 ms, the screen's own interval, with millis() (0.4; on_tick before it). Keep it short: the screen draws
+  // and takes taps in the same loop. A tile's or a card's on_tick is another thing: once a second, with the clock.
+  virtual void on_interval(uint32_t now_ms) {}
   // The screen dimmed or went dark (true), or woke up again (false).
   virtual void on_standby(bool dark) {}
   // An update of the firmware starts: let go of large buffers.
@@ -272,8 +279,10 @@ uint32_t send(const Plugin *plugin, JsonObjectConst request);
 // The card on the glass draws again in its next pass (after a change made outside on_state or on_tick).
 void refresh();
 // A Home Assistant action on an entity, as a tile's tap sends it: action("light.toggle", entity), or with one field
-// (action("climate.set_temperature", entity, "temperature", "21")). The screen must be allowed to perform actions,
-// and the plugin's manifest names the action under permissions.home_assistant_actions. False when it was not sent.
+// (action("climate.set_temperature", entity, "temperature", "21")). The screen must be allowed to perform actions.
+// The plugin's manifest names every action it calls under permissions.home_assistant_actions so that a person can read
+// what it does before adding it; the screen does not check that list (code built into the firmware can do what the
+// firmware can), the manifest is the plugin's own word. False when it was not sent.
 bool action(const char *service, const std::string &entity, const char *key = nullptr, const std::string &value = "");
 
 namespace ui {

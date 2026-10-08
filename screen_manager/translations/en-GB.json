@@ -252,6 +252,9 @@
           "neighbourhood": "Neighbourhood"
         }
       }
+    },
+    "plugins": {
+      "changes": "What changed"
     }
   },
   "addon": {
