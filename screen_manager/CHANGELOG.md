@@ -1,4 +1,4 @@
-## Unreleased
+## 0.4.85 (firmware 0.53.0)
 
 - **Choose a screen's columns and rows in the editor.** Beside the pages, the grid button shows the screen's columns and
   rows and changes them, from one by one up to as many as its glass holds, without a new build. The layout follows at
@@ -15,23 +15,18 @@
   or fold it to its icons with the button beside the logo; drag it very narrow and it folds by itself. Folded, every
   screen and button says what it is when you point at it, and a screen name that is cut short shows in full the same
   way. The editor remembers the width in this browser.
-- **Plugins say how far along they are.** A plugin marked Beta or Example carries that badge on the Plugins page, in a
-  screen's Plugins tab and beside its tiles in the tile list, and its page says what it means. Examples are there to
-  show what a plugin can do and to learn from.
-- **A plugin's tap action on a tile no longer blocks the editor.** A tile set to a plugin's action made every later edit
-  of that screen fail with "Invalid or unsupported page configuration fields".
 - **A save shows a loading screen, then the new layout.** When you save in the editor, the screen now covers itself
   with the loading screen while the new tiles arrive and its pages are prepared, and then shows the finished layout in
   one step. Before, the new tiles appeared one by one over the loading text and the page flickered.
-- **Every build shows, wherever you look.** Whatever is building a screen, an update, plugins or an install from
-  Firmware & USB, now turns in the list of screens and shows its progress in Settings, Updates, with the build log one
+- **Every build shows, wherever you look.** Whatever is building a screen, an update or an install from Firmware &
+  USB, now turns in the list of screens and shows its progress in Settings, Updates, with the build log one
   click away. A build that failed keeps its log until the next one, so you can read why. Copying the installer's log
   no longer says an API key was copied.
-- **Plugins (on dev only).** A plugin adds a tile or a feature to the screens you choose: open Plugins, tick the screens,
-  and each screen builds once with it. The first one is Public transport (NL): the next bus, tram, metro or ferry from
-  your stop, live from OVapi, counted down on the screen. Plugins live in github.com/MaxGramser/tessera-plugins, with
-  a template and docs to make your own. A plugin you are making shows up as a test when its folder is in
-  `tessera-plugins/` beside the `esphome` folder. Only in the dev app while the plugin API is 0.x (docs/PLUGINS.md).
+- **Plugins, in the dev app only.** The dev app (the repository URL with `#dev`) now has a Plugins page: a plugin adds a
+  tile or a feature to the screens you choose, and each screen builds once with it. The first ones are Public transport
+  (NL) and a waste collection calendar, marked as examples, and the speaker and microphone of the Waveshare P4 86 panel,
+  in beta. Plugins live in github.com/MaxGramser/tessera-plugins, with a template and docs to make your own. The stable
+  app shows nothing of them while the plugin API is 0.x (docs/PLUGINS.md).
 - **Bus and train icons** for any tile.
 - **Waveshare ESP32-P4-86-Panel-ETH-2RO (experimental).** The 4-inch 720 × 720 wall panel on an ESP32-P4, with GT911
   touch, a dimmable backlight and Wi-Fi through its ESP32-C6, as a new board in New screen. Its relays, Ethernet and
