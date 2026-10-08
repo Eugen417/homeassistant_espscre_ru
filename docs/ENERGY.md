@@ -15,8 +15,10 @@ The add-on asks Home Assistant for its Energy settings (`energy/get_prefs`) and 
   its power sensors in a list of its own (`power`), and the card adds those up as Home Assistant's frontend did then;
 - the battery's charge (`stat_soc`), combined as Home Assistant's energy distribution card combines it: weighted by each
   battery's usable capacity (`capacity`), a battery without one counting as the mean of the others;
-- the devices with a power sensor (`device_consumption`). Only the top of Home Assistant's device tree counts: a device
-  that is part of another one (`included_in_stat`) is already in that one's value.
+- the devices with a power sensor (`device_consumption`), split as Home Assistant's live view splits them
+  (`buildSankeyDeviceNodes` in common/sankey.ts): a device that is part of another one (`included_in_stat`) is already
+  in the value of the first device up its chain that the view draws; with none drawn above it, it stands under the
+  house itself. A sensor without a number counts as 0 W.
 
 `screen_manager/app/energy_flow.py` works out the moment step for step as Home Assistant's frontend does
 (`_computePowerData` in hui-power-sankey-card.ts):
@@ -82,7 +84,8 @@ The battery's charge stands beside its glyph, as Home Assistant's energy distrib
 whose circles hold their icon alone, it stands before the battery's number under the circle. Only where even that does
 not fit is the glyph, which fills with the charge, left to show it; no card the editor offers is that small.
 
-A device's name wraps to two lines before the card drops a device. Only when no device fits with its whole name are the
+Every name stands centred under or over its own circle; only a name that would cross the card's edge moves in, as far
+as it must. A device's name wraps to two lines before the card drops a device. Only when no device fits with its whole name are the
 names cut with three dots, as power-flow-card-plus cuts them.
 
 Room is kept for the widest number the card has shown, so a car that charges at 11 kW does not make the circles grow

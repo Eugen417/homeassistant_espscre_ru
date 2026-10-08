@@ -241,39 +241,77 @@ def moment(prefs: dict, states: dict[str, dict]) -> Moment:
     return m
 
 
-def _top_devices(prefs: dict, states: dict[str, dict]):
-    """The top of Home Assistant's device tree with the power each draws now: (place in the settings, preference, W)."""
-    listed = (prefs or {}).get('device_consumption') or []
-    stats = {d.get('stat_consumption') for d in listed}
+def _house_devices(prefs: dict, states: dict[str, dict], home: float):
+    """Home Assistant's split of the measured devices for its live view (buildSankeyDeviceNodes in common/sankey.ts):
+    the devices drawn straight from the house, as (place in the settings, preference, W), and the power of the small
+    ones it groups as "Other" under the house.
+
+    A device is drawn when it has a power sensor and reaches 0.1 % of the house. One `included_in_stat` another hangs
+    under the first drawn device up its chain and is part of that one's value; with no drawn device above it, it stands
+    under the house itself. A small device under the house counts in Other, unless its chain reaches another small
+    device first, whose value already holds it. A sensor without a number counts as 0 W (getPowerFromState ?? 0)."""
+    listed = [d for d in (prefs or {}).get('device_consumption') or [] if isinstance(d, dict)]
+    threshold = home * MIN_DEVICE_SHARE
+    by_stat = {d.get('stat_consumption'): d for d in listed if d.get('stat_consumption')}
+    value = {id(d): power_w(states.get(d['stat_rate'])) or 0.0 for d in listed if d.get('stat_rate')}
+    drawn = {d.get('stat_consumption') for d in listed if id(d) in value and value[id(d)] >= threshold}
+    small = {d.get('stat_consumption') for d in listed if id(d) in value and id(d) not in drawn and d.get('stat_consumption') not in drawn}
+
+    def under_drawn(device):
+        current = device.get('included_in_stat')
+        for _ in range(len(listed)):  # a hand-edited chain may run in a circle
+            if not current:
+                return False
+            if current in drawn:
+                return True
+            above = by_stat.get(current)
+            if above is None:
+                return False
+            current = above.get('included_in_stat')
+        return False
+
+    def inside_small(device):
+        current = device.get('included_in_stat')
+        for _ in range(len(listed)):
+            if not current or current in drawn:
+                return False
+            if current in small:
+                return True
+            above = by_stat.get(current)
+            if above is None:
+                return False
+            current = above.get('included_in_stat')
+        return False
+
+    top, other = [], 0.0
     for order, d in enumerate(listed):
-        entity_id = d.get('stat_rate')
-        if not entity_id or (d.get('included_in_stat') and d['included_in_stat'] in stats):
+        if id(d) not in value or under_drawn(d):
             continue
-        value = power_w(states.get(entity_id))
-        if value is not None and value > 0:
-            yield order, d, value
+        if d.get('stat_consumption') in drawn:
+            top.append((order, d, value[id(d)]))
+        elif not inside_small(d):
+            other += value[id(d)]
+    return top, (other if other > 0 else 0.0)
 
 
 def small_devices(prefs: dict, states: dict[str, dict], home: float) -> float:
-    """The power of the devices under 0.1 % of the house, which Home Assistant's sankey shows as "Other"."""
-    return sum(value for _, _, value in _top_devices(prefs, states) if value < home * MIN_DEVICE_SHARE)
+    """The power of the small devices under the house, which Home Assistant's sankey shows as "Other"."""
+    return _house_devices(prefs, states, home)[1]
 
 
 def devices(prefs: dict, states: dict[str, dict], home: float) -> list[Device]:
-    """The measured devices drawing power now, biggest first.
+    """The devices Home Assistant's live view draws straight from the house, drawing power now, biggest first.
 
-    Only the top of Home Assistant's device tree: a device `included_in_stat` another one is part of that one's value,
-    as in its sankey, and would otherwise be counted twice. A device under 0.1 % of the house is left out, as the
-    sankey's threshold does (their sum is `Moment.small`, "Other"); the card folds what has no place into "Other" itself.
-    """
+    A device under another drawn one is part of that one's value and would otherwise be counted twice; the small ones
+    are `Moment.small`, "Other" (`_house_devices`). The card folds what has no place into "Other" itself."""
     out = []
-    for order, d, value in _top_devices(prefs, states):
-        if value < home * MIN_DEVICE_SHARE:
+    for order, d, watts in _house_devices(prefs, states, home)[0]:
+        if watts <= 0:
             continue
         entity_id = d['stat_rate']
         attributes = (states.get(entity_id) or {}).get('attributes') or {}
         name = d.get('name') or attributes.get('friendly_name') or entity_id
-        out.append(Device(entity_id, name, attributes.get('icon') or 'mdi:flash', value, order))
+        out.append(Device(entity_id, name, attributes.get('icon') or 'mdi:flash', watts, order))
     out.sort(key=lambda dv: -dv.watts)
     return out
 

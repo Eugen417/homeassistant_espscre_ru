@@ -619,8 +619,15 @@ inline Scene build(const Data &data, const Measure &m, int w, int h, const Words
     const auto v = lines_of(s);
     const int lh = m.line[st.label];
     int y = top ? int(at.y - rr) - ft.label_h + (ft.label_lines - int(v.size())) * lh : int(at.y + rr) + gap;
-    const int x = std::max(0, std::min(w - name_w, int(std::lround(at.x - name_w / 2.f))));
-    for (auto &line : v) { sc.texts.push_back({line, st.label, x, y, name_w, true, Paint::MUTED}); y += lh; }
+    // Each line centred under its own circle: a box of the name's whole room, pushed off the card's edge, carried the
+    // names of the circles at the sides up to half a circle off their middle. Only a line that would cross the edge
+    // moves in, and only as far as it must.
+    for (auto &line : v) {
+      const int tw = m.width(st.label, line);
+      const int x = std::max(0, std::min(w - tw - 2, int(std::lround(at.x - tw / 2.f))));
+      sc.texts.push_back({line, st.label, x, y, tw + 2, false, Paint::MUTED});
+      y += lh;
+    }
   };
   struct Value { std::string arrow, text; Paint paint; };
   // A number in a name's place (the compact step): arrow and number in the flow's colour, after the battery's charge.

@@ -41,7 +41,8 @@
   of its own, Untracked, after the devices and Other, as Home Assistant's live power view shows it, so the
   devices add up to the house. A device that uses very little now counts in Other instead of disappearing. The battery's
   charge stands beside its icon, as in Home Assistant's own card, on every size of the card; before, only large cards
-  showed it. Needs this firmware on the screen.
+  showed it. The names stand centred under their circles, also at the sides of the card. Needs this firmware on the
+  screen.
 
 ## 0.4.84 (firmware 0.52.0)
 
