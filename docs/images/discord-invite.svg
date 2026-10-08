@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="260" viewBox="0 0 960 260" role="img" aria-labelledby="title desc">
-<title id="title">Join the Tessera Discord server</title>
-<desc id="desc">Share your screen. Ask a question. Meet the Tessera community.</desc>
+<title id="title">Join our brand-new Discord</title>
+<desc id="desc">Help build the Tessera community. Share your screen or say hello.</desc>
 <rect width="960" height="260" rx="20" fill="#202124"/>
 <path d="M20 0H940Q960 0 960 20V26H0V20Q0 0 20 0" fill="#926bc7"/>
 <g transform="translate(40 77) scale(1.05)"><rect x="4" y="4" width="43" height="43" rx="11" fill="#FFC107"/><path d="M63 4h22a11 11 0 0 1 11 11v36a11 11 0 0 1-11 11H73c-7 0-8-7-13-10-5-3-8-5-8-12V15A11 11 0 0 1 63 4Z" fill="#009FE3"/><path d="M15 52h30c10 0 17 7 17 17v16a11 11 0 0 1-11 11H15A11 11 0 0 1 4 85V63a11 11 0 0 1 11-11Z" fill="#926BC7"/><rect x="67" y="67" width="29" height="29" rx="10" fill="#4CAF50"/></g>
 <g font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Arial, sans-serif">
 <text x="184" y="87" fill="#d5d6da" font-size="20">Tessera community</text>
-<text x="182" y="139" fill="#ffffff" font-size="39" font-weight="700">Join the Discord server</text>
-<text x="184" y="180" fill="#d5d6da" font-size="20">Share your screen. Ask a question. Come say hello.</text>
+<text x="182" y="139" fill="#ffffff" font-size="39" font-weight="700">Join our brand-new Discord</text>
+<text x="184" y="180" fill="#d5d6da" font-size="20">Help build the Tessera community. Come say hello.</text>
 <rect x="750" y="199" width="170" height="37" rx="6" fill="#ffc107"/>
 <text x="835" y="224" text-anchor="middle" fill="#202124" font-size="17" font-weight="700">Join us on Discord</text>
 </g>
