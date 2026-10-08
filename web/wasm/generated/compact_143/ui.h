@@ -290,6 +290,7 @@ runtime_tiles::mini_icon_font = materialdesign_icons_mini;
 runtime_tiles::big_icon_font = materialdesign_icons_big;
 runtime_tiles::control_font = sublabel_big;
 runtime_tiles::small_font = sublabel;
+runtime_tiles::label_font = label;
 runtime_tiles::wide_name_font = sublabel_big;
 runtime_tiles::header_text_font = sublabel_big;
 runtime_tiles::header_icon_font = materialdesign_icons_mini;
