@@ -1376,6 +1376,10 @@
       "screen_name": {
         "copied": "Schermnaam gekopieerd.",
         "selected": "Schermnaam is geselecteerd. Kopieer met Ctrl+C of Command+C."
+      },
+      "log": {
+        "copied": "Log gekopieerd.",
+        "selected": "Log is geselecteerd. Kopieer met Ctrl+C of Command+C."
       }
     },
     "sidebar": {
@@ -3080,6 +3084,11 @@
       "minutes": "{n} min",
       "live": "De editor tekent hem met de eigen data van de plugin; het scherm tekent hem zelf en telt af op zijn eigen klok.",
       "entity": "Entiteit"
+    },
+    "build": {
+      "plugins": "Bouwt met zijn plugins",
+      "install": "Installeert",
+      "failed": "De laatste build van {screen} is mislukt. De log zegt waarom."
     }
   }
 }

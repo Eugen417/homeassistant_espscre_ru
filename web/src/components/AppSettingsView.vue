@@ -2,11 +2,12 @@
 // Everything around the screens: firmware updates, language and region, alerts, Claude.
 import { computed, ref } from "vue";
 import { haProfile, matchLanguage, numberText, type NumberMarks, type NumberStyle, STYLE_MARKS, t } from "../i18n";
-import { anyUpdating, autoMarks, go, installClaudeSkill, runUpdateAll, saveLanguage, setAutoUpdate, state, updateProgress } from "../store";
+import { anyBuilding, autoMarks, buildingScreens, go, installClaudeSkill, runUpdateAll, saveLanguage, setAutoUpdate, state } from "../store";
+import BuildLog from "./BuildLog.vue";
 
 const u = computed(() => state.inventory.updates);
 const outdated = computed(() => state.inventory.screens.filter((s) => s.update?.available).length);
-const running = computed(() => state.inventory.screens.find((s) => s.update?.state === "running" || state.updating.includes(s.id)));
+const running = computed(() => state.inventory.screens.find((s) => s.id === state.inventory.updates?.busy));
 // Each screen is offered its own board's firmware (app 0.3.21): one number only when those screens share it.
 const oneTarget = (screens: typeof state.inventory.screens) => {
   const targets = new Set(screens.map((s) => s.update?.target || u.value?.target));
@@ -25,8 +26,6 @@ const updatesHint = computed(() => {
   const version = oneTarget(screens);
   return version ? t("editor.settings.updates.current", { version }) : t("editor.settings.updates.current_mixed");
 });
-const progress = computed(() => (running.value ? updateProgress(running.value) : null));
-const logTail = computed(() => (state.firmwareJob?.logs || []).slice(-12).join("\n"));
 // What the current firmware brings: the changelog sections that mention it.
 const targetNotes = computed(() => {
   const sections = state.inventory.changelog, target = u.value?.target;
@@ -103,13 +102,10 @@ async function useProfile() {
       <section v-if="u" class="card updates" id="updates">
         <h2>{{ t("editor.settings.updates.title") }}</h2>
         <p id="updates-hint">{{ updatesHint }}</p>
-        <template v-if="running && progress">
-          <div class="progress" role="progressbar" :aria-valuenow="progress.percent" aria-valuemin="0" aria-valuemax="100"><i :style="{ width: progress.percent + '%' }"></i></div>
-          <div class="progress-text"><span>{{ running.name }} · {{ progress.percent }} %</span><span>{{ progress.text }}</span></div>
-          <pre v-if="logTail" class="log-lines">{{ logTail }}</pre>
-        </template>
+        <!-- Every build on the way, whoever asked: an update, a plugin build, an install (the store's builds). -->
+        <BuildLog v-for="screen in buildingScreens()" :key="screen.id" :screen="screen" name />
         <button v-if="u.pending && !u.busy && u.pending >= 2" id="update-all" type="button" class="btn primary" @click="runUpdateAll">{{ t("editor.settings.updates.all", u.pending) }}</button>
-        <details v-if="targetNotes.length && !anyUpdating()" class="whatsnew">
+        <details v-if="targetNotes.length && !anyBuilding()" class="whatsnew">
           <summary>{{ t("editor.settings.updates.whats_new", { version: u.target }) }}</summary>
           <ul><li v-for="line in targetNotes" :key="line">{{ line }}</li></ul>
         </details>

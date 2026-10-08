@@ -37,7 +37,7 @@ beforeEach(() => {
   plugins.consented = {};
   plugins.values = {};
   plugins.parts = {};
-  plugins.building = {};
+  state.inventory.builds = {};
   plugins.index = [
     plugin("bus", "1.2.0"),
     plugin("waste", "1.0.2", { inputs: [{ id: "calendar", kind: "entity", scope: "screen", label: { en: "Calendar" }, domains: ["calendar"] }] }),

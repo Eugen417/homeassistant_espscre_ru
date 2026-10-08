@@ -1376,6 +1376,10 @@
       "screen_name": {
         "copied": "Nome do ecrã copiado.",
         "selected": "O nome do ecrã está selecionado. Copie com Ctrl+C ou Command+C."
+      },
+      "log": {
+        "copied": "Registo copiado.",
+        "selected": "O registo está selecionado. Copie com Ctrl+C ou Comando+C."
       }
     },
     "sidebar": {
@@ -3080,6 +3084,11 @@
       "later": "Talvez mais tarde",
       "donated": "Já fiz um donativo",
       "thanks": "Obrigado! Esta mensagem não volta a aparecer."
+    },
+    "build": {
+      "plugins": "A compilar com os seus plugins",
+      "install": "A instalar",
+      "failed": "A última compilação de {screen} falhou. O registo diz porquê."
     }
   }
 }

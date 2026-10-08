@@ -1376,6 +1376,10 @@
       "screen_name": {
         "copied": "Bildschirmname kopiert.",
         "selected": "Bildschirmname ist markiert. Kopiere mit Strg+C oder Befehl+C."
+      },
+      "log": {
+        "copied": "Protokoll kopiert.",
+        "selected": "Protokoll ist ausgewählt. Kopiere mit Strg+C oder Befehl+C."
       }
     },
     "sidebar": {
@@ -3080,6 +3084,11 @@
       "later": "Vielleicht später",
       "donated": "Ich habe schon gespendet",
       "thanks": "Danke! Diese Frage kommt nicht wieder."
+    },
+    "build": {
+      "plugins": "Baut mit seinen Plugins",
+      "install": "Installiert",
+      "failed": "Der letzte Build von {screen} ist fehlgeschlagen. Das Protokoll sagt, warum."
     }
   }
 }

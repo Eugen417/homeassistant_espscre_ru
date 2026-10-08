@@ -525,7 +525,6 @@ class Plugins:
         return {'api': api_text(), 'plugins': [self.editor_plugin(entry, language) for entry in listed.values()],
                 'entities': entities,
                 'installed': installed, 'running': self.running(), 'secrets': secrets,
-                'building': {inbox: {k: job[k] for k in ('add', 'remove', 'state') if k in job} for inbox, job in self.jobs.items()},
                 'index': {'at': self.index_state['at'], 'error': self.index_state['error']},
                 'folders': {'path': str(self.folder_root()), 'errors': self.folder_errors},
                 'fetch': self.fetcher.status()}

@@ -72,7 +72,11 @@ plugins move with it in the same release. A test keeps the number equal in `plug
   a local external component, by a path relative to the ESPHome folder, so the app, Device Builder and a shared folder
   build the same.
 - Adding or removing writes `plugins.json` and the plugins file, and puts the screen in the queue for its own build and
-  update (`firmware.start`, action install). The queue builds one screen at a time, in the order asked, each when the
+  update (`firmware.start`, action install). A plugin update is a build of the whole screen, so it shows as every build
+  does: `Manager.builds` says per screen what is being built for it, whoever asked (`by`: update, plugins or install;
+  `state`; ESPHome's `stage`), in the light inventory the editor gets live; the editor's store (`buildOf`,
+  `buildProgress`) is the one place every part reads it from, and `BuildLog.vue` shows the progress and the log in the
+  screen's Plugins tab, on the Plugins page and in Settings, Updates. Never track a build in a part of its own. The queue builds one screen at a time, in the order asked, each when the
   app's build slot is free, so ticking three screens on the Plugins page builds them one after the other. A screen
   without a profile in the app gets the file and the line to paste.
 - Removing a screen removes its plugins and, when no screen uses a plugin any more, its secrets.

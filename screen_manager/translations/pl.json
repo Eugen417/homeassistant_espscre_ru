@@ -1376,6 +1376,10 @@
       "screen_name": {
         "copied": "Skopiowano nazwę ekranu.",
         "selected": "Nazwa ekranu jest zaznaczona. Skopiuj ją klawiszami Ctrl+C lub Command+C."
+      },
+      "log": {
+        "copied": "Dziennik skopiowany.",
+        "selected": "Dziennik jest zaznaczony. Skopiuj Ctrl+C lub Command+C."
       }
     },
     "sidebar": {
@@ -3080,6 +3084,11 @@
       "later": "Może później",
       "donated": "Już wpłaciłem",
       "thanks": "Dziękuję! Ta wiadomość już nie wróci."
+    },
+    "build": {
+      "plugins": "Kompiluje z wtyczkami",
+      "install": "Instaluje",
+      "failed": "Ostatnia kompilacja {screen} się nie powiodła. Dziennik mówi dlaczego."
     }
   }
 }

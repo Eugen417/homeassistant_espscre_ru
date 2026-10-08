@@ -707,7 +707,7 @@ onBeforeUnmount(() => { clearInterval(poll); clearInterval(clock); clearInterval
         </details>
       </div>
       <details v-if="installer.view !== 'done'" id="install-log-wrap" class="follow-log" :open="logOpen" @toggle="logOpen = ($event.target as HTMLDetailsElement).open">
-        <summary><Icon name="code-braces" />{{ t(logOpen ? "editor.installer.hide_log" : "editor.installer.show_log") }}<button v-if="logOpen" type="button" class="btn quiet mini" @click.prevent="copyText(logs.join('\n'))">{{ t("editor.common.copy") }}</button></summary>
+        <summary><Icon name="code-braces" />{{ t(logOpen ? "editor.installer.hide_log" : "editor.installer.show_log") }}<button v-if="logOpen" type="button" class="btn quiet mini" @click.prevent="copyText(logs.join('\n'), null, 'log')">{{ t("editor.common.copy") }}</button></summary>
         <pre id="install-log" ref="logBox" class="log">{{ logs.join("\n") }}</pre>
       </details>
       <footer class="setup-foot">

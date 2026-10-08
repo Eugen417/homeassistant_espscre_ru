@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   addTile, canAlert, copyLayoutFrom, copyText, deviceStyle, fullPage, importLayout, isCompact, layoutJson, liveOf, movePage, moveTileToPage,
   pageReachWarning, pageTilesRepeat, phaseText, removePage, removeTile, retargetPageTile, save, select, setTileOption, state, supports,
-  tileLimit, topbarItems, topbarView, updateProgress, whatsNew, refresh, createVirtualScreen, removeScreen,
+  tileLimit, topbarItems, topbarView, buildProgress, whatsNew, refresh, createVirtualScreen, removeScreen,
 } from "../src/store";
 import { customPreview } from "../src/model/preview";
 import renderer from "../src/wasm/renderer.json";
@@ -278,19 +278,23 @@ describe("updates with content", () => {
   });
   it("turns the phase and the ESPHome stage into a progress bar", () => {
     const living = state.inventory.screens[0];
-    expect(updateProgress(living)).toBeNull();
-    living.update!.state = "running";
-    living.update!.phase = "install";
-    expect(updateProgress(living)).toEqual({ percent: 12, text: phaseText("install") });
+    state.inventory.builds = {};
+    expect(buildProgress(living)).toBeNull();
+    // What the add-on says is being built for this screen (Manager.builds): an update, its phase, ESPHome's stage.
+    const build = (phase: string, stage: string | null = null) =>
+      (state.inventory.builds = { [living.id]: { by: "update", state: "running", phase, stage } });
+    build("install");
+    expect(buildProgress(living)).toEqual({ percent: 12, text: phaseText("install") });
     expect(phaseText("install")).toBe("Building and installing…");
-    state.firmwareJob = { job: { stage: "compile" }, logs: [] };
-    expect(updateProgress(living)!.percent).toBe(40);
-    state.firmwareJob = { job: { stage: "upload" }, logs: [] };
-    expect(updateProgress(living)!.percent).toBe(66);
-    living.update!.phase = "verify";
-    expect(updateProgress(living)!.percent).toBe(78);
-    living.update!.phase = "settle";
-    expect(updateProgress(living)!.percent).toBe(92);
+    build("install", "compile");
+    expect(buildProgress(living)!.percent).toBe(40);
+    build("install", "upload");
+    expect(buildProgress(living)!.percent).toBe(66);
+    build("verify");
+    expect(buildProgress(living)!.percent).toBe(78);
+    build("settle");
+    expect(buildProgress(living)!.percent).toBe(92);
+    state.inventory.builds = {};
   });
   it("knows which screen can show an alert", () => {
     const [living, kitchen] = state.inventory.screens;

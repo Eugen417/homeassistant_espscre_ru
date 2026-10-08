@@ -1376,6 +1376,10 @@
       "screen_name": {
         "copied": "Nome dello schermo copiato.",
         "selected": "Il nome dello schermo è selezionato. Copialo con Ctrl+C o Comando+C."
+      },
+      "log": {
+        "copied": "Log copiato.",
+        "selected": "Il log è selezionato. Copia con Ctrl+C o Comando+C."
       }
     },
     "sidebar": {
@@ -3080,6 +3084,11 @@
       "later": "Forse più tardi",
       "donated": "Ho già donato",
       "thanks": "Grazie! Questo messaggio non tornerà più."
+    },
+    "build": {
+      "plugins": "Compila con i suoi plugin",
+      "install": "Installazione",
+      "failed": "L'ultima compilazione di {screen} non è riuscita. Il log dice perché."
     }
   }
 }

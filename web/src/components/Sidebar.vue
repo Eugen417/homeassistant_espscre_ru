@@ -5,7 +5,7 @@ import { boardTitle } from "../model/boards";
 import { glyph } from "../model/topbar";
 import {
   copyText, forgetPending, go, goHome, languageOnly, newLanguageText, openIntegrations, refresh, removeScreen, renameScreen, route, screenSubline,
-  select, startUpdate, state, updateProgress, updateState, whatsNew,
+  buildOf, buildingScreens, buildProgress, select, startUpdate, state, updateState, whatsNew,
 } from "../store";
 import type { Screen } from "../types";
 import Icon from "./ui/Icon.vue";
@@ -88,6 +88,8 @@ function startWithHost(screen: Screen) {
   hostFor.value = null;
   startUpdate(screen, address);
 }
+// A plugin build on the way on any screen: the Plugins entry turns.
+const pluginBuilds = () => buildingScreens().some((screen) => buildOf(screen)?.by === "plugins");
 const lastLog = () => {
   const lines = state.firmwareJob?.logs || [];
   return lines.length ? lines[lines.length - 1] : "";
@@ -184,9 +186,9 @@ const pendingText = (p: { installed?: boolean; downloaded?: boolean; file: strin
                 <ul><li v-for="line in notes(screen).slice(0, 5)" :key="line">{{ line }}</li></ul>
               </details>
             </template>
-            <template v-else-if="updateState(screen)!.kind === 'running' && updateProgress(screen)">
-              <div class="progress" role="progressbar" :aria-valuenow="updateProgress(screen)!.percent" aria-valuemin="0" aria-valuemax="100"><i :style="{ width: updateProgress(screen)!.percent + '%' }"></i></div>
-              <div class="progress-text"><span>{{ updateProgress(screen)!.percent }} %</span><span :title="lastLog()">{{ updateProgress(screen)!.text }}</span></div>
+            <template v-else-if="updateState(screen)!.kind === 'running' && buildProgress(screen)">
+              <div class="progress" role="progressbar" :aria-valuenow="buildProgress(screen)!.percent" aria-valuemin="0" aria-valuemax="100"><i :style="{ width: buildProgress(screen)!.percent + '%' }"></i></div>
+              <div class="progress-text"><span>{{ buildProgress(screen)!.percent }} %</span><span :title="lastLog()">{{ buildProgress(screen)!.text }}</span></div>
               <small v-if="lastLog()" :title="lastLog()" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ lastLog() }}</small>
               <button type="button" class="btn link mini" style="justify-self: start" @click="go('#firmware')">{{ t("editor.sidebar.update.full_log") }}</button>
             </template>
@@ -242,7 +244,7 @@ const pendingText = (p: { installed?: boolean; downloaded?: boolean; file: strin
     <div class="more">
       <!-- The firmware tool (build, USB, OTA, download) is for repairs, not for adding a screen, so it lives in Settings,
            the command palette and a screen's menu rather than here, where it read as the way in (app 0.3.27). -->
-      <button v-if="pluginsEnabled" id="open-plugins" type="button" class="nav-item" :aria-current="route === '#plugins' ? 'true' : 'false'" @click="go('#plugins')"><Icon name="puzzle-outline"/><span class="txt">{{ t("editor.nav.plugins") }}</span></button>
+      <button v-if="pluginsEnabled" id="open-plugins" type="button" class="nav-item" :aria-current="route === '#plugins' ? 'true' : 'false'" @click="go('#plugins')"><Icon name="puzzle-outline"/><span class="txt">{{ t("editor.nav.plugins") }}</span><span v-if="pluginBuilds()" class="spin small" role="img" :aria-label="t('editor.build.plugins')"></span></button>
       <button id="open-alerts" type="button" class="nav-item" :aria-current="route === '#alerts' ? 'true' : 'false'" @click="go('#alerts')"><span class="mdi">{{ glyph("F0594") }}</span><span class="txt">{{ t("editor.nav.alerts") }}</span></button>
       <button id="open-settings" type="button" class="nav-item" :aria-current="route === '#settings' ? 'true' : 'false'" @click="go('#settings')"><span class="mdi">{{ glyph("F0493") }}</span><span class="txt">{{ t("editor.nav.settings") }}</span></button>
     </div>

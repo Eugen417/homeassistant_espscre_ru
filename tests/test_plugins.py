@@ -709,5 +709,40 @@ class Queue(unittest.IsolatedAsyncioTestCase):
         self.assertIn('clock_words/plugin.yaml', text)
 
 
+class Builds(unittest.TestCase):
+    """Manager.builds: one record per screen for whatever is being built for it, whoever asked, so the editor tracks
+    every build in one place."""
+
+    def builds(self, current=None, queue=(), plugin_jobs=None, job=None):
+        import server
+        manager = type('M', (), {})()
+        manager.updates = type('U', (), {'current': current, 'queue': list(queue), 'phase': 'install',
+                                         'resolve': lambda self, screen, profiles=None: (screen['id'] + '.yaml', '10.0.0.1')})()
+        manager.firmware = type('F', (), {'job': job, 'profile_names': lambda self: []})()
+        manager.plugins = type('P', (), {'jobs': plugin_jobs or {}})()
+        screens = [{'id': name} for name in ('hall', 'kitchen', 'desk')]
+        return server.Manager.builds(manager, screens, [])
+
+    def test_nothing_on_the_way_is_no_record(self):
+        self.assertEqual(self.builds(), {})
+
+    def test_every_kind_of_build_once_per_screen(self):
+        running = {'file': 'kitchen.yaml', 'state': 'running', 'stage': 'compile'}
+        out = self.builds(current='hall', queue=['desk'],
+                          plugin_jobs={'kitchen': {'state': 'building', 'add': ['bus']}, 'desk': {'state': 'queued', 'add': ['waste']}},
+                          job=running)
+        self.assertEqual(out['hall'], {'by': 'update', 'state': 'running', 'phase': 'install', 'file': 'hall.yaml', 'stage': None})
+        self.assertEqual(out['kitchen'], {'by': 'plugins', 'state': 'running', 'plugins': ['bus'], 'file': 'kitchen.yaml',
+                                          'stage': 'compile'})
+        # A screen queued for an update and for plugins says the update: it is the one that comes first.
+        self.assertEqual(out['desk']['by'], 'update')
+        self.assertEqual(out['desk']['state'], 'queued')
+
+    def test_an_install_from_firmware_and_usb_counts_too(self):
+        out = self.builds(job={'file': 'desk.yaml', 'state': 'running', 'stage': 'upload'})
+        self.assertEqual(out, {'desk': {'by': 'install', 'state': 'running', 'file': 'desk.yaml', 'stage': 'upload'}})
+        self.assertEqual(self.builds(job={'file': 'desk.yaml', 'state': 'success'}), {})
+
+
 if __name__ == '__main__':
     unittest.main()

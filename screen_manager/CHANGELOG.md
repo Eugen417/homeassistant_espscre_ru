@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **Every build shows, wherever you look.** Whatever is building a screen, an update, plugins or an install from
+  Firmware & USB, now turns in the list of screens and shows its progress in Settings, Updates, with the build log one
+  click away. A build that failed keeps its log until the next one, so you can read why. Copying the installer's log
+  no longer says an API key was copied.
 - **Plugins (on dev only).** A plugin adds a tile or a feature to the screens you choose: open Plugins, tick the screens,
   and each screen builds once with it. The first one is Public transport (NL): the next bus, tram, metro or ferry from
   your stop, live from OVapi, counted down on the screen. Plugins live in github.com/MaxGramser/tessera-plugins, with

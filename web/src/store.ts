@@ -12,7 +12,7 @@ import { measuring, memoryCrossing, memoryUse } from "./model/memory";
 import { validPreviewShape, type PreviewProfile } from "./model/preview";
 import { barItemOf, pluginTileOf, text as pluginText } from "./model/plugins";
 import renderer from "./wasm/renderer.json";
-import type { BoardChoice, Capability, ChildTile, FeedbackView, ChangelogSection, EntityAction, HeaderItem, Inventory, Layout, SaverKind, Screen, ScreensaverChoice, Tile, PageLayout, PageTile, PageDocument, PageGrid, PageWorkspace } from "./types";
+import type { BoardChoice, Build, Capability, ChildTile, FeedbackView, ChangelogSection, EntityAction, HeaderItem, Inventory, Layout, SaverKind, Screen, ScreensaverChoice, Tile, PageLayout, PageTile, PageDocument, PageGrid, PageWorkspace } from "./types";
 
 import * as pages from "./model/pages";
 import { DraftHistory, type HistoryScope } from './model/draft-history';
@@ -370,7 +370,7 @@ export function dismissToast() {
   state.toast = null;
 }
 // What was copied, each with its own sentences so every language can say it its own way.
-export type Copied = "api_key" | "layout_json" | "action_name" | "yaml" | "icon_name" | "empty_color" | "color_name" | "screen_name";
+export type Copied = "api_key" | "log" | "layout_json" | "action_name" | "yaml" | "icon_name" | "empty_color" | "color_name" | "screen_name";
 export async function copyText(text: string, element?: Element | null, what: Copied = "api_key") {
   try {
     if (!navigator.clipboard || !window.isSecureContext) throw new Error();
@@ -1579,20 +1579,35 @@ export async function loadFirmwareJob() {
     firmwareFlight = false;
   }
 }
-export const anyUpdating = () => state.inventory.screens.some((s) => s.update?.state === "running") || state.updating.length > 0;
-// Progress of a running update, from its phase and the ESPHome stage of the build.
-export function updateProgress(screen: Screen): { percent: number; text: string } | null {
-  const u = screen.update || {};
-  if (!(u.state === "running" || state.updating.includes(screen.id))) return null;
-  const stage = state.firmwareJob?.job?.stage as string | undefined;
-  if (u.phase === "verify") return { percent: 78, text: phaseText("verify") };
-  if (u.phase === "settle") return { percent: 92, text: phaseText("settle") };
-  if (u.phase === "install" || !u.phase) {
-    if (stage === "upload") return { percent: 66, text: t("editor.update.writing") };
-    if (stage) return { percent: 40, text: t("editor.update.building") };
-    return { percent: 12, text: phaseText("install") };
-  }
-  return { percent: 12, text: phaseText(u.phase) };
+// ---- Builds: one source for "something is building" ----
+// The add-on says per screen what is being built for it now, whoever asked (inventory.builds, Manager.builds): an update,
+// a plugin build, an install from Firmware & USB. Every part of the page that shows a build reads it here: the screen
+// list, the Plugins entry and tab, the settings' Updates card and the build log. `state.updating` holds the screens the
+// page just asked to build, for the moment until the add-on's builds name them.
+export const buildOf = (screen: Screen): Build | null => state.inventory.builds?.[screen.id] ?? null;
+const asked = (screen: Screen) => state.updating.includes(screen.id);
+export const isBuilding = (screen: Screen) => buildOf(screen)?.state === "running" || asked(screen);
+export const anyBuilding = () => Object.values(state.inventory.builds || {}).some((build) => build.state === "running") || state.updating.length > 0;
+// The screens with a build on the way, running first.
+export const buildingScreens = () => state.inventory.screens.filter((screen) => buildOf(screen) || asked(screen))
+  .sort((a, b) => Number(isBuilding(b)) - Number(isBuilding(a)));
+// What a running build is doing, in words: an update's phase, or what a plugin build or an install is.
+export function buildText(screen: Screen) {
+  const build = buildOf(screen);
+  if (!build || build.by === "update") return phaseText(build?.phase ?? screen.update?.phase);
+  return t(build.by === "plugins" ? "editor.build.plugins" : "editor.build.install");
+}
+// Progress of a running build, from an update's phase and the ESPHome stage of the build.
+export function buildProgress(screen: Screen): { percent: number; text: string } | null {
+  if (!isBuilding(screen)) return null;
+  const build = buildOf(screen);
+  const stage = build?.stage ?? undefined;
+  const phase = build?.by === "update" || !build ? (build?.phase ?? screen.update?.phase) : "install";
+  if (phase === "verify") return { percent: 78, text: phaseText("verify") };
+  if (phase === "settle") return { percent: 92, text: phaseText("settle") };
+  if (stage === "upload") return { percent: 66, text: t("editor.update.writing") };
+  if (stage) return { percent: 40, text: t("editor.update.building") };
+  return { percent: 12, text: buildText(screen) };
 }
 
 // ---- Top bar ----
@@ -1931,8 +1946,9 @@ export const languageOnly = (screen: Screen) => {
 };
 export function updateState(screen: Screen) {
   const u = screen.update || {};
-  if (u.state === "running" || state.updating.includes(screen.id)) return { kind: "running", text: phaseText(u.phase) };
-  if (u.state === "queued") return { kind: "queued", text: t("editor.sidebar.update.queued") };
+  const build = buildOf(screen);
+  if (isBuilding(screen)) return { kind: "running", text: buildText(screen) };
+  if (build?.state === "queued") return { kind: "queued", text: t("editor.sidebar.update.queued") };
   // A screen ESP Screens did not install has no YAML here to build from, so there is nothing to press: say why
   // instead of offering a button that cannot work (the nightly round already passes such a screen by).
   if (needsUpdate(screen) && screen.online && !u.profile)
@@ -2054,7 +2070,7 @@ export async function refresh(full = true) {
     if (data.csrf) setCsrf(data.csrf);
     state.connected = Boolean(state.inventory.connected);
     state.reachable = true;
-    for (const screen of state.inventory.screens) if (screen.update?.state === "running") state.updating = state.updating.filter((id) => id !== screen.id);
+    for (const screen of state.inventory.screens) if (buildOf(screen)) state.updating = state.updating.filter((id) => id !== screen.id);
     if (state.selected) { settleSettings(); reconcileDocument(); }
   } catch {
     state.reachable = false;
@@ -2064,7 +2080,7 @@ function applyLive(data: Partial<Inventory>) {
   state.inventory = { ...state.inventory, ...data } as Inventory;
   state.inventory.screens = [...state.inventory.screens.filter((screen) => !screen.virtual), ...virtualScreens()];
   state.connected = Boolean(state.inventory.connected);
-  for (const screen of state.inventory.screens) if (screen.update?.state === "running") state.updating = state.updating.filter((id) => id !== screen.id);
+  for (const screen of state.inventory.screens) if (buildOf(screen)) state.updating = state.updating.filter((id) => id !== screen.id);
   if (state.selected) { settleSettings(); reconcileDocument(); }
 }
 let pollTimer = 0, lastFull = Date.now(), live = false, stream: EventSource | null = null;
@@ -2081,7 +2097,7 @@ function listen() {
 // plus a full catalogue refresh every 5 minutes.
 function poll() {
   clearTimeout(pollTimer);
-  const wait = live ? 60000 : state.inventory.updates?.busy ? 3000 : 10000;
+  const wait = live ? 60000 : anyBuilding() || state.inventory.updates?.busy ? 3000 : 10000;
   pollTimer = window.setTimeout(async () => {
     if (!document.hidden) {
       const full = Date.now() - lastFull >= 300000;
@@ -2110,8 +2126,8 @@ export function boot() {
     if (!document.hidden && state.layout && state.tab === "layout" && route.value === "") loadStates();
   }, 8000);
   setInterval(() => {
-    if (!document.hidden && anyUpdating()) loadFirmwareJob();
-    else if (state.firmwareJob && !anyUpdating()) state.firmwareJob = null;
+    // The log of the build that runs; the last one's stays, so a failed build can still be read (BuildLog).
+    if (!document.hidden && anyBuilding()) loadFirmwareJob();
   }, 3000);
   document.addEventListener("visibilitychange", async () => {
     if (document.hidden) return;

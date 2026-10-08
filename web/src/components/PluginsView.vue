@@ -9,7 +9,8 @@ import { text, type Plugin } from "../model/plugins";
 import { allTests, installedOn, labelOf, loadPlugins, plugins, realScreens, statusOverall } from "../plugin-state";
 // The folder as Home Assistant shows it (config/...), not as the app's container mounts it (/homeassistant/...).
 const folderShown = (path: string) => path.replace(/^\/(homeassistant|config)\//, "config/");
-import { go } from "../store";
+import { buildingScreens, buildOf, go } from "../store";
+import BuildLog from "./BuildLog.vue";
 import PluginCard from "./PluginCard.vue";
 import PluginDetail from "./PluginDetail.vue";
 import PluginLink from "./PluginLink.vue";
@@ -35,6 +36,7 @@ const openId = ref<string | null>(null);
 const open = computed(() => everything.value.find((plugin) => plugin.id === openId.value) || null);
 function show(plugin: Plugin) { openId.value = plugin.id; panel.value = "plugin"; }
 function close() { panel.value = null; openId.value = null; }
+const pluginBuilds = computed(() => buildingScreens().filter((screen) => buildOf(screen)?.by === "plugins"));
 </script>
 
 <template>
@@ -52,6 +54,10 @@ function close() { panel.value = null; openId.value = null; }
       <section class="plugins-list">
         <h1>{{ t("editor.plugins.title") }}</h1>
         <p class="setup-lead">{{ t("editor.plugins.intro") }}</p>
+        <!-- The screens building their plugins now, each with its progress and log (the store's builds). -->
+        <div v-if="pluginBuilds.length" class="plugin-builds" id="plugin-builds">
+          <BuildLog v-for="screen in pluginBuilds" :key="screen.id" :screen="screen" name />
+        </div>
         <div class="pick-tools">
           <label class="pick-search"><Icon name="magnify" /><input id="plugin-search" v-model="query" type="search" :placeholder="t('editor.plugins.search')" autocomplete="off" spellcheck="false" /></label>
           <div class="seg" role="group" :aria-label="t('editor.plugins.filter')">

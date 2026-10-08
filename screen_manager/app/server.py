@@ -2373,6 +2373,39 @@ class Manager:
             except (OSError, ValueError) as error:
                 LOG.warning('Could not write the language into %s (%s)', profile, error)
 
+    def builds(self, screens, profiles=None):
+        """What is being built for each screen right now, whoever asked for it: one record per screen, so the editor tracks
+        every build in one place (its store, `buildOf`) and shows it wherever it fits. `by` is who asked: `update` (the
+        firmware update, its phase in `phase`), `plugins` (the plugin build queue, `plugins` names what it adds) or
+        `install` (Firmware & USB, Install over Wi-Fi). `state` is `queued` or `running`; `stage` is ESPHome's step of the
+        build that runs now (firmware.job), the same the update's progress reads. A screen with nothing on the way has
+        no record."""
+        if profiles is None:
+            profiles = self.firmware.profile_names()
+        job = self.firmware.job if (self.firmware.job or {}).get('state') == 'running' else None
+        plugin_jobs = getattr(getattr(self, 'plugins', None), 'jobs', {}) or {}
+        out = {}
+        for screen in screens:
+            inbox = screen['id']
+            profile, _ = self.updates.resolve(screen, profiles)
+            here = bool(job and profile and job.get('file') == profile)
+            plugin = plugin_jobs.get(inbox) or {}
+            record = None
+            if inbox == self.updates.current:
+                record = {'by': 'update', 'state': 'running', 'phase': self.updates.phase}
+            elif plugin.get('state') == 'building':
+                record = {'by': 'plugins', 'state': 'running', 'plugins': list(plugin.get('add') or [])}
+            elif here:
+                record = {'by': 'install', 'state': 'running'}
+            elif inbox in self.updates.queue:
+                record = {'by': 'update', 'state': 'queued'}
+            elif plugin.get('state') == 'queued':
+                record = {'by': 'plugins', 'state': 'queued', 'plugins': list(plugin.get('add') or [])}
+            if record:
+                record.update(file=profile, stage=job.get('stage') if here and record['state'] == 'running' else None)
+                out[inbox] = record
+        return out
+
     def pending_profiles(self, screens, profiles):
         """ESP Screens profiles without a paired screen: flashed but not yet added in Home Assistant, or not flashed yet.
 
@@ -3681,6 +3714,8 @@ def create_app(manager, development=False):
                 'editor_features': editor_features,
                 'pending': manager.pending_profiles(screens, profiles),
                 'updates': manager.updates.summary(screens, profiles),
+                # Every build on the way, per screen (Manager.builds): the editor's one source for "something is building".
+                'builds': manager.builds(screens, profiles),
                 'language': manager.region.view()}
     async def seen_pending(payload):
         """Marks each screen that waits for pairing that Home Assistant has found on the network (`seen`); the rest is

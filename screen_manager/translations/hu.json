@@ -1376,6 +1376,10 @@
       "screen_name": {
         "copied": "Kijelzőnév kimásolva.",
         "selected": "A kijelzőnév ki van jelölve. Másold Ctrl+C-vel vagy Command+C-vel."
+      },
+      "log": {
+        "copied": "Napló kimásolva.",
+        "selected": "A napló ki van jelölve. Másold Ctrl+C vagy Command+C billentyűkkel."
       }
     },
     "sidebar": {
@@ -3080,6 +3084,11 @@
       "later": "Talán később",
       "donated": "Már adományoztam",
       "thanks": "Köszönöm! Ez az üzenet többé nem jelenik meg."
+    },
+    "build": {
+      "plugins": "Fordítás a bővítményeivel",
+      "install": "Telepítés",
+      "failed": "{screen} legutóbbi fordítása nem sikerült. A napló megmondja, miért."
     }
   }
 }

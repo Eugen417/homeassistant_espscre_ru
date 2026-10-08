@@ -9,6 +9,7 @@ import { currentScreen, go } from "../store";
 import PluginCard from "./PluginCard.vue";
 import PluginDetail from "./PluginDetail.vue";
 import PluginLink from "./PluginLink.vue";
+import BuildLog from "./BuildLog.vue";
 import Icon from "./ui/Icon.vue";
 
 loadPlugins();
@@ -41,6 +42,9 @@ function close() { panel.value = null; openId.value = null; }
           <button type="button" class="btn link" id="screen-plugin-all" @click="go('#plugins')">{{ t("editor.plugins.tab.all") }}<Icon name="arrow-right" /></button>
         </div>
       </div>
+
+      <!-- This screen's build, whoever asked for it, with its log; a failed one stays until the next build. -->
+      <BuildLog :screen="screen" />
 
       <div v-if="updates.length" class="sp-updates" id="screen-plugin-updates">
         <p><b>{{ t("editor.plugins.tab.updates", { n: updates.length }, updates.length) }}</b>{{ t("editor.plugins.tab.updates_note", { names: names(updates), screen: screen.name }) }}</p>

@@ -8,24 +8,21 @@ import { choiceKey, fit, knowTileTypes, pluginTileId, testPlugin, text, type Ins
   type PluginTileOption, type Texts, pluginTileOf, pluginDefaults} from "./model/plugins";
 import { pluginTiles } from "./model/page-validation";
 import { computed, watch } from "vue";
-import { copyText, state, toast } from "./store";
+import { buildOf, copyText, state, toast } from "./store";
 import type { Screen } from "./types";
 
 export const plugins = reactive({
   index: [] as Plugin[],
   installed: {} as Record<string, Installed[]>,
-  // Screen node → the plugins its build is adding or updating right now.
-  building: {} as Record<string, string[]>,
   loaded: false,
   // What a person filled in when adding a plugin (inputs) and which optional parts are on, per screen node and plugin.
   // A secret is kept by the add-on and never comes back to the page; here it only says that one is set.
   values: {} as Record<string, Record<string, Record<string, string>>>,
   parts: {} as Record<string, Record<string, string[]>>,
   attached: {} as Record<string, boolean>,
-  // From the add-on: which secrets are set (never their values), the screens whose build is running, the plugins file
-  // of a screen with its own YAML, and the lists of choices it fetched.
+  // From the add-on: which secrets are set (never their values), the plugins file of a screen with its own YAML, and the
+  // lists of choices it fetched. What a screen is building is the store's (buildOf), as every build is.
   secrets: {} as Record<string, Record<string, boolean>>,
-  jobs: {} as Record<string, { add: string[]; remove: string[]; state?: string }>,
   files: {} as Record<string, { file: string; content: string; line: string }>,
   choices: {} as Record<string, { value: string; label: Texts }[]>,
   // What the add-on drew of a tile's data, by plugin tile and its options (previewFor), and when it was asked.
@@ -47,25 +44,21 @@ watch(pluginsEnabled, (on) => { pluginTiles.enabled = on; if (on) loadPlugins();
 
 type Payload = {
   plugins: Plugin[]; installed: Record<string, Installed[]>; secrets: typeof plugins.secrets;
-  building: typeof plugins.jobs; folders: typeof plugins.folders; entities?: typeof plugins.entities;
+  folders: typeof plugins.folders; entities?: typeof plugins.entities;
 };
-let polling: ReturnType<typeof setTimeout> | undefined;
-// The add-on's plugins (api/plugins), and again every few seconds while a screen builds.
+// The add-on's plugins (api/plugins). Asked again when a plugin build of some screen starts or ends (the store's builds,
+// live from the add-on), so a record's state and version follow the build without a poll of its own.
 export function reloadPlugins(refresh = false) {
   return getJson<Payload>(refresh ? "plugins?refresh=1" : "plugins").then((data) => {
     plugins.index = data.plugins;
     plugins.installed = data.installed;
     plugins.secrets = data.secrets || {};
-    plugins.jobs = data.building || {};
     plugins.folders = data.folders || { path: "", errors: {} };
     plugins.entities = data.entities || [];
-    plugins.building = Object.fromEntries(Object.entries(data.installed).map(([id, list]) =>
-      [id, list.filter((item) => item.state === "building").map((item) => item.id)]));
-    clearTimeout(polling);
-    if (Object.values(plugins.building).some((list) => list.length) || Object.keys(plugins.jobs).length)
-      polling = setTimeout(() => reloadPlugins(), 5000);
   }).catch(() => undefined);
 }
+watch(() => Object.entries(state.inventory.builds || {}).filter(([, build]) => build.by === "plugins")
+  .map(([screen, build]) => `${screen}:${build.state}`).join(), (now, before) => { if (plugins.loaded && now !== before) reloadPlugins(); });
 export function loadPlugins() {
   if (plugins.loaded) return;
   plugins.loaded = true;
@@ -196,7 +189,12 @@ export const partsKb = (screen: Screen, plugin: Plugin) =>
 // The add-on keeps a screen's plugins by its inbox, the id every screen route takes.
 export const nodeOf = (screen: Screen) => screen.id;
 export const installedOn = (screen: Screen, id: string) => plugins.installed[nodeOf(screen)]?.find((item) => item.id === id);
-export const buildingOn = (screen: Screen, id: string) => Boolean(plugins.building[nodeOf(screen)]?.includes(id));
+// Whether this screen's build (the store's, live from the add-on) brings this plugin, or the page is asking for it now.
+const sending = reactive<Record<string, string[]>>({});
+export const buildingOn = (screen: Screen, id: string) => {
+  const build = buildOf(screen);
+  return Boolean((build?.by === "plugins" && build.plugins?.includes(id)) || sending[screen.id]?.includes(id));
+};
 // A plugin on a screen the add-on has no manifest of any more (a test folder that went): known only by its record.
 export const testsOn = (screen: Screen) => (plugins.installed[nodeOf(screen)] || [])
   .filter((item) => item.source !== "index" && !plugins.index.some((p) => p.id === item.id)).map(testPlugin);
@@ -214,7 +212,7 @@ export type Status = { kind: "installed" | "update" | "building" | "test" | "mis
 export function statusOn(plugin: Plugin, screen: Screen): Status {
   // A screen in the add-on's build queue waits its turn; one at a time builds (docs/PLUGINS.md).
   if (buildingOn(screen, plugin.id))
-    return { kind: "building", label: t(plugins.jobs[screen.id]?.state === "queued" ? "editor.plugins.state.queued" : "editor.plugins.state.building") };
+    return { kind: "building", label: t(buildOf(screen)?.state === "queued" ? "editor.plugins.state.queued" : "editor.plugins.state.building") };
   const have = installedOn(screen, plugin.id);
   if (have?.state === "failed") return { kind: "failed", label: t("editor.plugins.state.failed") };
   if (isTest(have)) return { kind: "test", label: t(`editor.plugins.source.${have!.source}`) };
@@ -258,12 +256,13 @@ export async function addPlugin(screens: Screen[], plugin: Plugin) {
   // One build at a time: the add-on builds the screens one after the other as each build ends.
   for (const screen of screens) {
     try {
-      (plugins.building[screen.id] ||= []).push(plugin.id);
+      sending[screen.id] = [plugin.id];
       await change(screen, { add: [addition(screen, plugin)] });
     } catch (error: any) {
-      plugins.building[screen.id] = (plugins.building[screen.id] || []).filter((id) => id !== plugin.id);
       toast(error.message);
       break;
+    } finally {
+      delete sending[screen.id];
     }
   }
   await reloadPlugins();
@@ -272,11 +271,13 @@ export async function addPlugin(screens: Screen[], plugin: Plugin) {
 // An update that asks for other rights goes only with the person's yes (plugins.consented), as it does one by one.
 export async function updateAll(screen: Screen, list: Plugin[]) {
   if (!list.length) return;
-  plugins.building[screen.id] = [...(plugins.building[screen.id] || []), ...list.map((plugin) => plugin.id)];
+  sending[screen.id] = list.map((plugin) => plugin.id);
   try {
     await change(screen, { add: list.map((plugin) => addition(screen, plugin)) });
   } catch (error: any) {
     toast(error.message);
+  } finally {
+    delete sending[screen.id];
   }
   await reloadPlugins();
 }

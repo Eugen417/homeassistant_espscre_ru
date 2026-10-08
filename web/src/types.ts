@@ -212,6 +212,12 @@ export type Languages = {
 export type ChangelogSection = { app: string; firmware: string; boards?: string[]; lines: string[] };
 export type Entity = { id: string; name: string; area?: string; device?: string; icon?: string; state?: string; tile?: boolean; screen_name?: string };
 export type IconInfo = { name: string; cp: string; label: string };
+// What is being built for one screen right now, whoever asked (Manager.builds in the add-on): the firmware update, the
+// plugin build queue, or Install over Wi-Fi from Firmware & USB. The editor's one source for "something is building".
+export type Build = {
+  by: "update" | "plugins" | "install"; state: "queued" | "running"; file?: string | null; stage?: string | null;
+  phase?: string | null; plugins?: string[];
+};
 export type Inventory = {
   editor_features?: { tall_tiles?: boolean; plugins?: boolean };
   csrf?: string;
@@ -226,6 +232,7 @@ export type Inventory = {
   pending?: { friendly: string; file: string; node?: string; installed?: boolean; downloaded?: boolean; api_key?: string; seen?: boolean; pairing?: "adding" | "failed" | null }[];
   // `channel`: the branch the screens build from, when the app was added from this repository (docs/RELEASING.md).
   updates?: { target: string; busy?: boolean | string | null; pending?: number; auto?: boolean; channel?: "main" | "dev" | null };
+  builds?: Record<string, Build>;
   // The CHANGELOG by release, newest first: only in the full inventory, not in the live payload (app 0.2.78).
   changelog?: ChangelogSection[];
   claude_skill?: { path: string; installed: boolean; current: boolean; restart?: boolean };

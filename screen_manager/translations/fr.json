@@ -1376,6 +1376,10 @@
       "screen_name": {
         "copied": "Nom de l'écran copié.",
         "selected": "Le nom de l'écran est sélectionné. Copiez avec Ctrl+C ou Commande+C."
+      },
+      "log": {
+        "copied": "Journal copié.",
+        "selected": "Le journal est sélectionné. Copiez avec Ctrl+C ou Commande+C."
       }
     },
     "sidebar": {
@@ -3080,6 +3084,11 @@
       "later": "Plus tard",
       "donated": "J'ai déjà fait un don",
       "thanks": "Merci ! Ce message ne reviendra plus."
+    },
+    "build": {
+      "plugins": "Compilation avec ses plugins",
+      "install": "Installation",
+      "failed": "La dernière compilation de {screen} a échoué. Le journal dit pourquoi."
     }
   }
 }

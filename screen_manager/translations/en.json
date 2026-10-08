@@ -1376,6 +1376,10 @@
       "screen_name": {
         "copied": "Screen name copied.",
         "selected": "Screen name is selected. Copy with Ctrl+C or Command+C."
+      },
+      "log": {
+        "copied": "Log copied.",
+        "selected": "Log is selected. Copy with Ctrl+C or Command+C."
       }
     },
     "sidebar": {
@@ -3080,6 +3084,11 @@
       "minutes": "{n} min",
       "live": "The editor draws it from the plugin's own data; the screen draws it itself and counts down on its own clock.",
       "entity": "Entity"
+    },
+    "build": {
+      "plugins": "Building with its plugins",
+      "install": "Installing",
+      "failed": "The last build of {screen} failed. The log says why."
     }
   }
 }

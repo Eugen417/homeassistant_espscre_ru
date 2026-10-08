@@ -3,7 +3,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { t } from "../i18n";
 import {
-  canAlert, closeInspector, copyLayoutFrom, currentScreen, currentTile, removeTile, exportLayout, go, goHome, identify, importLayout, narrowPhone, needsUpdate, openBar,
+  buildOf, canAlert, closeInspector, copyLayoutFrom, currentScreen, currentTile, removeTile, exportLayout, go, goHome, identify, importLayout, narrowPhone, needsUpdate, openBar,
   phone, redo, renameScreen, save, setFullEditor, startUpdate, state, tileLimit, undo,
 } from "../store";
 import LayoutView from "./LayoutView.vue";
@@ -119,6 +119,7 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", beforeKey, true)
       </button>
       <button v-if="!screen.virtual && pluginsEnabled" type="button" id="tab-plugins" role="tab" :aria-pressed="state.tab === 'plugins' ? 'true' : 'false'" :aria-selected="state.tab === 'plugins'" @click="state.tab = 'plugins'; closeInspector()">
         <Icon name="puzzle-outline" />{{ t("editor.screen_view.tabs.plugins") }}
+        <span v-if="buildOf(screen)?.by === 'plugins'" class="spin small" role="img" :aria-label="t('editor.build.plugins')"></span>
       </button>
     </div>
     <div class="head-right">
