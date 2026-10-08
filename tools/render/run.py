@@ -223,6 +223,19 @@ class Run:
             await asyncio.sleep(0.05)
         raise RuntimeError(f'{what}: nothing after {timeout} s')
 
+    async def tile_pictures(self, what, start, timeout=15):
+        """Every tile picture the screen asked for since `start` has had its try (tile_picture.h): each tile asks alone,
+        and the page is drawn once the last answer is on its card."""
+        asked = lambda: sum('asked for the picture of tile' in line for line in self.lines[start:])
+        ended = lambda: sum(re.search(r'tile \d+: (picture loaded|no picture|the picture failed)', line) is not None
+                            for line in self.lines[start:])
+        await self.until(lambda line: 'asked for the picture of tile' in line, 10, f'{what}: the ask', start)
+        end = time.monotonic() + timeout
+        while ended() < asked():
+            if time.monotonic() > end:
+                raise RuntimeError(f'{what}: {ended()} of {asked()} pictures after {timeout} s')
+            await asyncio.sleep(0.05)
+
     async def probe(self):
         start = len(self.lines)
         await self.call('render_probe')

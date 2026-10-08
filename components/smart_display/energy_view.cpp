@@ -6,6 +6,8 @@
 #include "esphome/core/log.h"
 #include "runtime_tiles.h"
 
+#include <unordered_map>
+
 namespace energy_view {
 using runtime_tiles::Tile;
 using runtime_tiles::Widgets;
@@ -15,6 +17,9 @@ namespace ec = energy_card;
 // A dot: its place on its line and a picture of it at that sub-pixel place, so it runs smoothly and stays in the
 // middle of a line LVGL draws on whole pixels (an object can only stand on whole pixels).
 struct Dot {
+  // How far along its line, 0..1, and when it was last moved: a new value changes the pace, never the place.
+  float phase = 0;
+  uint32_t moved = 0;
   float cx = -1e6f, cy = -1e6f;
   int x0 = 0, y0 = 0, size = 0;
   uint32_t color = 0;
@@ -27,13 +32,20 @@ struct View {
   std::string widest;  // the widest number this card showed: a car passing 10 kW makes room once, not back and forth
   int width = 0, height = 0;
   std::vector<Dot> dots;
-  uint32_t started = 0;
   std::array<const lv_font_t *, ec::FACES> faces{};
   lv_color_t ground{};  // the card's own colour, which the circles are filled with
   bool told = false;    // the host build logged where the circles stand
+  // Every width the fit has measured, by face and text. The fit tries every form and font step and asks the same
+  // few dozen strings some 8000 times; through LVGL's glyph tables that held the whole screen for about a second at
+  // every new value. The words and most numbers stay from one value to the next, so the widths stay too.
+  ec::ChoiceCache choice;  // the form, fonts and places the card chose, kept while its shape stays (energy_card.h)
+  std::shared_ptr<std::unordered_map<std::string, int>> widths = std::make_shared<std::unordered_map<std::string, int>>();
 };
 
 static lv_timer_t *timer = nullptr;
+// The energy cards that exist, on the glass or kept with a page off it (kept_pages.h). A kept page comes back on the
+// glass without being drawn again, so nothing would wake a timer that rested: it rests only when no card exists.
+static int views = 0;
 constexpr uint32_t FRAME_MS = 40;  // 25 frames a second: a dot moves at most a few pixels a frame
 
 static lv_color_t paint(ec::Paint p) {
@@ -170,11 +182,16 @@ static void advance(Widgets &w, uint32_t now) {
   if (!view || !canvas || view->dots.size() != view->scene.flows.size()) return;
   lv_area_t a;
   lv_obj_get_coords(canvas, &a);
-  const float seconds = (now - view->started) / 1000.f;
   for (size_t i = 0; i < view->dots.size(); ++i) {
     auto &flow = view->scene.flows[i];
     auto &dot = view->dots[i];
-    const ec::P p = ec::along(flow.path, std::fmod(seconds / flow.seconds, 1.f));
+    // Each dot moves on by the time since its last frame at its line's pace now. Its place worked out from the time
+    // since the card started instead jumped at every new value: after an hour a pace a hundredth of a second shorter
+    // moves it a whole line. A pause (the screen asleep, the card off the glass) resumes where it stopped.
+    const float dt = dot.moved ? std::min(0.2f, (now - dot.moved) / 1000.f) : 0.f;
+    dot.moved = now;
+    dot.phase = std::fmod(dot.phase + dt / flow.seconds, 1.f);
+    const ec::P p = ec::along(flow.path, dot.phase);
     if (std::fabs(p.x - dot.cx) < 0.05f && std::fabs(p.y - dot.cy) < 0.05f) continue;
     if (!dot.pixels.empty()) {
       lv_area_t old{a.x1 + dot.x0, a.y1 + dot.y0, a.x1 + dot.x0 + dot.size - 1, a.y1 + dot.y0 + dot.size - 1};
@@ -186,24 +203,23 @@ static void advance(Widgets &w, uint32_t now) {
   }
 }
 
-// The dots' timer: only cards on the glass, only while the screen is awake; it rests when no card runs.
+// The dots' timer: it moves only cards on the glass, only while the screen is awake, and rests when no card exists.
 static void tick(lv_timer_t *) {
   if (!rt::awake()) return;
   // A card open over the page hides the dots: nothing under it is drawn again.
   if (rt::detail_root && !lv_obj_has_flag(rt::detail_root, LV_OBJ_FLAG_HIDDEN)) return;
   const uint32_t now = esphome::millis();
-  bool any = false;
   for (auto &w : rt::widgets) {
     if (!w.energy || w.extra_mode != "energy" || !w.extra || lv_obj_has_flag(w.extra, LV_OBJ_FLAG_HIDDEN) || !w.parts[0]) continue;
     if (w.tile && lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN)) continue;
     if (w.energy->scene.flows.empty()) continue;
-    any = true;
     advance(w, now);
   }
-  if (!any && timer) lv_timer_pause(timer);
+  if (!views && timer) lv_timer_pause(timer);
 }
 
 void release(Widgets &w) {
+  if (w.energy) --views;
   delete w.energy;
   w.energy = nullptr;
 }
@@ -225,7 +241,7 @@ static bool reading(const ec::Data &data, const std::string &entity, Sensor &out
 
 void render(Widgets &w, const Tile &t, int width, int height) {
   rt::begin_extra(w, "energy", width, height);
-  if (!w.energy) w.energy = new View();
+  if (!w.energy) { w.energy = new View(); ++views; }
   View &view = *w.energy;
   auto *&canvas = w.parts[0];
   if (!canvas) {
@@ -242,7 +258,17 @@ void render(Widgets &w, const Tile &t, int width, int height) {
   ec::Measure m;
   for (int f = 0; f < ec::FACES; ++f) m.line[f] = view.faces[f] ? lv_font_get_line_height(view.faces[f]) : 0;
   const auto faces = view.faces;
-  m.width = [faces](ec::Face f, const std::string &s) { return faces[f] ? rt::text_width(s, faces[f]) : 1 << 20; };
+  if (view.widths->size() > 256) view.widths->clear();  // a long run of new numbers does not grow it for ever
+  m.width = [faces, widths = view.widths](ec::Face f, const std::string &s) {
+    if (!faces[f]) return 1 << 20;
+    std::string key(1, char(f));
+    key += s;
+    auto found = widths->find(key);
+    if (found != widths->end()) return found->second;
+    const int w = rt::text_width(s, faces[f]);
+    widths->emplace(std::move(key), w);
+    return w;
+  };
   ec::Words words;
   words.solar = rt::tr(rt::txt::energy_solar); words.grid = rt::tr(rt::txt::energy_grid); words.battery = rt::tr(rt::txt::energy_battery);
   words.home = rt::tr(rt::txt::energy_home); words.other = rt::tr(rt::txt::energy_other);
@@ -251,7 +277,7 @@ void render(Widgets &w, const Tile &t, int width, int height) {
   if (t.extra().energy && !t.extra().energy->home_name.empty()) words.home = t.extra().energy->home_name;
   // The circles take the card's own colour (a card may have a background of its own); a card without one, the page's.
   view.ground = lv_obj_get_style_bg_opa(w.tile, LV_PART_MAIN) > LV_OPA_50 ? lv_obj_get_style_bg_color(w.tile, LV_PART_MAIN) : theme::color(theme::PAGE);
-  const bool changed = view.data != t.extra().energy || view.width != width || view.height != height;
+  const bool resized = view.width != width || view.height != height;
   view.data = t.extra().energy;
   view.width = width; view.height = height;
   // A circle's sensor open over the card follows the card's moment.
@@ -265,7 +291,7 @@ void render(Widgets &w, const Tile &t, int width, int height) {
       const std::string s = ec::power(v, words.decimal);
       if (view.widest.empty() || m.width(ec::SMALL, s) > m.width(ec::SMALL, view.widest)) view.widest = s;
     }
-    sc = ec::build(*view.data, m, width, height, words, view.widest);
+    sc = ec::build(*view.data, m, width, height, words, view.widest, &view.choice);
     if (!sc.ok) {
       // Too small for the diagram (a size the editor does not offer): the house's use alone, as a watch card says it.
       const std::string value = ec::power(view.data->home, words.decimal);
@@ -279,13 +305,79 @@ void render(Widgets &w, const Tile &t, int width, int height) {
     // Home Assistant knows no power sensor in its Energy settings: say where to add them, as it hides its own view.
     sc.texts.push_back({rt::tr(rt::txt::energy_no_power), ec::SMALL, 0, std::max(0, height / 2 - m.line[ec::SMALL]), width, true, ec::Paint::MUTED});
   }
+  // The dots keep running where they were. Every value from Home Assistant is a new moment (a new `data`), so a dot
+  // follows its line, not its index: a line that runs from the same place to the same place keeps its dot, and only a
+  // line that is new starts one. Restarting them all at each value kept a slow dot (6 s at a few W) from ever
+  // reaching the end of its line.
+  auto same = [](const ec::P &a, const ec::P &b) { return std::fabs(a.x - b.x) < 0.5f && std::fabs(a.y - b.y) < 0.5f; };
+  // A new value that leaves every circle, line and turn where it was (most of them: a number changes) is painted in
+  // place, as docs/CARD_PARTS.md asks of every card: only the words that changed and the house's ring are drawn again,
+  // and the dots go on as they were. Anything else (another source, a new line, another size) draws the card whole.
+  const ec::Scene &was = view.scene;
+  auto same_arcs = [&](const std::vector<ec::Arc> &x, const std::vector<ec::Arc> &y) {
+    if (x.size() != y.size()) return false;
+    for (size_t i = 0; i < x.size(); ++i)
+      if (!same(x[i].c, y[i].c) || x[i].radius != y[i].radius || x[i].width != y[i].width || x[i].a0 != y[i].a0 ||
+          x[i].a1 != y[i].a1 || x[i].paint != y[i].paint) return false;
+    return true;
+  };
+  bool in_place = !resized && was.ok && sc.ok && was.circles.size() == sc.circles.size() && was.lines.size() == sc.lines.size() &&
+                  was.flows.size() == sc.flows.size() && was.texts.size() == sc.texts.size() && view.dots.size() == sc.flows.size() &&
+                  same_arcs(was.arcs, sc.arcs) && was.dot_r == sc.dot_r;
+  for (size_t i = 0; in_place && i < sc.circles.size(); ++i) {
+    const auto &x = was.circles[i], &y = sc.circles[i];
+    in_place = same(x.c, y.c) && x.d == y.d && x.border == y.border && x.paint == y.paint;
+  }
+  for (size_t i = 0; in_place && i < sc.lines.size(); ++i) {
+    const auto &x = was.lines[i], &y = sc.lines[i];
+    in_place = same(x.a, y.a) && same(x.b, y.b) && x.width == y.width && x.paint == y.paint;
+  }
+  for (size_t i = 0; in_place && i < sc.flows.size(); ++i) {
+    const auto &x = was.flows[i], &y = sc.flows[i];
+    in_place = x.paint == y.paint && !x.path.empty() && !y.path.empty() && same(x.path.front().at(0), y.path.front().at(0)) &&
+               same(x.path.back().at(1), y.path.back().at(1));
+  }
+  for (size_t i = 0; in_place && i < sc.texts.size(); ++i) {
+    const auto &x = was.texts[i], &y = sc.texts[i];
+    in_place = x.face == y.face && x.x == y.x && x.y == y.y && x.w == y.w && x.centre == y.centre;
+  }
+  if (in_place) {
+    lv_area_t a;
+    lv_obj_get_coords(canvas, &a);
+    auto invalidate = [&](int x1, int y1, int x2, int y2) {
+      lv_area_t r{a.x1 + x1, a.y1 + y1, a.x1 + x2, a.y1 + y2};
+      lv_obj_invalidate_area(canvas, &r);
+    };
+    for (size_t i = 0; i < sc.texts.size(); ++i) {
+      const auto &x = was.texts[i], &y = sc.texts[i];
+      if (x.s == y.s && x.paint == y.paint) continue;
+      const int h = view.faces[y.face] ? lv_font_get_line_height(view.faces[y.face]) : 0;
+      invalidate(y.x, y.y, y.x + y.w - 1, y.y + h - 1);
+    }
+    if (!same_arcs(was.ring, sc.ring))
+      for (const std::vector<ec::Arc> *ring : {&was.ring, static_cast<const std::vector<ec::Arc> *>(&sc.ring)})
+        for (auto &r : *ring) invalidate(int(r.c.x) - r.radius, int(r.c.y) - r.radius, int(r.c.x) + r.radius, int(r.c.y) + r.radius);
+    view.scene = std::move(sc);
+    view.told = false;
+    // The dots keep their pictures and places: the next frame moves them at their lines' new pace.
+    for (size_t i = 0; i < view.dots.size(); ++i) view.dots[i].color = lv_color_to_u32(paint(view.scene.flows[i].paint)) & 0xFFFFFF;
+    return;
+  }
+  std::vector<Dot> dots(sc.flows.size());
+  for (size_t i = 0; i < sc.flows.size(); ++i) {
+    const auto &path = sc.flows[i].path;
+    if (path.empty()) continue;
+    for (size_t j = 0; j < view.scene.flows.size() && j < view.dots.size(); ++j) {
+      const auto &old = view.scene.flows[j].path;
+      if (old.empty() || !same(old.front().at(0), path.front().at(0)) || !same(old.back().at(1), path.back().at(1))) continue;
+      dots[i].phase = view.dots[j].phase;
+      dots[i].moved = view.dots[j].moved;
+      break;
+    }
+  }
   view.scene = std::move(sc);
   view.told = false;
-  // The dots keep running where they were: only a new set of lines starts them over.
-  if (changed || view.dots.size() != view.scene.flows.size()) {
-    view.dots.assign(view.scene.flows.size(), Dot{});
-    if (!view.started) view.started = esphome::millis();
-  }
+  view.dots = std::move(dots);
   for (size_t i = 0; i < view.dots.size(); ++i) {
     view.dots[i].color = lv_color_to_u32(paint(view.scene.flows[i].paint)) & 0xFFFFFF;
     view.dots[i].cx = -1e6f;  // repainted below at its place now

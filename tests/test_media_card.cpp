@@ -12,7 +12,7 @@ static bool apart(const Rect &a, const Rect &b) { return a.right() <= b.x || b.r
 static bool above(const Rect &a, const Rect &b) { return a.bottom() <= b.y; }
 
 // Every part inside the area, nothing over anything else, the keys in one row and the volume row at the bottom.
-static void sound(const Layout &l, int width, int height, bool art = true) {
+static void sound(const Layout &l, int width, int height, bool art = true, const Metrics &m = Metrics{}) {
   // A board without pictures has no cover and no square for one (firmware 0.46.0).
   if (art) assert(l.art.w > 0 && l.art.h > 0 && inside(l.art, width, height));
   else assert(l.art.w == 0 && l.art.h == 0);
@@ -30,6 +30,10 @@ static void sound(const Layout &l, int width, int height, bool art = true) {
   // (smaller where those keys would push the artist line out: layout()).
   assert(l.minus.w <= l.prev.w && l.minus.h == l.minus.w && l.plus.w == l.minus.w);
   assert(l.minus.cy() == l.volume.cy() && l.plus.cy() == l.volume.cy());
+  // The volume knob at 0 or 100 % stands a gap clear of volume down and up, and the seek knob at either end of the bar
+  // half a gap clear of the times (firmware 0.52.0): both reached into the keys and the words before (GitHub #177).
+  assert(l.volume.x - m.knob_h() / 2 - l.minus.right() >= m.gap() && l.plus.x - (l.volume.right() + m.knob_h() / 2) >= m.gap());
+  if (l.times) assert(l.bar.x - m.seek_knob_h() / 2 - l.elapsed.right() >= m.gap() / 2 && l.total.x - (l.bar.right() + m.seek_knob_h() / 2) >= m.gap() / 2);
   for (const Rect *e : {&l.ends[0], &l.ends[1]}) if (e->w) assert(inside(*e, width, height) && e->x > l.plus.right() && e->cy() == l.plus.cy());
   if (l.ends[1].w) assert(l.ends[1].right() < l.ends[0].x);
   for (const Rect *r : {&l.art, &l.title, &l.bar, &l.prev, &l.play, &l.next}) if (r->w) assert(above(*r, l.minus));
@@ -61,7 +65,7 @@ int main() {
   {
     Metrics m; m.large = false; m.title_h = 21; m.artist_h = 17; m.small_h = 13;
     Layout l = layout(m, 320, 192);
-    sound(l, 320, 192);
+    sound(l, 320, 192, true, m);
     assert(l.wide && l.times && l.artist && l.art.w == 120);
     assert(l.title.x > l.art.right() && l.title.y >= l.art.y && l.play.bottom() <= l.art.bottom());
     assert(l.title.right() == 310 && l.play.cx() == l.title.cx());
@@ -83,7 +87,7 @@ int main() {
   {
     Metrics m; m.large = false; m.title_h = 21; m.artist_h = 17; m.small_h = 13;
     Layout l = layout(m, 302, 108);
-    sound(l, 302, 108);
+    sound(l, 302, 108, true, m);
     assert(l.wide && !l.artist && l.art.w < 120 && l.art.w >= 60);
     assert(l.play.bottom() <= 108 - 22 - 6 && l.bar.h == 4);
     printf("cyd full: art %d keys y=%d bottom=%d\n", l.art.w, l.play.y, l.play.bottom());
@@ -96,7 +100,7 @@ int main() {
     assert(two.ends[0].right() == none.plus.right() && two.volume.w < none.volume.w && two.volume.w >= 2 * m.key_h());
     Metrics small; small.large = false; small.title_h = 21; small.artist_h = 17; small.small_h = 13;
     Layout cyd = layout(small, 320, 192, 2);
-    sound(cyd, 320, 192);
+    sound(cyd, 320, 192, true, small);
     assert(cyd.volume.w >= 2 * small.key_h());
     printf("volume row: guition slider %d (%d with two keys), cyd %d with two keys\n", none.volume.w, two.volume.w, cyd.volume.w);
   }
@@ -130,7 +134,7 @@ int main() {
     Metrics m; m.large = false; m.art = false; m.title_h = 21; m.artist_h = 17; m.small_h = 13;
     // The CYD's card: everything stacked and centred, the column wider than beside a cover, the times kept.
     Layout card = layout(m, 320, 192);
-    sound(card, 320, 192, false);
+    sound(card, 320, 192, false, m);
     Metrics with_art = m; with_art.art = true;
     const Layout before = layout(with_art, 320, 192);
     assert(!card.wide && card.artist && card.times && card.title.w > before.title.w);
@@ -140,9 +144,9 @@ int main() {
     const int top_air = card.title.y, low_air = card.minus.y - m.gap() - card.play.bottom();
     assert(std::abs(top_air - low_air) <= 1);
     // The CYD standing up (240 wide) and a CYD tile over the whole page under its head: the artist line goes first.
-    sound(layout(m, 240, 272), 240, 272, false);
+    sound(layout(m, 240, 272), 240, 272, false, m);
     Layout tile = layout(m, 302, 108);
-    sound(tile, 302, 108, false);
+    sound(tile, 302, 108, false, m);
     assert(!tile.artist && tile.play.cx() == 151);
     // A board with PSRAM keeps its cover exactly as before.
     Metrics big; Layout guition = layout(big, 480, 396);
@@ -156,7 +160,7 @@ int main() {
     const Layout narrow = layout(m, 480, 396);
     m.clock_w = m.time_w() + 20;
     const Layout hour = layout(m, 480, 396);
-    sound(hour, 480, 396);
+    sound(hour, 480, 396, true, m);
     assert(hour.times && hour.elapsed.w == m.clock_w && hour.total.w == m.clock_w && hour.bar.w == narrow.bar.w - 40);
     m.clock_w = 1;  // never narrower than a minutes' time
     assert(layout(m, 480, 396).elapsed.w == m.time_w());
@@ -164,7 +168,7 @@ int main() {
     Metrics cyd; cyd.large = false; cyd.art = false; cyd.title_h = 21; cyd.artist_h = 17; cyd.small_h = 13;
     cyd.clock_w = cyd.time_w() + 14;
     const Layout podcast = layout(cyd, 320, 192);
-    sound(podcast, 320, 192, false);
+    sound(podcast, 320, 192, false, cyd);
     assert(podcast.times && podcast.elapsed.w == cyd.clock_w);
   }
   // Seeking: a place on the bar is a second of the track, and a seek holds until Home Assistant agrees.
@@ -182,12 +186,13 @@ int main() {
     s.send(60, 1000, 5000, "Song");
     assert(s.holds(10, 5000, 2000, 5010, false, "Song") && !s.holds(61, 5000, 2000, 5010, false, "Song"));
   }
-  // The card's ground: two colours from the app, nothing else.
+  // The card's ground: one colour from the app, the first of the two it sends for the firmware of before (0.52.0).
   {
-    uint32_t top = 0, bottom = 0;
-    assert(ground("2B484F,121E20", top, bottom) && top == 0x2B484F && bottom == 0x121E20);
-    assert(ground("611d18,280c0a", top, bottom) && top == 0x611D18);
-    assert(!ground("-", top, bottom) && !ground("", top, bottom) && !ground("2B484F;121E20", top, bottom) && !ground("2B484G,121E20", top, bottom));
+    uint32_t colour = 0;
+    assert(ground("2B484F,2B484F", colour) && colour == 0x2B484F);
+    assert(ground("611d18,280c0a", colour) && colour == 0x611D18);
+    assert(ground("1F3338", colour) && colour == 0x1F3338);
+    assert(!ground("-", colour) && !ground("", colour) && !ground("2B484F;121E20", colour) && !ground("2B484G,121E20", colour) && !ground("2B484", colour));
     assert(std::string(next_repeat("off")) == "all" && std::string(next_repeat("all")) == "one" && std::string(next_repeat("one")) == "off");
   }
   // Progress: the position runs on while playing, stands still when paused, never beyond the track.

@@ -33,6 +33,7 @@ import energy_flow
 import map_tiles
 import tile_icons
 from updates import Updater
+import core
 
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
 from core import alarm_extras, lock_extras, ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_choice, alert_data, choice_service, ALERT_CHOICE_ACTION, ALERT_CHOICE_MIN_FIRMWARE, parse_firmware, alert_reference, alert_screen_choice, alert_screen_names, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, entity_slug, extras, media_cover, media_extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, name_clash, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
@@ -1800,6 +1801,40 @@ class Manager:
         self.browsable[entity] = (time.monotonic(), True)
         return folder
 
+    async def spotify_route(self, entity, top=None):
+        """How a favourite of this player plays a Spotify link (app 0.4.84): '' for a Spotify account itself, the account's
+        config entry for a player whose library lists one (a Sonos), None for a player that plays no Spotify link. `top`
+        is the library's top when it was just read."""
+        if self.platform_lookup(entity) in speakers.SOURCE_SPEAKERS:
+            return ''
+        if top is None:
+            try:
+                top = await self.read_folder(entity, None)
+            except (ClientError, ConnectionError, TimeoutError, OSError, ValueError):
+                return None
+        return media_library.spotify_entry(top['items'])
+
+    async def spotify_card(self, kind, spotify_id):
+        """(title, picture) of a Spotify item from Spotify's public oEmbed, without signing in. Not an official API: a
+        favourite works without it, with the word of its kind for a name and the icon of its kind."""
+        url = f'https://open.spotify.com/{kind}/{spotify_id}'
+        try:
+            async with self.ha.session.get(media_library.OEMBED, params={'url': url}, allow_redirects=False,
+                                           timeout=ClientTimeout(total=media_library.OEMBED_SECONDS)) as response:
+                response.raise_for_status()
+                raw = bytearray()
+                async for chunk in response.content.iter_chunked(16384):
+                    raw += chunk
+                    if len(raw) > media_library.OEMBED_BYTES:
+                        raise ValueError('answer too large')
+        except Exception as error:
+            LOG.info('Spotify did not describe %s %s (%s)', kind, spotify_id, type(error).__name__)
+            return None, None
+        title, thumb = media_library.oembed_card(bytes(raw))
+        if thumb and not await HomeAssistant._allow_media_url(thumb):
+            thumb = None
+        return title, thumb
+
     def player_request(self, request):
         """(inbox, screen, entity, action) of a library request from a screen with that player on its layout, or None."""
         if not isinstance(request, dict):
@@ -1859,7 +1894,7 @@ class Manager:
                 LOG.info('The library of %s did not open (%s)', entity, type(error).__name__)
                 failed = True
         attrs = self.ha.states.get(entity, {}).get('attributes') or {}
-        started = self.started.get(entity) if self.ha.states.get(entity, {}).get('state') in ('playing', 'paused') else None
+        started = self.started.get(entity) if media_library.holds_media(self.ha.states.get(entity)) else None
         items = media_library.entries(folder, shelf, entity, attrs, started)
         all_pages = media_library.pages(items)
         await self.send_auxiliary(inbox, media_library.message(entity, token, folder['title'], page, all_pages, len(items), failed),
@@ -1882,7 +1917,9 @@ class Manager:
                 return
             item = media_library.favorite_item(options.get('play'))
             source = source or options.get('speaker')
+            order = {'shuffle': options.get('shuffle'), 'repeat': options.get('repeat')}
         else:
+            order = {}
             token = self.media_token(request.get('item'))
             item = self.shelves.get(inbox, media_library.Shelf()).get(entity, token) if token else None
         if item is None or not item['play']:
@@ -1902,7 +1939,7 @@ class Manager:
         elif source is not None and source not in (attrs.get('source_list') or []):
             LOG.info('%s on %s: no speaker %s', item['title'], entity, source)
             return
-        outcome = await media_library.start(self.ha.states, self.ha.call_service, where, item, source)
+        outcome = await media_library.start(self.ha.states, self.ha.call_service, where, item, source, **order)
         if outcome == 'playing':
             if where != entity:
                 self.outputs[entity] = where
@@ -2017,11 +2054,13 @@ class Manager:
             return
         # A tile's own entity, or a sensor an energy card on the layout opens from its circles (app 0.4.77).
         shown = {tile['entity'] for tile in layout['tiles']}
+        summed = {}
         if ENERGY_TILE in shown:
-            shown |= set(energy_flow.related_entities(self.energy_prefs()))
+            summed = energy_flow.sums(self.energy_prefs())
+            shown |= set(energy_flow.related_entities(self.energy_prefs())) | set(summed)
         if entity not in shown:
             return
-        what = history_card.kind(entity, self.ha.states.get(entity))
+        what = 'line' if entity in summed else history_card.kind(entity, self.ha.states.get(entity))
         action = self.transport(inbox, screen)
         if what is None or not action:
             return
@@ -2055,6 +2094,9 @@ class Manager:
         entity without statistics); states from their changes. A fetch that fails raises, so nothing is kept."""
         start, end = history_card.window(hours)
         tz = getattr(self.ha, 'time_zone', None)
+        summed = energy_flow.sums(self.energy_prefs()).get(entity)
+        if summed:
+            return await self.summed_history(entity, summed, hours, start, end, tz)
         attrs = (self.ha.states.get(entity) or {}).get('attributes') or {}
         if what == 'timeline':
             return history_card.timeline(entity, hours, await self.ha.state_changes(entity, hours), start, end, tz, attrs,
@@ -2066,6 +2108,23 @@ class Manager:
             return history_card.line(entity, hours, means, start, end, tz, entry, unit, extreme)
         changes = [(moment, header_bar.numeric(value)) for moment, value in await self.ha.state_changes(entity, hours)]
         return history_card.line(entity, hours, changes, start, end, tz, entry, unit)
+
+    async def summed_history(self, key, entities, hours, start, end, tz):
+        """An energy source with several power sensors, as Home Assistant's "Power sources" graph shows it: their sum in
+        W (power-sources-graph-data.ts), from the hourly statistics for a day or a week, from the changes for an hour."""
+        scales = [energy_flow.scale(self.ha.states.get(e)) for e in entities]
+        if hours > 1:
+            rows = [[{**row, 'mean': row['mean'] * k} for row in await self.ha.statistic_rows(e, hours)
+                     if isinstance(row.get('mean'), (int, float))] for e, k in zip(entities, scales)]
+            summed = energy_flow.summed_rows(rows)
+            if summed:
+                means, extreme = history_card.statistic_changes(summed, 3600)
+                return history_card.line(key, hours, means, start, end, tz, None, 'W', extreme)
+        series = []
+        for e, k in zip(entities, scales):
+            changes = [(moment, header_bar.numeric(value)) for moment, value in await self.ha.state_changes(e, hours)]
+            series.append([(moment, None if value is None else value * k) for moment, value in changes])
+        return history_card.line(key, hours, energy_flow.summed_changes(series), start, end, tz, None, 'W')
 
     def registry_index(self):
         """Entity registry by id (display precision, entity category); rebuilt only when HA delivers a new registry."""
@@ -2431,7 +2490,7 @@ class Manager:
             if favorite:
                 play=options.get('play') or {}
                 state_now=states.get(tile['entity'],{}).get('state')
-                started=self.started.get(tile['entity']) if state_now in ('playing','paused') else None
+                started=self.started.get(tile['entity']) if media_library.holds_media(states.get(tile['entity'])) else None
                 word=screen_t(f"addon.screen.media.{play.get('class') or 'music'}") if (play.get('class') or 'music') in FAVORITE_KINDS else ''
                 message.setdefault('x',{}).update(media_library.favorite_extras(play,options.get('speaker'),attributes if state_now in ('playing','paused') else {},started,word))
         # Home Assistant's word where the screen would show the raw state (firmware 0.2.58+ shows it).
@@ -2919,7 +2978,8 @@ class Manager:
         action = self.transport(inbox, screen)
         if not action or not self.camera_allowed(inbox, entity):
             return
-        message = await self.cover_message(entity, *cover) if cover else await self.camera_message(entity, 'full', screen)
+        message = await self.cover_message(entity, *cover) if cover else await self.camera_message(
+            entity, 'full', screen, box=camera_feed.box(screen, 'full', camera_feed.picture_cap(request)))
         await self.send_auxiliary(inbox, message, action, request)
         LOG.info('%s %s on %s%s', 'Cover of' if cover else 'Camera', entity, screen['name'], '' if message['u'] else ': no image')
 
@@ -2931,7 +2991,7 @@ class Manager:
             return
         if (kind == 'media') != (entity.split('.')[0] == 'media_player'):
             return
-        box, action = camera_feed.box(screen, 'full'), self.transport(inbox, screen)
+        box, action = camera_feed.box(screen, 'full', camera_feed.picture_cap(request)), self.transport(inbox, screen)
         if not box or not action:
             return
         ground = 0
@@ -3080,14 +3140,16 @@ class Manager:
         # A person's own tile tapped (firmware 0.21.0+): where that person is, on a map of them alone, opened on them.
         if tile is None and entity.startswith('person.') and 0 <= index < len(tiles) and tiles[index]['entity'] == entity:
             tile = {'entity': entity, 'name': tiles[index].get('name', ''), 'options': {'display': 'map', 'distance': 'neighbourhood'}}
-        box = camera_feed.box(screen, 'full')
+        box = camera_feed.box(screen, 'full', camera_feed.picture_cap(request))
         if tile is None or not box:
             LOG.info('A map for %s: not a map tile of %s', entity, screen['name'])
             return
         width, height = box
         # A finger on a marker (firmware 0.21.0+): that one in the middle, closer in, with its card over the bottom.
         focus = request.get('focus') if request.get('focus') in map_card.shown(tile, self.ha.states, self.registry_index()) else ''
-        render = self.map_render(tile, camera_feed.shape_of(screen), camera_feed.live_dark(request), full=True, focus=focus)
+        # Zoomed and moved by the screen's own keys (dev): the same picture drawn around another middle.
+        move = map_card.move_of(request.get('move'))
+        render = self.map_render(tile, camera_feed.shape_of(screen), camera_feed.live_dark(request), full=True, focus=focus, move=move)
         extra = {'compact': camera_feed.compact_pictures(screen), 'atlas': (width, height, ((0, 0, width, height, 0, 0),)),
                  'modes': [('fill', False)], 'renders': [render]}
         url = ''
@@ -3149,7 +3211,7 @@ class Manager:
     # The maps kept drawn: a page's maps in both looks and the page before it.
     MAP_RENDERS_KEPT = 12
 
-    def map_render(self, tile, shape, dark, full=False, focus=None):
+    def map_render(self, tile, shape, dark, full=False, focus=None, move=None):
         """(mark, draw) of one saved map tile for CameraFeed.live: the mark is its movement mark and the look, `draw`
         reads Home Assistant's states and asks for the streets when it runs. A drawn card is kept by mark, frame and
         look, so two screens in different looks each keep their own, and one whose streets did not all come is not."""
@@ -3161,7 +3223,8 @@ class Manager:
         def mark():
             # Without streets to be had it is another picture, so the one with streets replaces it when they come back.
             streets = '' if self.map_source.available() or not map_card.wants_streets(tile) else '-'
-            return f'{map_card.fingerprint(tile, self.ha.states, self.registry_index())}{look}{streets}{"f" if full else ""}{focus or ""}'
+            moved = '@%d,%s,%s' % move if move else ''
+            return f'{map_card.fingerprint(tile, self.ha.states, self.registry_index())}{look}{streets}{"f" if full else ""}{focus or ""}{moved}'
 
         async def draw(width, height):
             key = (mark(), width, height, board.scale, board.label)
@@ -3170,12 +3233,12 @@ class Manager:
                 self.map_hits[key[:3]] = self.map_renders[key].info.get('hits', [])
                 return self.map_renders[key]
             registry = self.registry_index()
-            view = map_card.view_for(tile, self.ha.states, (width, height), board, registry, full, focus)
+            view = map_card.view_for(tile, self.ha.states, (width, height), board, registry, full, focus, move)
             wanted = view.tiles() if map_card.wants_streets(tile) else []
             streets = await self.map_source.tiles(wanted)
             photos = await self.map_photos(map_card.pictures_wanted(tile, self.ha.states, registry))
             image = await asyncio.get_running_loop().run_in_executor(
-                None, lambda: map_card.render_tile(tile, self.ha.states, (width, height), board, dark, streets, registry, photos, full, focus))
+                None, lambda: map_card.render_tile(tile, self.ha.states, (width, height), board, dark, streets, registry, photos, full, focus, move))
             # Where its markers are, for a full view's finger (answer_map_full): kept as long as the picture is.
             self.map_hits[key[:3]] = image.info.get('hits', [])
             while len(self.map_hits) > self.MAP_RENDERS_KEPT:
@@ -3821,7 +3884,7 @@ def create_app(manager, development=False):
         return web.json_response(view)
     async def update_screen(request):
         data = await request.json() if request.can_read_body else {}
-        return web.json_response(manager.updates.start(request.match_info['inbox'], data.get('host')))
+        return web.json_response(manager.updates.start(request.match_info['inbox'], data.get('host'), data.get('reinstall') is True))
     async def update_all(request):
         return web.json_response({'started': manager.updates.start_all()})
     async def update_settings(request):
@@ -3890,7 +3953,36 @@ def create_app(manager, development=False):
             items.append({'item': number, 'title': raw['title'], 'play': raw['play'], 'expand': raw['expand'], 'icon': raw['icon'],
                           'picture': f'api/media/picture?entity={entity}&item={number}' if raw['thumb'] else None,
                           'favorite': media_library.favorite_of(raw) if raw['play'] else None})
-        return web.json_response({'title': folder['title'], 'folder': token or 0, 'items': items})
+        answer = {'title': folder['title'], 'folder': token or 0, 'items': items}
+        # A player that plays a Spotify link (app 0.4.84): the editor offers a field for one, knowing no brand itself.
+        if not token and await manager.spotify_route(entity, folder) is not None:
+            answer['spotify_link'] = True
+        return web.json_response(answer)
+
+    async def media_link(request):
+        """A Spotify link or URI as one item of the library (app 0.4.84), in the shape media_browse gives an item: its
+        title and picture from Spotify's oEmbed, its id and type as Home Assistant's media browser sends them for this
+        player."""
+        entity = request.query.get('entity', '')
+        if not entity.startswith('media_player.') or entity not in manager.ha.states:
+            raise web.HTTPNotFound()
+        text = request.query.get('link', '')
+        if media_library.spotify_short(text):
+            return web.json_response({'error': t('addon.errors.media.link_short')}, status=400)
+        found = media_library.spotify_link(text)
+        if not found:
+            return web.json_response({'error': t('addon.errors.media.link_invalid')}, status=400)
+        entry = await manager.spotify_route(entity)
+        if entry is None:
+            name = manager.ha.states.get(entity, {}).get('attributes', {}).get('friendly_name') or entity
+            return web.json_response({'error': t('addon.errors.media.link_player', name=name)}, status=400)
+        kind, spotify_id = found
+        title, thumb = await manager.spotify_card(kind, spotify_id)
+        raw = media_library.spotify_item(kind, spotify_id, entry or None, title or t(f'addon.screen.media.{media_library.SPOTIFY_KINDS[kind]}'), thumb)
+        number = manager.shelves.setdefault('', media_library.Shelf()).token(entity, raw)
+        return web.json_response({'item': number, 'title': raw['title'], 'play': True, 'expand': False, 'icon': raw['icon'],
+                                  'picture': f'api/media/picture?entity={entity}&item={number}' if raw['thumb'] else None,
+                                  'favorite': media_library.favorite_of(raw)})
 
     async def media_picture(request):
         """An item's picture for the editor, prepared: an item of the library it browsed, or what a saved favourite
@@ -4211,6 +4303,7 @@ def create_app(manager, development=False):
     app.router.add_get('/api/camera-preview', camera_preview)
     app.router.add_get('/api/media/browse', media_browse)
     app.router.add_get('/api/media/picture', media_picture)
+    app.router.add_get('/api/media/link', media_link)
     app.router.add_post('/api/firmware-preview', firmware_preview)
     app.router.add_post('/api/firmware-preview/import', import_document)
     app.router.add_post('/api/firmware-preview/action', firmware_preview_action)
@@ -4240,6 +4333,21 @@ def create_app(manager, development=False):
     app.router.add_static('/assets/', static / 'assets')
     return app
 
+async def addon_slug(session):
+    """This app's slug from the Supervisor (/addons/self/info, which needs no role), None without a Supervisor."""
+    token = os.environ.get('SUPERVISOR_TOKEN', '')
+    if not token:
+        return None
+    try:
+        async with session.get('http://supervisor/addons/self/info', headers={'Authorization': f'Bearer {token}'},
+                               timeout=ClientTimeout(total=10)) as response:
+            info = await response.json()
+        slug = (info.get('data') or {}).get('slug')
+        return slug if isinstance(slug, str) else None
+    except Exception as error:
+        LOG.info('Reading the app slug failed (%s)', type(error).__name__)
+        return None
+
 async def main():
     development = os.environ.get('SCREEN_DEV') == '1'
     token = os.environ.get('SUPERVISOR_TOKEN', '')
@@ -4248,6 +4356,10 @@ async def main():
     if not token:
         raise SystemExit('No Home Assistant access. Start the app via Supervisor.')
     async with ClientSession(timeout=ClientTimeout(total=20)) as session:
+        # The branch the screens build from (docs/RELEASING.md, "Testing dev"): dev for an app added from the `#dev` URL.
+        slug = await addon_slug(session)
+        core.set_channel(core.channel_of(slug))
+        LOG.info('App %s, channel %s', slug or 'without a Supervisor', core.channel() or 'none (screens keep their ref)')
         ha = HomeAssistant(session, os.environ.get('HA_API', 'http://supervisor/core/api'), token)
         manager = Manager(ha, Path(os.environ.get('SCREEN_DATA', '/data')) / 'screens.json')
         # handle_signals: SIGTERM (the Supervisor stopping the app, `docker stop`) and SIGINT end the app through the

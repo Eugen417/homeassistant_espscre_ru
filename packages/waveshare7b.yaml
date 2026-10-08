@@ -6,7 +6,10 @@
 # of that lives here. The screen is two packages: core.yaml, which every board shares, and boards/waveshare-esp32s3-7b.yaml with this
 # board's hardware and sizes (docs/PROFILES.md). checkout/waveshare7b.yaml builds the same two from a checkout.
 substitutions:
-  FONT_DIR: "https://raw.githubusercontent.com/Eugen417/homeassistant_espscre_ru/main/fonts"
+  # The branch the components and the fonts come from: main, or dev for a screen of the app's dev channel, which
+  # writes GITHUB_REF into the screen's own YAML next to the `ref:` of this package (docs/RELEASING.md, "Testing dev").
+  GITHUB_REF: "main"
+  FONT_DIR: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/${GITHUB_REF}/fonts"
 
 packages:
   core: !include core.yaml
@@ -16,8 +19,8 @@ packages:
 external_components:
   - source:
       type: git
-      url: https://github.com/Eugen417/homeassistant_espscre_ru.git
-      ref: main
+      url: https://github.com/MaxGramser/homeassistant_espscreen.git
+      ref: ${GITHUB_REF}
       path: components
     refresh: 0s
     components: [smart_display]

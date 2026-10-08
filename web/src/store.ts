@@ -1854,10 +1854,11 @@ export function settleSettings() {
 // What a running update is doing, by its phase.
 export const phaseText = (phase: string | undefined) =>
   ["install", "verify", "settle"].includes(phase || "") ? t(`editor.update.phases.${phase}`) : t("editor.update.starting");
-export async function startUpdate(screen: Screen, host?: string) {
+// `reinstall` builds the screen again although it runs this firmware: the dev channel's newest dev keeps its number.
+export async function startUpdate(screen: Screen, host?: string, reinstall = false) {
   state.updating.push(screen.id);
   try {
-    await send(`screens/${encodeURIComponent(screen.id)}/update`, "POST", host ? { host } : {});
+    await send(`screens/${encodeURIComponent(screen.id)}/update`, "POST", { ...(host ? { host } : {}), ...(reinstall ? { reinstall } : {}) });
     await refresh();
   } catch (e: any) {
     state.updating = state.updating.filter((id) => id !== screen.id);

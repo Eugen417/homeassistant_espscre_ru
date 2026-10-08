@@ -444,5 +444,14 @@
     "timer",
     "vacuum",
     "weather"
+  ],
+  "favoriteShuffles": [
+    "on",
+    "off"
+  ],
+  "favoriteRepeats": [
+    "off",
+    "all",
+    "one"
   ]
 }

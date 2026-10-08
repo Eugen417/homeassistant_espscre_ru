@@ -77,6 +77,10 @@ function update(screen: Screen) {
   if (u.host && u.profile) startUpdate(screen);
   else if (u.profile) { hostFor.value = screen.id; host.value = ""; }
 }
+// The dev channel's own button (docs/RELEASING.md, "Testing dev"): the newest dev keeps the firmware number, so it is
+// never an update by itself; this builds and installs it anyway, the way an update does.
+const reinstallable = (screen: Screen) => state.inventory.updates?.channel === "dev" && screen.online
+  && Boolean(screen.update?.profile && screen.update?.host) && !state.inventory.updates?.busy;
 function startWithHost(screen: Screen) {
   const address = host.value.trim();
   if (!address) return;
@@ -196,6 +200,7 @@ const pendingText = (p: { installed?: boolean; downloaded?: boolean; file: strin
           </form>
           <!-- What can be done with the screen, as the rows of a menu: quiet until pointed at, the one that removes in red. -->
           <div class="screen-actions-list">
+            <button v-if="reinstallable(screen)" type="button" class="act reinstall-dev" :title="t('editor.sidebar.update.reinstall_why')" @click="startUpdate(screen, undefined, true)"><Icon name="update" />{{ t("editor.sidebar.update.reinstall") }}</button>
             <button v-if="renameFor !== screen.id" type="button" class="act rename-screen" @click="startRename(screen)"><Icon name="pencil-outline" />{{ t("editor.sidebar.rename.button") }}</button>
             <!-- The screen's YAML, Override YAML and the secrets they use, to build it with ESPHome on your own computer. -->
             <a v-if="screen.update?.profile" class="act screen-files" :href="`api/firmware/profiles/${encodeURIComponent(screen.update.profile)}/files`" download

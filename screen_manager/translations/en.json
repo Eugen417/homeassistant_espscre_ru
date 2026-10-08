@@ -727,7 +727,8 @@
         "enter_ip": "Enter this screen's IP address.",
         "no_profile": "No ESPHome profile found for this screen. Check the name in the ESPHome folder.",
         "ip_unknown": "IP address unknown. Enter it once; new firmware reports it itself after that.",
-        "all_updated": "All reachable screens are already updated."
+        "all_updated": "All reachable screens are already updated.",
+        "reinstall_dev": "Reinstalling the same firmware is for the dev channel only."
       },
       "remove": {
         "not_allowed": "This app may not remove an integration from Home Assistant. Remove the screen in Home Assistant itself, under Settings → Devices & services.",
@@ -786,7 +787,10 @@
         "storage": "Feedback is off: its saved data was written by another version of Tessera."
       },
       "media": {
-        "browse": "{name} did not answer with its library."
+        "browse": "{name} did not answer with its library.",
+        "link_invalid": "This is not a Spotify link. Copy one in the Spotify app with Share > Copy link.",
+        "link_short": "A spotify.link address only points elsewhere. Open it in your browser and copy the long address it goes to.",
+        "link_player": "{name} does not play Spotify links."
       },
       "allow_actions": {
         "not_allowed": "Home Assistant doesn't let this app change its integrations. Do it in Home Assistant itself, under Settings → Devices & services.",
@@ -1365,6 +1369,8 @@
         "whats_new": "What's new",
         "full_log": "Full log",
         "short": "Update",
+        "reinstall": "Reinstall from dev",
+        "reinstall_why": "Builds this screen again from the newest dev and installs it over Wi-Fi. On dev the version number stays the same, so a new dev is never offered as an update.",
         "in_tessera": "Update in Tessera first",
         "in_tessera_why": "Update this screen here in Tessera first. It still has the flash layout it was first installed with, and the current firmware no longer fits it, so ESPHome Device Builder cannot update it. Tessera moves it to the new layout on the way and keeps its settings. After that, either way works."
       },
@@ -1849,7 +1855,21 @@
         "open": "Open {name}",
         "speaker": "Speaker",
         "speaker_now": "Where it plays",
-        "speaker_hint": "Where it starts. \"Where it plays\" asks for a speaker on the screen when the player plays nowhere."
+        "speaker_hint": "Where it starts. \"Where it plays\" asks for a speaker on the screen when the player plays nowhere.",
+        "link": "Or paste a Spotify link",
+        "link_hint": "A link or URI from the Spotify app, through Share > Copy link: a playlist, album, artist, song or podcast.",
+        "link_add": "Add",
+        "shuffle": "Shuffle",
+        "shuffle_hint": "Set as it starts. With shuffle on it skips once, so the first song is a shuffled one. \"As it is\" keeps the player's own.",
+        "shuffle_keep": "As it is",
+        "shuffle_on": "On",
+        "shuffle_off": "Off",
+        "repeat": "Repeat",
+        "repeat_hint": "Set as it starts. \"As it is\" keeps the player's own.",
+        "repeat_off": "Off",
+        "repeat_all": "Repeat all",
+        "repeat_one": "Repeat one",
+        "repeat_keep": "As it is"
       },
       "energy": {
         "hint": "The power of the house right now, drawn the way Home Assistant's own Energy view draws it: solar, grid, battery and your devices, from the Energy settings in Home Assistant. A tap on a circle opens that sensor's history.",

@@ -71,7 +71,8 @@ jobs:
     runs-on: ubuntu-latest
     # Nine boards since 0.3.6: the add-on's ESPHome builds took just under 30 minutes and ran past it on a slow runner.
     # A build without its build folder (a source file added or removed) took 40 minutes for min_version on 09-26.
-    timeout-minutes: 60
+    # Twenty-one boards without a cache take about four minutes each: the add-on's ESPHome ran past 60 minutes at 0.4.84.
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:

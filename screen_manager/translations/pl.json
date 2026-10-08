@@ -727,7 +727,8 @@
         "enter_ip": "Wpisz adres IP tego ekranu.",
         "no_profile": "Nie znaleziono profilu ESPHome dla tego ekranu. Sprawdź nazwę w folderze ESPHome.",
         "ip_unknown": "Nieznany adres IP. Wpisz go raz; potem nowy firmware sam go zgłasza.",
-        "all_updated": "Wszystkie osiągalne ekrany są już zaktualizowane."
+        "all_updated": "Wszystkie osiągalne ekrany są już zaktualizowane.",
+        "reinstall_dev": "Ponowna instalacja tego samego firmware jest możliwa tylko w kanale dev."
       },
       "remove": {
         "not_allowed": "Ta aplikacja nie może usunąć integracji z Home Assistant. Usuń ekran w samym Home Assistant, w sekcji Ustawienia → Urządzenia oraz usługi.",
@@ -786,7 +787,10 @@
         "storage": "Opinie są wyłączone: zapisane dane pochodzą z innej wersji Tessera."
       },
       "media": {
-        "browse": "{name} nie udostępnił swojej biblioteki."
+        "browse": "{name} nie udostępnił swojej biblioteki.",
+        "link_invalid": "To nie jest link do Spotify. Skopiuj go w aplikacji Spotify przez Udostępnij > Kopiuj link.",
+        "link_short": "Adres spotify.link tylko przekierowuje. Otwórz go w przeglądarce i skopiuj długi adres, do którego prowadzi.",
+        "link_player": "{name} nie odtwarza linków do Spotify."
       },
       "allow_actions": {
         "not_allowed": "Home Assistant nie pozwala tej aplikacji zmieniać swoich integracji. Zrób to w samym Home Assistant, w sekcji Ustawienia → Urządzenia oraz usługi.",
@@ -1365,6 +1369,8 @@
         "whats_new": "Co nowego",
         "full_log": "Pełny log",
         "short": "Aktualizacja",
+        "reinstall": "Zainstaluj ponownie z dev",
+        "reinstall_why": "Buduje ten ekran od nowa z najnowszego dev i instaluje go przez Wi-Fi. Na dev numer wersji się nie zmienia, więc nowy dev nigdy nie jest proponowany jako aktualizacja.",
         "in_tessera": "Najpierw zaktualizuj w Tessera",
         "in_tessera_why": "Najpierw zaktualizuj ten ekran tutaj w Tessera. Ma jeszcze układ pamięci flash z pierwszej instalacji, a obecny firmware już się w nim nie mieści, więc ESPHome Device Builder nie może go zaktualizować. Tessera po drodze przestawi go na nowy układ i zachowa jego ustawienia. Potem działają obie drogi."
       },
@@ -1849,7 +1855,21 @@
         "open": "Otwórz {name}",
         "speaker": "Głośnik",
         "speaker_now": "Tam, gdzie gra",
-        "speaker_hint": "Gdzie startuje. „Tam, gdzie gra” prosi na ekranie o głośnik, gdy odtwarzacz nigdzie nie gra."
+        "speaker_hint": "Gdzie startuje. „Tam, gdzie gra” prosi na ekranie o głośnik, gdy odtwarzacz nigdzie nie gra.",
+        "link": "Albo wklej link do Spotify",
+        "link_hint": "Link lub URI z aplikacji Spotify, przez Udostępnij > Kopiuj link: playlista, album, wykonawca, utwór lub podcast.",
+        "link_add": "Dodaj",
+        "shuffle": "Losowo",
+        "shuffle_hint": "Ustawiane przy starcie. Przy odtwarzaniu losowym pomija jeden utwór, aby już pierwszy był losowy. \"Bez zmian\" zostawia odtwarzacz tak, jak jest.",
+        "shuffle_keep": "Bez zmian",
+        "shuffle_on": "Wł.",
+        "shuffle_off": "Wył.",
+        "repeat": "Powtarzanie",
+        "repeat_hint": "Ustawiane przy starcie. \"Bez zmian\" zostawia odtwarzacz tak, jak jest.",
+        "repeat_off": "Wył.",
+        "repeat_all": "Powtarzaj wszystko",
+        "repeat_one": "Powtarzaj jeden",
+        "repeat_keep": "Bez zmian"
       },
       "energy": {
         "hint": "Moc domu w tej chwili, narysowana tak, jak rysuje ją widok Energia w Home Assistant: słońce, sieć, bateria i twoje urządzenia, z ustawień Energii w Home Assistant. Dotknięcie koła otwiera historię tego czujnika.",

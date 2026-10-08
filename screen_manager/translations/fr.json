@@ -727,7 +727,8 @@
         "enter_ip": "Saisissez l'adresse IP de cet écran.",
         "no_profile": "Aucun profil ESPHome trouvé pour cet écran. Vérifiez le nom dans le dossier ESPHome.",
         "ip_unknown": "Adresse IP inconnue. Saisissez-la une seule fois ; le nouveau firmware la communique ensuite lui-même.",
-        "all_updated": "Tous les écrans joignables sont déjà à jour."
+        "all_updated": "Tous les écrans joignables sont déjà à jour.",
+        "reinstall_dev": "Réinstaller le même firmware n'est possible que sur le canal dev."
       },
       "remove": {
         "not_allowed": "Cette application ne peut pas supprimer une intégration de Home Assistant. Retirez l'écran dans Home Assistant même, sous Paramètres → Appareils et services.",
@@ -786,7 +787,10 @@
         "storage": "Les retours sont désactivés : leurs données ont été écrites par une autre version d'Tessera."
       },
       "media": {
-        "browse": "{name} n’a pas répondu avec sa bibliothèque."
+        "browse": "{name} n’a pas répondu avec sa bibliothèque.",
+        "link_invalid": "Ce n’est pas un lien Spotify. Copiez-en un dans l’app Spotify avec Partager > Copier le lien.",
+        "link_short": "Une adresse spotify.link ne fait que rediriger. Ouvrez-la dans votre navigateur et copiez la longue adresse vers laquelle elle mène.",
+        "link_player": "{name} ne lit pas les liens Spotify."
       },
       "allow_actions": {
         "not_allowed": "Home Assistant ne laisse pas cette application modifier ses intégrations. Faites-le dans Home Assistant même, sous Paramètres → Appareils et services.",
@@ -1365,6 +1369,8 @@
         "whats_new": "Nouveautés",
         "full_log": "Journal complet",
         "short": "Mise à jour",
+        "reinstall": "Réinstaller depuis dev",
+        "reinstall_why": "Recompile cet écran avec le dev le plus récent et l'installe par Wi-Fi. Sur dev, le numéro de version ne change pas, donc un nouveau dev n'est jamais proposé comme mise à jour.",
         "in_tessera": "Mettez d'abord à jour dans Tessera",
         "in_tessera_why": "Mettez d'abord cet écran à jour ici dans Tessera. Il a encore la répartition de la mémoire flash de sa première installation, et le firmware actuel n'y tient plus, donc ESPHome Device Builder ne peut pas le mettre à jour. Tessera le passe au passage à la nouvelle répartition et garde ses réglages. Ensuite, les deux voies fonctionnent."
       },
@@ -1849,7 +1855,21 @@
         "open": "Ouvrir {name}",
         "speaker": "Enceinte",
         "speaker_now": "Là où il joue",
-        "speaker_hint": "Où il démarre. « Là où il joue » demande une enceinte sur l’écran quand le lecteur ne joue nulle part."
+        "speaker_hint": "Où il démarre. « Là où il joue » demande une enceinte sur l’écran quand le lecteur ne joue nulle part.",
+        "link": "Ou collez un lien Spotify",
+        "link_hint": "Un lien ou une URI de l’app Spotify, via Partager > Copier le lien : une playlist, un album, un artiste, un titre ou un podcast.",
+        "link_add": "Ajouter",
+        "shuffle": "Aléatoire",
+        "shuffle_hint": "Réglé au démarrage. En aléatoire, il passe un titre, pour que le premier soit déjà aléatoire. « Tel quel » laisse le lecteur comme il est.",
+        "shuffle_keep": "Tel quel",
+        "shuffle_on": "Activé",
+        "shuffle_off": "Désactivé",
+        "repeat": "Répétition",
+        "repeat_hint": "Réglée au démarrage. « Tel quel » laisse le lecteur comme il est.",
+        "repeat_off": "Désactivé",
+        "repeat_all": "Répéter tout",
+        "repeat_one": "Répéter une piste",
+        "repeat_keep": "Tel quel"
       },
       "energy": {
         "hint": "La puissance de la maison en ce moment, dessinée comme la vue Énergie de Home Assistant la dessine : solaire, réseau, batterie et vos appareils, depuis les paramètres Énergie de Home Assistant. Un appui sur un cercle ouvre l'historique de ce capteur.",

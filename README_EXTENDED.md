@@ -492,7 +492,8 @@ the picture fills the whole tile on every size, a single tile, a double-width on
 and a tile over the whole page, with the camera's name at the bottom, so two cameras fit side by side on
 a 4-inch Guition. The tile's settings choose **Fill the tile** or **Whole picture**, and **Name** or
 **Nothing** on the picture. It refreshes while that page is on the screen, and a tap still opens the
-camera full screen. The camera tiles of one page share one download. Older firmware shows a small
+camera full screen. Every camera tile loads its own picture at its own pace, so a page of several cameras
+keeps each one at the full size of its tile. Older firmware shows a small
 square of the camera in the icon's place (1 × 2 and 2 × 2 tiles fill the card from firmware 0.3.3).
 A media player tile can show its **album cover** the same way (app 0.2.92, firmware 0.2.78):
 **Display → Album cover** puts the cover of what plays in the icon's place, refreshed when the track

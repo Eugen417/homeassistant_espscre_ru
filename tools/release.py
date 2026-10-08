@@ -62,6 +62,9 @@ BOARD_ID = re.compile(r'^  BOARD_ID:.*\n', re.M)
 # What a published entry (packages/<board>.yaml, packages/bridge.yaml) fetches from main: its components and fonts.
 REF_MAIN = re.compile(r'^(\s+ref:[ \t]*)main[ \t]*$', re.M)
 FONTS_MAIN = re.compile(r'(raw\.githubusercontent\.com/' + re.escape(REPOSITORY) + r'/)main/')
+# The branch a published entry fetches its components and fonts from (packages/<key>.yaml, GITHUB_REF): main unless the
+# screen's own YAML says otherwise, as the dev channel's does.
+GITHUB_REF_MAIN = re.compile(r'^(\s+GITHUB_REF:[ \t]*)"main"[ \t]*$', re.M)
 
 
 class Refusal(Exception):
@@ -159,9 +162,10 @@ def without_board_number(board_yaml):
 def pointed_at(entry, branch):
     """(a published entry that fetches its components and fonts from `branch` instead of main, how many places
     changed)."""
+    entry, default = GITHUB_REF_MAIN.subn(lambda m: m.group(1) + f'"{branch}"', entry)
     entry, refs = REF_MAIN.subn(lambda m: m.group(1) + branch, entry)
     entry, fonts = FONTS_MAIN.subn(lambda m: m.group(1) + branch + '/', entry)
-    return entry, refs + fonts
+    return entry, default + refs + fonts
 
 
 def section(changelog, version):
@@ -171,6 +175,19 @@ def section(changelog, version):
         return None
     end = SECTION.search(changelog, match.end())
     return match.group(0), changelog[match.end():end.start() if end else len(changelog)].strip()
+
+
+ISSUE = re.compile(r'github\.com/' + re.escape(REPOSITORY) + r'/(?:issues|pull)/(\d+)|(?<![\w/&])#(\d+)\b')
+
+
+def issues_in(notes):
+    """The issue and pull request numbers a CHANGELOG section names, as links or as #123, in order, once each."""
+    found = []
+    for match in ISSUE.finditer(notes):
+        number = int(match.group(1) or match.group(2))
+        if number not in found:
+            found.append(number)
+    return found
 
 
 def title(changelog_heading):
@@ -320,16 +337,18 @@ def prepare(args):
         'Read the CHANGELOG section once more: it is what Home Assistant shows under the update.',
         *(['The firmware number changed, so the editor\'s preview is stale: sh web/wasm/build.sh, then cd web && '
            'npm run build (docs/RELEASING.md, "Firmware preview").'] if firmware else []),
-        'tools/check.sh, and the firmware builds the plan below names.',
+        'tools/check.sh (the firmware of every board is built by CI on the release commit, step 5).',
         f'Commit as "Release {version} (firmware {release["firmware"]}): <what it brings>" and push to {here}.',
-        'tools/release.py ci: every board on both ESPHome versions in CI, about an hour; the upgrade test can run meanwhile.',
+        'tools/release.py ci: every board on both ESPHome versions with the flash budget, in CI, about an hour; the '
+        'upgrade test can run meanwhile.',
         'tools/release.py candidate, then the upgrade test (docs/TESTING.md, "6. The upgrade").',
         'Write the GitHub release notes in English in a file, then tools/release.py publish --notes <file> --yes.',
     ]
     print('\nNext:')
     for number, step in enumerate(steps, 1):
         print(f'{number}. {step}')
-    print('\n' + affected_boards.plan(reach, new, affected_boards.read_at(_base)))
+    print('\nThe firmware plan (CI builds it in step 5; locally only a board you want to look at):\n')
+    print(affected_boards.plan(reach, new, affected_boards.read_at(_base)))
     return 0
 
 
@@ -359,7 +378,7 @@ def candidate_commit(head, cwd=None):
         pointed = 0
         for path in entries:
             text, changed = pointed_at(git('show', f'{head}:{path}', cwd=cwd), CANDIDATE)
-            if REF_MAIN.search(text) or FONTS_MAIN.search(text):
+            if REF_MAIN.search(text) or FONTS_MAIN.search(text) or GITHUB_REF_MAIN.search(text):
                 raise Refusal(f'{path} still fetches from main after the change')
             if changed:
                 blob = git('hash-object', '-w', '--stdin', input=text + '\n', cwd=cwd)
@@ -457,6 +476,10 @@ def publish(args):
     if git('ls-remote', '--heads', 'origin', CANDIDATE):
         git('push', '--quiet', 'origin', '--delete', CANDIDATE)
     print(f'Published {name}: main is {head[:12]}, tag {tag}.')
+    named = issues_in(found[1])
+    if named:
+        print('Reply on each with the version that has it and how to get it, then close it: '
+              + ', '.join(f'https://github.com/{REPOSITORY}/issues/{number}' for number in named))
     if here != WORK:
         print(f'This came from {here}: merge origin/main into {WORK} now, so the next release has it too.')
     print('Point the test screens back at main (ref: main), and keep an eye on new issues today.')

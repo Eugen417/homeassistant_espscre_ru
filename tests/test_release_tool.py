@@ -29,7 +29,12 @@ SHARED = {'kind': 'shared', 'firmware': '0.99.0', 'boards': sorted(profiles.BOAR
 
 
 def without_unreleased(text):
-    return text if release.unreleased(text) is None else release.UNRELEASED.sub('', text, count=1).lstrip('\n')
+    """The CHANGELOG as main has it: dev's "## Unreleased" section left out whole, its notes with its heading."""
+    match = release.UNRELEASED.search(text)
+    if not match:
+        return text
+    end = release.SECTION.search(text, match.end())
+    return (text[:match.start()] + (text[end.start():] if end else '')).lstrip('\n')
 
 
 class TheChangelog(unittest.TestCase):
@@ -73,6 +78,20 @@ class TheChangelog(unittest.TestCase):
         self.assertTrue(line.startswith(f'## {version} '))
         self.assertTrue(notes)
         self.assertNotIn('\n## ', notes)
+
+
+class TheIssues(unittest.TestCase):
+    def test_the_issues_a_section_names(self):
+        notes = ('- **A fix** ([#169](https://github.com/MaxGramser/homeassistant_espscreen/issues/169)). Also #170 and '
+                 'again #169, a pull request https://github.com/MaxGramser/homeassistant_espscreen/pull/151, not '
+                 'a colour like &#35;1 or a heading anchor docs/PAGES.md#updating, nor another repository '
+                 'https://github.com/esphome/esphome/issues/9999.')
+        self.assertEqual(release.issues_in(notes), [169, 170, 151])
+
+    def test_a_real_section_reads(self):
+        """The newest CHANGELOG section of this tree, so a changed link form fails here first."""
+        version = firmware_count.dotted(test_release_lint.app_headings()[0][0])
+        self.assertIsInstance(release.issues_in(release.section(CHANGELOG, version)[1]), list)
 
 
 class TheNumbers(unittest.TestCase):
@@ -126,10 +145,12 @@ class TheCandidate(unittest.TestCase):
                 self.assertGreaterEqual(changed, 1)
                 self.assertNotRegex(text, release.REF_MAIN)
                 self.assertNotRegex(text, release.FONTS_MAIN)
-                self.assertIn(f'ref: {release.CANDIDATE}', text)
-        # The fonts too, where an entry fetches them from GitHub.
+                self.assertNotRegex(text, release.GITHUB_REF_MAIN)
+                # The components and the fonts follow GITHUB_REF, whose default is now the candidate.
+                self.assertIn(f'GITHUB_REF: "{release.CANDIDATE}"', text)
+                self.assertIn('ref: ${GITHUB_REF}', text)
         cyd, _ = release.pointed_at((ROOT / 'packages/cyd.yaml').read_text(), release.CANDIDATE)
-        self.assertIn(f'homeassistant_espscreen/{release.CANDIDATE}/fonts', cyd)
+        self.assertIn('homeassistant_espscreen/${GITHUB_REF}/fonts', cyd)
 
     def test_nothing_else_in_the_packages_fetches_from_main(self):
         """The candidate only rewrites the published entries: any other package that named main would build main's."""
@@ -146,6 +167,9 @@ class TheCandidate(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             clone = Path(folder) / 'clone'
             subprocess.run(['git', 'clone', '--quiet', '--shared', '--no-checkout', str(ROOT), str(clone)], check=True)
+            # A commit wants a name: CI's runner has none of its own, where the maintainer's machine does.
+            for key, value in (('user.name', 'Release test'), ('user.email', 'release-test@example.invalid')):
+                subprocess.run(['git', 'config', key, value], cwd=clone, check=True)
             head = release.git('rev-parse', 'HEAD', cwd=clone)
             commit, pointed = release.candidate_commit(head, cwd=clone)
             self.assertEqual(release.git('rev-parse', f'{commit}^', cwd=clone), head)

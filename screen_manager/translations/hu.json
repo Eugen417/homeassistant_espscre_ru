@@ -727,7 +727,8 @@
         "enter_ip": "Add meg a kijelző IP-címét.",
         "no_profile": "Nem található ESPHome-profil ehhez a kijelzőhöz. Ellenőrizd a nevet az ESPHome mappában.",
         "ip_unknown": "Az IP-cím ismeretlen. Add meg egyszer; utána az új firmware maga jelenti.",
-        "all_updated": "Minden elérhető kijelző már frissítve van."
+        "all_updated": "Minden elérhető kijelző már frissítve van.",
+        "reinstall_dev": "Ugyanazt a firmware-t újratelepíteni csak a dev csatornán lehet."
       },
       "remove": {
         "not_allowed": "Ez az alkalmazás nem távolíthat el integrációt a Home Assistantból. Töröld a kijelzőt magában a Home Assistantban: Beállítások → Eszközök és szolgáltatások.",
@@ -786,7 +787,10 @@
         "storage": "A visszajelzés ki van kapcsolva: a mentett adatait a Tessera egy másik verziója írta."
       },
       "media": {
-        "browse": "{name} nem adta meg a könyvtárát."
+        "browse": "{name} nem adta meg a könyvtárát.",
+        "link_invalid": "Ez nem Spotify-link. Másolj egyet a Spotify alkalmazásban a Megosztás > Link másolása paranccsal.",
+        "link_short": "A spotify.link cím csak továbbirányít. Nyisd meg a böngészőben, és másold ki a hosszú címet, ahová visz.",
+        "link_player": "{name} nem játszik le Spotify-linkeket."
       },
       "allow_actions": {
         "not_allowed": "A Home Assistant nem engedi, hogy ez az alkalmazás módosítsa az integrációit. Tedd meg magában a Home Assistantban: Beállítások → Eszközök és szolgáltatások.",
@@ -1365,6 +1369,8 @@
         "whats_new": "Újdonságok",
         "full_log": "Teljes napló",
         "short": "Frissítés",
+        "reinstall": "Újratelepítés dev-ről",
+        "reinstall_why": "Újraépíti ezt a kijelzőt a legfrissebb dev-ből, és Wi-Fi-n telepíti. A dev verziószáma nem változik, ezért egy új dev sosem jelenik meg frissítésként.",
         "in_tessera": "Előbb frissítsd a Tesserában",
         "in_tessera_why": "Előbb itt, a Tesserában frissítsd ezt a kijelzőt. Még az első telepítéskori flash-felosztása van, és a mostani firmware már nem fér bele, ezért az ESPHome Device Builder nem tudja frissíteni. A Tessera közben átállítja az új felosztásra, és megtartja a beállításait. Utána mindkét út működik."
       },
@@ -1849,7 +1855,21 @@
         "open": "{name} megnyitása",
         "speaker": "Hangszóró",
         "speaker_now": "Ahol éppen szól",
-        "speaker_hint": "Ahol indul. Az „Ahol éppen szól” a képernyőn kér hangszórót, ha a lejátszó sehol sem szól."
+        "speaker_hint": "Ahol indul. Az „Ahol éppen szól” a képernyőn kér hangszórót, ha a lejátszó sehol sem szól.",
+        "link": "Vagy illessz be egy Spotify-linket",
+        "link_hint": "Link vagy URI a Spotify alkalmazásból, a Megosztás > Link másolása útján: lejátszási lista, album, előadó, dal vagy podcast.",
+        "link_add": "Hozzáadás",
+        "shuffle": "Keverés",
+        "shuffle_hint": "Indításkor állítja be. Keveréssel egyszer továbblép, így már az első dal is kevert. Az \"Ahogy van\" a lejátszó saját beállítását hagyja.",
+        "shuffle_keep": "Ahogy van",
+        "shuffle_on": "Be",
+        "shuffle_off": "Ki",
+        "repeat": "Ismétlés",
+        "repeat_hint": "Indításkor állítja be. Az \"Ahogy van\" a lejátszó saját beállítását hagyja.",
+        "repeat_off": "Ki",
+        "repeat_all": "Összes ismétlése",
+        "repeat_one": "Egy ismétlése",
+        "repeat_keep": "Ahogy van"
       },
       "energy": {
         "hint": "A ház teljesítménye most, úgy rajzolva, ahogy a Home Assistant saját Energia nézete rajzolja: nap, hálózat, akkumulátor és az eszközeid, a Home Assistant Energia beállításaiból. Egy kör megérintése megnyitja annak az érzékelőnek az előzményeit.",

@@ -347,12 +347,35 @@ inline std::string ellipsize(std::string s, const Measure &m, Face f, int w) {
 // Assistant's sankey folds its smallest devices) when there are more than places. Names stay whole where any device
 // fits whole; only where none does, they are cut as power-flow-card-plus cuts them, rather than no device at all.
 struct Choice { Fit fit; std::vector<Device> shown; bool cut = false; };
-inline Choice choose(const Data &data, const Measure &m, int w, int h, const Words &words, const std::string &widest = "") {
+// The search below tries every form, font step, number of devices and both directions: some 300 ms on an ESP32-S3,
+// which held the whole screen at every new value. What it decides follows from the card's shape (its size, which
+// sources it has, the devices' names), and from the numbers only through the room the widest one takes. A card keeps
+// its last choice and asks again only when the shape changes or a number outgrows the room it was given, as
+// docs/CARD_PARTS.md has every card build once and paint its values in place.
+struct ChoiceCache {
+  std::string shape;  // what the choice was made for
+  Fit fit;
+  int places = 0, room = 0;  // the devices' places it chose, and the widest number it made room for
+  bool cut = false;
+};
+inline Choice choose(const Data &data, const Measure &m, int w, int h, const Words &words, const std::string &widest = "",
+                     ChoiceCache *cache = nullptr) {
   std::vector<std::string> values;
   for (float v : {data.solar_w, data.from_grid, data.to_grid, data.from_battery, data.to_battery, data.home}) values.push_back(power(v, words.decimal));
   for (auto &dv : data.devices) values.push_back(power(dv.w, words.decimal));
   if (!widest.empty()) values.push_back(widest);
   const int listed = int(data.devices.size()) + (data.rest > 0 ? 1 : 0);
+  std::string shape = std::to_string(w) + 'x' + std::to_string(h) + char('0' + data.solar) + char('0' + data.grid) +
+                      char('0' + data.battery) + char(data.soc >= 0 ? 's' : '-') + char(data.rest > 0 ? 'o' : '-') + words.decimal;
+  for (auto *word : {&words.solar, &words.grid, &words.battery, &words.home, &words.other}) shape += '\n' + *word;
+  for (auto &dv : data.devices) shape += '\n' + dv.name;
+  // The room a fit gives its numbers: the widest of them in the value's face, at least "8.8 kW" (fit() below).
+  auto room = [&](const Fit &x) {
+    const Face f = x.steps().value;
+    int r = m.width(f, "8.8 kW");
+    for (auto &v : values) r = std::max(r, m.width(f, v));
+    return r;
+  };
   auto shown_for = [&](int n) {
     std::vector<Device> out;
     const int total = int(data.devices.size());
@@ -387,6 +410,12 @@ inline Choice choose(const Data &data, const Measure &m, int w, int h, const Wor
     }
     return true;
   };
+  if (cache && cache->fit.d > 0 && cache->shape == shape && room(cache->fit) <= cache->room)
+    return {cache->fit, shown_for(cache->places), cache->cut};
+  auto keep = [&](const Choice &c, int places) {
+    if (cache && c.fit.d > 0) *cache = {shape, c.fit, places, room(c.fit), c.cut};
+    return c;
+  };
   Shape sh;
   sh.lines = data.battery ? 3 : data.grid ? 2 : 1;
   for (int attempt = 0; attempt < 2; ++attempt, cut = true)
@@ -403,8 +432,8 @@ inline Choice choose(const Data &data, const Measure &m, int w, int h, const Wor
       const bool h_ok = fh.d > 0 && names_fit(fh, shown), v_ok = fv.d > 0 && names_fit(fv, shown);
       Fit best = !h_ok ? fv : !v_ok ? fh : fv.pass < fh.pass || (fv.pass == fh.pass && fv.d > fh.d * 1.1f) ? fv : fh;
       if (!h_ok && !v_ok) best = n == 0 ? (fh.d ? fh : fv) : Fit{};
-      if (best.d > 0 && (n == 0 || (best.mode.labels && !best.mode.compact))) return {best, shown, cut && n > 0};
-      if (n == 0) return {best, {}, false};
+      if (best.d > 0 && (n == 0 || (best.mode.labels && !best.mode.compact))) return keep({best, shown, cut && n > 0}, n);
+      if (n == 0) return keep({best, {}, false}, 0);
     }
   }
   return {};
@@ -447,9 +476,10 @@ inline bool offered(int w, int h) {
   return w >= ui::mm(MIN_WIDTH_MM) && h >= ui::mm(ui::large() ? MIN_HEIGHT_MM_STANDARD : MIN_HEIGHT_MM_COMPACT);
 }
 
-inline Scene build(const Data &data, const Measure &m, int w, int h, const Words &words, const std::string &widest = "") {
+inline Scene build(const Data &data, const Measure &m, int w, int h, const Words &words, const std::string &widest = "",
+                   ChoiceCache *cache = nullptr) {
   Scene sc;
-  const Choice ch = choose(data, m, w, h, words, widest);
+  const Choice ch = choose(data, m, w, h, words, widest, cache);
   const Fit &ft = ch.fit;
   if (ft.d == 0) return sc;
   const auto &dev = ch.shown;

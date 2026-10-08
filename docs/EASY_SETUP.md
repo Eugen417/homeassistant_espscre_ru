@@ -388,6 +388,9 @@ OTA and package connection. Use **Save & check** before building a custom
 configuration. If the complete ESPHome profile is invalid, the firmware build
 does not start.
 
+Your own hardware goes here too: a wall button or a temperature sensor wired to a spare pin becomes an entity of the
+screen in Home Assistant. [EXTRA_HARDWARE.md](EXTRA_HARDWARE.md) has the snippets and the free pins of the CYD.
+
 The override is advanced configuration: the display model, dimensions, pins,
 touchscreen and initialization sequence must still match the physical board.
 For a similar-looking CYD, check the exact USB/controller variant first.

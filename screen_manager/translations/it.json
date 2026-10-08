@@ -727,7 +727,8 @@
         "enter_ip": "Inserisci l'indirizzo IP di questo schermo.",
         "no_profile": "Nessun profilo ESPHome trovato per questo schermo. Controlla il nome nella cartella di ESPHome.",
         "ip_unknown": "Indirizzo IP sconosciuto. Inseriscilo una sola volta; poi il nuovo firmware lo comunica da solo.",
-        "all_updated": "Tutti gli schermi raggiungibili sono già aggiornati."
+        "all_updated": "Tutti gli schermi raggiungibili sono già aggiornati.",
+        "reinstall_dev": "Reinstallare lo stesso firmware è possibile solo sul canale dev."
       },
       "remove": {
         "not_allowed": "Questa app non può rimuovere un'integrazione da Home Assistant. Rimuovi lo schermo in Home Assistant, in Impostazioni → Dispositivi e servizi.",
@@ -786,7 +787,10 @@
         "storage": "Il feedback è disattivato: i dati salvati sono stati scritti da un'altra versione di Tessera."
       },
       "media": {
-        "browse": "{name} non ha risposto con la sua libreria."
+        "browse": "{name} non ha risposto con la sua libreria.",
+        "link_invalid": "Questo non è un link di Spotify. Copiane uno nell’app Spotify con Condividi > Copia link.",
+        "link_short": "Un indirizzo spotify.link rimanda soltanto altrove. Aprilo nel browser e copia l’indirizzo lungo a cui porta.",
+        "link_player": "{name} non riproduce link di Spotify."
       },
       "allow_actions": {
         "not_allowed": "Home Assistant non permette a questa app di modificare le sue integrazioni. Fallo in Home Assistant, in Impostazioni → Dispositivi e servizi.",
@@ -1365,6 +1369,8 @@
         "whats_new": "Novità",
         "full_log": "Registro completo",
         "short": "Aggiornamento",
+        "reinstall": "Reinstalla da dev",
+        "reinstall_why": "Ricompila questo schermo dal dev più recente e lo installa via Wi-Fi. Su dev il numero di versione resta uguale, quindi un nuovo dev non viene mai offerto come aggiornamento.",
         "in_tessera": "Aggiorna prima in Tessera",
         "in_tessera_why": "Aggiorna prima questo schermo qui in Tessera. Ha ancora la suddivisione della flash della sua prima installazione e il firmware attuale non ci sta più, quindi ESPHome Device Builder non può aggiornarlo. Tessera lo porta lungo la strada alla nuova suddivisione e ne mantiene le impostazioni. Dopo, funzionano entrambe le vie."
       },
@@ -1849,7 +1855,21 @@
         "open": "Apri {name}",
         "speaker": "Altoparlante",
         "speaker_now": "Dove suona",
-        "speaker_hint": "Dove inizia. «Dove suona» chiede un altoparlante sullo schermo quando il lettore non suona da nessuna parte."
+        "speaker_hint": "Dove inizia. «Dove suona» chiede un altoparlante sullo schermo quando il lettore non suona da nessuna parte.",
+        "link": "Oppure incolla un link di Spotify",
+        "link_hint": "Un link o un URI dall’app Spotify, con Condividi > Copia link: una playlist, un album, un artista, un brano o un podcast.",
+        "link_add": "Aggiungi",
+        "shuffle": "Casuale",
+        "shuffle_hint": "Impostato all’avvio. Con la riproduzione casuale salta un brano, così il primo è già casuale. \"Com’è\" lascia il lettore com’è.",
+        "shuffle_keep": "Com’è",
+        "shuffle_on": "Acceso",
+        "shuffle_off": "Spento",
+        "repeat": "Ripeti",
+        "repeat_hint": "Impostato all’avvio. \"Com’è\" lascia il lettore com’è.",
+        "repeat_off": "Spento",
+        "repeat_all": "Ripeti tutto",
+        "repeat_one": "Ripeti una volta",
+        "repeat_keep": "Com’è"
       },
       "energy": {
         "hint": "La potenza della casa in questo momento, disegnata come la disegna la vista Energia di Home Assistant: solare, rete, batteria e i tuoi dispositivi, dalle impostazioni Energia di Home Assistant. Un tocco su un cerchio apre la cronologia di quel sensore.",

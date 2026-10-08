@@ -48,7 +48,7 @@ export type PageTile = {
   appearance: { label: string; presentation?: "single" | "wide" | "tall" | "square" | "full" | `${number}x${number}`; display?: string; icon?: string; background?: string; historyHours?: number; refresh?: number; subtitle?: string; fit?: string; overlay?: string;
     mapEntities?: string[]; mapFraming?: string; mapDistance?: string; mapFollow?: string; mapMarkers?: string; mapNames?: string;
     mapZones?: string; mapStreets?: string; mapLook?: string };
-  interaction: { tap?: string; inline?: string; controls?: string; action?: TileOptions["action"]; guard?: string; play?: FavoritePlay; speaker?: string };
+  interaction: { tap?: string; inline?: string; controls?: string; action?: TileOptions["action"]; guard?: string; play?: FavoritePlay; speaker?: string; shuffle?: string; repeat?: string };
   children?: ChildTile[];
 };
 export type Page = {
@@ -215,7 +215,8 @@ export type Inventory = {
   // `seen`: Home Assistant found it on the network, waiting to be paired (app 0.4.32). `pairing`: the app adds it itself
   // (app 0.4.73), `failed` when Home Assistant asked something only the person can answer.
   pending?: { friendly: string; file: string; node?: string; installed?: boolean; downloaded?: boolean; api_key?: string; seen?: boolean; pairing?: "adding" | "failed" | null }[];
-  updates?: { target: string; busy?: boolean; pending?: number; auto?: boolean };
+  // `channel`: the branch the screens build from, when the app was added from this repository (docs/RELEASING.md).
+  updates?: { target: string; busy?: boolean | string | null; pending?: number; auto?: boolean; channel?: "main" | "dev" | null };
   // The CHANGELOG by release, newest first: only in the full inventory, not in the live payload (app 0.2.78).
   changelog?: ChangelogSection[];
   claude_skill?: { path: string; installed: boolean; current: boolean; restart?: boolean };
@@ -246,7 +247,7 @@ export type Inventory = {
   language?: Languages;
   [key: string]: unknown;
 };
-export type Capability = { toggle: boolean; inline: boolean; controls: string[]; displays: string[] };
+export type Capability = { toggle: boolean; inline: boolean; controls: string[]; displays: string[]; favorite?: string[] };
 export type EntityAction = {
   action: string; name: string; description: string;
   fields: { key: string; name: string; required?: boolean; description?: string; example?: unknown; selector?: Record<string, any>; options?: string[]; suggestions?: string[] }[];

@@ -11,7 +11,8 @@ It needs nothing of its own. Everything comes from the Energy settings in Home A
 The add-on asks Home Assistant for its Energy settings (`energy/get_prefs`) and reads them again every five minutes:
 
 - a power sensor (`stat_rate`) for each grid connection, solar array and battery. Home Assistant itself turns an
-  inverted sensor or a pair of import and export sensors into one `stat_rate`;
+  inverted sensor or a pair of import and export sensors into one `stat_rate`. Before Home Assistant 2026.3 a grid kept
+  its power sensors in a list of its own (`power`), and the card adds those up as Home Assistant's frontend did then;
 - the battery's charge (`stat_soc`), combined as Home Assistant's energy distribution card combines it: weighted by each
   battery's usable capacity (`capacity`), a battery without one counting as the mean of the others;
 - the devices with a power sensor (`device_consumption`). Only the top of Home Assistant's device tree counts: a device
@@ -46,6 +47,15 @@ LVGL object that draws in its draw event, so a card costs one object however man
   2 kW up.
 - The dots run on their own timer, 25 frames a second. Each frame redraws only the pixels a dot leaves and enters. A
   dot is a small alpha picture placed to the sub-pixel, so it stays in the middle of its line while it moves.
+- Each dot keeps its own place on its line and moves on by the time since its last frame, at its line's pace now. A
+  new value changes how fast a dot runs, never where it is: a dot belongs to its line, so a line that stays keeps its
+  dot, and only a new line starts one.
+- A new value is painted in place (docs/CARD_PARTS.md): while every circle, line and turn stays where it was, only the
+  words that changed and the house's ring are drawn again. The form, fonts and places the card chose are kept
+  (`ChoiceCache`) until its shape changes (its size, its sources, its devices' names) or a number outgrows the room it
+  was given. The search behind that choice took about 300 ms on an ESP32-S3 and held the whole screen at every value;
+  a new value now takes a few milliseconds. `tests/test_energy_card.cpp` proves a kept choice draws what a fresh
+  search draws.
 - Nothing runs while the screen sleeps, while the card is off the glass, or while a card is open over it.
 
 The card is responsive the way every card is: it takes the richest form and the largest of the board's fonts that fit.
@@ -80,8 +90,11 @@ the CYD standing up, two columns of the whole height on the Waveshare 4.3-inch. 
 
 A tap on a circle with a sensor behind it opens that sensor's history card, as a circle of Home Assistant's live view
 opens its more-info. The house and Other have no sensor of their own, so a tap on them does nothing. A source with
-more than one sensor (two solar arrays) has no single sensor to open either. The add-on answers the history of a
-sensor in the Energy settings of a screen that has an energy card, as it answers the history of a tile.
+more than one power sensor (two solar arrays, two grid connections) opens their sum, as Home Assistant's "Power
+sources" graph adds them up (power-sources-graph-data.ts): the add-on sends a key of its own for the sum
+(`energy_flow.SUMS`) and answers its history from the sensors' hourly statistics for a day or a week and from their
+changes for an hour, in W. The add-on answers the history of a sensor in the Energy settings of a screen that has an
+energy card, as it answers the history of a tile.
 
 ## On the wire
 
@@ -94,7 +107,7 @@ read by `page_receiver.cpp`):
 | `p` | power in W: solar, from the grid, to the grid, from the battery, to the battery, the house |
 | `f` | the flows in W: solar to the house, to the grid, to the battery; grid to the house, to the battery; battery to the house, to the grid |
 | `c` | the batteries' charge in %, where they report one |
-| `e`, `u` | the sensor behind each source (solar, grid, battery) and its state and unit, for the history card |
+| `e`, `u` | the sensor behind each source (solar, grid, battery), or the key of their sum, and its state and unit, for the history card |
 | `d` | the eight biggest devices at most, in the order of the Energy settings: name `n`, sensor `e`, icon `i`, power `w`, state `s`, unit `u` |
 | `n` | the home's name in Home Assistant |
 | `o` | the power of the devices beyond those eight |

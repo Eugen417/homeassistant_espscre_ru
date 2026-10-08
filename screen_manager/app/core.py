@@ -98,10 +98,37 @@ FIRST_MAX_TILES = 10
 REPO = 'https://github.com/Eugen417/homeassistant_espscre_ru'
 # The branch a screen's YAML builds its board package from. Which boards there are is boards.json's (BOARD_KEYS).
 REF = 'main'
+# The app's channel (docs/RELEASING.md, "Testing dev"): the branch of this repository the app was added from. The
+# Supervisor names an app `<hash>_<slug>`, the hash being the first eight characters of the sha1 of the repository URL
+# as it was added, in lower case (supervisor/store/utils.py, get_hash_from_repository). So the URL with `#dev` is
+# another app, with data of its own, and its screens build from dev. Any other hash (a local copy, a fork, another
+# spelling of the URL) and no Supervisor at all have no channel: new screens build from main, existing ones keep the
+# `ref:` they have.
+CHANNELS = {'ec8ae0ed': 'main', 'fa6a7b50': 'dev'}
+CHANNEL = None
+
+def channel_of(slug):
+    """'main' or 'dev' for the slug of an app added from this repository's URL or its `#dev` URL, else None."""
+    if not isinstance(slug, str) or '_' not in slug:
+        return None
+    return CHANNELS.get(slug.split('_', 1)[0])
+
+def set_channel(channel):
+    """The channel this app runs in, found once at the start (server.main)."""
+    global CHANNEL
+    CHANNEL = channel if channel in CHANNELS.values() else None
+
+def channel():
+    """'main', 'dev', or None when this app was not added from this repository."""
+    return CHANNEL
+
+def ref():
+    """The branch a screen of this app builds from: its channel, else main."""
+    return CHANNEL or REF
 # The shared firmware of this app release: packages/core.yaml's SCREEN_FIRMWARE_VERSION, what every board builds
 # unless its own board file went ahead with a fix for that board alone (firmware_target, docs/BOARD_RELEASES.md). The
 # middle number is the core: the feature gates below name a shared X.Y.0, so a feature always ships with a new core.
-FIRMWARE_VERSION = '0.51.0'
+FIRMWARE_VERSION = '0.52.0'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -1161,7 +1188,9 @@ TILE_EVENT_OPTIONS = {'size': 'size', 'controls': 'controls', 'display': 'displa
                       # How a map frames its people (app 0.4.33); who is on it is the editor's.
                       'framing': 'framing', 'distance': 'distance',
                       # A favourite (app 0.4.42): what it plays, as Home Assistant's library names it, and on which speaker.
-                      'play': 'play', 'speaker': 'speaker'}
+                      'play': 'play', 'speaker': 'speaker',
+                      # Its own shuffle and repeat (app 0.4.84).
+                      'shuffle': 'shuffle', 'repeat': 'repeat'}
 TILE_SIZES = {'full': 'full', 'fullscreen': 'full', 'full screen': 'full', 'full-screen': 'full', 'page': 'full', 'whole page': 'full',
               'wide': 'wide', 'double': 'wide', 'large': 'wide', 'big': 'wide',
               'single': 'single', 'small': 'single', 'normal': 'single', 'tall': 'tall', 'high': 'tall', 'square': 'square'}
@@ -1590,7 +1619,11 @@ def action_for_screen(value):
     return act
 
 # A favourite's own options (app 0.4.42): what it plays, as Home Assistant's library names it, and on which speaker.
-FAVORITE_OWN = ('play', 'speaker')
+# Since app 0.4.84 also its own shuffle ('on', 'off') and repeat ('off', 'all', 'one', Home Assistant's repeat_set), set
+# as it starts; without one the player keeps its own.
+FAVORITE_OWN = ('play', 'speaker', 'shuffle', 'repeat')
+FAVORITE_SHUFFLES = ('on', 'off')
+FAVORITE_REPEATS = ('off', 'all', 'one')
 FAVORITE_KINDS = ('playlist', 'album', 'artist', 'track', 'podcast', 'episode', 'channel', 'genre', 'directory', 'music')
 
 def validate_favorite(value):
@@ -1799,6 +1832,9 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
                     raise ValueError(t('addon.errors.layout.favorite_play'))
                 if 'speaker' in options and (not isinstance(options['speaker'], str) or not options['speaker'].strip() or len(options['speaker'].encode()) > 48):
                     raise ValueError(t('addon.errors.layout.invalid_setting', setting='speaker'))
+                for key, allowed in (('shuffle', FAVORITE_SHUFFLES), ('repeat', FAVORITE_REPEATS)):
+                    if key in options and options[key] not in allowed:
+                        raise ValueError(t('addon.errors.layout.invalid_setting', setting=key))
                 options = {k: v for k, v in options.items() if k not in ('inline', 'controls', 'action') and not (k == 'tap' and v == 'action')}
             elif set(options) & set(FAVORITE_OWN):
                 options = {k: v for k, v in options.items() if k not in FAVORITE_OWN}
@@ -2750,6 +2786,9 @@ def installation_yaml(data):
     if not isinstance(chosen, dict) or any(key not in offered or value not in offered[key] for key, value in chosen.items()):
         raise ValueError(t('addon.errors.firmware.choice'))
     choice_lines = ''.join(f'  {key}: {quote(chosen[key])}\n' for key in offered if chosen.get(key, offered[key][0]) != offered[key][0])
+    # The components and fonts come from the branch the board package does (packages/<key>.yaml), main unless the app
+    # runs in another channel.
+    branch_line = f'  GITHUB_REF: {quote(ref())}\n' if ref() != REF else ''
     # An OTA password, not yet `ota: encryption:` with the api key: ESPHome before 2026.9 refuses that, and the owner's
     # ESPHome Device Builder may still be older (docs/RELEASING.md, "ESPHome versions").
     key, ota = base64.b64encode(secrets.token_bytes(32)).decode(), secrets.token_urlsafe(24)
@@ -2773,7 +2812,7 @@ substitutions:
   DEVICE_NAME: {quote(name)}
   DEVICE_FRIENDLY_NAME: {quote(friendly.strip())}
   LANGUAGE: {quote(language)}
-{rotation_line}{choice_lines}
+{rotation_line}{choice_lines}{branch_line}
 esphome:
   name: {quote(name)}
   friendly_name: {quote(friendly.strip())}
@@ -2781,7 +2820,7 @@ esphome:
 packages:
   display:
     url: {REPO}
-    ref: {REF}
+    ref: {ref()}
     files: [packages/{board}.yaml]
     refresh: 0s
   local_overrides: !include {name}.local.yaml

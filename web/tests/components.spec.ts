@@ -8,6 +8,7 @@ import AppSettingsView from "../src/components/AppSettingsView.vue";
 import CommandPalette from "../src/components/CommandPalette.vue";
 import Library from "../src/components/Library.vue";
 import ChoiceField from "../src/components/ChoiceField.vue";
+import FavoritePicker from "../src/components/FavoritePicker.vue";
 import DevicePage from "../src/components/DevicePage.vue";
 import InstallerView from "../src/components/InstallerView.vue";
 import Sidebar from "../src/components/Sidebar.vue";
@@ -767,6 +768,37 @@ describe("Sidebar", () => {
     expect(item.find(".update-pill").exists()).toBe(false);
     expect(item.find(".sub").text()).toBe("Update");
   });
+  it("offers Reinstall from dev on the dev channel only, and asks for a reinstall", async () => {
+    Object.assign(state.inventory.screens[0], { online: true, update: { available: false, target: "0.51.0", profile: "living.yaml", host: "10.0.0.5" } });
+    state.inventory.updates = { target: "0.51.0", auto: false, channel: "main" };
+    const calls: [string, RequestInit][] = [];
+    vi.stubGlobal("fetch", vi.fn((path: string, options: RequestInit) => {
+      calls.push([path, options]);
+      return Promise.resolve(new Response(JSON.stringify({}), { status: 200 }));
+    }));
+    const sidebar = mount(Sidebar);
+    const item = sidebar.find("#screens .screen-item");
+    await item.find(".nav-item").trigger("click");
+    if (!item.classes().includes("open")) await item.find(".details-toggle").trigger("click");
+    expect(item.find(".reinstall-dev").exists()).toBe(false);
+    // An app with no channel (a local copy) has no such button either.
+    state.inventory.updates = { target: "0.51.0", auto: false, channel: null };
+    await nextTick();
+    expect(item.find(".reinstall-dev").exists()).toBe(false);
+    state.inventory.updates = { target: "0.51.0", auto: false, channel: "dev" };
+    await nextTick();
+    expect(item.find(".reinstall-dev").text()).toContain("Reinstall from dev");
+    // Not while another update runs.
+    state.inventory.updates = { target: "0.51.0", auto: false, channel: "dev", busy: "other" };
+    await nextTick();
+    expect(item.find(".reinstall-dev").exists()).toBe(false);
+    state.inventory.updates = { target: "0.51.0", auto: false, channel: "dev" };
+    await nextTick();
+    await item.find(".reinstall-dev").trigger("click");
+    await flushPromises();
+    const sent = calls.find(([path]) => path.endsWith("/update"))!;
+    expect(JSON.parse(String(sent[1].body))).toEqual({ reinstall: true });
+  });
   it("goes home from the logo: the overview, nothing chosen (app 0.4.0)", async () => {
     const sidebar = mount(Sidebar);
     await sidebar.find(".brand").trigger("click");
@@ -1480,5 +1512,70 @@ describe("ChoiceField: the choice under the pointer is drawn on its tile first (
     const field = mount(ChoiceField, { props: { choices: long, value: "c" } });
     expect(field.find(".seg").exists()).toBe(false);
     expect(field.find(".choice-field .choice-text").text()).toBe("A value");
+  });
+});
+
+describe("a favourite's own shuffle and repeat (app 0.4.84)", () => {
+  const row = (wrapper: ReturnType<typeof mount>, label: string) =>
+    wrapper.findAll(".prop").find((f) => f.find(".prop-label").text().replace(/^[^\p{L}\d]+/u, "").trim() === label);
+  const favorite = { id: "spotify:album:0000000000000000000000", type: "spotify://album", title: "An album", class: "album" };
+  it("offers them where the player has the actions, and stores nothing for the player's own", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(JSON.stringify({ title: "", folder: 0, items: [] })))));
+    state.inventory.entities.push({ id: "media_player.spotify", name: "Spotify", state: "idle", area: "" } as any);
+    const tile: Tile = { entity: "media_player.spotify", name: "", slot: 0, options: { display: "favorite", play: favorite } };
+    appendTiles(tile);
+    state.capabilities["media_player.spotify"] = { toggle: false, inline: false, controls: [], displays: ["standard", "favorite"], favorite: ["shuffle", "repeat"] };
+    const drawer = inspector(tile);
+    await flushPromises();
+    expect(row(drawer, "Shuffle")!.findAll(".seg button").map((b) => b.text())).toEqual(["As it is", "On", "Off"]);
+    await row(drawer, "Shuffle")!.findAll(".seg button")[1].trigger("click");
+    expect(current(tile).options).toMatchObject({ display: "favorite", shuffle: "on" });
+    await row(drawer, "Shuffle")!.findAll(".seg button")[0].trigger("click");
+    expect(current(tile).options).not.toHaveProperty("shuffle");
+    expect(row(drawer, "Repeat")).toBeTruthy();
+    // A player without repeat_set: no repeat row.
+    state.capabilities["media_player.spotify"] = { ...state.capabilities["media_player.spotify"]!, favorite: ["shuffle"] };
+    await drawer.vm.$nextTick();
+    expect(row(drawer, "Repeat")).toBeUndefined();
+  });
+});
+
+describe("a favourite from a pasted link (app 0.4.84)", () => {
+  const DW = "37i9dQZEVXcEU0pQ6tFj16";
+  const favorite = { id: `spotify:playlist:${DW}`, type: "spotify://playlist", title: "Discover Weekly", class: "playlist" };
+  function serve(linkable: boolean) {
+    const asked: string[] = [];
+    vi.stubGlobal("fetch", vi.fn((path: string) => {
+      asked.push(path);
+      if (path.startsWith("api/media/browse")) return Promise.resolve(new Response(JSON.stringify({ title: "Media Library", folder: 0, items: [], ...(linkable ? { spotify_link: true } : {}) })));
+      if (path.includes("link=nonsense")) return Promise.resolve(new Response(JSON.stringify({ error: "This is not a Spotify link." }), { status: 400 }));
+      return Promise.resolve(new Response(JSON.stringify({ item: 7, title: "Discover Weekly", play: true, expand: false, icon: "F0CB8", picture: "api/media/picture?entity=media_player.spotify&item=7", favorite })));
+    }));
+    return asked;
+  }
+  it("offers the field only where the add-on says the player takes one", async () => {
+    serve(false);
+    const picker = mount(FavoritePicker, { props: { entity: "media_player.tv" } });
+    await flushPromises();
+    expect(picker.find(".picker-link").exists()).toBe(false);
+  });
+  it("reads the link through the add-on and chooses what it answers like an item of the library", async () => {
+    const asked = serve(true);
+    const picker = mount(FavoritePicker, { props: { entity: "media_player.spotify" } });
+    await flushPromises();
+    await picker.find(".picker-link input").setValue("nonsense");
+    await picker.find(".picker-link").trigger("submit");
+    await flushPromises();
+    expect(picker.find(".picker-link .help.warn").text()).toBe("This is not a Spotify link.");
+    const link = `https://open.spotify.com/playlist/${DW}?si=x`;
+    await picker.find(".picker-link input").setValue(link);
+    expect(picker.find(".picker-link .help.warn").exists()).toBe(false);
+    await picker.find(".picker-link").trigger("submit");
+    await flushPromises();
+    expect(asked.at(-1)).toBe(`api/media/link?entity=media_player.spotify&link=${encodeURIComponent(link)}`);
+    expect(picker.find(".linked .name").text()).toBe("Discover Weekly");
+    expect(picker.find(".linked img").attributes("src")).toBe("api/media/picture?entity=media_player.spotify&item=7");
+    await picker.find(".linked .pick").trigger("click");
+    expect(picker.emitted("pick")).toEqual([[favorite]]);
   });
 });

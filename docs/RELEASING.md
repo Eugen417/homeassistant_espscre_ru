@@ -22,8 +22,9 @@
 ## Two branches
 
 **dev** is where every change goes: features, fixes, issues, boards. Work there, or on a branch of your own that you
-merge into dev, and push to `origin dev`. Nobody installs dev, so a push there reaches no Home Assistant and no
-screen; it is tested on a test Home Assistant with test screens (docs/TESTING.md). On dev:
+merge into dev, and push to `origin dev`. Nobody installs dev unless they ask for it (below, "Testing dev"), so a push
+there reaches no ordinary Home Assistant and no screen; it is tested on a test Home Assistant with test screens
+(docs/TESTING.md). On dev:
 
 - no app version and no firmware number goes up: the release sets them once for everything since the last one;
 - what a user would notice gets a line under `## Unreleased` at the top of `screen_manager/CHANGELOG.md` (add the
@@ -41,6 +42,38 @@ reaches users with the next release, under its own line in the release notes.
 README_EXTENDED.md or `docs/` alone (below, "Small rules"); after such a docs change, merge main into dev. A release
 is asked for, never the side effect of a push of work.
 
+## Testing dev
+
+Someone who wants to try what is on dev before a release adds the repository with `#dev` at the end, in Settings >
+Apps > App store > ⋮ > Repositories:
+
+```
+https://github.com/MaxGramser/homeassistant_espscreen#dev
+```
+
+The store then shows a second Tessera Screen Manager, under that repository. It is another app for Home Assistant, so:
+
+- it keeps its own data and starts without tiles. Screens and their YAML in the ESPHome folder are shared, the tiles
+  are not;
+- it uses the same port for camera images (8098) as the stable app, so stop the stable app before starting this one;
+- every screen it builds or updates comes from dev: the board package, the components and the fonts. It writes
+  `ref: dev` under `packages: display:` and `GITHUB_REF: "dev"` in the screen's substitutions. A `ref:` that names a
+  tag, a commit or another branch is left alone;
+- the version number of dev stays the same from one change to the next, so a new dev is never offered as an update.
+  Each screen has **Reinstall from dev** in its details instead, which builds the newest dev and installs it over
+  Wi-Fi like an update;
+- getting the newest app from dev: App store > ⋮ > Check for updates, then the app's ⋮ > Rebuild;
+- dev is tried on a few boards before it is pushed, not on every board, and it can break. Report what goes wrong on
+  GitHub, with the board and the app's log.
+
+To go back, stop the dev app and start the stable one. Its next update of a screen builds from main again, and sets
+both lines back to main.
+
+How the app knows: the Supervisor names an app `<hash>_<slug>`, where the hash comes from the repository URL as it
+was added. `screen_manager/app/core.py` (`CHANNELS`) knows the two hashes of this repository. An app from any other
+URL (a local copy, a fork) has no channel: new screens build from main and existing ones keep their `ref:`, so a
+screen pointed at dev or `release-candidate` by hand stays there.
+
 ## The release
 
 About once a week, or when a fix can't wait for the next one, everything on dev goes out as one release. `tools/release.py`
@@ -55,10 +88,11 @@ does the steps that can go wrong by hand, and refuses when something is missing.
    `FIRMWARE_VERSION`, or a board file's own), and `screen_manager/app/boards.json`. docs/BOARD_RELEASES.md explains the
    numbers. Read the CHANGELOG section once more: it is what Home Assistant shows under the update, with concrete test
    results. With a new firmware number, rebuild the preview (below, "Firmware preview").
-3. **Check everything** (below, "The checks of a release"): `tools/check.sh` and the firmware builds the plan names,
-   and the renders when the release changes what screens draw. Only compatible changes go out (docs/PAGES.md,
-   "Updating at different times"). This is where a week of work on dev meets every check at once; what fails is fixed
-   here, in the release.
+3. **Check everything** (below, "The checks of a release"): `tools/check.sh` on the release's working tree, and the
+   renders when the release changes what screens draw. The firmware of every board, on both ESPHome versions and with
+   the flash budget, is built by CI on the release commit (step 4), so a laptop does not have to. Only compatible
+   changes go out (docs/PAGES.md, "Updating at different times"). This is where a week of work on dev meets every check
+   at once; what fails is fixed here, in the release.
 4. **Commit and push to dev**: `Release X.Y.Z (firmware A.B.C): what it brings`. `tests/test_release_lint.py` holds
    `config.yaml`'s version, the first CHANGELOG heading and the firmware it names, keeps the CHANGELOG headings unique
    and newest first, holds the firmware numbers to core and board (a shared release the next X.Y.0, a board fix a
@@ -77,7 +111,9 @@ does the steps that can go wrong by hand, and refuses when something is missing.
 7. **After.** Point the test screens back at main. Users find the update in the App store and update Tessera Screen
    Manager; for new screen features they use **Update** on the screen in Tessera (or the nightly round), and ESPHome
    Device Builder's Install, Wirelessly, on the existing device works too. The existing YAML stays in place;
-   `refresh: 0s` fetches current code on every build. Keep an eye on new issues that day.
+   `refresh: 0s` fetches current code on every build. Every issue the release's CHANGELOG section names gets a short
+reply (which version has it, and how to get it) and is closed; `publish` lists them. Keep an eye on new issues that
+day.
 
 ## A hotfix
 

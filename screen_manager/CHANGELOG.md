@@ -1,3 +1,87 @@
+## 0.4.84 (firmware 0.52.0)
+
+- **Zoom and move a map full screen.** A map opened full screen has round + and - keys at the bottom right, like the
+  volume keys, and four arrows at the bottom left that move it about a centimetre each. The map follows at once and
+  sharpens when the new picture comes, with a small spinner at the top right while it is on its way. The keys are
+  dark in the light look and light in the dark, and let the map show through a little. Behind a map that is still on
+  its way is the page's own colour, not black.
+- **Every page turns as quickly as the next.** A screen with PSRAM now keeps every page of its layout ready, not only
+  seven, so paging through a long layout no longer feels quick on one page and slow on the next. Opening a new layout
+  for the first time takes a little longer, while the screen prepares every page.
+- **Every picture on a page at its tile's full size (GitHub #183).** A camera, an album cover, a favourite and a map
+  each load their own picture now, at their own pace. Before, the pictures of a page came as one image, so on a large
+  screen every picture of the page came smaller with a dark edge as soon as a player on that page started to play, and
+  every new song sent all the cameras of the page again. Now a new song replaces only its cover, and a page with
+  several cameras shows each one at the full size of its tile. A camera's picture is also newer: the app fetches it
+  just before the screen loads it, so it is a fraction of a second old instead of up to twice the refresh time you
+  chose. The 10-inch and the other screens with 32 MB of memory also show a camera over the whole page, the camera
+  full screen and the screensaver at the glass's own pixels, no longer a little smaller in the middle.
+- **Try dev before a release (GitHub #180).** Add the repository with `#dev` at the end of its URL and the store
+  offers a second Tessera that builds every screen from dev, with a Reinstall from dev button for each screen.
+  docs/RELEASING.md, "Testing dev", says how it works and how to go back. The stable app is unchanged.
+- **A Spotify link makes a favourite.** Paste a link from the Spotify app (Share > Copy link) under the library in a
+  favourite's picker and it becomes a favourite like any other, with its cover and name. That reaches what Home
+  Assistant's library never lists, such as Discover Weekly, Release Radar and the Daily Mixes. It works on a Spotify
+  player and on a speaker whose library lists your Spotify account, such as a Sonos.
+- **A favourite sets its own shuffle and repeat.** Next to its speaker, a favourite can turn shuffle on or off and set
+  repeat as it starts, or leave the player as it is. With shuffle on it skips once, because Spotify always begins a
+  playlist or album at its first song, so the first song you hear is a shuffled one.
+- **The ring of a favourite that plays sits on the tile.** It was a wider border, which moved the inside of the tile,
+  so its picture slid a few pixels out past the ring and the tile looked to grow. The ring is now drawn over the
+  tile's picture, and nothing moves.
+- **Choosing what a favourite plays works again.** The editor refused every choice with "Invalid or unsupported page
+  settings", so a new favourite could not be saved. It also no longer offers a small slider or a tap action on a
+  favourite, which the app drops anyway.
+- **A slider you can see on a lamp that is off.** An off light or fan shows only the grey track on its tile, so a
+  finger dragging it moved nothing you could see until you let go. Now a faint fill and handle in the tile's colour
+  follow the finger, and letting go turns the lamp on at that level as before.
+- **A picture on a tile in the editor keeps its rounded bottom corners.** The shade under a camera or favourite name
+  had an invalid corner rule, and some browsers let a picture overflow the tile's corners.
+- **A new track without a flash on the media card** ([#177](https://github.com/MaxGramser/homeassistant_espscreen/issues/177)).
+  The card changes its words and its bar at once, and its cover and colour together, in one go, once the new cover is
+  here. Until then it keeps the cover and colour of the track before. Before, the card was drawn again on a black
+  ground with an empty square, and once more when the new colour came, so the keys and the bar flashed and the cover
+  was gone for a second or two. A media tile over a whole page keeps its cover the same way.
+- **Live radio says Live.** A station plays without a length, so the card had no bar for it. Now the bar stays, empty,
+  with "Live" where the time stands, as Music Assistant keeps its bar for a station. Between two tracks the bar stands
+  at nought with 0:00 at both ends, where it went and came back.
+- **Covers keep coming after many tracks.** Each track's cover stayed in the screen's picture memory, and after some
+  sixteen of them there was no place left for a new picture: the media card stood on its empty square, and a camera or a
+  library page could not keep its picture either. A cover the card or a tile has moved on from now goes, and when every
+  place is taken the picture used longest ago that is not on the glass makes way.
+- **One way for every picture.** The camera full screen, the screensaver, an alert's picture, the media card's cover,
+  a player's library, the page's covers and cameras, and the covers fetched ahead for other pages now all go one way:
+  each says what it wants to see, and one part of the screen decides what loads, in what order, and when to stop.
+  What is on the glass loads first, an alert before everything; a picture nobody wants any more stops loading at
+  once, so turning pages fast or closing a card before its picture came leaves nothing behind. Whether a picture is
+  there is read from the screen's picture memory every time, so a picture that had to make room is fetched again
+  right away instead of waited for. Pictures nobody will show again (the cover of a track that ended, the last frame
+  of a closed camera) go once they are off the glass.
+- **Air around the knobs.** The volume knob at 0 or 100 % no longer touches the volume keys beside it, and the knob of
+  the track's bar keeps clear of the times.
+- **The play key's triangle stands in the middle** of its key, where it sat a few pixels to the left.
+- The card stands on one colour from its cover. The app has sent one colour since the bands of #135; the card's code
+  for a colour at the top and another at the bottom is gone.
+- **The energy card shows the grid on Home Assistant 2025.12 to 2026.2.** Those versions keep a grid's power sensor in
+  a list of its own, which the card did not read, so the grid was missing (discussion #104). It now adds them up as
+  Home Assistant's own live view did then.
+- **A tap on solar or the grid with more than one sensor opens their sum** (#180). Two solar arrays or two grid
+  connections had no single sensor to open. The card now opens the history of all of them added up, the way Home
+  Assistant's Power sources graph shows them.
+- **The energy card's dots run smoothly.** A dot's place was worked out from the time since the card started, so every
+  new value made it jump, worse the longer the screen ran and most on a battery that reports often (discussion #104).
+  A new value now changes how fast a dot runs, not where it is. Back on the card's page after another page, the dots
+  stood still until the next value came in; they run again at once. A slow dot (a few W) now reaches the end of its
+  line too: every new value used to send it back to the start.
+- **A new value on the energy card no longer holds the screen.** At every value the card searched its whole layout
+  again, about a third of a second in which the screen stood still. It now keeps its layout until its shape changes
+  and draws only the numbers that changed, in a few milliseconds.
+- Checked with every Python, C++, editor, translation and WASM preview check, and rendered from the real firmware on
+  the CYD, the 4-inch Guition and the 10.1-inch Guition. Firmware builds on ESPHome 2026.9.0 for the CYD (91.5 % of
+  its slot, 17.7 KB more than 0.51.0), the CYD 9342 (91.5 %), the Hosyond 4-inch (94.3 %), the 4-inch and 10.1-inch
+  Guition, the Waveshare 7-inch and the bridge, and on 2026.6.2 for every board that allows it (the CYD 93.4 %, the
+  Hosyond 4-inch 96.1 %). The upgrade from 0.4.83 was tested on a CYD, a 4-inch Guition and a Waveshare 4.3-inch.
+
 ## 0.4.83 (firmware 0.51.0)
 
 - **A calmer Screensaver card.** In a screen's settings the Screensaver card is now a short list of its three steps,

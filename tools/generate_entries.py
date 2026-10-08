@@ -53,7 +53,14 @@ def package_entry(board):
 # of that lives here. The screen is two packages: core.yaml, which every board shares, and boards/{file} with this
 # board's hardware and sizes (docs/PROFILES.md). checkout/{board}.yaml builds the same two from a checkout.
 substitutions:
+<<<<<<< HEAD
   FONT_DIR: "https://raw.githubusercontent.com/Eugen417/homeassistant_espscre_ru/main/fonts"
+=======
+  # The branch the components and the fonts come from: main, or dev for a screen of the app's dev channel, which
+  # writes GITHUB_REF into the screen's own YAML next to the `ref:` of this package (docs/RELEASING.md, "Testing dev").
+  GITHUB_REF: "main"
+  FONT_DIR: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/${{GITHUB_REF}}/fonts"
+>>>>>>> upstream/main
 
 packages:
   core: !include core.yaml
@@ -63,7 +70,7 @@ external_components:
   - source:
       type: git
       url: {REPO}.git
-      ref: main
+      ref: ${{GITHUB_REF}}
       path: components
     refresh: 0s
     components: [{", ".join(components(board))}]

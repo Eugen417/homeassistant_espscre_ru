@@ -22,7 +22,7 @@ Home Assistant entity belongs in a board file. docs/README.md lists every doc an
 | add a board | docs/ADDING_A_BOARD.md, then docs/BOARD_RELEASES.md | `boards.yaml`, `packages/boards/<file>.yaml` |
 | change sizes, fonts or the grid | docs/RESPONSIVE.md | `ui_scale.h`, `packages/looks/`, `packages/cells/` |
 | give a board a battery in the top bar | docs/BATTERY.md | the board's `battery` sensors, `battery_status.h` |
-| change how a picture reaches the screen | docs/CAMERA.md | `picture_fetch.h`, `camera_view.h`, `screen_manager/app/camera_feed.py` |
+| change how a picture reaches the screen | docs/CAMERA.md | `picture_loader.h`, `picture_fetch.h`, `camera_view.h`, `screen_manager/app/camera_feed.py` |
 | change how a screen joins Home Assistant | docs/EASY_SETUP.md, chapter 3 | `screen_manager/app/ha_pairing.py`, Home Assistant's esphome config flow |
 | change a colour | docs/THEME.md | `components/smart_display/theme.h` |
 | change how pages are kept or prepared | docs/KEPT_PAGES.md, docs/PAGES.md | `kept_pages.h`, `page_protocol.h` |
@@ -128,8 +128,9 @@ release is checked fully, once a week. docs/TESTING.md says what each layer prov
 Two branches, and the difference between them is the most important rule in this file.
 
 - **dev is where all work goes**: features, fixes, issues, boards, experiments. Commit on dev (or on a branch of your
-  own that you merge into dev) and push to `origin dev`. Nobody installs dev: it is proven on the bench boards (see
-  Checks). Bump no app version and no firmware number on dev. Anything a user would notice gets a line
+  own that you merge into dev) and push to `origin dev`. Only testers who ask for it install dev (the `#dev` repository URL,
+  docs/RELEASING.md "Testing dev"), and a push reaches them when they rebuild that app or reinstall a screen: it is
+  proven on the bench boards first (see Checks). Bump no app version and no firmware number on dev. Anything a user would notice gets a line
   under `## Unreleased` at the top of `screen_manager/CHANGELOG.md` (add the heading when it is missing); the release
   turns that section into its version heading.
 - **main is what every user gets**: Home Assistant installs the add-on from it, and every screen builds its firmware
@@ -190,6 +191,12 @@ Don't use em dashes; write a plain comma, period, or "and"/"but" instead. docs/ 
 test logs: what a release changed goes in `screen_manager/CHANGELOG.md` and its release notes.
 
 ## Replying to issues and pull requests
+
+A fix or a change that is done goes to dev first and reaches users with the next release, about once a week (Branches
+and releases). So a reply about it says what was done and how it was tested, and that it comes with the next release,
+usually within a week; it names no date and promises nothing that is not built yet. The issue stays open until that
+release is out. Then a short reply says which version has it and how to get it (update the app, then the screen's
+Update), and the issue is closed: `tools/release.py publish` lists the issues the release's CHANGELOG section names.
 
 A reply on GitHub goes out under the project owner's own account, so every comment on an issue or a pull request ends
 with the same signature: a blank line, a `---` rule, and two italic lines, each its own paragraph.

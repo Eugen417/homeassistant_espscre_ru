@@ -727,7 +727,8 @@
         "enter_ip": "Introduce la dirección IP de esta pantalla.",
         "no_profile": "No se ha encontrado ningún perfil de ESPHome para esta pantalla. Revisa el nombre en la carpeta de ESPHome.",
         "ip_unknown": "Dirección IP desconocida. Introdúcela una vez; después, el firmware nuevo la comunica por sí mismo.",
-        "all_updated": "Todas las pantallas accesibles ya están actualizadas."
+        "all_updated": "Todas las pantallas accesibles ya están actualizadas.",
+        "reinstall_dev": "Reinstalar el mismo firmware solo es posible en el canal dev."
       },
       "remove": {
         "not_allowed": "Esta aplicación no puede eliminar una integración de Home Assistant. Elimina la pantalla en el propio Home Assistant, en Configuración → Dispositivos y servicios.",
@@ -786,7 +787,10 @@
         "storage": "Los comentarios están desactivados: sus datos guardados los escribió otra versión de Tessera."
       },
       "media": {
-        "browse": "{name} no respondió con su biblioteca."
+        "browse": "{name} no respondió con su biblioteca.",
+        "link_invalid": "Esto no es un enlace de Spotify. Copia uno en la app de Spotify con Compartir > Copiar enlace.",
+        "link_short": "Una dirección spotify.link solo redirige. Ábrela en el navegador y copia la dirección larga a la que lleva.",
+        "link_player": "{name} no reproduce enlaces de Spotify."
       },
       "allow_actions": {
         "not_allowed": "Home Assistant no deja que esta aplicación cambie sus integraciones. Hazlo en el propio Home Assistant, en Configuración → Dispositivos y servicios.",
@@ -1365,6 +1369,8 @@
         "whats_new": "Novedades",
         "full_log": "Registro completo",
         "short": "Actualización",
+        "reinstall": "Reinstalar desde dev",
+        "reinstall_why": "Compila de nuevo esta pantalla con el dev más reciente y la instala por Wi-Fi. En dev el número de versión no cambia, así que un dev nuevo nunca se ofrece como actualización.",
         "in_tessera": "Actualiza primero en Tessera",
         "in_tessera_why": "Actualiza primero esta pantalla aquí en Tessera. Aún tiene la distribución de flash de su primera instalación y el firmware actual ya no cabe, así que ESPHome Device Builder no puede actualizarla. Tessera la pasa por el camino a la nueva distribución y conserva sus ajustes. Después, sirven las dos vías."
       },
@@ -1849,7 +1855,21 @@
         "open": "Abrir {name}",
         "speaker": "Altavoz",
         "speaker_now": "Donde suena",
-        "speaker_hint": "Dónde empieza. «Donde suena» pide un altavoz en la pantalla cuando el reproductor no suena en ninguno."
+        "speaker_hint": "Dónde empieza. «Donde suena» pide un altavoz en la pantalla cuando el reproductor no suena en ninguno.",
+        "link": "O pega un enlace de Spotify",
+        "link_hint": "Un enlace o URI de la app de Spotify, con Compartir > Copiar enlace: una playlist, un álbum, un artista, una canción o un podcast.",
+        "link_add": "Añadir",
+        "shuffle": "Aleatorio",
+        "shuffle_hint": "Se ajusta al empezar. Con aleatorio salta una canción, para que la primera ya sea aleatoria. \"Como esté\" deja el reproductor como está.",
+        "shuffle_keep": "Como esté",
+        "shuffle_on": "Activado",
+        "shuffle_off": "Apagado",
+        "repeat": "Repetir",
+        "repeat_hint": "Se ajusta al empezar. \"Como esté\" deja el reproductor como está.",
+        "repeat_off": "Apagado",
+        "repeat_all": "Repetir todo",
+        "repeat_one": "Repetir una",
+        "repeat_keep": "Como esté"
       },
       "energy": {
         "hint": "La potencia de la casa en este momento, dibujada como la dibuja la vista de Energía de Home Assistant: solar, red, batería y tus dispositivos, desde los ajustes de Energía de Home Assistant. Un toque en un círculo abre el historial de ese sensor.",
