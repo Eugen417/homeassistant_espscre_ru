@@ -59,6 +59,7 @@ static lv_color_t paint(ec::Paint p) {
     case ec::Paint::DEVICE1: return theme::color(theme::ENERGY_DEVICE_2);
     case ec::Paint::DEVICE2: return theme::color(theme::ENERGY_DEVICE_3);
     case ec::Paint::DEVICE3: return theme::color(theme::ENERGY_DEVICE_4);
+    case ec::Paint::REST: return theme::color(theme::ENERGY_REST);
     case ec::Paint::MUTED: return theme::color(theme::MUTED);
     case ec::Paint::IDLE: return theme::color(theme::LINE);
     case ec::Paint::ACCENT: return theme::color(theme::ACCENT);
@@ -272,6 +273,7 @@ void render(Widgets &w, const Tile &t, int width, int height) {
   ec::Words words;
   words.solar = rt::tr(rt::txt::energy_solar); words.grid = rt::tr(rt::txt::energy_grid); words.battery = rt::tr(rt::txt::energy_battery);
   words.home = rt::tr(rt::txt::energy_home); words.other = rt::tr(rt::txt::energy_other);
+  words.untracked = rt::tr(rt::txt::energy_untracked);
   words.decimal = screen_text::decimal_mark(); words.percent = screen_text::percent_sign();
   // The house is named as Home Assistant names it in its live power view: the home's own name.
   if (t.extra().energy && !t.extra().energy->home_name.empty()) words.home = t.extra().energy->home_name;

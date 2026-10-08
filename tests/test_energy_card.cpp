@@ -55,7 +55,7 @@ static Measure measure(const Board &b) {
 // The card's words as the screen gives them (screen.energy.* in English).
 static Words W() {
   Words w;
-  w.solar = "Solar"; w.grid = "Grid"; w.battery = "Battery"; w.home = "Home"; w.other = "Other";
+  w.solar = "Solar"; w.grid = "Grid"; w.battery = "Battery"; w.home = "Home"; w.other = "Other"; w.untracked = "Untracked";
   return w;
 }
 
@@ -193,6 +193,10 @@ int main() {
             const Scene sc = build(data, m, w, h, W());
             check(sc.ok, "an offered size fits", b, "sweep");
             audit(sc, m, b, "sweep", w, h);
+            // The battery's charge shows on every card offered, as Home Assistant's own card always shows it.
+            bool charge = false;
+            for (auto &t : sc.texts) charge |= t.s == std::to_string(data.soc) + " %";
+            check(charge, "the battery's charge shows", b, "sweep");
           }
     }
   }
@@ -236,6 +240,37 @@ int main() {
     for (auto &t : sc.texts) if (t.s == "EV" || t.s == "Oven Power" || t.s == "Dishwasher Power" || t.s == "Fridge Power" || t.s == "Other") names.push_back(t.s);
     assert(sc.devices == 4);
     assert((names == std::vector<std::string>{"EV", "Oven Power", "Dishwasher Power", "Other"}));
+  }
+  // What no device measures is Untracked consumption, the last place and grey as in Home Assistant's sankey: the
+  // devices, Other and it add up to the house. A house without a measured device, or whose devices report more than
+  // the house, has none.
+  {
+    const Board &p4 = BOARDS[5];
+    const Measure m = measure(p4);
+    ui::configure(p4.dpi, "standard");
+    const Choice ch = choose(noon(), m, 1230, 687, W());
+    assert(!ch.shown.empty() && ch.shown.back().name == "Untracked" && ch.shown.back().rest && ch.shown.back().entity.empty());
+    float sum = 0;
+    for (auto &dv : ch.shown) sum += dv.w;
+    assert(std::fabs(sum - noon().home) < 0.5f && std::fabs(ch.shown.back().w - 435) < 0.5f);
+    const Scene sc = build(noon(), m, 1230, 687, W());
+    assert(sc.circles.back().paint == Paint::REST && sc.circles.back().entity.empty());
+    Data none = noon();
+    none.devices.clear();
+    assert(choose(none, m, 1230, 687, W()).shown.empty());
+    for (auto &dv : choose(busy(), m, 1230, 687, W()).shown) assert(dv.name != "Untracked");
+    // Two places for seven devices: the biggest and Other, no Untracked consumption that would leave the rest out.
+    Data many = noon();
+    many.devices = busy().devices;
+    many.home = 12045;
+    for (int w = 300; w < 1230; w += 10) {
+      const Choice c = choose(many, m, w, 687, W());
+      if (c.shown.size() != 2) continue;
+      assert(c.shown[1].name == "Other");
+    }
+    // Fewer places than devices: the biggest keep theirs, Other the rest, Untracked consumption the last.
+    const Choice night = choose(night_car(), m, 1230, 687, W());
+    assert(night.shown.size() == 3 && night.shown[0].name == "EV" && night.shown[2].name == "Untracked");
   }
   // A tap finds the circle and its sensor; the house has none.
   {

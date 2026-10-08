@@ -548,6 +548,7 @@
       "battery": "Akkumulátor",
       "home": "Otthon",
       "other": "Egyéb",
+      "untracked": "Méretlen",
       "no_power": "Nincs teljesítményérzékelő a Home Assistant energiabeállításaiban"
     },
     "plugin": {

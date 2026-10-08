@@ -176,6 +176,19 @@ class Wire(unittest.TestCase):
         self.assertEqual(len(x['u']), 3)
         self.assertEqual(x['u'][1][0], states[x['e'][1]]['state'])
 
+    def test_tiny_devices_are_other_not_untracked(self):
+        # Under 0.1 % of the house a device has no place of its own, but Home Assistant's sankey counts it in "Other"
+        # (common/sankey.ts): it travels in `o`, so what the screen works out as untracked is only what nothing measures.
+        prefs, states = load('full-busy')
+        prefs, states = json.loads(json.dumps(prefs)), json.loads(json.dumps(states))
+        m = energy_flow.moment(prefs, states)
+        tiny = next(d for d in prefs['device_consumption'] if d['stat_rate'] in states and d['stat_rate'] not in {dv.entity_id for dv in m.devices[:1]})
+        states[tiny['stat_rate']]['state'] = str(m.home * 0.0005)
+        states[tiny['stat_rate']]['attributes']['unit_of_measurement'] = 'W'
+        x = energy_flow.payload(prefs, states)
+        self.assertNotIn(tiny['stat_rate'], [d['e'] for d in x['d']])
+        self.assertAlmostEqual(x['o'], round(m.home * 0.0005, 1), places=1)
+
     def test_no_settings(self):
         x = energy_flow.payload({}, {})
         self.assertEqual(x['h'], 0)

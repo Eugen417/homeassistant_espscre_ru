@@ -548,6 +548,7 @@
       "battery": "Batería",
       "home": "Casa",
       "other": "Otros",
+      "untracked": "Sin seguimiento",
       "no_power": "No hay sensores de potencia en los ajustes de energía de Home Assistant"
     },
     "plugin": {

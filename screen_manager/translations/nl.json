@@ -548,6 +548,7 @@
       "battery": "Batterij",
       "home": "Thuis",
       "other": "Overig",
+      "untracked": "Niet getraceerd",
       "no_power": "Geen vermogenssensoren in de energie-instellingen van Home Assistant"
     },
     "plugin": {

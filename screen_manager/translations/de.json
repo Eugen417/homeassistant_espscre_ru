@@ -548,6 +548,7 @@
       "battery": "Batterie",
       "home": "Zuhause",
       "other": "Andere",
+      "untracked": "Nicht erfasst",
       "no_power": "Keine Leistungssensoren in den Energie-Einstellungen von Home Assistant"
     },
     "plugin": {

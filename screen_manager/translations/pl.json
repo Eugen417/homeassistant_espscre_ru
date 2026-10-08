@@ -548,6 +548,7 @@
       "battery": "Bateria",
       "home": "Dom",
       "other": "Inne",
+      "untracked": "Nieśledzone",
       "no_power": "Brak czujników mocy w ustawieniach energii Home Assistant"
     },
     "plugin": {

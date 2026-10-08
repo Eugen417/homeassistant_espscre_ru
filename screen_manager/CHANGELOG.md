@@ -37,6 +37,11 @@
   ([#142](https://github.com/MaxGramser/homeassistant_espscreen/pull/142)).
 - **Room on the 4 MB boards.** The bedside clock on a Hosyond 4-inch draws its time with the large digits the screen
   already has, a little smaller than before, which frees about 40 KB of its nearly full flash. The CYD already did so.
+- **The energy card adds up, and always shows the battery's charge.** What no device measures now has a grey circle
+  of its own, Untracked, after the devices and Other, as Home Assistant's live power view shows it, so the
+  devices add up to the house. A device that uses very little now counts in Other instead of disappearing. The battery's
+  charge stands beside its icon, as in Home Assistant's own card, on every size of the card; before, only large cards
+  showed it. Needs this firmware on the screen.
 
 ## 0.4.84 (firmware 0.52.0)
 

@@ -70,6 +70,9 @@ class Moment:
     grid_entity: str = ''
     battery_entity: str = ''
     devices: list[Device] = field(default_factory=list)
+    # The devices under the sankey's threshold, together: Home Assistant groups them as "Other" (common/sankey.ts), so
+    # they never count as untracked consumption.
+    small: float = 0.0
 
 
 def rates(source: dict) -> list[str]:
@@ -234,7 +237,26 @@ def moment(prefs: dict, states: dict[str, dict]) -> Moment:
     m.soc = sum(soc * c for soc, c in weights) / sum(c for _, c in weights) if weights else None
 
     m.devices = devices(prefs, states, m.home)
+    m.small = small_devices(prefs, states, m.home)
     return m
+
+
+def _top_devices(prefs: dict, states: dict[str, dict]):
+    """The top of Home Assistant's device tree with the power each draws now: (place in the settings, preference, W)."""
+    listed = (prefs or {}).get('device_consumption') or []
+    stats = {d.get('stat_consumption') for d in listed}
+    for order, d in enumerate(listed):
+        entity_id = d.get('stat_rate')
+        if not entity_id or (d.get('included_in_stat') and d['included_in_stat'] in stats):
+            continue
+        value = power_w(states.get(entity_id))
+        if value is not None and value > 0:
+            yield order, d, value
+
+
+def small_devices(prefs: dict, states: dict[str, dict], home: float) -> float:
+    """The power of the devices under 0.1 % of the house, which Home Assistant's sankey shows as "Other"."""
+    return sum(value for _, _, value in _top_devices(prefs, states) if value < home * MIN_DEVICE_SHARE)
 
 
 def devices(prefs: dict, states: dict[str, dict], home: float) -> list[Device]:
@@ -242,18 +264,13 @@ def devices(prefs: dict, states: dict[str, dict], home: float) -> list[Device]:
 
     Only the top of Home Assistant's device tree: a device `included_in_stat` another one is part of that one's value,
     as in its sankey, and would otherwise be counted twice. A device under 0.1 % of the house is left out, as the
-    sankey's threshold does; the card folds what has no place into "Other" itself.
+    sankey's threshold does (their sum is `Moment.small`, "Other"); the card folds what has no place into "Other" itself.
     """
-    listed = (prefs or {}).get('device_consumption') or []
-    stats = {d.get('stat_consumption') for d in listed}
     out = []
-    for order, d in enumerate(listed):
-        entity_id = d.get('stat_rate')
-        if not entity_id or (d.get('included_in_stat') and d['included_in_stat'] in stats):
+    for order, d, value in _top_devices(prefs, states):
+        if value < home * MIN_DEVICE_SHARE:
             continue
-        value = power_w(states.get(entity_id))
-        if value is None or value <= 0 or value < home * MIN_DEVICE_SHARE:
-            continue
+        entity_id = d['stat_rate']
         attributes = (states.get(entity_id) or {}).get('attributes') or {}
         name = d.get('name') or attributes.get('friendly_name') or entity_id
         out.append(Device(entity_id, name, attributes.get('icon') or 'mdi:flash', value, order))
@@ -308,7 +325,9 @@ def payload(prefs: dict, states: dict[str, dict], glyph=None, home_name: str = '
         out['d'] = devices
     if home_name:
         out['n'] = home_name[:32]
-    rest = sum(d.watts for d in m.devices[SENT_DEVICES:])
+    # Beyond the eight, and the devices under the sankey's threshold: Home Assistant's "Other". What is left of the
+    # house after every device is its "Untracked consumption", which the card works out itself.
+    rest = sum(d.watts for d in m.devices[SENT_DEVICES:]) + m.small
     if rest > 0:
         out['o'] = w(rest)
     return out

@@ -11,10 +11,13 @@
 // (screen_manager/app/energy_flow.py).
 //
 // The card takes the richest form its room holds, giving up one thing at a time (docs/ENERGY.md):
-//   0. everything: names, both directions of the grid and the battery with their arrows, the battery's charge;
+//   0. everything: names, both directions of the grid and the battery with their arrows;
 //   1. only the direction that flows;  2. without the arrows (the colour says the direction);
-//   3. without names (the icon says what it is);  5. one line per circle (the battery's glyph shows its charge);
-//   6. compact: the icon alone in a smaller circle, the number where the name was, no devices.
+//   3. without names (the icon says what it is);  5. one line per circle;
+//   6. compact: the icon alone in a smaller circle, the number where the name was, no devices;
+//   7. one line per circle and 8. compact, both without the battery's charge (its glyph still shows it).
+// The battery's charge stands beside its glyph, as Home Assistant's energy distribution card puts it; in the compact
+// form, whose circles hold their icon alone, it stands before the battery's number under the circle.
 // Fonts come from the board's fixed set, the largest step that fits; a name is never cut: it takes two lines, or the
 // card shows one device fewer. The lines and the circles' middles sit on the pixel grid LVGL draws on (a line of odd
 // width at y covers the row around y + 0.5, an even one is centred on y), and a turn is a true quarter circle (LVGL
@@ -38,6 +41,7 @@ struct Device {
   std::string name, entity;
   uint32_t icon = 0;
   float w = 0;
+  bool rest = false;  // Other or Untracked consumption: grey, as Home Assistant's sankey paints them
 };
 // A sensor behind a circle as Home Assistant states it, for the history card a tap opens.
 struct Reading {
@@ -60,6 +64,7 @@ struct Data {
 
 // ---- Glyphs (Material Design Icons) and words.
 constexpr uint32_t ICON_HOME = 0xF02DC, ICON_SOLAR = 0xF0A72, ICON_GRID = 0xF0D3E, ICON_OTHER = 0xF01D8, ICON_FLASH = 0xF0241;
+constexpr uint32_t ICON_UNTRACKED = 0xF06A1;  // home-outline: the rest of the house
 constexpr uint32_t ARROW_LEFT = 0xF004D, ARROW_RIGHT = 0xF0054, ARROW_UP = 0xF005D, ARROW_DOWN = 0xF0045;
 // Home Assistant's battery icon by its charge: outline, battery-10 .. battery-90, battery.
 inline uint32_t battery_glyph(int soc) {
@@ -79,7 +84,7 @@ inline std::string utf8(uint32_t c) {
 }
 // The card's own words in the screen's language (screen_text): the draw step fills them.
 struct Words {
-  std::string solar, grid, battery, home, other;  // the screen's own words (screen.energy.*)
+  std::string solar, grid, battery, home, other, untracked;  // the screen's own words (screen.energy.*)
   // How the screen writes numbers (screen_text.h, Home Assistant's own rule for the language and region): the decimal
   // mark, and what follows a number for a percentage ("%" or " %").
   char decimal = '.';
@@ -103,7 +108,7 @@ inline std::string power(float w, char decimal = '.') {
 inline float duration(float w) { return w > 2000 ? 0.75f : (w - 0.01f) * (0.75f - 6.f) / (2000.f - 0.01f) + 6.f; }
 
 // ---- Colours by role; the draw step asks the theme for them (theme.h, energy section).
-enum class Paint : uint8_t { SOLAR, GRID_IN, GRID_OUT, BATTERY_OUT, BATTERY_IN, DEVICE0, DEVICE1, DEVICE2, DEVICE3, INK, MUTED, IDLE, ACCENT };
+enum class Paint : uint8_t { SOLAR, GRID_IN, GRID_OUT, BATTERY_OUT, BATTERY_IN, DEVICE0, DEVICE1, DEVICE2, DEVICE3, REST, INK, MUTED, IDLE, ACCENT };
 
 // ---- The board's faces the card may use (its fixed font set) and what the caller measured of them.
 enum Face : uint8_t { WATCH_VALUE, HEADLINE, CONTROL, SMALL, ICON, ICON_MINI, ICON_WATCH, FACES };
@@ -181,10 +186,12 @@ struct Scene {
 
 // ---- The fit: the richest form and the largest fonts the room holds.
 struct Steps { Face value, arrow, icon, label; };
-struct Mode { bool both, labels, arrows, one, compact; };
-constexpr Mode MODES[] = {{true, true, true, false, false},  {false, true, true, false, false}, {false, true, false, false, false},
-                          {false, false, true, false, false}, {false, false, false, false, false}, {false, false, false, true, false},
-                          {false, true, true, false, true}};
+struct Mode { bool both, labels, arrows, one, compact, charge; };
+constexpr Mode MODES[] = {{true, true, true, false, false, true},   {false, true, true, false, false, true},
+                          {false, true, false, false, false, true},  {false, false, true, false, false, true},
+                          {false, false, false, false, false, true}, {false, false, false, true, false, true},
+                          {false, true, true, false, true, true},    {false, false, false, true, false, false},
+                          {false, true, true, false, true, false}};
 constexpr int PASSES = sizeof(MODES) / sizeof(MODES[0]);
 constexpr Steps LADDER[] = {{WATCH_VALUE, ICON_MINI, ICON, CONTROL}, {HEADLINE, ICON_MINI, ICON, CONTROL},
                             {CONTROL, ICON_WATCH, ICON, SMALL},      {CONTROL, ICON_WATCH, ICON_MINI, SMALL},
@@ -195,7 +202,8 @@ constexpr Steps LADDER[] = {{WATCH_VALUE, ICON_MINI, ICON, CONTROL}, {HEADLINE, 
 struct Shape {
   bool top = false, bottom = false;
   int cols = 3;
-  int lines = 1;  // the most lines of text a circle holds besides its icon (the battery's charge and both directions)
+  int lines = 1;  // the most lines of text a circle holds besides its icon (both directions of the grid or the battery)
+  bool charge = false;  // the battery's charge beside its glyph
   bool vertical = false, grid_row = true, source_row = true, device_row = false;
   int label_lines = 1;
 };
@@ -242,12 +250,14 @@ inline Fit fit(const Measure &m, int w, int h, const Shape &sh, const std::vecto
       int value_w = m.width(st.value, "8.8 kW");
       for (auto &v : values) value_w = std::max(value_w, m.width(st.value, v));
       const int arrowed = md.arrows ? value_w + m.width(st.arrow, utf8(ARROW_LEFT)) + ui::px(2) : value_w;
-      const int soc_w = m.width(st.value, "100 %");
+      // The glyph's row: the battery's glyph and its charge side by side where the card shows it.
+      const int charge_w = sh.charge && md.charge ? m.width(st.value, "100 %") + ui::px(6) : 0;  // before a number
+      const Row glyph = sh.charge && md.charge && !md.compact ? Row{std::max(ih, vh), m.width(st.icon, utf8(battery_glyph(100))) + ui::px(2) + m.width(st.value, "100 %")}
+                                               : Row{ih, ih};
       std::vector<Row> worst;  // the fullest circle this card has
-      if (md.compact) worst = {{ih, ih}};
-      else if (md.one) worst = {{ih, ih}, {vh, value_w}};
-      else if (sh.lines >= 3) { worst = {{vh, soc_w}, {ih, ih}, {vh, arrowed}}; if (md.both) worst.push_back({vh, arrowed}); }
-      else if (sh.lines == 2) { worst = {{ih, ih}, {vh, arrowed}}; if (md.both) worst.push_back({vh, arrowed}); }
+      if (md.compact) worst = {glyph};
+      else if (md.one) worst = {glyph, {vh, value_w}};
+      else if (sh.lines >= 2) { worst = {glyph, {vh, arrowed}}; if (md.both) worst.push_back({vh, arrowed}); }
       else worst = {{ih, ih}, {vh, value_w}};
       const int d_text = md.compact ? int(std::ceil(smallest(worst) * 1.15f))
                                     : std::max(smallest(worst), smallest({{ih, ih}, {vh, value_w}}));
@@ -275,7 +285,10 @@ inline Fit fit(const Measure &m, int w, int h, const Shape &sh, const std::vecto
         room = int(std::floor(std::min<float>((h - above - below - (rows - 1) * lab) / float(rows), d_w)));
       if (room < d_text) continue;
       if (md.compact && !sh.vertical && arrowed + ui::px(4) > w / float(sh.cols - 1) * 0.9f) continue;
-      if (md.compact && sh.vertical && arrowed + ui::px(4) > (1 + gap_f) * d_w * 0.95f) continue;
+      // Lying, the battery's number stands alone under the bottom row (the compact form shows no devices): the charge
+      // before it may take the card's width.
+      if (md.compact && !sh.vertical && arrowed + charge_w + ui::px(4) > w * 0.95f) continue;
+      if (md.compact && sh.vertical && arrowed + charge_w + ui::px(4) > (1 + gap_f) * d_w * 0.95f) continue;
       Fit r;
       r.mode = md; r.pass = pass; r.step = step; r.vertical = sh.vertical; r.rows = rows;
       r.label_h = lab; r.label_lines = md.compact ? 1 : sh.label_lines;
@@ -364,10 +377,17 @@ inline Choice choose(const Data &data, const Measure &m, int w, int h, const Wor
   for (float v : {data.solar_w, data.from_grid, data.to_grid, data.from_battery, data.to_battery, data.home}) values.push_back(power(v, words.decimal));
   for (auto &dv : data.devices) values.push_back(power(dv.w, words.decimal));
   if (!widest.empty()) values.push_back(widest);
-  const int listed = int(data.devices.size()) + (data.rest > 0 ? 1 : 0);
+  // What no device measures, as Home Assistant's sankey draws it: the house less every device and Other, from 1 W
+  // (untrackedFloor). A house without a measured device keeps it in its own number: it would only repeat the house.
+  float measured = data.rest;
+  for (auto &dv : data.devices) measured += dv.w;
+  const float untracked = data.home - measured;
+  const bool tracks = measured > 0 && untracked > 1;
+  if (tracks) values.push_back(power(untracked, words.decimal));
+  const int listed = int(data.devices.size()) + (data.rest > 0 ? 1 : 0) + (tracks ? 1 : 0);
   std::string shape = std::to_string(w) + 'x' + std::to_string(h) + char('0' + data.solar) + char('0' + data.grid) +
-                      char('0' + data.battery) + char(data.soc >= 0 ? 's' : '-') + char(data.rest > 0 ? 'o' : '-') + words.decimal;
-  for (auto *word : {&words.solar, &words.grid, &words.battery, &words.home, &words.other}) shape += '\n' + *word;
+                      char('0' + data.battery) + char(data.soc >= 0 ? 's' : '-') + char(data.rest > 0 ? 'o' : '-') + char(tracks ? 'u' : '-') + words.decimal;
+  for (auto *word : {&words.solar, &words.grid, &words.battery, &words.home, &words.other, &words.untracked}) shape += '\n' + *word;
   for (auto &dv : data.devices) shape += '\n' + dv.name;
   // The room a fit gives its numbers: the widest of them in the value's face, at least "8.8 kW" (fit() below).
   auto room = [&](const Fit &x) {
@@ -376,13 +396,13 @@ inline Choice choose(const Data &data, const Measure &m, int w, int h, const Wor
     for (auto &v : values) r = std::max(r, m.width(f, v));
     return r;
   };
-  auto shown_for = [&](int n) {
+  auto devices_for = [&](int n) {
     std::vector<Device> out;
     const int total = int(data.devices.size());
     if (n <= 0) return out;
-    if (listed <= n) {
+    if (total + (data.rest > 0 ? 1 : 0) <= n || total == 0) {
       out.assign(data.devices.begin(), data.devices.end());
-      if (data.rest > 0) out.push_back({words.other, "", ICON_OTHER, data.rest});
+      if (data.rest > 0) out.push_back({words.other, "", ICON_OTHER, data.rest, true});
       return out;
     }
     // The biggest keep a place, in the order they came (Home Assistant's): the smallest share the last as Other, at
@@ -394,10 +414,23 @@ inline Choice choose(const Data &data, const Measure &m, int w, int h, const Wor
     std::vector<int> kept(by_size.begin(), by_size.begin() + std::min(n - 1, total));
     std::sort(kept.begin(), kept.end());
     for (int i : kept) out.push_back(data.devices[i]);
-    Device other{words.other, "", ICON_OTHER, data.rest};
+    Device other{words.other, "", ICON_OTHER, data.rest, true};
     for (int k = n - 1; k < total; ++k) other.w += data.devices[by_size[k]].w;
     out.push_back(other);
     return out;
+  };
+  // Untracked consumption keeps the last place, as Home Assistant's sankey puts it after every device; the devices
+  // share the places before it, where they all fit or with Other for the rest. Two places for more devices than one
+  // stay the biggest and Other: the devices would otherwise go missing from a sum that is meant to add up.
+  auto shown_for = [&](int n) {
+    std::vector<Device> out;
+    const int own = int(data.devices.size()) + (data.rest > 0 ? 1 : 0);
+    if (tracks && n >= 2 && (n >= 3 || own <= n - 1)) {
+      out = devices_for(n - 1);
+      out.push_back({words.untracked, "", ICON_UNTRACKED, untracked, true});
+      return out;
+    }
+    return devices_for(n);
   };
   bool cut = false;
   auto names_fit = [&](const Fit &x, const std::vector<Device> &shown) {
@@ -417,7 +450,8 @@ inline Choice choose(const Data &data, const Measure &m, int w, int h, const Wor
     return c;
   };
   Shape sh;
-  sh.lines = data.battery ? 3 : data.grid ? 2 : 1;
+  sh.lines = data.battery || data.grid ? 2 : 1;
+  sh.charge = data.battery && data.soc >= 0;
   for (int attempt = 0; attempt < 2; ++attempt, cut = true)
   for (int n = std::min(4, listed); n >= (cut ? 0 : 1); --n) {
     const auto shown = shown_for(n);
@@ -561,12 +595,14 @@ inline Scene build(const Data &data, const Measure &m, int w, int h, const Words
     if (data.g2b > data.b2g) flow(path, Paint::GRID_IN, data.g2b, true);
     else flow(path, data.b2g > 0 ? Paint::GRID_OUT : Paint::GRID_IN, data.b2g);
   }
+  // A device takes the colour of its place; Other and Untracked consumption are grey, as in Home Assistant's sankey.
   const Paint device_paint[4] = {Paint::DEVICE0, Paint::DEVICE1, Paint::DEVICE2, Paint::DEVICE3};
+  auto paint_of = [&](size_t i) { return dev[i].rest ? Paint::REST : device_paint[i]; };
   for (size_t i = 0; i < dev.size(); ++i) {
     const P s = Lslot[i];
-    if (i == 0) flow(straight({Lhome.x, Lhome.y - edge(0)}, {s.x, s.y + edge(0)}), device_paint[i], dev[i].w);
-    else if (i == 1) flow(straight({Lhome.x, Lhome.y + edge(0)}, {s.x, s.y - edge(0)}), device_paint[i], dev[i].w);
-    else flow(bend(s, s.x, g.snap(Lhome.y + (i == 2 ? -od : od)), Lhome), device_paint[i], dev[i].w, true);
+    if (i == 0) flow(straight({Lhome.x, Lhome.y - edge(0)}, {s.x, s.y + edge(0)}), paint_of(i), dev[i].w);
+    else if (i == 1) flow(straight({Lhome.x, Lhome.y + edge(0)}, {s.x, s.y - edge(0)}), paint_of(i), dev[i].w);
+    else flow(bend(s, s.x, g.snap(Lhome.y + (i == 2 ? -od : od)), Lhome), paint_of(i), dev[i].w, true);
   }
 
   // Circles and their words.
@@ -587,24 +623,33 @@ inline Scene build(const Data &data, const Measure &m, int w, int h, const Words
     for (auto &line : v) { sc.texts.push_back({line, st.label, x, y, name_w, true, Paint::MUTED}); y += lh; }
   };
   struct Value { std::string arrow, text; Paint paint; };
-  // A number in a name's place (the compact step): arrow and number in the flow's colour.
-  auto value_label = [&](P at, bool top, const Value &v) {
+  // A number in a name's place (the compact step): arrow and number in the flow's colour, after the battery's charge.
+  auto value_label = [&](P at, bool top, const Value &v, const std::string &charge) {
     const int lh = m.line[st.value];
+    const int cw = charge.empty() ? 0 : m.width(st.value, charge) + ui::px(6);
     const int aw = v.arrow.empty() ? 0 : m.width(st.arrow, v.arrow) + gap, tw = m.width(st.value, v.text);
-    const int x = std::max(0, std::min(w - aw - tw - 2, int(std::lround(at.x - (aw + tw) / 2.f))));
+    const int x = std::max(0, std::min(w - cw - aw - tw - 2, int(std::lround(at.x - (cw + aw + tw) / 2.f))));
     const int y = top ? int(at.y - rr) - ft.label_h : int(at.y + rr) + gap;
-    if (aw) sc.texts.push_back({v.arrow, st.arrow, x, y + (lh - m.line[st.arrow]) / 2, aw, false, v.paint});
-    sc.texts.push_back({v.text, st.value, x + aw, y, tw + 2, false, v.paint});
+    if (cw) sc.texts.push_back({charge, st.value, x, y, cw - ui::px(6) + 2, false, Paint::INK});
+    if (aw) sc.texts.push_back({v.arrow, st.arrow, x + cw, y + (lh - m.line[st.arrow]) / 2, aw, false, v.paint});
+    sc.texts.push_back({v.text, st.value, x + cw + aw, y, tw + 2, false, v.paint});
   };
-  // A circle's inside: the charge, the icon and the lines, centred as one block (the card's flex column).
-  auto inside = [&](P c, const std::string &icon, Paint icon_paint, const std::vector<Value> &rows, const std::string &top) {
+  // A circle's inside: the icon and the lines, centred as one block (the card's flex column). The battery's charge
+  // stands beside its glyph in one row, as Home Assistant's energy distribution card shows it (.battery-soc).
+  auto inside = [&](P c, const std::string &icon, Paint icon_paint, const std::vector<Value> &rows, const std::string &charge) {
     const int vh = m.line[st.value], ih = m.line[st.icon];
-    const int block = ih + int(rows.size()) * vh + (top.empty() ? 0 : vh);
+    const int head = charge.empty() ? ih : std::max(ih, vh);
+    const int block = head + int(rows.size()) * vh;
     int y = int(std::lround(c.y - block / 2.f));
-    const int x0 = int(std::lround(c.x - rr)) + 1;
-    if (!top.empty()) { sc.texts.push_back({top, st.value, x0, y, d - 2, true, Paint::INK}); y += vh; }
-    sc.texts.push_back({icon, st.icon, x0, y, d - 2, true, icon_paint});
-    y += ih;
+    if (charge.empty()) {
+      sc.texts.push_back({icon, st.icon, int(std::lround(c.x - rr)) + 1, y, d - 2, true, icon_paint});
+    } else {
+      const int iw = m.width(st.icon, icon), cw = m.width(st.value, charge);
+      const int x = int(std::lround(c.x - (iw + gap + cw) / 2.f));
+      sc.texts.push_back({icon, st.icon, x, y + (head - ih) / 2, iw + 2, false, icon_paint});
+      sc.texts.push_back({charge, st.value, x + iw + gap, y + (head - vh) / 2, cw + 2, false, Paint::INK});
+    }
+    y += head;
     for (auto &r : rows) {
       const int aw = r.arrow.empty() ? 0 : m.width(st.arrow, r.arrow) + gap, tw = m.width(st.value, r.text);
       const int x = int(std::lround(c.x - (aw + tw) / 2.f));
@@ -614,13 +659,13 @@ inline Scene build(const Data &data, const Measure &m, int w, int h, const Words
     }
   };
   auto place = [&](P c, const std::string &icon, Paint icon_paint, std::vector<Value> rows, const std::string &label,
-                   bool top, const std::string &soc = "") {
+                   bool top, const std::string &charge = "") {
     if (ft.mode.compact) {
       inside(c, icon, icon_paint, {}, "");
-      if (!rows.empty()) value_label(c, top, rows.front());
+      if (!rows.empty()) value_label(c, top, rows.front(), charge);
       return;
     }
-    inside(c, icon, icon_paint, rows, soc);
+    inside(c, icon, icon_paint, rows, charge);
     if (!label.empty()) name(label, c, top);
   };
   auto circle = [&](P c, int b, Paint p, const std::string &entity) { sc.circles.push_back({c, d, b, p, entity}); };
@@ -646,10 +691,11 @@ inline Scene build(const Data &data, const Measure &m, int w, int h, const Words
     if (ft.mode.both || data.to_battery > 0) rows.push_back({down_a, power(data.to_battery, words.decimal), Paint::BATTERY_IN});
     if (ft.mode.both || data.from_battery > 0) rows.push_back({up_a, power(data.from_battery, words.decimal), Paint::BATTERY_OUT});
     const std::string soc = data.soc >= 0 ? std::to_string(data.soc) + words.percent : "";
-    // At rest: "0 W" under the charge, or the charge alone where the circle has one line.
-    if (rows.empty()) rows.push_back({"", (ft.mode.one || ft.mode.compact) && !soc.empty() ? soc : power(0, words.decimal), Paint::INK});
+    const std::string charge = ft.mode.charge ? soc : "";
+    // At rest: "0 W"; the charge alone in the number's place where the form has no room for it beside the glyph.
+    if (rows.empty()) rows.push_back({"", charge.empty() && !soc.empty() ? soc : power(0, words.decimal), Paint::INK});
     if (ft.mode.one) for (auto &r : rows) r.arrow.clear();
-    place(battery, utf8(battery_glyph(data.soc)), Paint::INK, rows, words.battery, false, ft.mode.one ? "" : soc);
+    place(battery, utf8(battery_glyph(data.soc)), Paint::INK, rows, words.battery, false, charge);
   }
   {  // The house: a ring in its sources' shares instead of a border; with no sun, Home Assistant's plain border.
     const float total = data.g2h + data.s2h + data.b2h;
@@ -671,9 +717,9 @@ inline Scene build(const Data &data, const Measure &m, int w, int h, const Words
     place(home, utf8(ICON_HOME), Paint::INK, {{"", power(data.home, words.decimal), Paint::INK}}, dev.size() <= 1 ? words.home : "", false);
   }
   for (size_t i = 0; i < dev.size(); ++i) {
-    circle(slot[i], border, device_paint[i], dev[i].entity);
+    circle(slot[i], border, paint_of(i), dev[i].entity);
     const bool top = !ft.vertical && (i == 0 || i == 2);
-    place(slot[i], utf8(dev[i].icon ? dev[i].icon : ICON_FLASH), device_paint[i], {{"", power(dev[i].w, words.decimal), Paint::INK}}, dev[i].name, top);
+    place(slot[i], utf8(dev[i].icon ? dev[i].icon : ICON_FLASH), paint_of(i), {{"", power(dev[i].w, words.decimal), Paint::INK}}, dev[i].name, top);
   }
   return sc;
 }

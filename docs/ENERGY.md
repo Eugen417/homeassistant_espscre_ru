@@ -25,7 +25,7 @@ The add-on asks Home Assistant for its Energy settings (`energy/get_prefs`) and 
 - solar counts only while it produces;
 - the grid splits into import and export, and the batteries into discharge and charge;
 - the flows between them are routed in Home Assistant's order;
-- a device under 0.1 % of the house is left out, as the sankey's threshold does.
+- a device under 0.1 % of the house has no place of its own, as the sankey's threshold does, and counts in Other.
 
 A device is named as Home Assistant names it in the Energy view: its display name there, else the sensor's name. Its icon
 is the sensor's own, else a lightning bolt. The house is named after the home, its name in Home Assistant
@@ -68,8 +68,19 @@ It turns the diagram upright when that leaves bigger circles, which is how a scr
 four devices. When there are more devices than places, the biggest keep a place and the smallest share the last one as
 Other, at least two of them, as Home Assistant's sankey groups its smallest devices. The devices that keep a place stand
 in the order of the Energy settings, as Home Assistant shows them.
-What no device measures stays in the house's own number, as in power-flow-card-plus; Home Assistant's sankey draws it
-as a node of its own ("Untracked consumption"), which a card of four places has no room for.
+
+What no device measures is Untracked consumption, as Home Assistant's sankey draws it (`common/sankey.ts`): the house
+less every device and Other, shown from 1 W, in the last place. The devices, Other and it add up to the house. It takes
+a place where the devices before it all fit, or from three places on with Other beside it; two places for more devices
+than one stay the biggest and Other, so no device goes missing from the sum. The card works it out from the moment it
+has; a house without a measured device keeps it in the house's own number, where a circle of its own would only repeat
+it. Its name is Home Assistant's short word for it (`energy_devices_detail_graph.untracked`, "Untracked"), which fits
+where a device's name fits; the long one takes two lines that a card seldom has. Other and Untracked are grey, Home
+Assistant's `--state-unavailable-color`, and have no sensor, so a tap on them does nothing.
+
+The battery's charge stands beside its glyph, as Home Assistant's energy distribution card shows it. In the compact form,
+whose circles hold their icon alone, it stands before the battery's number under the circle. Only where even that does
+not fit is the glyph, which fills with the charge, left to show it; no card the editor offers is that small.
 
 A device's name wraps to two lines before the card drops a device. Only when no device fits with its whole name are the
 names cut with three dots, as power-flow-card-plus cuts them.
@@ -110,7 +121,7 @@ read by `page_receiver.cpp`):
 | `e`, `u` | the sensor behind each source (solar, grid, battery), or the key of their sum, and its state and unit, for the history card |
 | `d` | the eight biggest devices at most, in the order of the Energy settings: name `n`, sensor `e`, icon `i`, power `w`, state `s`, unit `u` |
 | `n` | the home's name in Home Assistant |
-| `o` | the power of the devices beyond those eight |
+| `o` | the power of the devices beyond those eight and of those under 0.1 % of the house (Other) |
 
 ## Memory
 

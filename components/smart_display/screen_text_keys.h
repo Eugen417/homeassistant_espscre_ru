@@ -400,8 +400,9 @@ constexpr uint16_t energy_grid = 435;
 constexpr uint16_t energy_battery = 436;
 constexpr uint16_t energy_home = 437;
 constexpr uint16_t energy_other = 438;
-constexpr uint16_t energy_no_power = 439;
-constexpr uint16_t plugin_missing = 440;
+constexpr uint16_t energy_untracked = 439;
+constexpr uint16_t energy_no_power = 440;
+constexpr uint16_t plugin_missing = 441;
 constexpr uint16_t date_weekdays = 18;
 constexpr uint16_t date_weekdays_count = 7;
 constexpr uint16_t date_weekdays_short = 25;
@@ -413,6 +414,6 @@ constexpr uint16_t date_months_count = 12;
 constexpr uint16_t date_months_short = 51;
 constexpr uint16_t date_months_short_count = 12;
 }  // namespace txt
-constexpr uint16_t KEY_COUNT = 441;
-constexpr uint32_t KEYS_HASH = 0x589D7824u;
+constexpr uint16_t KEY_COUNT = 442;
+constexpr uint32_t KEYS_HASH = 0xEA08138Du;
 }  // namespace screen_text
