@@ -8401,6 +8401,10 @@ inline void boot_status(lv_obj_t *page, const char *text, bool waiting = true, b
   } else {
     lv_obj_remove_flag(boot_panel, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_style_bg_opa(boot_panel, LV_OPA_TRANSP, 0);
+    // Back under the tiles after a cover (a layout that stopped on its way): a see-through panel over them would lay
+    // its words across the cards.
+    if (room_label && lv_obj_get_index(boot_panel) > lv_obj_get_index(room_label))
+      lv_obj_move_to_index(boot_panel, lv_obj_get_index(room_label));
   }
   if (boot_spinner) set_hidden(boot_spinner, !waiting);
   if (strcmp(lv_label_get_text(boot_text), text) != 0) lv_label_set_text(boot_text, text);
@@ -8725,8 +8729,11 @@ inline void render(lv_obj_t *room) {
   }
   if (!model.configured && !model.refusal.empty()) boot_status(lv_obj_get_parent(room), tr(txt::tile_refused), false);
   else if (!model.configured) {
+    // A layout on its way (transfer.begun) covers everything until it is complete and its pages are prepared: the
+    // cards of the new layout are drawn as their tiles arrive, and through a see-through screen they showed one by
+    // one over the words, with the page flickering under them.
     const auto view = boot_view(esphome::millis());
-    boot_status(lv_obj_get_parent(room), view.title.c_str(), view.steps.empty(), false, view.facts, view.hint, std::string(), view.steps);
+    boot_status(lv_obj_get_parent(room), view.title.c_str(), view.steps.empty(), transfer.begun, view.facts, view.hint, std::string(), view.steps);
   }
   else if (preparing.foreground) prepare_status();
   else if (boot_panel) boot_forget();
@@ -9574,7 +9581,6 @@ inline bool prepare_idle(uint32_t now, uint32_t quiet) {
   auto *input = lv_indev_get_next(nullptr);
   return !(input && lv_indev_get_state(input) == LV_INDEV_STATE_PRESSED);
 }
-inline bool prepared_once = false;  // the first layout since the start was prepared on screen
 inline uint32_t prepare_built_at = 0, last_freshen = 0;
 inline void prepare_done() {
   const bool shown = preparing.foreground;
@@ -9582,7 +9588,7 @@ inline void prepare_done() {
   if (preparing.timer) lv_timer_set_period(preparing.timer, 300);  // from now on: kept pages up to date, when idle
   ESP_LOGI("kept", "pages prepared: %u of %u, PSRAM free %u B", preparing.done, preparing.total, (unsigned) psram_free());
   // The render takes the "Preparing pages" screen away; the header alone, as nothing on the cards changed.
-  if (shown) { prepared_once = true; refresh_header_only(); }
+  if (shown) refresh_header_only();
 }
 inline void prepare_step(lv_timer_t *) {
   if (protocol_problem != ProtocolProblem::none || !transfer.active || !model.ready()) return;
@@ -9613,22 +9619,24 @@ inline void prepare_step(lv_timer_t *) {
   last_freshen = esphome::millis();
   ESP_LOGD("kept", "page %d brought up to date in %u ms", page + 1, (unsigned) (last_freshen - now));
 }
-// A layout was applied: build its other pages, the first time since the start on screen, afterwards in
-// the background; from then on kept pages are brought up to date while the screen is idle. A board that keeps no
-// pages (the CYD) builds each page when it is shown, as before.
+// A layout was applied: build its other pages under the "Preparing pages" screen, which goes the moment they are
+// ready, so the glass shows the loading screen and then the finished layout and nothing in between (every layout;
+// before, only the first since the start was, and a save in the editor flickered). From then on
+// kept pages are brought up to date while the screen is idle. A board that keeps no pages (the CYD) builds each page
+// when it is shown, as before.
 inline void prepare_start() {
   const unsigned pages = page_count();
   if (!room_label || applied_page < 0 || pages < 2 || !kept_capacity()) return;
   preparing.active = true;
-  preparing.foreground = !prepared_once;
+  preparing.foreground = true;
   preparing.done = 0;
   preparing.total = pages - 1;
   prepare_built_at = 0;
   if (!preparing.timer) preparing.timer = lv_timer_create(prepare_step, 10, nullptr);
-  lv_timer_set_period(preparing.timer, preparing.foreground ? 10 : 300);
+  lv_timer_set_period(preparing.timer, 10);
   lv_timer_reset(preparing.timer);
-  ESP_LOGI("kept", "preparing %u pages %s", preparing.total, preparing.foreground ? "before the first page opens" : "in the background");
-  if (preparing.foreground) prepare_status();
+  ESP_LOGI("kept", "preparing %u pages before the first page opens", preparing.total);
+  prepare_status();
 }
 // Another layout is on its way: its pages are built once it is complete (prepare_start).
 inline void prepare_cancel() {

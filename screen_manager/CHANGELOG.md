@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **A save shows a loading screen, then the new layout.** When you save in the editor, the screen now covers itself
+  with the loading screen while the new tiles arrive and its pages are prepared, and then shows the finished layout in
+  one step. Before, the new tiles appeared one by one over the loading text and the page flickered.
 - **Every build shows, wherever you look.** Whatever is building a screen, an update, plugins or an install from
   Firmware & USB, now turns in the list of screens and shows its progress in Settings, Updates, with the build log one
   click away. A build that failed keeps its log until the next one, so you can read why. Copying the installer's log
