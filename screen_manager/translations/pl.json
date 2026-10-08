@@ -1390,6 +1390,9 @@
         "reconnecting": "Ponowne łączenie z Home Assistant…"
       },
       "search": "Szukaj",
+      "fold": "Zwiń pasek boczny",
+      "unfold": "Rozwiń pasek boczny",
+      "resize": "Szerokość paska bocznego: przeciągnij lub użyj strzałek; kliknij dwukrotnie, aby przywrócić",
       "screens": "Ekrany",
       "refresh": "Odśwież",
       "update": {

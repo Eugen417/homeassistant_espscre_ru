@@ -1390,6 +1390,9 @@
         "reconnecting": "Újracsatlakozás a Home Assistanthoz…"
       },
       "search": "Keresés",
+      "fold": "Oldalsáv összecsukása",
+      "unfold": "Oldalsáv kinyitása",
+      "resize": "Az oldalsáv szélessége: húzd, vagy használd a nyílbillentyűket; dupla kattintással visszaáll",
       "screens": "Kijelzők",
       "refresh": "Frissítés",
       "update": {

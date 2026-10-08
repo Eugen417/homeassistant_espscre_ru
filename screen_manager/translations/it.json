@@ -1390,6 +1390,9 @@
         "reconnecting": "Riconnessione a Home Assistant…"
       },
       "search": "Cerca",
+      "fold": "Comprimi la barra laterale",
+      "unfold": "Espandi la barra laterale",
+      "resize": "Larghezza della barra laterale: trascina o usa le frecce; doppio clic per ripristinare",
       "screens": "Schermi",
       "refresh": "Ricarica",
       "update": {

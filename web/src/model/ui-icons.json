@@ -28,6 +28,7 @@
   "crosshairs-gps": "F01A4",
   "database-search-outline": "F1636",
   "delete-outline": "F09E7",
+  "dock-left": "F10AA",
   "dots-horizontal": "F01D8",
   "drag": "F01DB",
   "drag-vertical": "F01DD",
@@ -78,9 +79,10 @@
   "view-column-outline": "F1487",
   "view-dashboard-outline": "F0A1D",
   "view-grid-outline": "F11D9",
-  "wifi-strength-off-outline": "F092E",
+  "wifi-off": "F05AA",
   "wifi-strength-1": "F091F",
   "wifi-strength-2": "F0922",
   "wifi-strength-3": "F0925",
-  "wifi-strength-4": "F0928"
+  "wifi-strength-4": "F0928",
+  "wifi-strength-off-outline": "F092E"
 }

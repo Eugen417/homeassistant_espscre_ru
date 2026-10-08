@@ -14,6 +14,7 @@ import OverrideView from "./components/OverrideView.vue";
 import PluginsView from "./components/PluginsView.vue";
 import { pluginsEnabled } from "./plugin-state";
 import { currentScreen, phone, route, state } from "./store";
+import { sideWidth, sidebar } from "./sidebar-state";
 
 const view = computed(() => {
   if (route.value === "#settings") return AppSettingsView;
@@ -35,7 +36,8 @@ onBeforeUnmount(() => document.removeEventListener("keydown", onKey));
 </script>
 
 <template>
-  <div class="app" :class="{ dragging: state.drag.active, phone }">
+  <div class="app" :class="{ dragging: state.drag.active, phone, 'side-folded': sidebar.folded, 'side-resizing': sidebar.resizing }"
+    :style="{ '--side-w': `${sideWidth()}px` }">
     <!-- On a phone the overview and a screen carry their own way around (app 0.4.40): the sidebar's row stays for the rest. -->
     <Sidebar v-if="!(phone && route === '')" />
     <main class="main">

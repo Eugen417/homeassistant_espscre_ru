@@ -1390,6 +1390,9 @@
         "reconnecting": "Verbinding met Home Assistant herstellen…"
       },
       "search": "Zoeken",
+      "fold": "Zijbalk inklappen",
+      "unfold": "Zijbalk uitklappen",
+      "resize": "Breedte van de zijbalk: sleep, of gebruik de pijltjestoetsen; dubbelklik om te herstellen",
       "screens": "Schermen",
       "refresh": "Vernieuwen",
       "update": {

@@ -45,19 +45,60 @@ a:hover { text-decoration: underline; }
 [hidden] { display: none !important; }
 
 /* ---- Shell ---- */
-.app { display: grid; grid-template-columns: 248px minmax(0, 1fr); height: 100%; min-height: 100vh; }
+/* The sidebar's width is the page's (sidebar-state.ts, app 0.4.85): dragged by its edge, or folded to its icons. */
+.app { display: grid; grid-template-columns: var(--side-w, 248px) minmax(0, 1fr); height: 100%; min-height: 100vh; transition: grid-template-columns 0.16s ease; }
+.app.side-resizing { transition: none; cursor: col-resize; user-select: none; -webkit-user-select: none; }
 .app.dragging { user-select: none; -webkit-user-select: none; cursor: grabbing; }
 .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 
 /* Sidebar */
-.side { background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 14px 10px; gap: 4px; min-height: 0; overflow: auto; position: sticky; top: 0; height: 100vh; }
+.side { background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 14px 10px; gap: 4px; min-height: 0; overflow: auto; position: sticky; top: 0; height: 100vh; z-index: 25; }
+/* A layer of its own above the page, so its edge (.side-resize, inside it) is above the canvas beside it too. */
 /* The logo is the way home (app 0.4.0): the overview of every screen, the page shown with nothing selected. */
 .brand { display: flex; align-items: center; gap: 9px; height: 34px; padding: 0 8px; font-weight: 600; font-size: 13px; text-align: left; border-radius: 10px; }
 .brand:hover { background: var(--surface-2); }
 .brand .mark { width: 22px; height: 22px; flex: none; }
+.brand .txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The logo and, beside it, the button that folds the sidebar to its icons: quiet until the sidebar is pointed at. */
+.side-top { display: flex; align-items: center; gap: 2px; }
+.side-top .brand { flex: 1; min-width: 0; }
+.side-fold { flex: none; width: 28px; height: 28px; border-radius: 7px; font-size: 17px; color: var(--muted); opacity: 0; transition: opacity 0.12s; }
+.side:hover .side-fold, .side-fold:focus-visible, .side-fold[aria-pressed="true"] { opacity: 1; }
+.side-fold:hover { background: var(--surface-2); color: var(--ink); }
+/* The edge: a strip as wide as a finger's aim, a line in the accent while it is pointed at or dragged. */
+.side-resize { position: fixed; top: 0; bottom: 0; left: calc(var(--side-w, 248px) - 4px); width: 8px; cursor: col-resize; z-index: 30; touch-action: none; }
+.side-resize::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; background: transparent; transition: background 0.12s; }
+.side-resize:hover::after, .side-resize:focus-visible::after, .app.side-resizing .side-resize::after { background: var(--accent); }
+.side-resize:focus-visible { outline: none; }
+.side .search-btn .txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side .more .nav-item .txt { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Folded (app 0.4.85): one column of icons, every row's words in its tooltip. Only on a wide page; a narrow one keeps
+   its row of screens. */
+@media (min-width: 961px) {
+  .side-folded .side { padding: 14px 8px; align-items: stretch; overflow-x: hidden; }
+  .side-folded .side-top { flex-direction: column; gap: 4px; }
+  .side-folded .brand { justify-content: center; padding: 0; flex: none; width: 100%; }
+  .side-folded .brand .txt, .side-folded .conn-text, .side-folded .search-btn .txt, .side-folded .search-btn kbd,
+  .side-folded .label-row > span, .side-folded .label-row #refresh, .side-folded .screen-item .name, .side-folded .screen-item .sub,
+  .side-folded .screen-item .unsaved, .side-folded .row-end, .side-folded .side .more .nav-item .txt { display: none; }
+  .side-folded .side-fold { width: 100%; }
+  .side-folded .conn { justify-content: center; padding: 4px 0; }
+  .side-folded .search-btn, .side-folded .nav-item { justify-content: center; padding: 0; gap: 0; }
+  .side-folded .label-row { justify-content: center; padding: 10px 0 4px; }
+  .side-folded .screen-item .nav-item, .side-folded .screen-item.update .nav-item { padding: 0; position: relative; }
+  .side-folded .screen-item .spin, .side-folded .screen-item .sub-icon { position: absolute; top: 3px; right: 6px; }
+  .side-folded .screen-item .sub-icon { font-size: 12px; }
+  .side-folded .screen-item .spin.small { width: 9px; height: 9px; }
+  .side-folded .fold-badge { position: absolute; top: 5px; right: 9px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--surface); }
+  .side-folded .fold-badge.waiting { background: var(--warn); }
+  /* The unsaved dot of the open screen, on its icon. */
+  .side-folded .screen-item.selected .nav-item:has(.unsaved)::after { content: ""; position: absolute; bottom: 5px; right: 9px; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 0 2px var(--surface); }
+  .side-folded .pending-folded { color: var(--muted); }
+}
 /* Only while something is wrong: unreachable, or reconnecting. Connected says nothing. */
-.conn { display: block; padding: 0 8px 8px; font-size: 11px; color: var(--warn); }
-.conn::before { content: "●"; margin-right: 6px; }
+.conn { display: flex; align-items: center; gap: 6px; padding: 0 8px 8px; font-size: 11px; color: var(--warn); min-width: 0; }
+.conn .conn-icon { flex: none; font-size: 14px; }
+.conn .conn-text { min-width: 0; }
 /* A section's name in sentence case, as Notion and the Finder name theirs; its own buttons sit at its right. */
 .side .label { font-size: 11.5px; font-weight: 600; color: var(--muted); padding: 14px 8px 4px; }
 .side .label-row { display: flex; align-items: center; gap: 2px; padding-right: 4px; }
@@ -808,6 +849,7 @@ td code { white-space: nowrap; }
   .app { grid-template-columns: 1fr; min-height: 100vh; }
   .side { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; border-right: 0; border-bottom: 1px solid var(--line); padding: 10px; gap: 4px 6px; }
   .side .label, .side .spacer, .conn { display: none; }
+  .side-fold, .side-resize { display: none; }
   /* On a narrow page the sidebar is a row: New screen and Refresh stay, as buttons among the screens (app 0.4.32). */
   .side .label.label-row { display: flex; order: 99; padding: 0; }
   .side .label-row > span { display: none; }
@@ -1183,6 +1225,7 @@ section.advanced code { font-size: 11.5px; }
    under the screen's menu. Every rule here hangs on that class or on an element only a phone draws, so a wider page
    keeps every pixel it had. Text fields stay at 16px: a smaller one makes iOS zoom the page on focus. */
 .app.phone { grid-template-columns: minmax(0, 1fr); height: auto; min-height: 100vh; background: var(--ground); }
+.app.phone .side-fold, .app.phone .side-resize { display: none; }
 .app.phone input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), .app.phone textarea, .app.phone select { font-size: 16px; }
 .app.phone .main-head { position: static; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "back more" "title title"; gap: 2px 8px; min-height: 0;
   padding: 6px 12px 6px 8px; border-bottom: 0; background: transparent; }

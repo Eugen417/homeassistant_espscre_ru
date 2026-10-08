@@ -1390,6 +1390,9 @@
         "reconnecting": "Verbinde erneut mit Home Assistant…"
       },
       "search": "Suchen",
+      "fold": "Seitenleiste einklappen",
+      "unfold": "Seitenleiste ausklappen",
+      "resize": "Breite der Seitenleiste: ziehen oder Pfeiltasten verwenden; Doppelklick setzt sie zurück",
       "screens": "Bildschirme",
       "refresh": "Neu laden",
       "update": {

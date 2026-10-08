@@ -1390,6 +1390,9 @@
         "reconnecting": "Reconnecting to Home Assistant…"
       },
       "search": "Search",
+      "fold": "Collapse sidebar",
+      "unfold": "Expand sidebar",
+      "resize": "Resize sidebar: drag, or use the arrow keys; double-click to reset",
       "screens": "Screens",
       "refresh": "Refresh",
       "update": {
