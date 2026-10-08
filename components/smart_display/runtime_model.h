@@ -102,8 +102,9 @@ constexpr size_t dim_max(size_t a, size_t b, size_t c, size_t d) {
 }
 constexpr size_t DIM_MAX = dim_max(GRID_MAX_COLUMNS, GRID_MAX_ROWS, GRID_MAX_COLUMNS_PORTRAIT, GRID_MAX_ROWS_PORTRAIT);
 static_assert(GRID_COLS >= 1 && GRID_ROWS >= 1 && GRID_COLS_PORTRAIT >= 1 && GRID_ROWS_PORTRAIT >= 1, "a grid needs a cell");
-static_assert(GRID_RANGES[0].takes(GRID_COLS, GRID_ROWS) && GRID_RANGES[1].takes(GRID_COLS_PORTRAIT, GRID_ROWS_PORTRAIT),
-              "the board's own grid lies between GRID_MIN_* and GRID_MAX_*");
+// The board's own grid lies between GRID_MIN_* and GRID_MAX_*, each way.
+constexpr bool OWN_GRIDS_TAKEN = GRID_RANGES[0].takes(GRID_COLS, GRID_ROWS) && GRID_RANGES[1].takes(GRID_COLS_PORTRAIT, GRID_ROWS_PORTRAIT);
+static_assert(OWN_GRIDS_TAKEN, "the board's own grid is out of its range");
 // The editor's preview holds eight by eight (web/wasm/build.py), and a size goes as "CxR" with one digit each.
 static_assert(DIM_MAX <= 8, "at most eight columns and eight rows");
 static_assert(CELLS_MAX <= TILES_MAX, "a page holds at most as many cells as a screen holds tiles");

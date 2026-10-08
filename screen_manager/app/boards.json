@@ -194,12 +194,7 @@
   "can_standby": true,
   "catalog": {
    "calibrate": false,
-   "choices": {
-    "GRID_ROWS": [
-     "3",
-     "4"
-    ]
-   },
+   "choices": {},
    "inch": 4.0,
    "model": "ESP32-S3-4848S040",
    "name": "Guition",
@@ -744,14 +739,7 @@
   "can_standby": true,
   "catalog": {
    "calibrate": false,
-   "choices": {
-    "GRID_ROWS": [
-     "5",
-     "6",
-     "7",
-     "8"
-    ]
-   },
+   "choices": {},
    "inch": 10.1,
    "model": "JC8012P4A1",
    "name": "Guition",
@@ -866,14 +854,7 @@
   "can_standby": true,
   "catalog": {
    "calibrate": false,
-   "choices": {
-    "GRID_ROWS": [
-     "5",
-     "6",
-     "7",
-     "8"
-    ]
-   },
+   "choices": {},
    "inch": 10.1,
    "model": "JC8012P4A1 V2",
    "name": "Guition",
@@ -988,14 +969,7 @@
   "can_standby": true,
   "catalog": {
    "calibrate": false,
-   "choices": {
-    "GRID_ROWS": [
-     "5",
-     "6",
-     "7",
-     "8"
-    ]
-   },
+   "choices": {},
    "inch": 10.1,
    "model": "JC8012P4A1 V3",
    "name": "Guition",
@@ -1225,12 +1199,7 @@
   "can_standby": true,
   "catalog": {
    "calibrate": false,
-   "choices": {
-    "GRID_ROWS": [
-     "3",
-     "4"
-    ]
-   },
+   "choices": {},
    "inch": 5.0,
    "model": "Tab5 ST7121",
    "name": "M5Stack Tab5",
@@ -2295,12 +2264,7 @@
   "can_standby": true,
   "catalog": {
    "calibrate": false,
-   "choices": {
-    "GRID_ROWS": [
-     "3",
-     "4"
-    ]
-   },
+   "choices": {},
    "inch": 4.0,
    "model": "ESP32-S3-4848S040",
    "name": "Guition",
@@ -2845,14 +2809,7 @@
   "can_standby": true,
   "catalog": {
    "calibrate": false,
-   "choices": {
-    "GRID_ROWS": [
-     "5",
-     "6",
-     "7",
-     "8"
-    ]
-   },
+   "choices": {},
    "inch": 10.1,
    "model": "JC8012P4A1",
    "name": "Guition",
@@ -2967,14 +2924,7 @@
   "can_standby": true,
   "catalog": {
    "calibrate": false,
-   "choices": {
-    "GRID_ROWS": [
-     "5",
-     "6",
-     "7",
-     "8"
-    ]
-   },
+   "choices": {},
    "inch": 10.1,
    "model": "JC8012P4A1 V2",
    "name": "Guition",
@@ -3089,14 +3039,7 @@
   "can_standby": true,
   "catalog": {
    "calibrate": false,
-   "choices": {
-    "GRID_ROWS": [
-     "5",
-     "6",
-     "7",
-     "8"
-    ]
-   },
+   "choices": {},
    "inch": 10.1,
    "model": "JC8012P4A1 V3",
    "name": "Guition",
@@ -3386,12 +3329,7 @@
   "can_standby": true,
   "catalog": {
    "calibrate": false,
-   "choices": {
-    "GRID_ROWS": [
-     "3",
-     "4"
-    ]
-   },
+   "choices": {},
    "inch": 4.0,
    "model": "ESP32-S3-4848S040",
    "name": "Guition",
@@ -3936,14 +3874,7 @@
   "can_standby": true,
   "catalog": {
    "calibrate": false,
-   "choices": {
-    "GRID_ROWS": [
-     "5",
-     "6",
-     "7",
-     "8"
-    ]
-   },
+   "choices": {},
    "inch": 10.1,
    "model": "JC8012P4A1",
    "name": "Guition",
@@ -4058,14 +3989,7 @@
   "can_standby": true,
   "catalog": {
    "calibrate": false,
-   "choices": {
-    "GRID_ROWS": [
-     "5",
-     "6",
-     "7",
-     "8"
-    ]
-   },
+   "choices": {},
    "inch": 10.1,
    "model": "JC8012P4A1 V2",
    "name": "Guition",
@@ -4180,14 +4104,7 @@
   "can_standby": true,
   "catalog": {
    "calibrate": false,
-   "choices": {
-    "GRID_ROWS": [
-     "5",
-     "6",
-     "7",
-     "8"
-    ]
-   },
+   "choices": {},
    "inch": 10.1,
    "model": "JC8012P4A1 V3",
    "name": "Guition",
@@ -4417,12 +4334,7 @@
   "can_standby": true,
   "catalog": {
    "calibrate": false,
-   "choices": {
-    "GRID_ROWS": [
-     "3",
-     "4"
-    ]
-   },
+   "choices": {},
    "inch": 5.0,
    "model": "Tab5 ST7121",
    "name": "M5Stack Tab5",
@@ -5427,12 +5339,7 @@
   "can_standby": true,
   "catalog": {
    "calibrate": false,
-   "choices": {
-    "GRID_ROWS": [
-     "3",
-     "4"
-    ]
-   },
+   "choices": {},
    "inch": 5.0,
    "model": "Tab5 ST7121",
    "name": "M5Stack Tab5",

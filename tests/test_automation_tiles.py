@@ -56,7 +56,8 @@ class TheApp(unittest.TestCase):
                 core.validate_layout(layout(entity, tap='run'))
         # The editor offers and validates the same choice, and the firmware reads the tap option as it is.
         self.assertEqual(catalogue.taps('automation'), [*catalogue.TILE['taps'], 'run'])
-        self.assertIn('[i.tap, catalogueTaps(domain)]', VALIDATION)
+        # (A plugin's tap action is the one exception, checked by the plugin's manifest: page-validation.ts.)
+        self.assertIn("? undefined : i.tap, catalogueTaps(domain)]", VALIDATION)
         self.assertIn('const keys = ["auto", "run", "none", "action"];', INSPECTOR)
         self.assertIn('tile.tap = string(options["tap"]);', RECEIVER)
         self.assertEqual(core.screen_options({'entity': 'automation.a', 'options': {'tap': 'run'}}, {})['tap'], 'run')

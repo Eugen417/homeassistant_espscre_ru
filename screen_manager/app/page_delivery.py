@@ -10,7 +10,7 @@ import json
 import re
 
 from core import (ENTITY_REPEAT_MIN_FIRMWARE, FIRMWARE_MAX_BAR_ITEMS, FIRMWARE_MAX_PAGES, FIRMWARE_MAX_TILES, FREE_PAGES_MIN_FIRMWARE,
-                  NIGHTSTAND_MIN_FIRMWARE, STORE_MAX_BAR_ITEMS, STORE_MAX_PAGES, STORE_MAX_TILES, is_key, repeated_entities)
+                  NIGHTSTAND_MIN_FIRMWARE, STORE_MAX_BAR_ITEMS, STORE_MAX_PAGES, STORE_MAX_TILES, is_key, repeated_entities, sizes_on)
 from page_layout import compile_tiles, fingerprint, grid_of_record, new_id
 from i18n import english
 
@@ -402,7 +402,10 @@ class Sender:
                     self.phase = "applying"
                     if await self._hello() != PROTOCOL:
                         raise Refused(english('editor.pages.update_notice'))
-                    if any(message["o"].get("size", "single") not in self.tile_sizes for message in initial_tiles):
+                    # A screen that takes the layout's grid (firmware 0.53.0+) takes that grid's sizes; its hello names
+                    # those of the grid it is on.
+                    sizes = sizes_on(grid_of_record(record)) if self.grids is not None else self.tile_sizes
+                    if any(message["o"].get("size", "single") not in sizes for message in initial_tiles):
                         raise Refused(english('addon.errors.pages.update_tall'))
                     if not self.tile_keys and any("in" in message for message in initial_tiles):
                         raise Refused(english('addon.errors.layout.firmware_first', version='.'.join(map(str, NIGHTSTAND_MIN_FIRMWARE))))

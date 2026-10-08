@@ -42,7 +42,8 @@ def _board(board):
     return f"{catalog.get('name', board)} {inch:g}-inch" if inch else catalog.get('name', board)
 
 def _grids():
-    """'2 × 3 on the CYD 2.8-inch, ...': the cells of a page lying down, the boards with the same grid together."""
+    """'2 × 3 on the CYD 2.8-inch, ...': the cells of a page lying down as each board is built, the boards with the same
+    grid together (a screen may be given another, firmware 0.53.0+: its sensor says the one it runs on)."""
     grids = {}
     for board in BOARD_KEYS:
         grids.setdefault((SHAPES[board]['columns'], SHAPES[board]['rows']), []).append(f'the {_board(board)}')
@@ -98,7 +99,7 @@ An alert is a card over the whole screen with an icon, a title, a subtitle and o
 
 ## Tiles on a screen
 
-A screen shows tiles on pages, and a page is a grid of cells whose columns and rows depend on the screen: {_grids()} lying down, and other grids standing up. A screen has at most {FIRMWARE_MAX_PAGES} pages and {FIRMWARE_MAX_TILES} tiles, one per cell, or more on a board with the memory for them (up to 24 pages and 128 tiles, or 16 pages and 256 tiles), and a heavy tile such as a forecast or a media player takes more of a screen's memory than a light, so a screen full of them holds fewer; firmware before {FULL_PAGE_VERSION} holds twenty tiles. The screen's own sensor (below) says its `columns`, `rows`, `max_pages` and `max_tiles`, so read it before counting, and an add that does not fit is refused with the reason. A tile is single, double-width or full-page: a double-width one takes two cells side by side, a full-page one takes a whole page of its own and is one big button, so someone can switch a light by pushing anywhere on the screen without looking. A `controls` choice, a small slider or a graph sits at the bottom of that page (a full-page tile shows no control unless you choose one).
+A screen shows tiles on pages, and a page is a grid of cells whose columns and rows depend on the screen: {_grids()} lying down, other grids standing up, or the grid its owner chose in the editor. A screen has at most {FIRMWARE_MAX_PAGES} pages and {FIRMWARE_MAX_TILES} tiles, one per cell, or more on a board with the memory for them (up to 24 pages and 128 tiles, or 16 pages and 256 tiles), and a heavy tile such as a forecast or a media player takes more of a screen's memory than a light, so a screen full of them holds fewer; firmware before {FULL_PAGE_VERSION} holds twenty tiles. The screen's own sensor (below) says its `columns`, `rows`, `max_pages` and `max_tiles`, so read it before counting, and an add that does not fit is refused with the reason. A tile is single, double-width or full-page: a double-width one takes two cells side by side, a full-page one takes a whole page of its own and is one big button, so someone can switch a light by pushing anywhere on the screen without looking. A `controls` choice, a small slider or a graph sits at the bottom of that page (a full-page tile shows no control unless you choose one).
 
 Fire one of these events and ESP Screens changes that screen and sends it right away, the same way its own editor does.
 

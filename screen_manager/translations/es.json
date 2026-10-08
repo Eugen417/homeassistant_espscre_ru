@@ -712,7 +712,7 @@
         "substitutions_managed": "Estas substitutions las sigue gestionando Tessera: {names}.",
         "substitutions_in_profile": "{names} está en el YAML propio de esta pantalla (elegido en Nueva pantalla), que tiene prioridad sobre el override. Cámbialo allí.",
         "orientation": "Elige si la pantalla queda en horizontal o en vertical.",
-        "orientation_managed": "Cómo queda colgada una pantalla se elige al compilarla, en Nueva pantalla; por eso Tessera sigue gestionando LVGL_ROTATION.",
+        "orientation_managed": "Cómo queda colgada una pantalla se elige en el editor, en Cuadrícula junto a las páginas, o al compilarla, en Nueva pantalla; por eso Tessera sigue gestionando LVGL_ROTATION.",
         "usb_port": "Elige de la lista el puerto USB conectado.",
         "busy_wait": "Ya hay una compilación o instalación en curso. Espera a que termine.",
         "busy": "Ya hay una compilación o instalación en curso.",
@@ -720,7 +720,8 @@
         "still_building": "El firmware aún se está compilando. Descárgalo cuando termine la compilación.",
         "build_first": "Compila antes el firmware; la descarga aparece cuando termina la compilación.",
         "unknown_action": "Acción de firmware desconocida.",
-        "host": "Introduce la dirección IP o el nombre de host de la pantalla que corresponda."
+        "host": "Introduce la dirección IP o el nombre de host de la pantalla que corresponda.",
+        "grid": "Elige una cuadrícula que esta pantalla admita."
       },
       "updates": {
         "automatic": "Elige si activar o desactivar las actualizaciones automáticas.",
@@ -2463,19 +2464,14 @@
         "calibration": "Calibración táctil al primer arranque"
       },
       "choice": {
-        "DISPLAY_MODEL": "Controlador de pantalla",
-        "GRID_ROWS": "Mosaicos por página"
+        "DISPLAY_MODEL": "Controlador de pantalla"
       },
       "choice_hint": {
-        "DISPLAY_MODEL": "La mayoría de estas placas llevan el primero. Elige el otro si la pantalla muestra ruido o una imagen distorsionada.",
-        "GRID_ROWS": "Más filas permiten mostrar más mosaicos en una página; menos filas mantienen los mosaicos más grandes y fáciles de leer."
+        "DISPLAY_MODEL": "La mayoría de estas placas llevan el primero. Elige el otro si la pantalla muestra ruido o una imagen distorsionada."
       },
       "choice_usual": "la mayoría",
-      "orientation": "¿Cómo la vas a colgar?",
       "orientation_landscape": "En horizontal",
       "orientation_portrait": "En vertical",
-      "orientation_tiles": "{n} mosaico por página | {n} mosaicos por página",
-      "orientation_hint": "Esto se elige al compilar la pantalla. Para colgarla del otro modo más adelante, vuelve a compilar la pantalla.",
       "name": "Nombre",
       "name_placeholder": "Pantalla del salón",
       "device_name": "Nombre del dispositivo",
@@ -2607,15 +2603,6 @@
         "change": "Cambiar Wi-Fi e instalar de nuevo",
         "failed": "Tessera no puede añadir {name} a Home Assistant por sí sola. Añádela tú mismo abajo."
       },
-      "choice_option": {
-        "GRID_ROWS": {
-          "3": "3 filas",
-          "4": "4 filas, mosaicos más pequeños"
-        }
-      },
-      "choice_first": {
-        "GRID_ROWS": "el tamaño habitual"
-      },
       "memory": {
         "low_title": "Poca memoria libre en la máquina de Home Assistant",
         "low": "Hay {free} de memoria libre, así que el firmware se compila con menos compiladores a la vez ({jobs} en vez de {cores}). Tarda más, pero cabe.",
@@ -2628,7 +2615,10 @@
         "limit_title": "No hay memoria suficiente para compilar el firmware",
         "limit": "Se agotó la memoria, también con un compilador a la vez. Detén unos complementos un rato o dale más memoria a la máquina, y vuelve a intentarlo."
       },
-      "pair_yourself": "Añadirla tú mismo en Home Assistant"
+      "pair_yourself": "Añadirla tú mismo en Home Assistant",
+      "grid": "Cuadrícula",
+      "grid_hint": "La cuadrícula propuesta es la mejor para esta pantalla. Puedes cambiarla, y su orientación, más tarde junto a las páginas en el editor, sin volver a compilar.",
+      "grid_best": "Volver a la mejor"
     },
     "alerts": {
       "eyebrow": "Alertas · guía rápida",

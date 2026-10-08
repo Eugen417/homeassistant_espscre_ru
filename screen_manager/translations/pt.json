@@ -712,7 +712,7 @@
         "substitutions_managed": "Estas substitutions continuam a ser geridas pelo Tessera: {names}.",
         "substitutions_in_profile": "{names} está definido no YAML próprio deste ecrã (escolhido em Novo ecrã), que prevalece sobre o override. Altere-o lá.",
         "orientation": "Escolha se o ecrã fica na horizontal ou na vertical.",
-        "orientation_managed": "O sentido em que um ecrã fica pendurado escolhe-se quando é compilado, em Novo ecrã; por isso o LVGL_ROTATION continua a ser gerido pelo Tessera.",
+        "orientation_managed": "O sentido em que um ecrã fica pendurado escolhe-se no editor, em Grelha junto às páginas, ou quando é compilado, em Novo ecrã; por isso o LVGL_ROTATION continua a ser gerido pelo Tessera.",
         "usb_port": "Escolha da lista a porta USB ligada.",
         "busy_wait": "Já está a decorrer uma compilação ou instalação. Aguarde que termine.",
         "busy": "Já está a decorrer uma compilação ou instalação.",
@@ -720,7 +720,8 @@
         "still_building": "O firmware ainda está a ser compilado. Descarregue-o quando a compilação terminar.",
         "build_first": "Compile primeiro o firmware; a transferência aparece quando a compilação terminar.",
         "unknown_action": "Ação de firmware desconhecida.",
-        "host": "Introduza o endereço IP ou o nome do anfitrião do ecrã pretendido."
+        "host": "Introduza o endereço IP ou o nome do anfitrião do ecrã pretendido.",
+        "grid": "Escolha uma grelha que este ecrã aceite."
       },
       "updates": {
         "automatic": "Escolha se as atualizações automáticas ficam ativadas ou desativadas.",
@@ -2463,19 +2464,14 @@
         "calibration": "Calibração do toque no primeiro arranque"
       },
       "choice": {
-        "DISPLAY_MODEL": "Controlador do ecrã",
-        "GRID_ROWS": "Blocos por página"
+        "DISPLAY_MODEL": "Controlador do ecrã"
       },
       "choice_hint": {
-        "DISPLAY_MODEL": "A maioria destas placas tem o primeiro. Escolha o outro se o ecrã mostrar ruído ou uma imagem distorcida.",
-        "GRID_ROWS": "Mais linhas permitem mostrar mais blocos numa página; menos linhas mantêm os blocos maiores e mais fáceis de ler."
+        "DISPLAY_MODEL": "A maioria destas placas tem o primeiro. Escolha o outro se o ecrã mostrar ruído ou uma imagem distorcida."
       },
       "choice_usual": "a maioria",
-      "orientation": "Como vai ficar pendurado?",
       "orientation_landscape": "Na horizontal",
       "orientation_portrait": "Na vertical",
-      "orientation_tiles": "{n} mosaico por página | {n} mosaicos por página",
-      "orientation_hint": "Isto escolhe-se quando o ecrã é compilado. Para o pendurar do outro modo mais tarde, compile novamente o ecrã.",
       "name": "Nome",
       "name_placeholder": "Ecrã da sala",
       "device_name": "Nome do dispositivo",
@@ -2607,15 +2603,6 @@
         "change": "Mudar Wi-Fi e instalar de novo",
         "failed": "O Tessera não consegue adicionar {name} sozinho ao Home Assistant. Adiciona-o tu mesmo abaixo."
       },
-      "choice_option": {
-        "GRID_ROWS": {
-          "3": "3 linhas",
-          "4": "4 linhas, blocos menores"
-        }
-      },
-      "choice_first": {
-        "GRID_ROWS": "o tamanho habitual"
-      },
       "memory": {
         "low_title": "Pouca memória livre na máquina do Home Assistant",
         "low": "Estão livres {free} de memória, por isso o firmware compila com menos compiladores ao mesmo tempo ({jobs} em vez de {cores}). Demora mais, mas cabe.",
@@ -2628,7 +2615,10 @@
         "limit_title": "Memória insuficiente para compilar o firmware",
         "limit": "A memória esgotou-se, também com um compilador de cada vez. Para alguns complementos por um tempo ou dá mais memória à máquina, depois tenta de novo."
       },
-      "pair_yourself": "Adicioná-lo você mesmo no Home Assistant"
+      "pair_yourself": "Adicioná-lo você mesmo no Home Assistant",
+      "grid": "Grelha",
+      "grid_hint": "A grelha proposta é a melhor para este ecrã. Pode alterá-la, e a orientação, mais tarde ao lado das páginas no editor, sem nova compilação.",
+      "grid_best": "Voltar à melhor"
     },
     "alerts": {
       "eyebrow": "Alertas · guia rápido",

@@ -1001,8 +1001,11 @@ class Manager:
         and its glass is not square (a square screen turns with its own Rotation setting and keeps its grid)."""
         if not self.screen_grids(inbox):
             return False
-        shape = (self._discovered(inbox) or {}).get('shape')
-        return isinstance(shape, dict) and isinstance(shape.get('width'), int) and shape.get('width') != shape.get('height')
+        # The glass of its board, which is known offline too (and during the start a turn makes); the shape it reported
+        # for a board this app does not know.
+        screen = self._discovered(inbox) or {}
+        glass = SHAPES.get(board_of(screen)) or screen.get('shape') or {}
+        return isinstance(glass.get('width'), int) and glass.get('width') != glass.get('height')
 
     def wanted_way(self, inbox):
         """The way a screen that takes grids is to hang, 'landscape' or 'portrait': the one the editor chose for it
@@ -1010,7 +1013,11 @@ class Manager:
         grids = self.screen_grids(inbox)
         if not grids:
             return None
-        chosen = self.hangs.get((self._discovered(inbox) or {}).get('device_id')) if self.turnable(inbox) else None
+        screen = self._discovered(inbox) or {}
+        device = screen.get('device_id')
+        # The profile is read only for a screen someone turned: it says whether the choice still counts (screen_hang).
+        chosen = (self.hangs.get(device, self.built_as(screen).get('rotation'))
+                  if self.hangs.has(device) and self.turnable(inbox) else None)
         return chosen or ('portrait' if grids['upright'] else 'landscape')
 
     def takes_grid(self, inbox, columns, rows, way=None):
@@ -1056,6 +1063,11 @@ class Manager:
         """The grid a saved layout of this screen is counted on: the one the screen is given (given_grid, firmware
         0.53.0+), else the one it reports, its profile builds or its board has (verified_grid). The store's grid_for."""
         return self.given_grid(inbox, record) or self.verified_grid(inbox)
+
+    def layout_grid(self, inbox, screen):
+        """The grid this screen's saved layout is counted on, for a tile event, its answer and the layout sensor: the one
+        the screen is given (firmware 0.53.0+, offline too and before the layout reached it), else its own."""
+        return self.record_grid(inbox, self.store.get(inbox)) or self.grid_of(screen)
 
     def ceilings(self, inbox):
         """The most pages, tiles and top-bar items a page this screen takes: what its hello said (firmware 0.34.0+,
@@ -1469,18 +1481,22 @@ class Manager:
         grid itself and needs none of this; an offline one gets the grid it was actually built with, so its editor
         places tiles where the screen has cells."""
         known = {**screen, 'package': screen.get('package') or self.package_of(screen, profiles)} if isinstance(screen, dict) else screen
+        # A screen the editor stood up or laid down since (firmware 0.53.0+) hangs the way it was turned to.
+        inbox = screen.get('id') if isinstance(screen, dict) else None
+        if inbox and self.turnable(inbox):
+            return self.wanted_way(inbox)
         return orientation_at(SHAPES.get(board_of(known), {}), self.built_as(screen, profiles).get('rotation'))
 
     def grid_of(self, screen):
         """The grid of a screen's pages (core.grid_of), with the board its profile builds from and the way it was built
         to hang filled in, so a save, an event and the message to the screen count the same cells whether the screen is
         online or not."""
-        if isinstance(screen, dict) and not (screen.get('package') and screen.get('orientation') and 'grid_rows' in screen):
+        if isinstance(screen, dict) and not (screen.get('package') and screen.get('orientation') and 'built_grid' in screen):
             # The profiles once, not once per question: reading them stats every file in the ESPHome folder.
             profiles = self.firmware.profile_names()
             screen = {**screen, 'package': screen.get('package') or self.package_of(screen, profiles),
                       'orientation': screen.get('orientation') or self.orientation_of(screen, profiles),
-                      'grid_rows': screen.get('grid_rows', self.built_as(screen, profiles).get('grid_rows'))}
+                      'built_grid': screen.get('built_grid', self.built_as(screen, profiles).get('built_grid'))}
         return grid_of(screen).with_ceilings(*self.ceilings(screen.get('id') if isinstance(screen, dict) else None))
 
     def turns(self, screen):
@@ -2395,11 +2411,11 @@ class Manager:
         inbox = self.aliases.get(inbox, inbox)
         screen = self.screen(inbox)
         if isinstance(data, dict) and data.get('format') == PAGE_FORMAT:
-            grid = self.chosen_grid(inbox, data) or self.grid_of(screen)
+            grid = self.chosen_grid(inbox, data) or self.layout_grid(inbox, screen)
             document = validate_document(data.get('layout'), grid)
             layout = {'title': document['title'], 'tiles': compile_tiles(document, grid)}
         else:
-            layout = validate_layout(data, grid=self.grid_of(screen) if screen else None)
+            layout = validate_layout(data, grid=self.layout_grid(inbox, screen) if screen else None)
         # An entity may stand on several tiles (firmware 0.16.0+): a setting one of its tiles already has passes.
         before = {}
         for tile in self.layouts.get(inbox, {}).get('tiles', []):
@@ -3545,7 +3561,7 @@ class Manager:
         # screen keeps one per page a navigation tile goes to, and one of everything else.
         firmware = self.firmware_version(inbox, screen) or (0, 0, 0)
         layout, tile = run_tile_event(self.layouts.get(inbox) or {'title': screen['name'], 'tiles': []}, TILE_EVENTS[event_type], data,
-                                      firmware >= PAGE_TILE_REPEAT_MIN_FIRMWARE, self.grid_of(screen).for_firmware(firmware),
+                                      firmware >= PAGE_TILE_REPEAT_MIN_FIRMWARE, self.layout_grid(inbox, screen).for_firmware(firmware),
                                       firmware >= ENTITY_REPEAT_MIN_FIRMWARE)
         await self.check_supported(inbox, layout)
         record = self.store.get(inbox)
@@ -3567,7 +3583,8 @@ class Manager:
                 answer.update(ok=True, screen=screen['name'])
                 if tile is not None and 'slot' in tile:
                     # Which tile it was, which matters for a navigation tile that is on several pages (app 0.2.78).
-                    answer.update(page=self.grid_of(screen).page_of(tile['slot']) + 1, slot=tile['slot'])
+                    inbox = self.aliases.get(screen['id'], screen['id'])
+                    answer.update(page=self.layout_grid(inbox, screen).page_of(tile['slot']) + 1, slot=tile['slot'])
                 LOG.info('%s: %s on %s', event_type, answer['entity'] or 'order', screen['name'])
                 await self.publish_layouts()
             except Exception as error:
@@ -3587,7 +3604,7 @@ class Manager:
             layout, node = self.layouts.get(inbox), screen.get('node')
             if not layout or not node:
                 continue
-            snapshot = layout_snapshot(screen, layout, self.grid_of(screen).for_firmware(self.firmware_version(inbox, screen)))
+            snapshot = layout_snapshot(screen, layout, self.layout_grid(inbox, screen).for_firmware(self.firmware_version(inbox, screen)))
             if self.published.get(inbox) == snapshot:
                 continue
             try:
@@ -3762,8 +3779,8 @@ def create_app(manager, development=False):
             # And which way it was built to hang (app 0.2.107), for the same reason: a screen standing up has another
             # canvas and another grid, and while it is offline only its own YAML says so.
             screen['orientation'] = manager.orientation_of(screen, profiles)
-            # And the rows it was built with, when its own YAML chose them (a Guition with four rows, app 0.4.31).
-            screen['grid_rows'] = manager.built_as(screen, profiles).get('grid_rows')
+            # And the grid it was built with, when its own YAML chose one (app 0.4.31 rows, app 0.4.85 columns and rows).
+            screen['built_grid'] = manager.built_as(screen, profiles).get('built_grid')
             screen['shape'] = shape_of(screen)
             # A screen that takes another grid runs on the one its saved layout gives it, offline too (firmware 0.53.0+):
             # the mockup shows that grid, not the one the screen reported before the layout reached it.

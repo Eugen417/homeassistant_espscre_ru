@@ -8,6 +8,9 @@
 - **Stand a screen up or lay it down in the editor.** On a screen whose glass is not square, the grid button also offers
   Landscape and Portrait. The layout goes on that way's grid at once, and with the next save the screen turns, starts
   again once and comes back the other way round, without a new build.
+- **New screen starts on the best grid.** A new screen gets the grid that suits its glass best, lying down. Under
+  Advanced you can choose other columns and rows, and on glass that is not square standing up; the editor changes both
+  later. The separate rows question on the 4-inch Guition, the Tab5 and the 10.1-inch Guition is gone.
 - **A plugin's tap action on a tile no longer blocks the editor.** A tile set to a plugin's action made every later edit
   of that screen fail with "Invalid or unsupported page configuration fields".
 - **A save shows a loading screen, then the new layout.** When you save in the editor, the screen now covers itself

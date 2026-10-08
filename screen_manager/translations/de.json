@@ -712,7 +712,7 @@
         "substitutions_managed": "Diese Substitutions verwaltet weiterhin Tessera: {names}.",
         "substitutions_in_profile": "{names} steht in der eigenen YAML dieses Bildschirms (unter Neuer Bildschirm gewählt) und hat Vorrang vor dem Override. Ändere es stattdessen dort.",
         "orientation": "Wähle, ob der Bildschirm quer oder hochkant hängt.",
-        "orientation_managed": "Wie ein Bildschirm hängt, wird beim Erstellen unter „Neuer Bildschirm“ gewählt; darum verwaltet Tessera LVGL_ROTATION weiterhin.",
+        "orientation_managed": "Wie ein Bildschirm hängt, wählst du im Editor unter „Raster“ neben den Seiten oder beim Erstellen unter „Neuer Bildschirm“; darum verwaltet Tessera LVGL_ROTATION weiterhin.",
         "usb_port": "Wähle den angeschlossenen USB-Port aus der Liste.",
         "busy_wait": "Es wird schon eine Firmware erstellt oder installiert. Warte, bis das fertig ist.",
         "busy": "Es wird schon eine Firmware erstellt oder installiert.",
@@ -720,7 +720,8 @@
         "still_building": "Die Firmware wird noch erstellt. Lade sie herunter, wenn sie fertig ist.",
         "build_first": "Erstelle zuerst die Firmware; der Download erscheint, wenn sie fertig ist.",
         "unknown_action": "Unbekannte Firmware-Aktion.",
-        "host": "Gib die IP-Adresse oder den Hostnamen des gewünschten Bildschirms ein."
+        "host": "Gib die IP-Adresse oder den Hostnamen des gewünschten Bildschirms ein.",
+        "grid": "Wähle ein Raster, das dieser Bildschirm annimmt."
       },
       "updates": {
         "automatic": "Wähle für automatische Updates an oder aus.",
@@ -2463,19 +2464,14 @@
         "calibration": "Touch-Kalibrierung beim ersten Start"
       },
       "choice": {
-        "DISPLAY_MODEL": "Display-Controller",
-        "GRID_ROWS": "Kacheln pro Seite"
+        "DISPLAY_MODEL": "Display-Controller"
       },
       "choice_hint": {
-        "DISPLAY_MODEL": "Die meisten dieser Boards haben den ersten. Nimm den anderen, wenn der Bildschirm Rauschen oder ein verzerrtes Bild zeigt.",
-        "GRID_ROWS": "Mehr Reihen bieten Platz für mehr Kacheln pro Seite; weniger Reihen lassen die Kacheln größer und besser lesbar."
+        "DISPLAY_MODEL": "Die meisten dieser Boards haben den ersten. Nimm den anderen, wenn der Bildschirm Rauschen oder ein verzerrtes Bild zeigt."
       },
       "choice_usual": "die meisten",
-      "orientation": "Wie soll er hängen?",
       "orientation_landscape": "Quer",
       "orientation_portrait": "Hochkant",
-      "orientation_tiles": "{n} Kachel pro Seite | {n} Kacheln pro Seite",
-      "orientation_hint": "Das wählst du, wenn der Bildschirm erstellt wird. Soll er später andersherum hängen, erstelle den Bildschirm neu.",
       "name": "Name",
       "name_placeholder": "Bildschirm Wohnzimmer",
       "device_name": "Gerätename",
@@ -2607,15 +2603,6 @@
         "change": "WLAN ändern und neu installieren",
         "failed": "Tessera kann {name} nicht selbst zu Home Assistant hinzufügen. Füge ihn unten selbst hinzu."
       },
-      "choice_option": {
-        "GRID_ROWS": {
-          "3": "3 Reihen",
-          "4": "4 Reihen, kleinere Kacheln"
-        }
-      },
-      "choice_first": {
-        "GRID_ROWS": "die übliche Größe"
-      },
       "memory": {
         "low_title": "Wenig freier Speicher auf der Home-Assistant-Maschine",
         "low": "{free} Speicher sind frei, darum erstellt die Firmware mit weniger Compilern gleichzeitig ({jobs} statt {cores}). Das dauert länger, passt aber.",
@@ -2628,7 +2615,10 @@
         "limit_title": "Zu wenig Speicher, um die Firmware zu erstellen",
         "limit": "Der Speicher ging aus, auch mit einem Compiler gleichzeitig. Halte ein paar Add-ons vorübergehend an oder gib der Maschine mehr Speicher, und versuche es dann erneut."
       },
-      "pair_yourself": "Selbst in Home Assistant hinzufügen"
+      "pair_yourself": "Selbst in Home Assistant hinzufügen",
+      "grid": "Raster",
+      "grid_hint": "Das vorgeschlagene Raster ist das beste für diesen Bildschirm. Du kannst es und die Ausrichtung später neben den Seiten im Editor ändern, ohne neu zu bauen.",
+      "grid_best": "Zurück zum besten"
     },
     "alerts": {
       "eyebrow": "Meldungen · Spickzettel",

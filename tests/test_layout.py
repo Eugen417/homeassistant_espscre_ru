@@ -91,9 +91,6 @@ class LayoutTests(unittest.TestCase):
                 self.assertTrue(1 <= v['GRID_MIN_ROWS'] <= v['GRID_ROWS'] <= v['GRID_MAX_ROWS'] <= 8)
                 self.assertTrue(v['GRID_COLS_PORTRAIT'] <= v['GRID_MAX_COLUMNS_PORTRAIT'] <= 8)
                 self.assertTrue(v['GRID_ROWS_PORTRAIT'] <= v['GRID_MAX_ROWS_PORTRAIT'] <= 8)
-                # Every grid someone may choose when the screen is built (boards.yaml `choices`) lies in the range too.
-                for rows in (profiles.CATALOG[board].get('choices') or {}).get('GRID_ROWS', []):
-                    self.assertLessEqual(int(rows), v['GRID_MAX_ROWS'], rows)
                 # The tables hold the most cells either way, within the tiles the screen holds.
                 most = max(v['GRID_MAX_COLUMNS'] * v['GRID_MAX_ROWS'], v['GRID_MAX_COLUMNS_PORTRAIT'] * v['GRID_MAX_ROWS_PORTRAIT'])
                 self.assertLessEqual(most, int(str(values['SCREEN_MAX_TILES']).strip('"')))

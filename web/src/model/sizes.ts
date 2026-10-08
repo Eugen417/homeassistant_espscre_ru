@@ -19,6 +19,15 @@ export const isSize = (size: unknown): size is Size => NAMED_SIZES.includes(size
 /** Whether a grid takes this rectangle as a span: smaller than the grid, and more than the names say (2 x 2). */
 export const spanOffered = (columns: number, rows: number, grid: Grid) =>
   columns <= grid.columns && rows <= grid.rows && !(columns === grid.columns && rows === grid.rows) && (columns > 2 || rows > 2);
+/** The sizes a screen on this grid takes, as its hello names them (tile_sizes in core.yaml, core.py sizes_on). */
+export function sizesOn(grid: Grid): string[] {
+  const sizes = ["single", "wide", "full"];
+  if (grid.rows >= 2) sizes.push("tall");
+  if (grid.columns >= 2 && grid.rows >= 2) sizes.push("square");
+  for (let columns = 1; columns <= grid.columns; columns++)
+    for (let rows = 1; rows <= grid.rows; rows++) if (spanOffered(columns, rows, grid)) sizes.push(`${columns}x${rows}`);
+  return sizes;
+}
 /** Rows a size is high, the whole page aside: tall and square two, a span its own. */
 export const sizeRows = (size: unknown) => spanOf(size)?.rows ?? (size === "tall" || size === "square" ? 2 : 1);
 /** Columns a size is wide, the whole page aside: wide and square two, a span its own. */

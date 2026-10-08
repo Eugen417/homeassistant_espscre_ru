@@ -16,6 +16,9 @@ app sends a screen (core.state_message with core.extras and drawn_controls), and
   (TOUCH_FLOORS; the rule is ui::touch_min(), 7 mm of glass, components/smart_display/ui_scale.h);
 - a full page of cards (every cell a card, and every row one wide card) lays out without one running into another.
 
+Each board's own grids are held to all of these. The finest grid each way offers (firmware 0.53.0+) is laid out too,
+and held only to what must never happen there (FINEST): every card drawn, none off the glass or over another.
+
 The types are read from catalogue/*.yaml: a new type, face or control set fails here until it has a case in KINDS (or
 an entry in EXCLUDED with the reason the preview cannot draw it). The checks themselves are tested on made-up reports
 below (Checks), so a check that can never fail shows up.
@@ -188,35 +191,35 @@ def uncovered(kinds=None, excluded=None):
 
 
 def boards():
-    """The glass and grids of every board as the editor's preview has them, one per distinct shape and density, and every
-    row count a board offers when it is built (boards.yaml `choices: GRID_ROWS`, app 0.4.59): New screen lets someone
-    pick it, so its cards must fit as well as the default's. The rows apply lying down (core.shape_of)."""
+    """The glass and grids of every board as the editor's preview has them, one per distinct shape and density: each
+    way's own grid, and the finest the editor offers that way (firmware 0.53.0+, looks/shared/grid.yaml). The finest is
+    `finest`: its cells are the smallest a screen can be given, on purpose wider than what reads well (docs/RESPONSIVE.md,
+    "The grid a screen is given"), so there it is held to what must never happen (FINEST), not to how well it reads."""
     shapes = json.loads((ROOT / 'screen_manager/app/boards.json').read_text())
     wanted = [key for key in os.environ.get('LAYOUT_AUDIT_BOARDS', '').split(',') if key]
     seen, found = {}, []
     for key, shape in shapes.items():
         if key.startswith('checkout/') or key.startswith('packages/') or (wanted and key not in wanted):
             continue
-        choices = [int(rows) for rows in (shape.get('catalog', {}).get('choices') or {}).get('GRID_ROWS', [])]
         for side in ('landscape', 'portrait'):
             o = shape['orientations'].get(side)
             if not o:
                 continue
-            grids = [(o['columns'], rows) for rows in [o['rows']] + ([rows for rows in choices if rows != o['rows']] if o['width'] >= o['height'] else [])]
-            # And the finest grid the editor offers that way (firmware 0.53.0+, looks/shared/grid.yaml): the smallest cells.
-            if o.get('max'):
-                grids.append(tuple(o['max']))
+            grids = [(o['columns'], o['rows'])] + ([tuple(o['max'])] if o.get('max') else [])
             for columns, rows in grids:
                 # A board without pictures draws its cards without a cover's place (firmware 0.46.0), so it is a shape of
                 # its own even on the glass of a board with them.
                 pictures = bool(shape.get('camera'))
                 shape_key = (o['width'], o['height'], columns, rows, shape['dpi'], pictures)
+                finest = (columns, rows) != (o['columns'], o['rows'])
                 if shape_key in seen:
+                    # Another board's own grid is held to every rule.
+                    seen[shape_key]['finest'] = seen[shape_key]['finest'] and finest
                     continue
-                name = (f'{key}-{side}' if (columns, rows) == (o['columns'], o['rows']) else
+                name = (f'{key}-{side}' if not finest else
                         f'{key}-{side}-{rows}rows' if columns == o['columns'] else f'{key}-{side}-{columns}x{rows}')
                 seen[shape_key] = {'key': name, 'width': o['width'], 'height': o['height'], 'columns': columns,
-                                   'rows': rows, 'dpi': shape['dpi'], 'pictures': pictures}
+                                   'rows': rows, 'dpi': shape['dpi'], 'pictures': pictures, 'finest': finest}
                 found.append(seen[shape_key])
     return found
 
@@ -334,10 +337,6 @@ KNOWN = [
     {'layout': r': (screen(-dial)? |every cell$)', 'problem': r"^texts '\d+:\d+' and '[^']+' lie over each other$",
      'cause': 'by design: the date stands under the digits\' ink, c.digits, which ends above the time\'s line box '
               '(runtime_tiles.h:4390 place_face_text, firmware 0.3.6); the boxes overlap, the letters do not'},
-    {'layout': r': screen-flip ', 'problem': r"^texts '\d+' and '[^']+' lie over each other$",
-     'cause': 'by design: a flip clock\'s digits stand in their flaps with their line box reaching under the flap, where the '
-              'date stands (runtime_tiles.h render_flip); the digits stay inside the flap (rendered 2026-10-03 at six and '
-              'eight rows on the 10.1-inch)'},
     {'layout': r': screen-nightstand ', 'problem': r"^texts '\d+' and '\d+' lie over each other$",
      'cause': 'by design: standing up, the minutes stand a digit height under the hours (runtime_tiles.h:4700 render_bedside, '
               'l.digit_h), inside the hours\' line box; the digits do not touch'},
@@ -358,6 +357,12 @@ KNOWN = [
               '(runtime_tiles.h:5960 render_full): the watch face\'s value ends 5 px under the card; the 3.5-inch glass with '
               'pictures and the one without are audited apart since firmware 0.46.0'},
 ]
+
+
+# On the finest grid only what must never happen, whatever the cells: a card off the glass or over another. A text cut
+# or close to its card's edge there, or a control under its touch floor, is the owner's to see and to choose another
+# grid for.
+FINEST = (r'^card .+ leaves the glass$', r'^cards .+ run into each other$', r'^refused: ')
 
 
 def known(screen, layout, line):
@@ -727,6 +732,8 @@ class LayoutAudit(unittest.TestCase):
         found, seen = {}, set()
         for r in self.reports:
             for line in problems(r):
+                if self.screens[r['screen']]['finest'] and not any(re.search(rule, line) for rule in FINEST):
+                    continue
                 entry = known(r['screen'], r['layout'], line)
                 if entry:
                     seen.add(KNOWN.index(entry))
@@ -742,6 +749,8 @@ class LayoutAudit(unittest.TestCase):
         """No control is drawn smaller than 7 mm (ui::touch_min) unless its type's floor allows it, and never below it."""
         smallest, worse, examples = {}, [], {}
         for r in self.reports:
+            if self.screens[r['screen']]['finest']:
+                continue
             dpi = self.screens[r['screen']]['dpi']
             sizes_mm, found = touch_findings(r, dpi)
             for domain, millimetres in sizes_mm.items():

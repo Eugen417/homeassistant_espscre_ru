@@ -37,7 +37,8 @@ substitutions:
   # What a board file, a feature or a screen's own YAML may state instead: the value here holds when none of them
   # does. A board states its hardware and what differs (docs/PROFILES.md, "Defaults").
   ROTATION_LANDSCAPE: "0"                          # the LVGL angle that lays the panel out lying down
-  LVGL_ROTATION: "${ROTATION_LANDSCAPE}"           # which way the screen hangs; ESP Screens writes it for one standing up
+  LVGL_ROTATION: "${ROTATION_LANDSCAPE}"           # which way it is built to hang (New screen writes it for one standing
+                                                   # up); the editor turns it later without a build (runtime_tiles::hang)
   TOUCH_SWAP_XY: "false"                           # the touch panel's axes against the display's own pixels
   TOUCH_MIRROR_X: "false"
   TOUCH_MIRROR_Y: "false"
@@ -170,9 +171,9 @@ esphome:
           runtime_tiles::time_label = id(lbl_time);
           runtime_tiles::enabled = true;
           // Turning (firmware 0.2.80 on every board): a half turn keeps the canvas and the grid, so every screen
-          // offers it; a quarter turn only a square one, whose canvas is the same either way. Which way a screen
-          // stands is chosen when it is built (LVGL_ROTATION, firmware 0.2.92+), because the other way round is
-          // another grid, and a layout made for six cells does not fit four.
+          // offers it; a quarter turn only a square one, whose canvas is the same either way. On other glass a quarter
+          // turn is another canvas and another grid, which the layout must be laid out on again: ESP Screens gives it
+          // with the layout (begin's "upright", runtime_tiles::hang, firmware 0.53.0+), never this page.
           settings_screen::quarter_turns = ${PANEL_W} == ${PANEL_H};
           // Whether this board's backlight takes levels (firmware 0.2.90+): a board whose backlight is one line
           // shows a switch where the others show a percentage. ESP Screens reads the same fact from boards.json.
@@ -641,9 +642,11 @@ api:
                     // Every page on every grid, whatever its cells (firmware 0.18.0+, app 0.4.30+): at most 64 tiles over
                     // eight pages then, or what this board states (below).
                     root["free_pages"] = 1;
-                    // This screen's own ceilings (firmware 0.34.0+, app 0.4.57+): the most tiles and pages its grid and its
-                    // board take (page_protocol.h). An app that knows nothing of them keeps to 64 and eight.
-                    root["max_tiles"] = runtime_tiles::grid.max_tiles();
+                    // This screen's own ceilings (firmware 0.34.0+, app 0.4.57+): the most tiles and pages its board takes
+                    // (page_protocol.h). An app that knows nothing of them keeps to 64 and eight. The tiles are the board's,
+                    // not those of the grid in use (firmware 0.53.0+): ESP Screens may give it another grid, and counts
+                    // the pages times the cells of that one itself (core.Grid.max_tiles).
+                    root["max_tiles"] = runtime_tiles::TILES_MAX;
                     root["max_pages"] = runtime_tiles::grid.pages();
                     root["max_bar_items"] = header_bar::MAX_ITEMS;
                     // The grids this screen takes, each way its glass hangs, the one it keeps for each, and which way it
@@ -1634,7 +1637,8 @@ text_sensor:
 
 # Turning the screen as a Home Assistant choice (firmware 0.2.80+). Every screen offers the half turn, which keeps
 # its canvas and its grid; square glass the quarter turns as well, whose canvas is the same either way
-# (settings_screen::quarter_turns in on_boot). The screen applies the angle on top of LVGL_ROTATION.
+# (settings_screen::quarter_turns in on_boot). The screen applies the angle on top of the way it hangs
+# (runtime_tiles::base_turn: LVGL_ROTATION, or the way ESP Screens stood it up or laid it down).
 select:
   - platform: template
     id: setting_rotation
@@ -2072,7 +2076,7 @@ lvgl:
             text: ""
             styles: style_time
 
-        # Six tiles on page 1, four on page 2. No dragging on resistive glass.
+        # The tile area: the cards of the page on the glass, in the cells of the grid. No dragging on resistive glass.
         - obj:
             id: tile_scroll
             x: 0
@@ -2083,10 +2087,11 @@ lvgl:
             width: 1
             height: 1
             bg_opa: TRANSP
-            # The cells of the board's grid (GRID_COLS x GRID_ROWS). The rows and columns are free units, so LVGL
-            # divides the area over them and keeps the gaps; runtime_tiles::grid_bind sets the board's numbers at
-            # boot (a layout of one cell here is enough for LVGL's grid to be built in) and place_page only says
-            # which cell a card takes. Every card starts in the first cell, hence multiple_widgets_per_cell.
+            # The cells of the grid the screen runs on (the board's GRID_COLS x GRID_ROWS, or the one ESP Screens gave
+            # it, firmware 0.53.0+). The rows and columns are free units, so LVGL divides the area over them and keeps
+            # the gaps; runtime_tiles::grid_cells sets the numbers at boot and on a new grid (a layout of one cell here
+            # is enough for LVGL's grid to be built in) and place_page only says which cell a card takes. Every card
+            # starts in the first cell, hence multiple_widgets_per_cell.
             layout:
               type: GRID
               grid_rows: 1

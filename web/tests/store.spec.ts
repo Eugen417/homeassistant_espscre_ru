@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   addTile, canAlert, copyLayoutFrom, copyText, deviceStyle, fullPage, importLayout, isCompact, layoutJson, liveOf, movePage, moveTileToPage,
   pageReachWarning, pageTilesRepeat, phaseText, removePage, removeTile, retargetPageTile, save, select, setTileOption, state, supports,
-  tileLimit, topbarItems, topbarView, buildProgress, whatsNew, refresh, createVirtualScreen, removeScreen,
+  tileLimit, topbarItems, topbarView, buildProgress, whatsNew, refresh, createVirtualScreen, removeScreen, chooseGrid, tileSizeChoices,
 } from "../src/store";
 import { customPreview } from "../src/model/preview";
 import renderer from "../src/wasm/renderer.json";
@@ -139,6 +139,27 @@ describe("live values", () => {
     expect(JSON.parse(localStorage.getItem("esp-screens.virtual-screens")!)).toEqual([]);
     expect(state.selected).toBeNull();
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it("gives a preview screen the grids of its board, and keeps the one chosen", async () => {
+    // App 0.4.85: the Grid button works on a preview screen too, within what its board's glass holds (boards.json).
+    const way = { width: 480, height: 480, columns: 2, rows: 3, rotation: 0, min: [1, 1] as [number, number], max: [3, 5] as [number, number] };
+    const virtual = createVirtualScreen("Hall", { ...customPreview, key: "guition-landscape", board: "guition",
+      shape: { width: 480, height: 480, columns: 2, rows: 3, dpi: 170, look: "standard", catalog: { orientations: { landscape: way, portrait: way } } as any } });
+    expect(virtual.grids).toMatchObject({ upright: false, landscape: { min: [1, 1], max: [3, 5] } });
+    addTile("light.b");
+    // Its sizes are those of the grid of the draft: three columns wide only once there are three.
+    const light = { entity: "light.b", name: "", slot: 0 } as any;
+    expect(tileSizeChoices(light)).not.toContain("3x1");
+    chooseGrid(3, 3);
+    expect(state.documentGrid).toEqual({ columns: 3, rows: 3 });
+    expect(tileSizeChoices(light)).toContain("3x1");
+    chooseGrid(4, 3);
+    expect(state.documentGrid).toEqual({ columns: 3, rows: 3 });
+    await save();
+    const saved = JSON.parse(localStorage.getItem("esp-screens.virtual-screens")!)[0];
+    expect(saved.page_document.sourceGrid).toEqual({ columns: 3, rows: 3 });
+    // A preview without its board's catalogue (the custom glass) keeps the grid it was made with.
+    expect(createVirtualScreen("Custom", customPreview).grids).toBeNull();
   });
   it("keeps edits unsaved when local storage is full", async () => {
     const virtual = createVirtualScreen("Panel preview", customPreview);

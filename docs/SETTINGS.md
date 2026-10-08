@@ -30,7 +30,7 @@ changes them with the entity's own action, and leaves them out of the layout mes
 | Swipe between pages | `switch.<screen>_swipe_between_pages` | `swipe_pages` |
 | Page buttons (0.2.69+) | `switch.<screen>_page_buttons` | `page_buttons` |
 | Show home button (0.2.100+) | `switch.<screen>_show_home_button` | `home_button` |
-| Rotation | `select.<screen>_rotation` | `rotation` (0.2.80+ on every board: a half turn on any glass, the quarter turns as well on a square one) |
+| Rotation | `select.<screen>_rotation` | `rotation` (0.2.80+ on every board: a half turn on any glass, the quarter turns as well on a square one; standing up or lying down on other glass is the editor's Grid button, firmware 0.53.0+, because it changes the grid) |
 
 The row on the screen and in the editor says Back to Home; its three entities keep the names
 "Back to page 1", "Back to page 1 after" and "Back to page 1 on standby", which `SETTING_ENTITIES` and

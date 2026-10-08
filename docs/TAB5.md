@@ -24,9 +24,9 @@ In Tessera, the screen's board label comes from its **Screen board** diagnostic 
 If it identifies another board, such as the CYD, reinstall the screen using the **Tab5 ST7121** profile so its firmware
 reports the correct board.
 
-The landscape grid defaults to three rows of tiles. In **New screen**, choose four rows to fit more, smaller tiles on a
-page. Both grid choices support up to 64 tiles across eight pages; the last page may be partly filled. The portrait
-grid remains one column by five rows.
+The landscape grid starts with three rows of tiles; the Grid button beside the pages in the editor gives it more, up to
+five by five, without a new build (firmware 0.53.0+). Every grid takes up to 64 tiles across eight pages; the last page
+may be partly filled. Standing up it starts on one column of five rows.
 
 Camera tiles, live camera pictures, full-screen camera views, camera alerts and media artwork are enabled. Add a camera
 entity to a screen tile to use these features.

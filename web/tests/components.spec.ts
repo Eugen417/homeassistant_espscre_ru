@@ -774,7 +774,9 @@ describe("Sidebar", () => {
     const calls: [string, RequestInit][] = [];
     vi.stubGlobal("fetch", vi.fn((path: string, options: RequestInit) => {
       calls.push([path, options]);
-      return Promise.resolve(new Response(JSON.stringify({}), { status: 200 }));
+      // The refresh after the update reads the screens again, as the add-on gives them.
+      const body = String(path).includes("inventory") ? JSON.parse(JSON.stringify(state.inventory)) : {};
+      return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
     }));
     const sidebar = mount(Sidebar);
     const item = sidebar.find("#screens .screen-item");
@@ -1158,28 +1160,31 @@ describe("the orientation of a new screen", () => {
   }
   const flush = async () => { await Promise.resolve(); await Promise.resolve(); await new Promise((done) => setTimeout(done, 0)); };
 
-  it("offers the two ways glass that is not square can hang, with the cells each way gives", async () => {
+  it("offers the two ways glass that is not square can hang under Advanced, each with the cells it gives (app 0.4.85)", async () => {
     const view = await installer();
-    const options = view.findAll("#orientation-fields .orient");
+    const options = view.findAll("#grid-fields #orientation-fields .orient");
     expect(options).toHaveLength(2);
     expect(options.map((option) => option.find("b").text())).toEqual(["Lying down", "Standing up"]);
-    expect(options.map((option) => option.find("small").text())).toEqual(["6 tiles a page", "4 tiles a page"]);
     // A picture of the glass each way, with a cell per tile of that page.
     expect(options[0].findAll(".orient-cells i")).toHaveLength(6);
     expect(options[1].findAll(".orient-cells i")).toHaveLength(4);
     expect(options[1].find(".orient-glass").attributes("style")).toContain("240 / 320");
-    // Lying down to begin with, and saying so plainly that this is chosen now and not later.
+    // Lying down on the board's best grid to begin with, and saying the editor changes both later without a build.
     expect((options[0].find("input").element as HTMLInputElement).checked).toBe(true);
-    expect(view.find("#orientation-hint").text()).toContain("build the screen again");
+    expect(view.findAll("#grid-fields .grid-step b").map((b) => b.text())).toEqual(["2", "3"]);
+    expect(view.find("#grid-fields small").text()).toContain("without a new build");
+    expect(view.find("#install-grid-best").exists()).toBe(false);
   });
 
-  it("asks nothing about square glass, and asks again about the next board", async () => {
+  it("asks nothing about the way square glass hangs, and asks again about the next board", async () => {
     const view = await installer();
     await view.find('input[value="guition"]').setValue("guition");
     expect(view.find("#orientation-fields").exists()).toBe(false);
+    expect(view.findAll("#grid-fields .grid-step b").map((b) => b.text())).toEqual(["2", "3"]);
     await view.find('input[value="waveshare43"]').setValue("waveshare43");
     const options = view.findAll("#orientation-fields .orient");
-    expect(options.map((option) => option.find("small").text())).toEqual(["9 tiles a page", "4 tiles a page"]);
+    expect(options.map((option) => option.findAll(".orient-cells i").length)).toEqual([9, 4]);
+    expect(view.findAll("#grid-fields .grid-step b").map((b) => b.text())).toEqual(["3", "3"]);
   });
 
   it("lists every board of the catalog in its order, named and described from its data alone", async () => {
@@ -1285,12 +1290,16 @@ describe("the orientation of a new screen", () => {
     expect(view.find("#board-status").text()).toContain("not yet tried on this hardware");
     expect(view.findAll("#board-abilities li.off").map((li) => li.text())).toEqual(["Backlight always on", "No standby"]);
     const options = view.findAll("#orientation-fields .orient");
-    expect(options.map((option) => option.find("small").text())).toEqual(["16 tiles a page", "14 tiles a page"]);
+    expect(options.map((option) => option.findAll(".orient-cells i").length)).toEqual([16, 14]);
     await options[1].find("input").setValue("portrait");
+    // Standing up starts at that way's own grid, which is the best one and is not sent.
+    expect(view.findAll("#grid-fields .grid-step b").map((b) => b.text())).toEqual(["2", "7"]);
     await view.find("#friendly_name").setValue("Hall");
     await view.find("#install-form").trigger("submit");
     await flush();
-    expect(answers.pop()).toMatchObject({ board: "waveshare7", orientation: "portrait", name: "hall" });
+    const sent = answers.pop();
+    expect(sent).toMatchObject({ board: "waveshare7", orientation: "portrait", name: "hall" });
+    expect(sent.grid).toBeUndefined();
   });
 
   it("asks nothing about the square glass of an experimental board", async () => {
@@ -1325,16 +1334,22 @@ describe("the orientation of a new screen", () => {
     const third = await installer();
     await third.find('input[value="guition"]').setValue("guition");
     expect(third.find("#choice-DISPLAY_MODEL").exists()).toBe(false);
-    // The Guition's rows (app 0.4.31): said in words, the usual size first, and four rows sent only when chosen.
-    const rows = third.findAll("#choice-GRID_ROWS .choice");
-    expect(third.find("#choice-GRID_ROWS legend").text()).toBe("Tiles on a page");
-    expect(rows.map((option) => option.find("b").text())).toEqual(["3 rows", "4 rows, smaller tiles"]);
-    expect(rows[0].find("small").text()).toBe("the usual size");
-    await rows[1].find("input").setValue("4");
+    // The grid is no board's choice any more (app 0.4.85): Advanced takes columns and rows within the board's range, and
+    // only a grid that differs from the board's best goes along.
+    expect(third.find("#choice-GRID_ROWS").exists()).toBe(false);
+    expect((third.find("#install-rows-less").element as HTMLButtonElement).disabled).toBe(false);
+    await third.find("#install-rows-more").trigger("click");
+    expect(third.findAll("#grid-fields .grid-step b").map((b) => b.text())).toEqual(["2", "4"]);
+    await third.find("#install-grid-best").trigger("click");
+    expect(third.findAll("#grid-fields .grid-step b").map((b) => b.text())).toEqual(["2", "3"]);
+    for (let i = 0; i < 9; i++) await third.find("#install-rows-more").trigger("click");
+    // No further than the range this glass takes.
+    expect(third.findAll("#grid-fields .grid-step b").map((b) => b.text())).toEqual(["2", "5"]);
+    expect((third.find("#install-rows-more").element as HTMLButtonElement).disabled).toBe(true);
     await third.find("#friendly_name").setValue("Hall");
     await third.find("#install-form").trigger("submit");
     await flush();
-    expect(answers.pop()).toMatchObject({ board: "guition", choices: { GRID_ROWS: "4" } });
+    expect(answers.pop()).toMatchObject({ board: "guition", grid: { columns: 2, rows: 5 } });
   });
 
   it("sends the chosen way with the new screen", async () => {

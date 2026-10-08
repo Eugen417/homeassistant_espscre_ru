@@ -7,7 +7,7 @@ it does not import the server or keep another copy of a page document.
 import time
 import camera_feed
 import page_delivery
-from core import plugin_tile, BUILTIN, CAMERA_DOMAINS, FREE_PAGES_MIN_FIRMWARE, board_of, firmware_features, page_target, state_message, version_text
+from core import plugin_tile, BUILTIN, CAMERA_DOMAINS, FREE_PAGES_MIN_FIRMWARE, board_of, firmware_features, page_target, sizes_on, state_message, version_text
 from i18n import t, shown, english
 from page_layout import (FORMAT as PAGE_FORMAT, LayoutError, bar_items, compile_tiles,
                          grid_of_record, grown, legacy_projection, screen_grid_of_record, validate_document)
@@ -88,6 +88,9 @@ def save_pages(manager, inbox, data):
     # a span such as 3x2 (firmware 0.19.0).
     required_sizes = {tile.get('options', {}).get('size', 'single') for tile in flat['tiles']} - {'single', 'wide', 'full'}
     supported_sizes = getattr(sender, 'tile_sizes' if sender.protocol is not None else 'last_tile_sizes', set()) if sender else set()
+    # A screen that takes other grids (firmware 0.53.0+) takes the sizes of the grid the layout is laid out on.
+    if sender and (getattr(sender, 'grids', None) or getattr(sender, 'last_grids', None)):
+        supported_sizes = sizes_on(grid)
     if required_sizes and not required_sizes <= supported_sizes:
         raise LayoutError(t('addon.errors.pages.update_tall'))
     features = firmware_features(manager.firmware_version(inbox, screen), grid)
@@ -127,7 +130,8 @@ def save_pages(manager, inbox, data):
     manager.preflight_pages(inbox, candidate)
     record = manager.store.save(inbox, document, data.get('revision'), data.get('workspace'), adapt_grid=adaptation is not None, grid=grid)
     if isinstance(adaptation, dict) and 'upright' in adaptation:
-        manager.hangs.set(screen.get('device_id'), 'portrait' if adaptation['upright'] else 'landscape')
+        manager.hangs.set(screen.get('device_id'), 'portrait' if adaptation['upright'] else 'landscape',
+                          manager.built_as(screen).get('rotation'))
     manager.sent.pop(inbox, None)
     manager.status[inbox] = 'Saved, waiting for screen'
     manager.history_wake.set()

@@ -712,7 +712,7 @@
         "substitutions_managed": "Deze substitutions blijven in beheer van Tessera: {names}.",
         "substitutions_in_profile": "{names} staat in de eigen YAML van dit scherm (gekozen bij Nieuw scherm), en die wint van de override. Pas het daar aan.",
         "orientation": "Kies of het scherm liggend of staand hangt.",
-        "orientation_managed": "Hoe een scherm hangt kies je bij het bouwen, onder Nieuw scherm; daarom blijft LVGL_ROTATION in beheer van Tessera.",
+        "orientation_managed": "Hoe een scherm hangt kies je in de editor, onder Raster naast de pagina’s, of bij het bouwen, onder Nieuw scherm; daarom blijft LVGL_ROTATION in beheer van Tessera.",
         "usb_port": "Kies de aangesloten USB-poort uit de lijst.",
         "busy_wait": "Er loopt al een build of installatie. Wacht tot die klaar is.",
         "busy": "Er loopt al een build of installatie.",
@@ -720,7 +720,8 @@
         "still_building": "De firmware wordt nog gebouwd. Download hem zodra de build klaar is.",
         "build_first": "Bouw eerst de firmware; de download verschijnt zodra de build klaar is.",
         "unknown_action": "Onbekende firmwareactie.",
-        "host": "Vul het IP-adres of de hostnaam van het bedoelde scherm in."
+        "host": "Vul het IP-adres of de hostnaam van het bedoelde scherm in.",
+        "grid": "Kies een raster dat dit scherm aanneemt."
       },
       "updates": {
         "automatic": "Kies aan of uit voor automatisch bijwerken.",
@@ -2260,19 +2261,14 @@
         "calibration": "Touch-kalibratie bij de eerste start"
       },
       "choice": {
-        "DISPLAY_MODEL": "Displaycontroller",
-        "GRID_ROWS": "Tegels op een pagina"
+        "DISPLAY_MODEL": "Displaycontroller"
       },
       "choice_hint": {
-        "DISPLAY_MODEL": "De meeste van deze borden hebben de eerste. Kies de andere als het scherm ruis of een verminkt beeld laat zien.",
-        "GRID_ROWS": "Meer rijen tonen meer tegels op een pagina; minder rijen houden de tegels groter en beter leesbaar."
+        "DISPLAY_MODEL": "De meeste van deze borden hebben de eerste. Kies de andere als het scherm ruis of een verminkt beeld laat zien."
       },
       "choice_usual": "de meeste",
-      "orientation": "Hoe komt hij te hangen?",
       "orientation_landscape": "Liggend",
       "orientation_portrait": "Staand",
-      "orientation_tiles": "{n} tegel per pagina | {n} tegels per pagina",
-      "orientation_hint": "Dit kies je als het scherm gebouwd wordt. Wil je hem later andersom hangen, bouw het scherm dan opnieuw.",
       "name": "Naam",
       "name_placeholder": "Scherm woonkamer",
       "device_name": "Apparaatnaam",
@@ -2404,15 +2400,6 @@
         "change": "Wifi wijzigen en opnieuw installeren",
         "failed": "Tessera kan {name} niet zelf aan Home Assistant toevoegen. Voeg hem hieronder zelf toe."
       },
-      "choice_option": {
-        "GRID_ROWS": {
-          "3": "3 rijen",
-          "4": "4 rijen, kleinere tegels"
-        }
-      },
-      "choice_first": {
-        "GRID_ROWS": "het gewone formaat"
-      },
       "memory": {
         "low_title": "Weinig geheugen vrij op de Home Assistant-machine",
         "low": "Er is {free} geheugen vrij, dus de firmware bouwt met minder compilers tegelijk ({jobs} in plaats van {cores}). Dat duurt langer, maar het past.",
@@ -2425,7 +2412,10 @@
         "limit_title": "Te weinig geheugen om de firmware te bouwen",
         "limit": "Het geheugen was op, ook met één compiler tegelijk. Stop een paar add-ons tijdelijk of geef de machine meer geheugen en probeer het dan opnieuw."
       },
-      "pair_yourself": "Zelf toevoegen in Home Assistant"
+      "pair_yourself": "Zelf toevoegen in Home Assistant",
+      "grid": "Raster",
+      "grid_hint": "Het voorgestelde raster is het beste voor dit scherm. Je kunt het, en hoe het hangt, later naast de pagina’s in de editor aanpassen, zonder opnieuw te bouwen.",
+      "grid_best": "Terug naar het beste"
     },
     "alerts": {
       "eyebrow": "Alerts · cheatsheet",

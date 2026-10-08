@@ -712,7 +712,7 @@
         "substitutions_managed": "Ces substitutions restent gérées par Tessera : {names}.",
         "substitutions_in_profile": "{names} est défini dans le YAML propre de cet écran (choisi sous Nouvel écran), qui l'emporte sur l'override. Modifiez-le plutôt là.",
         "orientation": "Choisissez si l'écran est accroché à l'horizontale ou à la verticale.",
-        "orientation_managed": "Le sens dans lequel un écran est accroché se choisit à sa compilation, sous Nouvel écran ; LVGL_ROTATION reste donc géré par Tessera.",
+        "orientation_managed": "Le sens dans lequel un écran est accroché se choisit dans l’éditeur, sous Grille à côté des pages, ou à sa compilation, sous Nouvel écran ; LVGL_ROTATION reste donc géré par Tessera.",
         "usb_port": "Choisissez le port USB branché dans la liste.",
         "busy_wait": "Une compilation ou une installation est déjà en cours. Attendez qu'elle se termine.",
         "busy": "Une compilation ou une installation est déjà en cours.",
@@ -720,7 +720,8 @@
         "still_building": "Le firmware est encore en cours de compilation. Téléchargez-le quand la compilation est terminée.",
         "build_first": "Compilez d'abord le firmware ; le téléchargement apparaît quand la compilation est terminée.",
         "unknown_action": "Action de firmware inconnue.",
-        "host": "Saisissez l'adresse IP ou le nom d'hôte de l'écran voulu."
+        "host": "Saisissez l'adresse IP ou le nom d'hôte de l'écran voulu.",
+        "grid": "Choisissez une grille que cet écran accepte."
       },
       "updates": {
         "automatic": "Choisissez activé ou désactivé pour les mises à jour automatiques.",
@@ -2463,19 +2464,14 @@
         "calibration": "Étalonnage tactile au premier démarrage"
       },
       "choice": {
-        "DISPLAY_MODEL": "Contrôleur d'affichage",
-        "GRID_ROWS": "Tuiles par page"
+        "DISPLAY_MODEL": "Contrôleur d'affichage"
       },
       "choice_hint": {
-        "DISPLAY_MODEL": "La plupart de ces cartes ont le premier. Prenez l'autre si l'écran affiche du bruit ou une image brouillée.",
-        "GRID_ROWS": "Plus de rangées permettent d’afficher plus de tuiles par page ; moins de rangées gardent les tuiles plus grandes et plus lisibles."
+        "DISPLAY_MODEL": "La plupart de ces cartes ont le premier. Prenez l'autre si l'écran affiche du bruit ou une image brouillée."
       },
       "choice_usual": "la plupart",
-      "orientation": "Dans quel sens sera-t-il accroché ?",
       "orientation_landscape": "À l'horizontale",
       "orientation_portrait": "À la verticale",
-      "orientation_tiles": "{n} tuile par page | {n} tuiles par page",
-      "orientation_hint": "Cela se choisit à la compilation de l'écran. Pour l'accrocher dans l'autre sens plus tard, compilez de nouveau l'écran.",
       "name": "Nom",
       "name_placeholder": "Écran du salon",
       "device_name": "Nom de l'appareil",
@@ -2607,15 +2603,6 @@
         "change": "Changer le Wi-Fi et réinstaller",
         "failed": "Tessera ne peut pas ajouter {name} lui-même à Home Assistant. Ajoute-le toi-même ci-dessous."
       },
-      "choice_option": {
-        "GRID_ROWS": {
-          "3": "3 rangées",
-          "4": "4 rangées, tuiles plus petites"
-        }
-      },
-      "choice_first": {
-        "GRID_ROWS": "la taille habituelle"
-      },
       "memory": {
         "low_title": "Peu de mémoire libre sur la machine Home Assistant",
         "low": "Il y a {free} de mémoire libre, donc le firmware se compile avec moins de compilateurs à la fois ({jobs} au lieu de {cores}). C’est plus long, mais ça tient.",
@@ -2628,7 +2615,10 @@
         "limit_title": "Pas assez de mémoire pour compiler le firmware",
         "limit": "La mémoire a manqué, même avec un compilateur à la fois. Arrête quelques modules un moment ou donne plus de mémoire à la machine, puis réessaie."
       },
-      "pair_yourself": "L'ajouter vous-même dans Home Assistant"
+      "pair_yourself": "L'ajouter vous-même dans Home Assistant",
+      "grid": "Grille",
+      "grid_hint": "La grille proposée est la meilleure pour cet écran. Vous pourrez la changer, et son orientation, plus tard à côté des pages dans l’éditeur, sans nouvelle compilation.",
+      "grid_best": "Revenir à la meilleure"
     },
     "alerts": {
       "eyebrow": "Alertes · aide-mémoire",

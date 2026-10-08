@@ -6396,9 +6396,14 @@ inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int heigh
   // The card's own name font, not the name label's: a card that showed a centred name before (a tall on/off card)
   // left its label in that card's font, and a card reused for another page kept it (firmware 0.3.2).
   const lv_font_t *small=w.title_font;
+  // The time beside a wide dial: on a card lower than the clock's own line (a fine grid, firmware 0.53.0+) the largest
+  // step whose line fits.
+  const lv_font_t *time_font=big;
+  if(lv_font_get_line_height(big)>height)
+    for(auto *f:{watch_value_font,watch_font,w.value_font})if(f && lv_font_get_line_height(f)<=height){time_font=f;break;}
   // The date line only appears when both lines fit the card height.
-  bool with_date=lv_font_get_line_height(big)+2+lv_font_get_line_height(small)<=height;
-  int text_h=lv_font_get_line_height(big)+(with_date?2+lv_font_get_line_height(small):0);
+  bool with_date=lv_font_get_line_height(time_font)+2+lv_font_get_line_height(small)<=height;
+  int text_h=lv_font_get_line_height(time_font)+(with_date?2+lv_font_get_line_height(small):0);
   if(!analog){
     // The largest time that fits, with the date under it when that fits too, centred on the digits themselves
     // (firmware 0.3.6+: a 61 px time in a 63 px card no longer hangs 8 px out of it).
@@ -6421,7 +6426,7 @@ inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int heigh
     // Multi-row cards can be taller than they are wide. Keep the dial centred
     // when its usual time/date column has no room beside it.
     const int room=width-dial-ui::px(large?16:8);
-    const int need=std::max(text_width(time_text(now),big),with_date?text_width(date_text(now),small):0);
+    const int need=std::max(text_width(time_text(now),time_font),with_date?text_width(date_text(now),small):0);
     date_fits=room>=need;
   }
   if(!w.full && !w.wide){
@@ -6481,8 +6486,8 @@ inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int heigh
   if(!date_fits)return;
   if(w.wide){
     int x=dial+(ui::px(large?16:8)),y=std::max(0,(height-text_h)/2);
-    part_label(w,15,big,x,y,width-x,LV_TEXT_ALIGN_CENTER,time_text(now));
-    part_label(w,16,small,x,with_date?y+lv_font_get_line_height(big)+2:y,width-x,LV_TEXT_ALIGN_CENTER,with_date?date_text(now):"");
+    part_label(w,15,time_font,x,y,width-x,LV_TEXT_ALIGN_CENTER,time_text(now));
+    part_label(w,16,small,x,with_date?y+lv_font_get_line_height(time_font)+2:y,width-x,LV_TEXT_ALIGN_CENTER,with_date?date_text(now):"");
     return;
   }
   int x=dial+(ui::px(large?10:6)),room=std::max(1,width-x);

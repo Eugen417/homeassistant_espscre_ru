@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // The screen's columns and rows, beside the mockup (app 0.4.85, firmware 0.53.0+). A change lays the draft out on the new
 // grid at once (store chooseGrid): what no longer fits moves on to a new page after its own, and the screen gets the
-// grid with the next save. A screen whose firmware keeps the grid it was built with says so instead.
+// grid with the next save. A screen whose firmware keeps the grid it was built with says so instead; a preview screen
+// without its board's grids (the custom glass) has no button.
 import { computed } from "vue";
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from "reka-ui";
 import { t } from "../i18n";
@@ -26,7 +27,7 @@ const ways = [[false, "landscape", "crop-landscape"], [true, "portrait", "crop-p
 </script>
 
 <template>
-  <PopoverRoot v-if="grid">
+  <PopoverRoot v-if="grid && (gridWay || !currentScreen?.virtual)">
     <PopoverTrigger as-child>
       <button type="button" id="toolbar-grid" class="btn quiet" :title="t('editor.grid.title')">
         <Icon name="view-grid-outline" />{{ grid.columns }} × {{ grid.rows }}

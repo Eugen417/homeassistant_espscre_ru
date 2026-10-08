@@ -21,11 +21,11 @@ In its board file under `packages/boards/`, next to its hardware:
 |---|---|
 | `PANEL_W`, `PANEL_H` | the panel's own pixels; the display block always drives it at this size |
 | `ROTATION_LANDSCAPE` | the LVGL angle that lays that panel out lying down (a CYD 90, a Waveshare 0) |
-| `LVGL_ROTATION` | which way this screen hangs; Tessera writes it when the screen is built |
+| `LVGL_ROTATION` | which way this screen hangs when it starts; Tessera writes it when the screen is set up, and since firmware 0.53.0 the editor stands it up or lays it down later ("The grid a screen is given") |
 | `DISPLAY_DPI` | diagonal pixels / diagonal inches (the CYD 2.8″: 143, the Guition 4.0″: 170) |
 | the look (`packages/looks/`) | `standard` (the Guition's sizes) or `compact` (the CYD's, for glass too small for the standard); the board file includes one |
-| `GRID_COLS`, `GRID_ROWS` | the cells of a page lying down; the shared tree places every cell from these |
-| `GRID_COLS_PORTRAIT`, `GRID_ROWS_PORTRAIT` | the cells of a page standing up (a square board repeats the first pair) |
+| `GRID_COLS`, `GRID_ROWS` | the cells of a page lying down a screen starts with: the best for this glass, the one New screen suggests |
+| `GRID_COLS_PORTRAIT`, `GRID_ROWS_PORTRAIT` | the same standing up (a square board repeats the first pair) |
 | `GRID_MARGIN`, `GRID_GAP_X`, `GRID_GAP_Y` | the margin to the glass and the gaps between cells, worked out by the look (see "One margin" below) |
 | the sizes (`TILE_ICON_SIZE`, `FONT_*_SIZE`, …) | worked out by the look at this board's density; a board states one only when its glass asks for another |
 
@@ -100,6 +100,10 @@ the editor, and the screen keeps what it was given. Nothing is built for it.
 - **The cards cost what the grid shows.** `make_cells` makes the cards of the grid in use, not of the most. The table
   of cards is sized for the most cells (about 700 bytes a cell); a board with PSRAM keeps it there, as it keeps the kept
   pages' sets, so a wide range takes nothing from the memory inside the chip.
+- **The finest grid is laid out too.** The layout audit (`tests/test_layout_audit.py`) lays every card out on each
+  board's own grids and on the finest it offers each way. On the board's grids every rule holds; on the finest only what
+  must never happen (every card drawn, none off the glass or over another). A text cut short or a key under its touch
+  floor there is what the owner sees and changes the grid back for.
 - **A smaller grid moves tiles on, never out.** The editor lays the draft out on the new grid at once (`adaptGrid` in
   `web/src/model/pages.ts`): every tile keeps its page and, where the new grid still has it free, its place; a tile
   keeps its size where the grid takes it, else the largest part of it the grid holds. What no longer fits on its page
@@ -141,7 +145,8 @@ shows as a box on the screen, so a new one goes into all five lists and `GLYPHS`
   screen's pages (firmware 0.18.0+): eight and 64 tiles over them, or what a board with PSRAM states as
   `SCREEN_MAX_PAGES` and `SCREEN_MAX_TILES` (firmware 0.34.0+, [TILE_MEMORY.md](TILE_MEMORY.md)), so a page need not
   be full; before, the pages were capped at as many as 64 tiles fill (seven of nine, four of sixteen), and a grid
-  that grew lost the pages of a saved layout. `runtime_tiles::widgets` holds exactly one entry per cell. The add-on (`core.Grid`) and
+  that grew lost the pages of a saved layout. `runtime_tiles::widgets` holds an entry for every cell of the finest grid the
+  screen may be given (`CELLS_MAX`, in PSRAM where there is PSRAM), and the grid in use takes one per cell. The add-on (`core.Grid`) and
   the editor (`createLayout` in `web/src/model/layout.ts`) count with the same rule, so a page, a slot and a tile limit mean the same in
   all three.
 - A card's head (the icon circle, the name and the state beside it) is one computed row on every board
@@ -342,10 +347,15 @@ against its page as on the screen (`cardHeight` in `web/src/model/ui-scale.ts`).
   a pixel from the board file.
 - A card with two groups (the colour card: brightness and colour; climate: setpoint, modes, fan) could stand in
   two columns on wide glass instead of one capped column. Same components, another flex flow.
-- Which way a screen hangs is chosen when it is built (firmware 0.2.92+). Tessera writes one substitution
-  into the profile, `LVGL_ROTATION`, the way it writes the language: `ROTATION_LANDSCAPE` for a screen lying
-  down and a quarter further for one standing up. Nothing else in the build differs, and the two grids the
-  board states are both compiled in, so the screen picks one at boot from its canvas (`runtime_tiles::grid_select`).
+- Which way a screen hangs when it starts is chosen when it is set up (firmware 0.2.92+). Tessera writes one
+  substitution into the profile, `LVGL_ROTATION`, the way it writes the language: `ROTATION_LANDSCAPE` for a screen
+  lying down and a quarter further for one standing up. Since firmware 0.53.0 the editor stands a screen whose glass
+  is not square up or lays it down later: the layout's `begin` says `upright`, the screen keeps the way in its
+  preferences and starts again once (`runtime_tiles::hang`), because every size it measures from its canvas is
+  measured at its start, and at that start it turns to that way before anything is measured (`hang_at_boot`). The
+  app keeps which way each screen is to hang (`screen_manager/app/screen_hang.py`) and sends it with every layout, so
+  a screen whose preferences were wiped is turned back. The screen picks the grid of the way it hangs at boot
+  (`runtime_tiles::grid_select`).
 - The calibration wizard of a resistive panel (the CYD; capacitive glass reports absolute coordinates and is
   never calibrated) works on the canvas the person is looking at, and measures rather than derives. Every tap
   gives it two numbers: the panel's raw reading, and the point the screen itself reported for that same touch
@@ -353,11 +363,13 @@ against its page as on the screen (`cardHeight` in `web/src/model/ui-scale.ts`).
   a rotation, a mirror or a swapped axis did, which is an arithmetic that was right lying down and upside down
   standing up. The correction it fits describes the panel, so one made standing up is within about ten pixels
   lying down, measured on the bench.
-- Turning at runtime follows the shape (firmware 0.2.80+): a half turn keeps the canvas, the grid and the whole
-  size table, so every board offers it; a quarter turn only a square screen (`settings_screen::quarter_turns`,
-  set from `PANEL_W == PANEL_H` at boot). A quarter turn on other glass would be a different grid, and a layout
-  made for six cells does not fit four, so that is a rebuild and not a setting. The shared tree applies the angle
-  on top of the board's own `LVGL_ROTATION`, and each board's Rotation select offers the angles its glass allows.
+- Turning with the Rotation setting follows the shape (firmware 0.2.80+): a half turn keeps the canvas, the grid
+  and the whole size table, so every board offers it; a quarter turn only a square screen
+  (`settings_screen::quarter_turns`, set from `PANEL_W == PANEL_H` at boot). A quarter turn on other glass is a
+  different grid, and a layout made for six cells does not fit four, so that is the editor's standing up or lying
+  down above, which lays the layout out on the other way's grid first, and never the screen's own setting. The shared
+  tree applies the angle on top of the way the screen hangs (`runtime_tiles::base_turn`), and each board's Rotation
+  select offers the angles its glass allows.
 - The lab boards (`packages/boards/lab-*.yaml`) are generated and disposable; a real board gets a hardware
   section checked on glass and an entry in `boards.yaml`.
 

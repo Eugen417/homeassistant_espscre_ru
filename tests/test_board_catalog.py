@@ -97,49 +97,53 @@ class Choices(unittest.TestCase):
         self.assertEqual(same(self.profile(choices={'DISPLAY_MODEL': 'ILI9341'})), same(self.profile()))
         self.assertNotIn('DISPLAY_MODEL', self.profile())
 
-    def test_the_guitions_four_rows_are_one_line_in_its_yaml(self):
-        # A Guition built with four rows (app 0.4.31, firmware 0.18.1): one line in the screen's YAML. Its cards are made
-        # at boot, one per cell of the grid it runs on (firmware 0.53.0+, runtime_tiles::make_cells).
-        text = core.installation_yaml({'board': 'guition', 'name': 'hall', 'friendly_name': 'Hall', 'choices': {'GRID_ROWS': '4'}})
-        self.assertIn('  GRID_ROWS: "4"', re.search(r'(?ms)^substitutions:\n(.*?)\n\n', text)[1].split('\n'))
-        self.assertNotIn('GRID_ROWS', core.installation_yaml({'board': 'guition', 'name': 'hall', 'friendly_name': 'Hall'}))
-        # Offline, the screen's own YAML says it has four rows: the app counts its cells on 2 x 4, not the catalog's 2 x 3.
+    def test_another_grid_from_new_screen_is_lines_in_the_screens_yaml(self):
+        # New screen's Advanced (app 0.4.85): the grid a screen starts with, within the range of the way it hangs, as
+        # lines of its own YAML; the board's own grid writes nothing. The editor changes it later without a build.
+        def subs(text): return re.search(r'(?ms)^substitutions:\n(.*?)\n\n', text)[1].split('\n')
+        best = core.installation_yaml({'board': 'guition', 'name': 'hall', 'friendly_name': 'Hall', 'grid': {'columns': 2, 'rows': 3}})
+        self.assertNotIn('GRID_', best)
+        four = core.installation_yaml({'board': 'guition', 'name': 'hall', 'friendly_name': 'Hall', 'grid': {'columns': 2, 'rows': 4}})
+        self.assertIn('  GRID_ROWS: "4"', subs(four))
+        self.assertNotIn('GRID_COLS', four)
+        # Standing up on glass that is not square: that way's lines, and the angle.
+        tall = core.installation_yaml({'board': 'cyd', 'name': 'hall', 'friendly_name': 'Hall', 'orientation': 'portrait',
+                                       'grid': {'columns': 2, 'rows': 5}})
+        self.assertIn('  GRID_COLS_PORTRAIT: "2"', subs(tall))
+        self.assertIn('  GRID_ROWS_PORTRAIT: "5"', subs(tall))
+        self.assertIn(f'  LVGL_ROTATION: "{SHAPES["cyd"]["orientations"]["portrait"]["rotation"]}"', subs(tall))
+        # Past what that way takes, or not a grid at all: refused.
+        for grid in ({'columns': 4, 'rows': 3}, {'columns': 0, 'rows': 3}, {'columns': 2}, {'columns': '2', 'rows': 3}, [2, 3]):
+            with self.assertRaises(ValueError, msg=grid):
+                core.installation_yaml({'board': 'cyd', 'name': 'hall', 'friendly_name': 'Hall', 'grid': grid})
+        # Offline, the screen's own YAML says the grid it starts with, the way it hangs: the app counts its cells on it.
         import firmware
-        self.assertEqual(firmware.profile_meta(text)['grid_rows'], 4)
-        self.assertIsNone(firmware.profile_meta(core.installation_yaml({'board': 'guition', 'name': 'hall', 'friendly_name': 'Hall'}))['grid_rows'])
-        self.assertEqual(core.grid_of({'board': 'guition', 'grid_rows': 4}), core.Grid(2, 4))
-        self.assertEqual(core.grid_of({'board': 'guition', 'grid_rows': None}), core.Grid(2, 3))
+        self.assertEqual(firmware.profile_meta(four)['built_grid'], {'rows': 4})
+        self.assertEqual(firmware.profile_meta(best)['built_grid'], {})
+        self.assertEqual(firmware.profile_meta(tall)['built_grid'], {'columns_portrait': 2, 'rows_portrait': 5})
+        self.assertEqual(core.grid_of({'board': 'guition', 'built_grid': {'rows': 4}}), core.Grid(2, 4))
+        self.assertEqual(core.grid_of({'board': 'guition', 'built_grid': {}}), core.Grid(2, 3))
+        self.assertEqual(core.grid_of({'board': 'cyd', 'orientation': 'portrait', 'built_grid': {'columns_portrait': 2, 'rows_portrait': 5}}),
+                         core.Grid(2, 5))
         # What the screen reports itself still wins.
         reported = {'width': 480, 'height': 480, 'columns': 2, 'rows': 3, 'dpi': 170, 'look': 'standard'}
-        self.assertEqual(core.grid_of({'board': 'guition', 'grid_rows': 4, 'shape': reported}), core.Grid(2, 3))
+        self.assertEqual(core.grid_of({'board': 'guition', 'built_grid': {'rows': 4}, 'shape': reported}), core.Grid(2, 3))
 
-    def test_tab5_defaults_to_three_rows_and_offers_four(self):
-        text = core.installation_yaml({'board': 'tab5', 'name': 'hall', 'friendly_name': 'Hall'})
-        self.assertNotIn('GRID_ROWS', re.search(r'(?ms)^substitutions:\n(.*?)\n\n', text)[1])
-        selected = core.installation_yaml({
-            'board': 'tab5', 'name': 'hall', 'friendly_name': 'Hall', 'choices': {'GRID_ROWS': '4'}
-        })
-        self.assertIn('  GRID_ROWS: "4"', re.search(r'(?ms)^substitutions:\n(.*?)\n\n', selected)[1].split('\n'))
-        for rows in ('3', '4'):
-            grid = core.grid_of({'board': 'tab5', 'grid_rows': int(rows)})
+    def test_no_board_offers_its_grid_as_a_choice_any_more(self):
+        # The grid is every screen's to choose within its range (app 0.4.85), not a choice of a few boards (app 0.4.31).
+        for board, shape in SHAPES.items():
+            if board.startswith(('checkout/', 'packages/')):
+                continue
+            self.assertNotIn('GRID_ROWS', (shape.get('catalog') or {}).get('choices') or {}, board)
+            for way in ('landscape', 'portrait'):
+                side = shape['orientations'][way]
+                self.assertTrue(side['min'][0] <= side['columns'] <= side['max'][0] and side['min'][1] <= side['rows'] <= side['max'][1], board)
+        # The 64 tiles of a screen without PSRAM fill a grid of any size the same way.
+        for rows in (3, 4):
+            grid = core.grid_of({'board': 'tab5', 'built_grid': {'rows': rows}})
             self.assertEqual((grid.pages, grid.max_tiles), (8, 64))
             tiles = [{'entity': f'light.tab5_{n}', 'name': ''} for n in range(64)]
             self.assertEqual(len(core.validate_layout({'title': 'Tab5', 'tiles': tiles}, grid=grid)['tiles']), 64)
-            with self.assertRaisesRegex(ValueError, 'at most 64'):
-                core.validate_layout({'title': 'Tab5', 'tiles': tiles + [{'entity': 'light.extra', 'name': ''}]},
-                                     grid=grid)
-
-    def test_the_ten_inch_guitions_offer_more_rows(self):
-        rows_options = ['5', '6', '7', '8']
-        for board in ('jc8012p4a1', 'jc8012p4a1v2', 'jc8012p4a1v3'):
-            with self.subTest(board=board):
-                self.assertEqual(SHAPES[board]['catalog']['choices']['GRID_ROWS'], rows_options)
-                profile = core.installation_yaml({
-                    'board': board, 'name': 'hall', 'friendly_name': 'Hall',
-                    'choices': {'GRID_ROWS': '8'},
-                })
-                substitutions = re.search(r'(?ms)^substitutions:\n(.*?)\n\n', profile)[1]
-                self.assertIn('  GRID_ROWS: "8"', substitutions.split('\n'))
 
     def test_a_choice_the_board_does_not_offer_is_refused(self):
         for choices in ({'DISPLAY_MODEL': 'GC9A01'}, {'DISPLAY_DATA_RATE': '20MHz'}, ['DISPLAY_MODEL'], 'ST7789V'):

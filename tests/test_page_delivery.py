@@ -309,6 +309,31 @@ class DeliveryTests(unittest.IsolatedAsyncioTestCase):
             await self.sync()
         self.assertEqual([message['op'] for message in self.screen.messages], ['hello'])
 
+    async def test_a_screen_given_another_grid_takes_the_sizes_of_that_grid(self):
+        # Its hello names the sizes of the grid it is on (two columns of three: no 3x1); the layout's grid of three
+        # columns of two takes a tile three columns wide, and the screen takes it with that grid (firmware 0.53.0+).
+        self.record = {**deepcopy(self.record), 'sourceGrid': {'columns': 3, 'rows': 2}}
+        tile = self.record['layout']['pages'][0]['tiles'][0]
+        tile['placement']['columns'] = 3
+        tile['appearance']['presentation'] = '3x1'
+        self.values[0]['o']['size'] = '3x1'
+        on_two_by_three = ['single', 'wide', 'full', 'tall', 'square', '1x3']
+
+        def screen(grids):
+            async def answer(message):
+                reply = await self.screen.send(message)
+                if grids: reply['grids'] = deepcopy(self.GRIDS)
+                if message['op'] == 'hello': reply['tile_sizes'] = list(on_two_by_three)
+                return reply
+            return answer
+        self.sender = Sender(screen(grids=False))
+        with self.assertRaisesRegex(Refused, 'these tile sizes'):
+            await self.sync()
+        self.sender = Sender(screen(grids=True))
+        await self.sync()
+        self.assertEqual(self.screen.begin['grid'], [3, 2])
+        self.assertEqual(self.screen.initial[0]['o']['size'], '3x1')
+
     async def test_a_screen_that_keeps_its_grid_gets_no_grid(self):
         await self.sync()
         self.assertNotIn('grid', self.screen.begin)

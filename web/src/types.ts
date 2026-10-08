@@ -112,7 +112,9 @@ export type SettingsView = { owner: string; keys: string[]; values: Record<strin
 // The two ways a screen can hang (app 0.2.107), chosen when it is built: lying down or standing up. A board's own
 // numbers for each way come from boards.json, which the add-on serves with the firmware status.
 export type Orientation = "landscape" | "portrait";
-export type BoardOrientation = { width: number; height: number; columns: number; rows: number; rotation: number };
+// `min` and `max`: the grids a screen of the board takes that way (firmware 0.53.0+, looks/shared/grid.yaml).
+export type BoardOrientation = { width: number; height: number; columns: number; rows: number; rotation: number;
+  min?: [number, number]; max?: [number, number] };
 // What the add-on says of a board (boards.yaml and the board's own files, through boards.json, app 0.2.129): what it is
 // called and printed on it, how far it has been tried, its glass, what it can do, and the choices made when a screen of
 // it is built (the first value of each is the board file's own).

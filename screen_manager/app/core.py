@@ -419,6 +419,13 @@ def span_offered(columns, rows, grid):
     """Whether a grid takes this rectangle as a span: smaller than the grid, and more than the names say (2 x 2)."""
     return columns <= grid.columns and rows <= grid.rows and (columns, rows) != (grid.columns, grid.rows) and (columns > 2 or rows > 2)
 
+def sizes_on(grid):
+    """The sizes a screen on this grid takes, as its hello says them (tile_sizes, packages/core.yaml): the names that fit
+    and every span the grid offers. For a screen given another grid with its layout (firmware 0.53.0+), whose hello
+    still names the sizes of the grid it is on."""
+    names = {'single', 'wide', 'full'} | ({'tall'} if grid.rows >= 2 else set()) | ({'square'} if grid.columns >= 2 and grid.rows >= 2 else set())
+    return names | {f'{c}x{r}' for c in range(1, grid.columns + 1) for r in range(1, grid.rows + 1) if span_offered(c, r, grid)}
+
 def is_size(size):
     return size in TILE_SIZES_ON_SCREEN or span_of(size) is not None
 
@@ -720,11 +727,14 @@ def shape_of(screen):
     # Which way it hangs, in the order of what knows best as well: the canvas the screen reports is one of its
     # board's two, and only when it says nothing does the word from its own profile decide.
     shape = board_shape(board, orientation_shown(board, reported) or screen.get('orientation'))
-    # The rows its own YAML was built with (a Guition with four rows, app 0.4.31), for the grid lying down, which on
-    # square glass is the grid either way.
-    rows = screen.get('grid_rows')
-    if type(rows) is int and rows > 0 and shape.get('width', 0) >= shape.get('height', 0):
-        shape = {**shape, 'rows': rows}
+    # The grid its own YAML was built with (rows since app 0.4.31, columns and rows either way since app 0.4.85), for the
+    # way it hangs: lying down, which on square glass is the grid either way, or standing up.
+    built = screen.get('built_grid') if isinstance(screen.get('built_grid'), dict) else {}
+    standing = shape.get('height', 0) > shape.get('width', 0)
+    for key in ('columns', 'rows'):
+        value = built.get(f'{key}_portrait' if standing else key)
+        if type(value) is int and value > 0:
+            shape = {**shape, key: value}
     if reported:
         shape = {**shape, **reported}
     return shape
@@ -2873,6 +2883,21 @@ def installation_yaml(data):
     turn = (sides.get(orientation) or {}).get('rotation')
     lying = (sides.get('landscape') or {}).get('rotation')
     rotation_line = f'  LVGL_ROTATION: {quote(str(turn))}\n' if turn is not None and turn != lying else ''
+    # The grid it starts with (app 0.4.85): the board's own unless New screen's Advanced chose another for the way it hangs,
+    # within the range that way takes (boards.json min and max). Only a grid that differs writes lines, the way the
+    # orientation does; the screen's own YAML then wins over the board file's. ESP Screens changes it later without a build.
+    grid_lines = ''
+    grid = data.get('grid')
+    if grid is not None:
+        side = sides.get(orientation) or {}
+        least, most = side.get('min') or [1, 1], side.get('max') or [side.get('columns'), side.get('rows')]
+        if (not isinstance(grid, dict) or set(grid) != {'columns', 'rows'} or not all(type(grid[k]) is int for k in grid)
+                or not least[0] <= grid['columns'] <= most[0] or not least[1] <= grid['rows'] <= most[1]):
+            raise ValueError(t('addon.errors.firmware.grid'))
+        square = side.get('width') == side.get('height')
+        suffix = '_PORTRAIT' if orientation == 'portrait' and not square else ''
+        grid_lines = ''.join(f'  {key}{suffix}: {quote(str(grid[name]))}\n'
+                             for name, key in (('columns', 'GRID_COLS'), ('rows', 'GRID_ROWS')) if grid[name] != side.get(name))
     # The board's other choices (app 0.2.129): a part that differs between boards sold under one name, like the CYD's
     # display controller, offered in boards.yaml with the board file's own value first. That one writes nothing, like
     # lying down; another is a line of the screen's own substitutions, which win over the board file's.
@@ -2907,7 +2932,7 @@ substitutions:
   DEVICE_NAME: {quote(name)}
   DEVICE_FRIENDLY_NAME: {quote(friendly.strip())}
   LANGUAGE: {quote(language)}
-{rotation_line}{choice_lines}{branch_line}
+{rotation_line}{grid_lines}{choice_lines}{branch_line}
 esphome:
   name: {quote(name)}
   friendly_name: {quote(friendly.strip())}

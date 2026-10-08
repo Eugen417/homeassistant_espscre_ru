@@ -3,7 +3,9 @@
 Chosen beside the mockup in the editor, for a screen whose glass is not square: the layout is laid out on the grid of
 that way and goes to the screen with it (begin's "upright"), which turns, starts again and keeps the way. Kept here per
 Home Assistant device until the screen has it and after, so a screen whose preferences were wiped (a USB flash) is turned
-back the next time its layout goes out. A screen nobody turned has no entry: it hangs the way it was built.
+back the next time its layout goes out. A screen nobody turned has no entry: it hangs the way it was built. A choice
+keeps the angle its screen's own YAML was built with at the time (LVGL_ROTATION, None for its board's own): a screen
+installed again with another way in New screen hangs that way, and the old choice no longer counts.
 Kept apart from the saved layouts, whose records an older app reads with a fixed set of fields."""
 import json
 import logging
@@ -22,16 +24,23 @@ class ScreenHang:
             ways = data.get('ways') if isinstance(data, dict) and data.get('version') == 1 else None
         except (OSError, ValueError):
             ways = None
-        self.ways = {str(k): v for k, v in (ways or {}).items() if v in WAYS}
+        self.ways = {str(k): v for k, v in (ways or {}).items()
+                     if isinstance(v, dict) and v.get('way') in WAYS and (v.get('built') is None or type(v.get('built')) is int)}
 
-    def get(self, device):
-        return self.ways.get(device) if device else None
+    def has(self, device):
+        return bool(device) and device in self.ways
 
-    def set(self, device, way):
-        """Keep `way` ('landscape' or 'portrait') for the screen of `device`. True when it changed."""
-        if not device or way not in WAYS or self.ways.get(device) == way:
+    def get(self, device, built=None):
+        """The way chosen for the screen of `device`, when its YAML still builds at the angle it was chosen at, else None."""
+        entry = self.ways.get(device) if device else None
+        return entry['way'] if entry and entry.get('built') == built else None
+
+    def set(self, device, way, built=None):
+        """Keep `way` ('landscape' or 'portrait') for the screen of `device`, built at angle `built`. True when it changed."""
+        entry = {'way': way, 'built': built}
+        if not device or way not in WAYS or self.ways.get(device) == entry:
             return False
-        self.ways[device] = way
+        self.ways[device] = entry
         self._save()
         return True
 

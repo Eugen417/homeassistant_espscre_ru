@@ -17,7 +17,9 @@
 #   choices   optional: a substitution the board file offers for a part that differs between boards sold under the same
 #             name, with the values someone may pick when the screen is built. The first is the board file's own
 #             default and writes nothing; another is written into the screen's own YAML. Only values that people with
-#             that board confirmed work belong here.
+#             that board confirmed work belong here. The grid is no choice of the board's: every screen takes the
+#             grids its glass holds (packages/looks/shared/grid.yaml), New screen offers them under Advanced and the
+#             editor changes them later without a build.
 
 cyd:
   file: cyd-2432s028.yaml
@@ -40,9 +42,6 @@ guition:
   name: Guition
   model: ESP32-S3-4848S040
   status: stable
-  choices:
-    # Two columns of three, or of four with smaller tiles (firmware 0.18.1): more on a page for a screen of switches.
-    GRID_ROWS: ["3", "4"]
 
 waveshare43:
   file: waveshare-esp32s3-43.yaml
@@ -55,17 +54,12 @@ jc8012p4a1:
   name: Guition
   model: JC8012P4A1
   status: new
-  choices:
-    # More rows fit more tiles on each page; five keeps the default tile size.
-    GRID_ROWS: ["5", "6", "7", "8"]
 
 jc8012p4a1v3:
   file: guition-jc8012p4a1-v3.yaml
   name: Guition
   model: JC8012P4A1 V3
   status: experimental
-  choices:
-    GRID_ROWS: ["5", "6", "7", "8"]
 
 waveshare7:
   file: waveshare-esp32s3-7.yaml
@@ -126,17 +120,12 @@ jc8012p4a1v2:
   name: Guition
   model: JC8012P4A1 V2
   status: experimental
-  choices:
-    GRID_ROWS: ["5", "6", "7", "8"]
 
 tab5:
   file: tab5.yaml
   name: M5Stack Tab5
   model: Tab5 ST7121
   status: new
-  choices:
-    # Three columns of three, or four with smaller tiles and more on a page.
-    GRID_ROWS: ["3", "4"]
 
 waveshare5:
   file: waveshare-esp32s3-5.yaml

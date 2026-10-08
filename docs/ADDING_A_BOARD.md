@@ -79,7 +79,9 @@ and what depends on the canvas the firmware works out on the glass (see below).
 The grid is the one real choice: the proposal keeps a tile at about 33 × 16 mm and never smaller than 30 × 12 mm,
 but a board of the same size can be read as "more tiles" or "bigger tiles". Render both and look. It is two
 choices on glass that is not square, because a card keeps its size in millimetres: a screen that holds three
-columns lying down may hold one standing up, and Tessera offers the owner both when the screen is built.
+columns lying down may hold one standing up. The board's grid is where a screen starts and what New screen suggests;
+the owner may give it another, within what its glass holds ([RESPONSIVE.md](RESPONSIVE.md), "The grid a screen is
+given"), and the layout audit lays out the finest of those too.
 
 One thing to weigh for the standing grid: a screen holds 64 tiles in all over at most eight pages unless its board file says
 more (firmware 0.18.0+; `SCREEN_MAX_TILES` and `SCREEN_MAX_PAGES`, firmware 0.34.0+): a page need not be full, but a
@@ -107,8 +109,9 @@ card that falls outside its area without a board on the desk. `tools/check.sh --
 ## 6. Then the board itself
 
 Flash it once: touch (the corners and a drag), the backlight, the colour order, the rotation, and a page switch.
-What a render cannot show is exactly what the hardware check is for. Then flash it standing up, which is the same
-build with `LVGL_ROTATION` a quarter further than `ROTATION_LANDSCAPE`, and walk the same list again.
+What a render cannot show is exactly what the hardware check is for. Then stand it up, with Grid beside the pages
+in the editor (the same firmware turns a quarter further and starts again) or a build with `LVGL_ROTATION` a quarter
+further than `ROTATION_LANDSCAPE`, and walk the same list again.
 
 ## 7. Write it down
 

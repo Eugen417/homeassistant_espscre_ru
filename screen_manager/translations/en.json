@@ -712,7 +712,7 @@
         "substitutions_managed": "These substitutions stay managed by Tessera: {names}.",
         "substitutions_in_profile": "{names} is set in this screen's own YAML (chosen under New screen), which wins over the override. Change it there instead.",
         "orientation": "Choose whether the screen hangs lying down or standing up.",
-        "orientation_managed": "Which way a screen hangs is chosen when it is built, under New screen, so LVGL_ROTATION stays managed by Tessera.",
+        "orientation_managed": "Which way a screen hangs is chosen in the editor, under Grid beside the pages, or when it is built, under New screen, so LVGL_ROTATION stays managed by Tessera.",
         "usb_port": "Choose the connected USB port from the list.",
         "busy_wait": "A build or installation is already running. Wait for it to finish.",
         "busy": "A build or installation is already running.",
@@ -720,7 +720,8 @@
         "still_building": "The firmware is still being built. Download it when the build has finished.",
         "build_first": "Build the firmware first; the download appears when the build has finished.",
         "unknown_action": "Unknown firmware action.",
-        "host": "Enter the IP address or hostname of the intended screen."
+        "host": "Enter the IP address or hostname of the intended screen.",
+        "grid": "Choose a grid this screen takes."
       },
       "updates": {
         "automatic": "Choose on or off for automatic updates.",
@@ -2260,19 +2261,14 @@
         "calibration": "Touch calibration on first start"
       },
       "choice": {
-        "DISPLAY_MODEL": "Display controller",
-        "GRID_ROWS": "Tiles on a page"
+        "DISPLAY_MODEL": "Display controller"
       },
       "choice_hint": {
-        "DISPLAY_MODEL": "Most of these boards have the first one. Take the other when the screen shows noise or a garbled picture.",
-        "GRID_ROWS": "More rows fit more tiles on a page; fewer rows keep the tiles larger and easier to read."
+        "DISPLAY_MODEL": "Most of these boards have the first one. Take the other when the screen shows noise or a garbled picture."
       },
       "choice_usual": "most boards",
-      "orientation": "Which way will it hang?",
       "orientation_landscape": "Lying down",
       "orientation_portrait": "Standing up",
-      "orientation_tiles": "{n} tile a page | {n} tiles a page",
-      "orientation_hint": "You choose this when the screen is built. To hang it the other way later, build the screen again.",
       "name": "Name",
       "name_placeholder": "Living room screen",
       "device_name": "Device name",
@@ -2404,15 +2400,6 @@
         "change": "Change Wi-Fi and install again",
         "failed": "Tessera can't add {name} to Home Assistant by itself. Add it yourself below."
       },
-      "choice_option": {
-        "GRID_ROWS": {
-          "3": "3 rows",
-          "4": "4 rows, smaller tiles"
-        }
-      },
-      "choice_first": {
-        "GRID_ROWS": "the usual size"
-      },
       "memory": {
         "low_title": "Little memory free on the Home Assistant machine",
         "low": "{free} of memory is free, so the firmware builds with fewer compilers at a time ({jobs} instead of {cores}). That takes longer, but it fits.",
@@ -2425,7 +2412,10 @@
         "limit_title": "Not enough memory to build the firmware",
         "limit": "The build ran out of memory, also with one compiler at a time. Stop a few add-ons for a while or give the machine more memory, then try again."
       },
-      "pair_yourself": "Add it in Home Assistant yourself"
+      "pair_yourself": "Add it in Home Assistant yourself",
+      "grid": "Grid",
+      "grid_hint": "The suggested grid is the best for this screen. You can change it, and which way it hangs, later beside the pages in the editor, without a new build.",
+      "grid_best": "Back to the best"
     },
     "alerts": {
       "eyebrow": "Alerts · cheatsheet",

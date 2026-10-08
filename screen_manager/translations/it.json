@@ -712,7 +712,7 @@
         "substitutions_managed": "Queste substitutions restano gestite da Tessera: {names}.",
         "substitutions_in_profile": "{names} è impostato nello YAML proprio di questo schermo (scelto in Nuovo schermo), che prevale sull'override. Modificalo lì.",
         "orientation": "Scegli se lo schermo sta in orizzontale o in verticale.",
-        "orientation_managed": "Il senso in cui uno schermo è appeso si sceglie quando viene compilato, in Nuovo schermo; per questo LVGL_ROTATION resta gestito da Tessera.",
+        "orientation_managed": "Il senso in cui uno schermo è appeso si sceglie nell’editor, in Griglia accanto alle pagine, o quando viene compilato, in Nuovo schermo; per questo LVGL_ROTATION resta gestito da Tessera.",
         "usb_port": "Scegli dall'elenco la porta USB collegata.",
         "busy_wait": "È già in corso una compilazione o un'installazione. Attendi che finisca.",
         "busy": "È già in corso una compilazione o un'installazione.",
@@ -720,7 +720,8 @@
         "still_building": "Il firmware è ancora in compilazione. Scaricalo quando la compilazione è finita.",
         "build_first": "Compila prima il firmware; il download compare quando la compilazione è finita.",
         "unknown_action": "Azione firmware sconosciuta.",
-        "host": "Inserisci l'indirizzo IP o il nome host dello schermo giusto."
+        "host": "Inserisci l'indirizzo IP o il nome host dello schermo giusto.",
+        "grid": "Scegli una griglia che questo schermo accetta."
       },
       "updates": {
         "automatic": "Scegli attivo o disattivo per gli aggiornamenti automatici.",
@@ -2463,19 +2464,14 @@
         "calibration": "Calibrazione del touch al primo avvio"
       },
       "choice": {
-        "DISPLAY_MODEL": "Controller del display",
-        "GRID_ROWS": "Riquadri per pagina"
+        "DISPLAY_MODEL": "Controller del display"
       },
       "choice_hint": {
-        "DISPLAY_MODEL": "La maggior parte di queste schede ha il primo. Scegli l'altro se lo schermo mostra rumore o un'immagine disturbata.",
-        "GRID_ROWS": "Più righe permettono di mostrare più riquadri in una pagina; meno righe mantengono i riquadri più grandi e leggibili."
+        "DISPLAY_MODEL": "La maggior parte di queste schede ha il primo. Scegli l'altro se lo schermo mostra rumore o un'immagine disturbata."
       },
       "choice_usual": "la maggior parte",
-      "orientation": "Come lo appendi?",
       "orientation_landscape": "In orizzontale",
       "orientation_portrait": "In verticale",
-      "orientation_tiles": "{n} riquadro per pagina | {n} riquadri per pagina",
-      "orientation_hint": "Lo scegli quando lo schermo viene compilato. Per appenderlo nell'altro senso più avanti, compila di nuovo lo schermo.",
       "name": "Nome",
       "name_placeholder": "Schermo del soggiorno",
       "device_name": "Nome dispositivo",
@@ -2607,15 +2603,6 @@
         "change": "Cambia Wi-Fi e reinstalla",
         "failed": "Tessera non riesce ad aggiungere {name} da solo a Home Assistant. Aggiungilo tu qui sotto."
       },
-      "choice_option": {
-        "GRID_ROWS": {
-          "3": "3 righe",
-          "4": "4 righe, riquadri più piccoli"
-        }
-      },
-      "choice_first": {
-        "GRID_ROWS": "la dimensione abituale"
-      },
       "memory": {
         "low_title": "Poca memoria libera sulla macchina Home Assistant",
         "low": "Ci sono {free} di memoria libera, quindi il firmware si compila con meno compilatori alla volta ({jobs} invece di {cores}). Ci vuole più tempo, ma ci sta.",
@@ -2628,7 +2615,10 @@
         "limit_title": "Memoria insufficiente per compilare il firmware",
         "limit": "La memoria è finita, anche con un compilatore alla volta. Ferma qualche componente aggiuntivo per un po' o dai più memoria alla macchina, poi riprova."
       },
-      "pair_yourself": "Aggiungilo tu in Home Assistant"
+      "pair_yourself": "Aggiungilo tu in Home Assistant",
+      "grid": "Griglia",
+      "grid_hint": "La griglia proposta è la migliore per questo schermo. Puoi cambiarla, e l’orientamento, più tardi accanto alle pagine nell’editor, senza ricompilare.",
+      "grid_best": "Torna alla migliore"
     },
     "alerts": {
       "eyebrow": "Avvisi · guida rapida",

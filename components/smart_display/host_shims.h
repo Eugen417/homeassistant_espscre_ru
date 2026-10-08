@@ -42,6 +42,7 @@ struct ESPTime {
 };
 struct PreferenceStore {
   template <typename T> ESPPreferenceObject make_preference(uint32_t) { return {}; }
+  bool sync() { return true; }
 };
 inline PreferenceStore host_preferences;
 inline PreferenceStore *global_preferences = &host_preferences;

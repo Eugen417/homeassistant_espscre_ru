@@ -1,7 +1,7 @@
 // One reactive state for the whole editor. The Python API (server.py) is unchanged: this file is the
 // former app.js state and its calls, with the DOM work moved into the components.
 import { computed, reactive, ref, toRaw, watch } from "vue";
-import { isTallSize, sizeColumns, spanOf, spanOffered } from "./model/sizes";
+import { isTallSize, sizeColumns, sizesOn, spanOf, spanOffered } from "./model/sizes";
 import { api, getJson, send, setCsrf } from "./api";
 import { andList, editorLanguage, languageMeta, loadLanguage, type NumberMarks, pickLanguage, STYLE_MARKS, t } from "./i18n";
 import { entriesOf, effectiveControls, isFull, isWide, newTile, pageOrder, pagePlaces, pageTarget, reorderTitles, retargetedPage, sizeOf, supportsFirmware as supportsVersion } from "./model/layout";
@@ -12,7 +12,7 @@ import { measuring, memoryCrossing, memoryUse } from "./model/memory";
 import { validPreviewShape, type PreviewProfile } from "./model/preview";
 import { barItemOf, pluginTileOf, text as pluginText } from "./model/plugins";
 import renderer from "./wasm/renderer.json";
-import type { BoardChoice, Build, Capability, ChildTile, FeedbackView, ChangelogSection, EntityAction, HeaderItem, Inventory, Layout, SaverKind, Screen, ScreensaverChoice, Tile, PageLayout, PageTile, PageDocument, PageGrid, PageWorkspace } from "./types";
+import type { BoardChoice, Build, Capability, ChildTile, FeedbackView, ChangelogSection, EntityAction, HeaderItem, Inventory, Layout, SaverKind, Screen, ScreensaverChoice, Tile, PageLayout, PageTile, PageDocument, PageGrid, PageWorkspace, Orientation, ScreenShape, GridWay, ScreenGrids } from "./types";
 
 import * as pages from "./model/pages";
 import { DraftHistory, type HistoryScope } from './model/draft-history';
@@ -140,12 +140,6 @@ const renderedLayout = computed<Layout | null>(() => state.document && state.doc
   ? pages.projectLayout(state.document, state.documentGrid) : null);
 const VIRTUAL_SCREENS_KEY = "esp-screens.virtual-screens";
 // What a preview screen's firmware says it takes, as a screen of that grid says it (the five names and its spans).
-function previewTileSizes(shape: { columns: number; rows: number }): string[] {
-  const sizes = ['single', 'wide', 'full', 'tall', 'square'];
-  for (let columns = 1; columns <= shape.columns; columns++)
-    for (let rows = 1; rows <= shape.rows; rows++) if (spanOffered(columns, rows, shape)) sizes.push(`${columns}x${rows}`);
-  return sizes;
-}
 // Preview screens live in this browser's storage, written by an older app too. Each one is checked on its own (app
 // 0.4.32): one that no longer reads, or whose pages this app refuses, is left out with a word about it, and never
 // keeps the editor or the other preview screens from loading.
@@ -158,6 +152,16 @@ function usablePreview(s: any): boolean {
     return true;
   } catch { return false; }
 }
+// A preview screen takes the grids its board takes (boards.json, firmware 0.53.0+), the way it was made; null for one
+// without its board's catalogue (the custom glass, or made by an app before 0.4.85).
+function previewGrids(shape: ScreenShape, orientation?: Orientation): ScreenGrids | null {
+  const way = (side: Orientation): GridWay | null => {
+    const o = (shape.catalog as Partial<BoardChoice> | undefined)?.orientations?.[side];
+    return o?.min && o.max ? { columns: o.columns, rows: o.rows, min: o.min, max: o.max } : null;
+  };
+  const landscape = way("landscape"), portrait = way("portrait");
+  return landscape && portrait ? { upright: orientation === "portrait", landscape, portrait } : null;
+}
 function virtualScreens(): Screen[] {
   let value: any[];
   try {
@@ -168,7 +172,7 @@ function virtualScreens(): Screen[] {
   const skipped = value.filter((s) => !usable.includes(s)).map((s) => (typeof s?.name === "string" && s.name) || "?").join(", ");
   if (skipped && skipped !== previewsSkipped) { previewsSkipped = skipped; setTimeout(() => toast(t("editor.preview.skipped", { names: skipped })), 0); }
   return usable.map((s) => ({ ...s, firmware: renderer.firmware, firmware_known: renderer.firmware,
-    tile_sizes: previewTileSizes(s.shape), page_capability: 'ready' }));
+    tile_sizes: sizesOn(s.shape), grids: previewGrids(s.shape, s.orientation), page_capability: 'ready' }));
 }
 function persistVirtualScreens(screens = state.inventory.screens) {
   localStorage.setItem(VIRTUAL_SCREENS_KEY, JSON.stringify(screens.filter((s) => s.virtual)));
@@ -200,7 +204,7 @@ export function createVirtualScreen(name: string, profile: PreviewProfile) {
     firmware: renderer.firmware, firmware_known: renderer.firmware, tile_limit: 64, full_page: true,
     page_tiles_repeat: true, entity_tiles_repeat: true, no_title: true, climate_range: true, in_sync: true, shape, layout: { title: name.trim(), tiles: [], pages: 1 },
     source_grid: sourceGrid, page_document: document, page_capability: 'ready',
-    tile_sizes: previewTileSizes(shape),
+    tile_sizes: sizesOn(shape), grids: previewGrids(shape, orientation),
   };
   persistVirtualScreens([...state.inventory.screens, screen]);
   state.inventory.screens.push(screen);
@@ -972,9 +976,14 @@ export function pagesShown() {
 }
 /** UI experiments are opt-in; saved documents and device support stay independent. */
 export const tallerTilesEnabled = computed(() => state.inventory.editor_features?.tall_tiles === true);
+/** The sizes the screen takes on the draft's grid: one given its grid with the layout (firmware 0.53.0+) every size of
+ * that grid, an older one those it named for the grid it was built with. */
+function screenSizes(): string[] {
+  return currentScreen.value?.grids ? sizesOn(grid) : currentScreen.value?.tile_sizes || [];
+}
 export function tileSizeChoices(tile: Tile): Size[] {
   const choices: Size[] = ['single', 'wide'];
-  const said = currentScreen.value?.tile_sizes || [];
+  const said = screenSizes();
   // A forecast or the sun's path needs width: nothing one column wide and taller than a row.
   const narrow = ['forecast', 'sunpath'].includes(String(tile.options?.display));
   if (tallerTilesEnabled.value) for (const size of ['tall', 'square'] as const) {
@@ -1041,7 +1050,7 @@ export function setTileOption(tile: Tile, key: string, value: unknown, field?: s
   tile = currentView(tile, layout) || tile;
   const domain = tile.entity.split(".")[0], caps = state.capabilities[tile.entity], wasSize = sizeOf(tile);
   // Beyond single, wide and the whole page, a size is one the screen said it takes (tall and square 0.3.1, spans 0.19.0).
-  if (key === "size" && !["single", "wide", "full"].includes(String(value)) && ((isTallSize(value) && !tallerTilesEnabled.value) || !currentScreen.value?.tile_sizes?.includes(String(value)))) return;
+  if (key === "size" && !["single", "wide", "full"].includes(String(value)) && ((isTallSize(value) && !tallerTilesEnabled.value) || !screenSizes().includes(String(value)))) return;
   if (key === "size" && isTallSize(value) && sizeColumns(value) === 1 && ["forecast", "sunpath"].includes(String(tile.options?.display))) return;
   // Perform action is a choice with a second step (app 0.4.0, GitHub #47): nothing is stored until an action is
   // chosen, which comes here as `action` and brings the tap choice with it.

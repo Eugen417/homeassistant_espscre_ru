@@ -712,7 +712,7 @@
         "substitutions_managed": "Ezeket a substitutions értékeket továbbra is a Tessera kezeli: {names}.",
         "substitutions_in_profile": "{names} a kijelző saját YAML-jében van beállítva (az Új kijelző alatt választva), ami erősebb a felülírásnál. Inkább ott módosítsd.",
         "orientation": "Válaszd ki, hogy a kijelző fekvő vagy álló helyzetben lesz.",
-        "orientation_managed": "A kijelző tájolását az Új kijelző alatt, építéskor választod ki, ezért az LVGL_ROTATION-t a Tessera kezeli.",
+        "orientation_managed": "A kijelző tájolását a szerkesztőben, az oldalak melletti Rács alatt, vagy építéskor az Új kijelző alatt választod ki, ezért az LVGL_ROTATION-t a Tessera kezeli.",
         "usb_port": "Válaszd ki a csatlakoztatott USB-portot a listából.",
         "busy_wait": "Már fut egy fordítás vagy telepítés. Várd meg, amíg befejeződik.",
         "busy": "Már fut egy fordítás vagy telepítés.",
@@ -720,7 +720,8 @@
         "still_building": "A firmware fordítása még tart. Töltsd le, ha elkészült.",
         "build_first": "Előbb fordítsd le a firmware-t; a letöltés a fordítás végeztével jelenik meg.",
         "unknown_action": "Ismeretlen firmware-művelet.",
-        "host": "Add meg a kívánt kijelző IP-címét vagy hosztnevét."
+        "host": "Add meg a kívánt kijelző IP-címét vagy hosztnevét.",
+        "grid": "Válassz olyan rácsot, amelyet ez a kijelző elfogad."
       },
       "updates": {
         "automatic": "Kapcsold be vagy ki az automatikus frissítéseket.",
@@ -2463,19 +2464,14 @@
         "calibration": "Érintéskalibrálás az első indításkor"
       },
       "choice": {
-        "DISPLAY_MODEL": "Kijelzővezérlő",
-        "GRID_ROWS": "Csempék egy oldalon"
+        "DISPLAY_MODEL": "Kijelzővezérlő"
       },
       "choice_hint": {
-        "DISPLAY_MODEL": "A legtöbb ilyen panelen az első van. Ha a kijelző zajos vagy torz képet mutat, válaszd a másikat.",
-        "GRID_ROWS": "Több sor több csempét jelenít meg egy oldalon; kevesebb sor nagyobb és könnyebben olvasható csempéket hagy."
+        "DISPLAY_MODEL": "A legtöbb ilyen panelen az első van. Ha a kijelző zajos vagy torz képet mutat, válaszd a másikat."
       },
       "choice_usual": "a legtöbb panel",
-      "orientation": "Hogyan lesz felszerelve?",
       "orientation_landscape": "Fekvő",
       "orientation_portrait": "Álló",
-      "orientation_tiles": "{n} csempe oldalanként | {n} csempe oldalanként",
-      "orientation_hint": "Ezt a kijelző fordításakor választod ki. Ha később másként szerelnéd fel, fordítsd le újra.",
       "name": "Név",
       "name_placeholder": "Nappali kijelző",
       "device_name": "Eszköznév",
@@ -2607,15 +2603,6 @@
         "change": "Wi-Fi módosítása és újratelepítés",
         "failed": "A Tessera nem tudja magától hozzáadni ezt a Home Assistanthez: {name}. Add hozzá magad lent."
       },
-      "choice_option": {
-        "GRID_ROWS": {
-          "3": "3 sor",
-          "4": "4 sor, kisebb csempék"
-        }
-      },
-      "choice_first": {
-        "GRID_ROWS": "a szokásos méret"
-      },
       "memory": {
         "low_title": "Kevés a szabad memória a Home Assistant gépen",
         "low": "{free} memória szabad, ezért a firmware kevesebb fordítóval készül egyszerre ({jobs} a {cores} helyett). Ez tovább tart, de így elfér.",
@@ -2628,7 +2615,10 @@
         "limit_title": "Nincs elég memória a firmware fordításához",
         "limit": "Elfogyott a memória, egy fordítóval is. Állíts le néhány kiegészítőt egy időre, vagy adj több memóriát a gépnek, majd próbáld újra."
       },
-      "pair_yourself": "Add hozzá magad a Home Assistanthez"
+      "pair_yourself": "Add hozzá magad a Home Assistanthez",
+      "grid": "Rács",
+      "grid_hint": "A javasolt rács a legjobb ehhez a kijelzőhöz. Később a szerkesztőben, az oldalak mellett, újrafordítás nélkül módosíthatod, a tájolással együtt.",
+      "grid_best": "Vissza a legjobbhoz"
     },
     "alerts": {
       "eyebrow": "Figyelmeztetések · puska",

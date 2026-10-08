@@ -16,7 +16,7 @@ import yaml
 import zipfile
 import build_cache
 import build_memory
-from core import BOARD_KEYS, CHANNELS, ORIENTATIONS, REF, REPO, SHAPES, channel, hotspot_name, installation_yaml, old_hotspot_name, ref
+from core import BOARD_KEYS, CHANNELS, REF, REPO, SHAPES, channel, hotspot_name, installation_yaml, old_hotspot_name, ref
 from i18n import t
 
 LOG = logging.getLogger('screen_manager')
@@ -58,13 +58,17 @@ def profile_meta(text):
     # writes it as ${SOMETHING} is left to the board file as well, because only the build can resolve that.
     rotation = substitutions.get('LVGL_ROTATION')
     rotation = int(rotation) if isinstance(rotation, (int, str)) and str(rotation).strip().lstrip('-').isdigit() else None
-    # The rows it was built with (app 0.4.31): only a screen built with another grid than its board file's carries the
-    # line, a Guition with four rows, so nothing here means the board's own grid.
-    rows = substitutions.get('GRID_ROWS')
-    rows = int(rows) if isinstance(rows, (int, str)) and str(rows).strip().isdigit() and int(rows) > 0 else None
+    # The grid it was built with (rows since app 0.4.31, columns and rows either way since app 0.4.85): only a screen built
+    # with another grid than its board file's carries the lines, so nothing here means the board's own grid. The grid it
+    # starts with: a screen that takes another (firmware 0.53.0+) says the one it runs on itself.
+    def count(key):
+        value = substitutions.get(key)
+        return int(value) if isinstance(value, (int, str)) and str(value).strip().isdigit() and int(value) > 0 else None
+    built = {name: count(key) for name, key in (('columns', 'GRID_COLS'), ('rows', 'GRID_ROWS'),
+                                               ('columns_portrait', 'GRID_COLS_PORTRAIT'), ('rows_portrait', 'GRID_ROWS_PORTRAIT'))}
     return {'node': resolve(block.get('name')), 'friendly': resolve(block.get('friendly_name')),
             'screen': ours, 'api_key': key if isinstance(key, str) else None, 'package': package,
-            'rotation': rotation, 'grid_rows': rows}
+            'rotation': rotation, 'built_grid': {name: value for name, value in built.items() if value}}
 
 # What New screen offers, board by board in the catalog's order (boards.yaml, written into boards.json with what each
 # board's files say): what it is called and printed on it, how far it has been tried, its glass (canvas, density,
@@ -106,10 +110,11 @@ class Firmware:
                                          'external_components', 'captive_portal'})
     # LANGUAGE follows Settings -> Language & region (app 0.2.90), which writes it into the profile itself.
     # LVGL_ROTATION follows the orientation chosen when the screen is made (app 0.2.107), written into the profile
-    # the same way. A profile's own substitutions beat a package's, so an override that set it would quietly lose
-    # against a screen built standing up and quietly win on one built lying down. That is worse than being told, so
-    # it is refused here with its own sentence rather than the general "these stay managed" one: people were told to
-    # override display settings (GitHub #12 and #15), and the sentence has to say where the choice lives now.
+    # the same way, and the editor turns a screen later without a build (app 0.4.85, firmware 0.53.0+). A profile's own
+    # substitutions beat a package's, so an override that set it would quietly lose against a screen built standing up
+    # and quietly win on one built lying down. That is worse than being told, so it is refused here with its own
+    # sentence rather than the general "these stay managed" one: people were told to override display settings (GitHub
+    # #12 and #15), and the sentence has to say where the choice lives now.
     PROTECTED_SUBSTITUTIONS = frozenset({'DEVICE_NAME', 'DEVICE_FRIENDLY_NAME', 'SCREEN_FIRMWARE_VERSION', 'LANGUAGE',
                                          'LVGL_ROTATION'})
     # ESPHome's "Factory format" (bootloader, partition table and app from address 0), the file ESPHome Web
@@ -316,21 +321,6 @@ class Firmware:
         changed or added without reformatting the user's YAML. A profile that doesn't build from ESP Screens' packages is
         left alone, as is an English one without the line (English is the packages' own default). True when it changed."""
         return self._set_substitution(name, 'LANGUAGE', language, default='en', what='language')
-
-    def set_orientation(self, name, orientation):
-        """Let the screen's next build hang the way `orientation` says (app 0.2.107): the LVGL_ROTATION line of the
-        profile's substitutions, written the way the language is, so a screen can be stood up or laid down by
-        rebuilding it. The angle is the board's, from boards.json, so this app never invents one; lying down is the
-        board file's own default and needs no line. False, and nothing written, when the profile builds from a board
-        this app doesn't know or `orientation` is not one of the two words. True when it changed."""
-        if orientation not in ORIENTATIONS:
-            return False
-        meta = self.profile_names().get(self.profile(name).name) or {}
-        sides = (SHAPES.get(meta.get('package') or '', {}).get('orientations') or {})
-        if not sides.get(orientation) or not sides.get('landscape'):
-            return False
-        return self._set_substitution(name, 'LVGL_ROTATION', str(sides[orientation]['rotation']),
-                                      default=str(sides['landscape']['rotation']), what='orientation')
 
     def _set_substitution(self, name, key, value, default=None, what='setting'):
         """One substitution of an existing profile, changed or added without reformatting the user's YAML.

@@ -69,10 +69,11 @@ Use the GitHub version for updates; a local test add-on is a separate app.
 2. Click the **+** beside **Screens** in the sidebar of Tessera. New screen walks you through three steps.
    **Screen**: under **Which screen do you have?** pick your board. Type its brand, size or what is printed on
    it to find it, or narrow the list by size. **Set up**: give the screen a name, for example `Kitchen`, and watch
-   it appear on the drawing of your screen. A board that can hang both ways asks **Which way will it hang?**
-   (**Lying down** or **Standing up**, fixed when the screen is built), and a CYD asks for its **Display
-   controller**. The device name (`kitchen`) follows from the name; **Advanced** shows it, lets you choose a
-   different one, and lists what the board can and cannot do.
+   it appear on the drawing of your screen. A CYD asks for its **Display controller**. The screen gets the best
+   grid for its glass, lying down. The device name (`kitchen`) follows from the name; **Advanced** shows it, lets you
+   choose a different one, lets you choose another grid (columns and rows, and on glass that is not square
+   **Lying down** or **Standing up**), and lists what the board can and cannot do. The grid and the way it hangs can
+   be changed later in the editor, beside the pages, without a new build.
 3. Wi-Fi: if `wifi_ssid` and `wifi_password` are already in the ESPHome `secrets.yaml`,
    the screen uses them automatically. If they're missing, or the file doesn't
    exist yet, the Set up step asks for them once and Tessera only adds the
@@ -209,7 +210,11 @@ The screen preview shows their placement on the screen's own grid, lying down: t
 the Waveshare 4B, the Waveshare P4 or the Hosyond 4-inch, two by two on the Waveshare 3.5-inch and the 3.5-inch Guition, three by three on the Waveshare 4.3-inch and 5-inch,
 four by four on the [experimental Waveshare 7-inch](WAVESHARE7.md), the [experimental Waveshare 7B](WAVESHARE7B.md), the [experimental Sunton 7-inch](SUNTON8048S070.md) and the 7-inch Guition, and five by five on the
 10.1-inch Guition, either way up (firmware 0.18.0; five by four before, and a saved layout moves on by itself); up to
-eight pages and 64 tiles, or more on a board with PSRAM ([TILE_MEMORY.md](TILE_MEMORY.md)). Every tile has a fixed slot that only changes if
+eight pages and 64 tiles, or more on a board with PSRAM ([TILE_MEMORY.md](TILE_MEMORY.md)). That grid is where a screen
+starts: **Grid**, beside the pages, gives it other columns and rows, and on glass that is not square stands it up or lays it
+down (firmware 0.53.0+). The pages are laid out on the new grid at once, a tile that no longer fits moves on to a new page
+after its own, and the screen gets the new grid with the next save, behind its loading screen; a screen that turns starts
+again once. Every tile has a fixed slot that only changes if
 you drag it; empty slots stay empty, wherever you leave them. Drag a tile
 onto an empty slot and it stays there; drag it onto another tile and the two
 swap (the other tile takes the freed-up slot, or otherwise the nearest free
@@ -375,7 +380,7 @@ that screen and says where it is set.
 | `DISPLAY_MODEL` | CYD, Hosyond | ESPHome's `mipi_spi` model of the display controller (`ILI9341`, `ST7789V`, ...) |
 | `DISPLAY_DATA_RATE` | CYD, Hosyond | the display's SPI clock (`40MHz`; some boards want `20MHz`) |
 | `DISPLAY_INVERT_COLORS` | CYD, Hosyond | `true` for a panel that shows its colours inverted |
-| `GRID_ROWS` | 4-inch Guition, M5Stack Tab5, 10.1-inch Guition | the rows a screen starts with. 4-inch Guition and Tab5: `4` for four rows of smaller tiles a page instead of three (firmware 0.18.1; the Tab5 from app 0.4.64). 10.1-inch: `6`, `7` or `8` for up to forty tiles a page instead of twenty-five (firmware 0.35.0). New screen asks on each. Since firmware 0.53.0 the editor changes columns and rows beside the mockup without a build |
+| `GRID_COLS`, `GRID_ROWS` | every board | the grid a screen starts with lying down (`GRID_COLS_PORTRAIT` and `GRID_ROWS_PORTRAIT` standing up). New screen writes them when **Advanced** chose another grid. Since firmware 0.53.0 the editor changes columns and rows beside the mockup without a build, and the screen keeps the grid it was given |
 | `GRID_MAX_COLUMNS`, `GRID_MAX_ROWS` | every board | the most columns and rows the editor offers lying down (`GRID_MAX_COLUMNS_PORTRAIT` and `GRID_MAX_ROWS_PORTRAIT` standing up), at most `8`; worked out from the glass (docs/RESPONSIVE.md, "The grid a screen is given") |
 | `GRID_MIN_COLUMNS`, `GRID_MIN_ROWS` | every board | the fewest columns and rows the editor offers (`1`) |
 | `GRID_CELL_MIN_W_MM`, `GRID_CELL_MIN_H_MM` | every board | the smallest cell the range is worked out from, in millimetres (`20` x `8` on the standard look, `15` x `6.5` on the compact one) |
