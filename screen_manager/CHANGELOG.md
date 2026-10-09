@@ -5,7 +5,8 @@
   Device Builder. Before, every build took the newest firmware on GitHub, so a screen could run firmware that an older
   app did not know. New firmware now comes with an update of the app: update Tessera first, then it offers each screen
   its Update. When it starts, Tessera writes its release into every screen's YAML in the ESPHome folder (the `ref:` of
-  the display package and `GITHUB_REF`); a `ref:` you chose yourself stays as it is.
+  the display package and `GITHUB_REF`). A `ref:` other than main, dev or a Tessera release, one you chose yourself,
+  stays as it is.
 - **Choose a screen's columns and rows in the editor.** Beside the pages, the grid button shows the screen's columns and
   rows and changes them, from one by one up to as many as its glass holds, without a new build. The layout follows at
   once: tiles that no longer fit on a page move on to a new page right after it, and none is ever dropped. The screen
@@ -53,6 +54,16 @@
 - **A calmer energy card, if you like.** The energy card's new Flow choice in the editor keeps the moving dots, or shows
   lines and arrows instead: a line grows thicker as more power flows and an arrow in its middle shows which way it
   goes, with nothing moving. Needs this firmware on the screen; until then the screen keeps the dots.
+- **Going back.** A layout that uses the energy card's new Flow choice can't be read by an older app, so after this
+  update go back to 0.4.84 only with a backup taken before it.
+- Checked with every Python, C++, editor, translation and WASM preview check, and rendered from the real firmware on
+  the CYD, the 4-inch Guition and the 10.1-inch Guition. Firmware builds of every board on ESPHome 2026.9.0 and, where
+  the board allows it, 2026.6.2: the CYD uses 91.8 % of its slot (93.6 % on 2026.6.2), the Hosyond 4-inch 92.5 %
+  (94.4 %). The upgrade from 0.4.84 was tested on a CYD, a 4-inch Guition built with four rows and a Waveshare 4.3-inch:
+  the new app with the old firmware, then each screen's own Update, and on the CYD the other order (the old app
+  installing the new firmware). Every layout came through unchanged, edits saved in between reached the screens, the
+  four-row Guition kept its four rows, and pages, taps, cards and standby were checked on the glass. A build from a
+  screen YAML pinned to a release tag made exactly that release's firmware.
 
 ## 0.4.84 (firmware 0.52.0)
 
