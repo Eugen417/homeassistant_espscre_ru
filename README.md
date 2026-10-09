@@ -118,7 +118,7 @@ beside the pages, without a new build: the 10.1-inch Guition holds up to forty t
   <img src="docs/images/jc8012p4a1-8rows.png" width="49%" alt="The same living room with eight rows, forty cells: a kitchen speaker with its cover and volume, a small live porch camera, the kitchen lights and Alex fill the last row">
   <img src="docs/images/jc8012p4a1-8rows-dark.png" width="49%" alt="The page with eight rows in Dark mode">
 </p>
-<p align="center"><sub>Six, seven and eight rows on the 10.1-inch Guition, from thirty to forty tiles on a page, and eight rows in Dark mode. Rendered from the firmware's own code. The editor changes the rows beside the pages, and the layout moves along by itself: what no longer fits on a page moves on to a new page after it. Thanks to <a href="https://github.com/Heronimonimo">Jeroen Peters</a> for <a href="https://github.com/MaxGramser/homeassistant_espscreen/pull/151">the rows</a>.</sub></p>
+<p align="center"><sub>Six, seven and eight rows on the 10.1-inch Guition, from thirty to forty tiles on a page, and eight rows in Dark mode. Rendered from the firmware's own code. The editor changes the rows beside the pages, and the layout moves along by itself: what no longer fits on a page moves on to a new page after it. Thanks to <a href="https://github.com/Heronimonimo">Jeroen Peters</a> for <a href="https://github.com/Eugen417/homeassistant_espscre_ru/pull/151">the rows</a>.</sub></p>
 
 ## Your house's energy, live
 

@@ -42,7 +42,7 @@
   touch, a dimmable backlight and Wi-Fi through its ESP32-C6, as a new board in New screen. Its relays, Ethernet and
   audio are not configured. New screen now gives a board with another chip or resolution its own card, so this one
   stands apart from the Waveshare 4B. Thanks to @woozer, who made it work on the panel
-  ([#142](https://github.com/MaxGramser/homeassistant_espscreen/pull/142)).
+  ([#142](https://github.com/Eugen417/homeassistant_espscre_ru/pull/142)).
 - **Room on the 4 MB boards.** The bedside clock on a Hosyond 4-inch draws its time with the large digits the screen
   already has, a little smaller than before, which frees about 40 KB of its nearly full flash. The CYD already did so.
 - **The energy card adds up, and always shows the battery's charge.** What no device measures now has a grey circle
