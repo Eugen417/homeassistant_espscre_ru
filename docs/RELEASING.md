@@ -66,13 +66,28 @@ The store then shows a second Tessera Screen Manager, under that repository. It 
 - dev is tried on a few boards before it is pushed, not on every board, and it can break. Report what goes wrong on
   GitHub, with the board and the app's log.
 
-To go back, stop the dev app and start the stable one. Its next update of a screen builds from main again, and sets
-both lines back to main.
+To go back, stop the dev app and start the stable one. When it starts, it points every screen at its own release
+again (both lines say its tag, below), and the screen's next update builds that release.
 
 How the app knows: the Supervisor names an app `<hash>_<slug>`, where the hash comes from the repository URL as it
 was added. `screen_manager/app/core.py` (`CHANNELS`) knows the two hashes of this repository. An app from any other
 URL (a local copy, a fork) has no channel: new screens build from main and existing ones keep their `ref:`, so a
 screen pointed at dev or `release-candidate` by hand stays there.
+
+## Which firmware a screen builds
+
+The stable app builds its screens from the tag of its own release, `screens-v<app version>` (app 0.4.85+). When it
+starts, it writes that tag as the `ref:` of the screen's package and as `GITHUB_REF` in every screen's YAML in the
+ESPHome folder, and the same at every build and in every new screen (`core.ref()`, `Firmware.follow_release`). So
+whatever starts a build, the app's Update, Home Assistant's firmware update of the device or ESPHome Device Builder,
+the screen gets the firmware this app knows. Newer firmware reaches a screen only once the app is updated: the app
+then points its screens at its new tag and offers their Update.
+
+The app moves only a `ref:` that says main, dev or one of its own tags. A tag, a commit, another branch or a fork that
+the owner wrote stays theirs. An app older than 0.4.85 leaves its screens on main, which moves on with every release.
+
+`tools/release.py publish` pushes main and the tag in one atomic push: the version on main is what the store offers, and
+an app of that version must find its tag.
 
 ## The release
 
@@ -110,8 +125,8 @@ does the steps that can go wrong by hand, and refuses when something is missing.
    the candidate. Without `--yes` it says what it would do.
 7. **After.** Point the test screens back at main. Users find the update in the App store and update Tessera Screen
    Manager; for new screen features they use **Update** on the screen in Tessera (or the nightly round), and ESPHome
-   Device Builder's Install, Wirelessly, on the existing device works too. The existing YAML stays in place;
-   `refresh: 0s` fetches current code on every build. Every issue the release's CHANGELOG section names gets a short
+   Device Builder's Install, Wirelessly, on the existing device works too: the updated app points every screen's YAML
+   at the new release's tag when it starts ("Which firmware a screen builds"). Every issue the release's CHANGELOG section names gets a short
 reply (which version has it, and how to get it) and is closed; `publish` lists them. Keep an eye on new issues that
 day.
 
@@ -203,8 +218,8 @@ replace physical touch acceptance.
 
 ## ESPHome versions
 
-Screens build their firmware from the packages on main (`refresh: 0s`), with whatever ESPHome builds them: this
-add-on's (`screen_manager/Dockerfile`), an add-on not updated yet, or the owner's ESPHome Device Builder. So a release
+Screens build their firmware from the packages of their app's release (or main, before app 0.4.85), with whatever
+ESPHome builds them: this add-on's (`screen_manager/Dockerfile`), an add-on not updated yet, or the owner's ESPHome Device Builder. So a release
 uses nothing the packages' `min_version` (in `packages/core.yaml`) lacks, and CI's firmware job builds with both the
 add-on's ESPHome and `min_version` to catch a form that is too new. On `min_version` a change that reaches every board
 builds the CYD alone (`MIN_VERSION_SAMPLE` in `tools/profiles.py`), plus a board for each changed file the CYD doesn't

@@ -4564,20 +4564,22 @@ def create_app(manager, development=False):
     app.router.add_static('/assets/', static / 'assets')
     return app
 
-async def addon_slug(session):
-    """This app's slug from the Supervisor (/addons/self/info, which needs no role), None without a Supervisor."""
+async def addon_self(session):
+    """This app's slug and version from the Supervisor (/addons/self/info, which needs no role), (None, None) without a
+    Supervisor."""
     token = os.environ.get('SUPERVISOR_TOKEN', '')
     if not token:
-        return None
+        return None, None
     try:
         async with session.get('http://supervisor/addons/self/info', headers={'Authorization': f'Bearer {token}'},
                                timeout=ClientTimeout(total=10)) as response:
             info = await response.json()
-        slug = (info.get('data') or {}).get('slug')
-        return slug if isinstance(slug, str) else None
+        data = info.get('data') or {}
+        slug, version = data.get('slug'), data.get('version')
+        return (slug if isinstance(slug, str) else None), (version if isinstance(version, str) else None)
     except Exception as error:
         LOG.info('Reading the app slug failed (%s)', type(error).__name__)
-        return None
+        return None, None
 
 async def main():
     development = os.environ.get('SCREEN_DEV') == '1'
@@ -4588,12 +4590,19 @@ async def main():
         raise SystemExit('No Home Assistant access. Start the app via Supervisor.')
     async with ClientSession(timeout=ClientTimeout(total=20)) as session:
         # The branch the screens build from (docs/RELEASING.md, "Testing dev"): dev for an app added from the `#dev` URL.
-        slug = await addon_slug(session)
+        slug, version = await addon_self(session)
         core.set_channel(core.channel_of(slug))
         core.set_local(slug)
-        LOG.info('App %s, channel %s', slug or 'without a Supervisor', core.channel() or 'none (screens keep their ref)')
+        core.set_version(version)
+        LOG.info('App %s %s, channel %s, screens build from %s', slug or 'without a Supervisor', version or '',
+                 core.channel() or 'none', core.ref() if core.channel() else 'the ref they have')
         ha = HomeAssistant(session, os.environ.get('HA_API', 'http://supervisor/core/api'), token)
         manager = Manager(ha, Path(os.environ.get('SCREEN_DATA', '/data')) / 'screens.json')
+        # Every screen's YAML on what this app builds from, before anything can build it (core.ref): after an update of
+        # the app its screens build its new release, whoever starts the build.
+        moved = manager.firmware.follow_release()
+        if moved:
+            LOG.info('Screens now build from %s: %s', core.ref(), ', '.join(moved))
         # handle_signals: SIGTERM (the Supervisor stopping the app, `docker stop`) and SIGINT end the app through the
         # cleanup below, which also stops a running build, instead of waiting ten seconds for SIGKILL (app 0.2.78).
         runner = web.AppRunner(create_app(manager, development), access_log=None, handle_signals=True)

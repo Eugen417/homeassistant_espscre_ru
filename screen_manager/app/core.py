@@ -135,9 +135,34 @@ def plugins_enabled():
     the app, and the editor's development server. The stable app shows nothing of them."""
     return os.environ.get('SCREEN_EDITOR_ENV') == 'development' or CHANNEL == 'dev' or LOCAL_APP
 
+# The release a screen of the stable app builds from (app 0.4.85): the tag tools/release.py publish makes of this app's
+# own version, so every build of a screen, also one Home Assistant's firmware update or ESPHome Device Builder starts,
+# makes the firmware this app knows. Newer firmware reaches a screen only after the app is updated: the app then
+# points its screens at its new tag, and offers their Update. main moves on with every release; a screen that built
+# from main got the newest firmware on an app that had never heard of it.
+RELEASE_TAG = re.compile(r'^screens-v\d+\.\d+\.\d+$')
+APP_VERSION = None
+
+def set_version(version):
+    """This app's version, from the Supervisor once at the start (server.main); None leaves the stable app on main."""
+    global APP_VERSION
+    APP_VERSION = version if isinstance(version, str) and re.fullmatch(r'\d+\.\d+\.\d+', version) else None
+
+def release_ref():
+    """screens-v<this app's version>, or None when the app does not know its version."""
+    return f'screens-v{APP_VERSION}' if APP_VERSION else None
+
 def ref():
-    """The branch a screen of this app builds from: its channel, else main."""
+    """What a screen of this app builds from: the tag of this app's own release for the stable app, dev for the dev
+    channel, else main."""
+    if CHANNEL == 'main' and release_ref():
+        return release_ref()
     return CHANNEL or REF
+
+def our_ref(value):
+    """A `ref:` the app may move: main, dev or one of its own release tags. A tag, a commit, a branch or a fork the
+    owner chose stays theirs."""
+    return isinstance(value, str) and (value in CHANNELS.values() or bool(RELEASE_TAG.match(value)))
 # The shared firmware of this app release: packages/core.yaml's SCREEN_FIRMWARE_VERSION, what every board builds
 # unless its own board file went ahead with a fix for that board alone (firmware_target, docs/BOARD_RELEASES.md). The
 # middle number is the core: the feature gates below name a shared X.Y.0, so a feature always ships with a new core.

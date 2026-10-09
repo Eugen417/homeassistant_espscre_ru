@@ -1,5 +1,11 @@
 ## 0.4.85 (firmware 0.53.0)
 
+- **Your screens build the firmware of the Tessera you have.** A screen now always gets the firmware that belongs to
+  the Tessera app you installed, also when its update starts from Home Assistant's firmware update or from ESPHome
+  Device Builder. Before, every build took the newest firmware on GitHub, so a screen could run firmware that an older
+  app did not know. New firmware now comes with an update of the app: update Tessera first, then it offers each screen
+  its Update. When it starts, Tessera writes its release into every screen's YAML in the ESPHome folder (the `ref:` of
+  the display package and `GITHUB_REF`); a `ref:` you chose yourself stays as it is.
 - **Choose a screen's columns and rows in the editor.** Beside the pages, the grid button shows the screen's columns and
   rows and changes them, from one by one up to as many as its glass holds, without a new build. The layout follows at
   once: tiles that no longer fit on a page move on to a new page right after it, and none is ever dropped. The screen
