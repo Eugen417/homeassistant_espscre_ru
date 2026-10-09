@@ -463,7 +463,9 @@ class Editor(unittest.TestCase):
 
     def test_updates_show_their_notes_and_progress(self):
         self.assertIn('export function whatsNew', self.store)
-        self.assertIn('export function updateProgress', self.store)
+        # Every build's progress, an update's as a plugin build's, from the store's one source (buildOf, Manager.builds).
+        self.assertIn('export function buildProgress', self.store)
+        self.assertIn('export const buildOf', self.store)
         for marker in ('class="whatsnew"', 'role="progressbar"', "go('#firmware')"):
             self.assertIn(marker, self.page, marker)
 

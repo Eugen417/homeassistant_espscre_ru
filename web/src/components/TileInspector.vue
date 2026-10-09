@@ -9,8 +9,11 @@ import { beginFieldEdit, endFieldEdit } from '../store';
 import { ACTS_ON_TAP, domainInfo, entriesOf, holdHintKey, inlineControlKind, pageTarget, SLIDER_DOMAINS, SWITCHES_ON_TAP, TOGGLE_BEFORE } from "../model/layout";
 import { glyph } from "../model/topbar";
 import { controlOption, drawable, fits, ofType } from "../model/catalogue";
+import { pluginsEnabled, tapActionsFor } from "../plugin-state";
 import { currentScreen, automaticIcon, entityName, liveOf, moveTileToPage, openPage, openTile, phone, screenBuiltinName, fullPage, loadSubtitleValues, setTileName, pictures, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
 import { titleOf } from "../model/pages";
+import { pluginTileOf } from "../model/plugins";
+import PluginTileInspector from "./PluginTileInspector.vue";
 import type { Tile } from "../types";
 import ActionPicker from "./ActionPicker.vue";
 import IconPicker from "./IconPicker.vue";
@@ -46,6 +49,8 @@ const otherPages = computed(() => (state.document?.pages || []).map((page, index
   .filter((page) => page.index !== pageOf(props.tile.slot)));
 const nameDraft = textDraft(() => props.tile.name, value => setTileName(props.tile, value));
 const domain = computed(() => props.tile.entity.split(".")[0]);
+// A plugin's tile (design) has an inspector of its own, built from the plugin's manifest.
+const pluginTile = computed(() => Boolean(pluginTileOf(props.tile.entity)));
 const name = computed(() => entityName(props.tile.entity));
 // A navigation tile (screen.page_<n>): the page it opens, its size, icon and colour; nothing else applies.
 const goesTo = computed(() => pageTarget(props.tile.entity));
@@ -149,6 +154,8 @@ const repeatChoices = computed(() => offer("repeat", (["keep", ...rules.favorite
   .map((value) => [value, t(`editor.tile.favorite.repeat_${value}`)] as [string, string]), current("repeat", "keep"), keepOr));
 function addMapEntity(id: string) { if (id) setTileOption(props.tile, "map", [...mapWith.value, id]); }
 function removeMapEntity(id: string) { setTileOption(props.tile, "map", mapWith.value.filter((item) => item !== id)); }
+// How the energy card shows power along a line: running dots, or calm lines that grow with it and an arrow each.
+const flowChoices = computed(() => offer("flow", rules.energyFlow.map((value) => [value, t(`editor.tile.energy.flow.${value}`)] as [string, string]), current("flow", rules.energyFlow[0])));
 const pictureChoices = (key: "fit" | "overlay") => offer(key, rules.picture[key].map((value) => [value, t(`editor.tile.picture.${key}.${value}`)] as [string, string]), current(key, rules.picture[key][0]));
 const refreshChoices = computed(() => offer("refresh", rules.refresh.map((seconds) => [seconds, t("editor.tile.refresh.seconds", { n: seconds })] as [number, string]), refresh.value));
 const historyChoices = computed(() => offer("history_hours", [1, 6, 24].map((hours) => [hours, t("editor.tile.history.hours", hours)] as [number, string]), history.value));
@@ -220,7 +227,11 @@ const taps = computed(() => {
   if ((caps.value ? caps.value.toggle : TOGGLE_BEFORE.includes(domain.value)) || tap.value === "toggle") keys.push("toggle");
   // A favourite plays on a tap and keeps no action of its own (the add-on drops it).
   if (display.value !== "favorite") keys.push("action");
-  return offer("tap", keys.map((key) => [key, t(`editor.tile.tap.${key}`)] as [string, string]), tap.value);
+  // A plugin on this screen may offer a tap of its own for this kind of tile (docs/PLUGINS.md): a thermostat that opens
+  // its schedule. A tap set to one whose plugin left the screen stays listed under its own name until it is changed.
+  const fromPlugins = pluginsEnabled.value ? tapActionsFor(currentScreen.value, domain.value) : [];
+  if (tap.value.startsWith("plugin:") && !fromPlugins.some(([key]) => key === tap.value)) fromPlugins.push([tap.value, tap.value]);
+  return [...offer("tap", keys.map((key) => [key, t(`editor.tile.tap.${key}`)] as [string, string]), tap.value), ...fromPlugins];
 });
 function pickTap(value: string) {
   choosingAction.value = value === "action" && !props.tile.options?.action;
@@ -307,6 +318,8 @@ const backgroundName = computed(() => state.inventory.backgrounds?.[props.tile.o
 </script>
 
 <template>
+  <PluginTileInspector v-if="pluginTile" :tile="tile" />
+  <template v-else>
   <InspectorHead :title="tile.name || name" :code="tileIconCp(tile)" :tone="{ color: domainInfo(tile.entity)[2], background: domainInfo(tile.entity)[3] }" :crumbs="crumbs" kind="tile">
     <!-- The name is edited where it stands, as a title: empty is the name Home Assistant gives it. -->
     <template #title>
@@ -336,6 +349,9 @@ const backgroundName = computed(() => state.inventory.backgrounds?.[props.tile.o
     <template v-if="!phone || more">
     <Section v-if="lookShown || (!bedside && !key)" :title="t('editor.tile.sections.look')">
       <p v-if="energyTile" class="hint">{{ t(supports(0, 47, 0) ? "editor.tile.energy.hint" : "editor.tile.energy.needs_firmware") }}</p>
+      <PropRow v-if="energyTile" :label="t('editor.tile.energy.flow.label')" icon="flash" :hint="t('editor.tile.energy.flow.hint')">
+        <ChoiceField :choices="flowChoices" :value="current('flow', rules.energyFlow[0])" :tile="tile" preview-key="flow" :aria-label="t('editor.tile.energy.flow.label')" @pick="(v) => setTileOption(tile, 'flow', v)" />
+      </PropRow>
       <PropRow v-if="lookShown && tile.entity !== 'screen.settings' && !mapTile && !energyTile" :label="t('editor.tile.display.label')" icon="eye-outline" :hint="displayHint && !displayWarns ? displayHint : undefined">
         <ChoiceField :choices="displays" :value="display" :tile="tile" preview-key="display" :aria-label="t('editor.tile.display.label')" @pick="(v) => setTileOption(tile, 'display', v)" />
         <template v-if="displayHint && displayWarns" #note><small class="help warn">{{ displayHint }}</small></template>
@@ -492,4 +508,5 @@ const backgroundName = computed(() => state.inventory.backgrounds?.[props.tile.o
       </div>
     </template>
   </div>
+  </template>
 </template>

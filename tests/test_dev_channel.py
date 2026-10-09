@@ -166,6 +166,115 @@ class Branch(unittest.TestCase):
         self.assertEqual(bridge['substitutions']['GITHUB_REF'], 'dev')
 
 
+class Release(unittest.TestCase):
+    """The stable app builds its screens from the tag of its own release (app 0.4.85), so whatever starts a build (the
+    app, Home Assistant's firmware update, ESPHome Device Builder) makes the firmware this app knows, and newer firmware
+    arrives only with an update of the app."""
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.firmware = Firmware(self.tmp.name, self.tmp.name)
+
+    def tearDown(self):
+        set_channel(None)
+        core.set_version(None)
+        self.tmp.cleanup()
+
+    def write(self, text, name='kitchen.yaml'):
+        path = Path(self.tmp.name) / name
+        path.write_bytes(text.encode())
+        return path
+
+    def test_the_stable_app_builds_from_its_own_tag(self):
+        core.set_version('0.4.85')
+        for channel, ref in ((None, 'main'), ('main', 'screens-v0.4.85'), ('dev', 'dev')):
+            with self.subTest(channel):
+                set_channel(channel)
+                self.assertEqual(core.ref(), ref)
+                screen = load(installation_yaml({'board': 'guition', 'name': 'hall', 'friendly_name': 'Hall'}))
+                self.assertEqual(screen['packages']['display']['ref'], ref)
+                self.assertEqual(screen['substitutions'].get('GITHUB_REF'), None if ref == 'main' else ref)
+        # Without a version the Supervisor gave (or one that is no release number), the stable app stays on main.
+        set_channel('main')
+        for version in (None, '', 'dev', '0.4', '0.4.85b1'):
+            with self.subTest(version):
+                core.set_version(version)
+                self.assertEqual(core.ref(), 'main')
+
+    def test_the_tag_is_the_one_a_release_makes(self):
+        # tools/release.py publish tags screens-v<config.yaml's version>, the version the Supervisor reports.
+        source = (ROOT / 'tools/release.py').read_text()
+        self.assertIn("tag = f'screens-v{version}'", source)
+        version = yaml.safe_load((ROOT / 'screen_manager/config.yaml').read_text())['version']
+        core.set_version(version)
+        self.assertRegex(core.release_ref(), core.RELEASE_TAG)
+        self.assertEqual(core.release_ref(), f'screens-v{version}')
+
+    def test_main_moves_to_the_tag_and_on_to_the_next(self):
+        path = self.write(SCREEN)
+        self.assertTrue(self.firmware.set_branch(path.name, 'screens-v0.4.85'))
+        on_tag = (SCREEN.replace('    ref: main   # the branch', '    ref: screens-v0.4.85   # the branch')
+                  .replace('substitutions:\n', 'substitutions:\n  GITHUB_REF: "screens-v0.4.85"\n', 1))
+        self.assertEqual(path.read_text(), on_tag, 'the ref line and GITHUB_REF alone')
+        self.assertFalse(self.firmware.set_branch(path.name, 'screens-v0.4.85'), 'nothing to do the second time')
+        self.assertTrue(self.firmware.set_branch(path.name, 'screens-v0.4.86'))
+        self.assertEqual(path.read_text(), on_tag.replace('0.4.85', '0.4.86'))
+        # To the dev channel and back to a release.
+        self.assertTrue(self.firmware.set_branch(path.name, 'dev'))
+        self.assertEqual(path.read_text(), ON_DEV)
+        self.assertTrue(self.firmware.set_branch(path.name, 'screens-v0.4.86'))
+        self.assertEqual(path.read_text(), on_tag.replace('0.4.85', '0.4.86'))
+
+    def test_a_ref_the_owner_chose_stays_on_the_stable_app(self):
+        for index, text in enumerate((SCREEN.replace('ref: main', 'ref: v0.4.83'),
+                                      SCREEN.replace('ref: main', 'ref: screens-v0.4'),
+                                      SCREEN.replace('ref: main', 'ref: 3f2a9c1'),
+                                      SCREEN.replace('ref: main', 'ref: release-candidate'),
+                                      SCREEN.replace(REPO, 'https://github.com/someone/fork'))):
+            with self.subTest(index):
+                path = self.write(text, f'own{index}.yaml')
+                self.assertFalse(self.firmware.set_branch(path.name, 'screens-v0.4.85'))
+                self.assertEqual(path.read_text(), text)
+        self.assertFalse(self.firmware.set_branch(self.write(SCREEN).name, 'v1.0'), 'only main, dev and our own tags')
+
+    def test_the_start_points_every_screen_at_the_release(self):
+        self.write(SCREEN, 'kitchen.yaml')
+        self.write(SCREEN.replace('ref: main', 'ref: screens-v0.4.84'), 'hall.yaml')
+        self.write(SCREEN.replace('ref: main', 'ref: release-candidate'), 'bench.yaml')
+        self.write('substitutions: {}\n', 'kitchen.local.yaml')
+        names = lambda: {p.name: load(p.read_text()) for p in Path(self.tmp.name).glob('*.yaml')}
+        before = names()
+        # An app without a channel (the bench, a fork) changes nothing.
+        self.assertEqual(self.firmware.follow_release(), [])
+        self.assertEqual(names(), before)
+        set_channel('main')
+        core.set_version('0.4.85')
+        self.assertEqual(sorted(self.firmware.follow_release()), ['hall.yaml', 'kitchen.yaml'])
+        after = names()
+        for name in ('hall.yaml', 'kitchen.yaml'):
+            self.assertEqual(after[name]['packages']['display']['ref'], 'screens-v0.4.85')
+            self.assertEqual(after[name]['substitutions']['GITHUB_REF'], 'screens-v0.4.85')
+        self.assertEqual(after['bench.yaml'], before['bench.yaml'])
+        self.assertEqual(after['kitchen.local.yaml'], before['kitchen.local.yaml'])
+        self.assertEqual(self.firmware.follow_release(), [], 'a second start has nothing to do')
+
+    def test_every_build_of_the_stable_app_takes_its_tag(self):
+        path = self.write(SCREEN)
+        self.firmware.run = lambda *args: asyncio.sleep(0)
+        set_channel('main')
+        core.set_version('0.4.85')
+        async def build():
+            self.firmware.start({'file': path.name, 'action': 'build'})
+            await self.firmware.task
+        with unittest.mock.patch('shutil.which', return_value='/usr/bin/esphome'):
+            asyncio.run(build())
+        self.assertEqual(load(path.read_text())['packages']['display']['ref'], 'screens-v0.4.85')
+
+    def test_a_publish_pushes_main_and_its_tag_together(self):
+        source = (ROOT / 'tools/release.py').read_text()
+        self.assertIn("git('push', '--quiet', '--atomic', 'origin', f'{head}:refs/heads/{RELEASES}', f'refs/tags/{tag}')", source)
+        self.assertNotIn("git('push', '--quiet', 'origin', f'refs/tags/{tag}')", source, 'never the tag on its own')
+
+
 try:
     import aiohttp  # noqa: F401
     import test_updates

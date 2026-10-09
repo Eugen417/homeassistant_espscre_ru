@@ -12,9 +12,7 @@ substitutions:
   # Code the shared lambdas of packages/core.yaml take from this file (docs/PROFILES.md, "hooks")
   # the alert's camera frame is a paint of its own (theme::paints)
   CAMERA_PAINT_FILL: "theme::fill(id(paint_camera), Paint::camera);"
-  # in runtime_tiles::dismiss, after the detail card closes
-  CLOSE_CARDS_HOOK: "runtime_tiles::camera_close();"
-  # after the gesture: the three pictures and the alert's frame
+  # after the gesture: the three pictures, the alert's frame, and the camera's part in the screen's moments
   BOOT_CAMERA_HOOKS: |-
     // Camera images (firmware 0.2.57+): the three pictures a board with PSRAM downloads, each in a task of its own
     // beside the main loop (picture_fetch, firmware 0.49.0+). A slot keeps the ETag of its link, so an unchanged picture
@@ -42,16 +40,14 @@ substitutions:
     // The alert's frame for the picture; runtime_tiles::alert_place makes room for it in the card.
     runtime_tiles::alert_frame = id(alert_image_frame);
     runtime_tiles::alert_frame_icon = id(alert_image_icon);
-  # what else keeps the settings page closed (inline, in the condition)
-  MAY_OPEN_EXTRA: " && !runtime_tiles::camera_visible()"
-  # every 250 ms after runtime_tiles::tick()
-  TICK_HOOK: "runtime_tiles::camera_tick();"
-  # back_to_page_1_when_due: what else counts as away from page 1 (inline)
-  AWAY_EXTRA: " runtime_tiles::camera_visible() ||"
-  # alert_show: after the settings page closed, before the card is made
-  ALERT_SHOW_HOOK: |-
-    // An open camera closes; the card makes room for an image the app announced for this alert.
-    runtime_tiles::alert_prepare();
+    // The camera in the screen's moments (screen_hooks.h): it closes with the cards, keeps the settings page closed and
+    // counts as away from page 1 while it is full screen, follows the clock every 250 ms, and an alert closes it and
+    // makes room in its card for an image the app announced.
+    screen_hooks::cards_closed().push_back([]() { runtime_tiles::camera_close(); });
+    screen_hooks::keeps_settings_closed().push_back([]() { return runtime_tiles::camera_visible(); });
+    screen_hooks::away().push_back([]() { return runtime_tiles::camera_visible(); });
+    screen_hooks::tick().push_back([](uint32_t) { runtime_tiles::camera_tick(); });
+    screen_hooks::alert_show().push_back([]() { runtime_tiles::alert_prepare(); });
 
 api:
   actions:

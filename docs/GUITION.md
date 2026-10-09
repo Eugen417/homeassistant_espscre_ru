@@ -51,11 +51,11 @@ eight pages (firmware 0.2.62+; twenty over four pages before); the page buttons 
 at six or fewer, or with **Page buttons** off, and the tiles then grow to 218 × 122
 (firmware 0.2.69+).
 
-**Four rows** (app 0.4.31, firmware 0.18.1): New screen asks how many tiles go on a page, two columns of three or of
-four. Four rows fit eight smaller tiles on a page, about 11 mm high, for a screen with many switches; three keep them
-larger and easier to read. The choice is one line in the screen's own YAML, `GRID_ROWS: "4"`, and the board brings the
-eight cards that grid needs. A screen already built with three rows gets four by adding that line to its YAML and
-installing it again; its saved layout moves on to four rows by itself, every tile on its own page, row and column.
+**More rows** (firmware 0.53.0+; four rows since app 0.4.31): the Grid button beside the pages in the editor changes
+the columns and rows, from one by one up to three columns of five. Four rows fit eight smaller tiles on a page, about
+11 mm high, for a screen with many switches; three keep them larger and easier to read. The screen takes the new grid
+with the next save, without a new build, and the layout moves along: what no longer fits on a page moves on to a new
+page after it. New screen starts every Guition on three rows and offers another grid under Advanced.
 
 <img src="images/guition-four-rows.png" width="100%" alt="The same thirteen tiles on the 4-inch Guition, rendered from the firmware: three pages with three rows each above, and three pages with four rows below, where the tiles are smaller and the same tiles need fewer pages">
 

@@ -180,7 +180,9 @@ int main() {
     for (uint8_t i = 0; i < page.count; ++i) {
       const Row &row = page.rows[i];
       assert(row.label != NO_TEXT && *label_text(row));
-      if (row.kind == Kind::page) assert(row.opens > 0 && row.opens < PAGE_COUNT && *row.icon);
+      // The Plugins row opens the plugins' pages after the table's own, and only shows while a plugin added one.
+      if (row.kind == Kind::page && row.opens == PLUGINS_PAGE) assert(row.shown == has_plugin_pages && *row.icon);
+      else if (row.kind == Kind::page) assert(row.opens > 0 && row.opens < PAGE_COUNT && *row.icon);
       if (row.kind == Kind::toggle || row.kind == Kind::choice || row.kind == Kind::number ||
           row.kind == Kind::duration || row.kind == Kind::moment)
         assert(row.read && row.write);
@@ -302,4 +304,47 @@ int main() {
   dimmable = false; can_standby = false;  assert(features() == "battery");
   battery_status::level = nullptr;
   dimmable = dimmable_before; can_standby = standby_before;
+
+  // ---- a plugin's rows (docs/PLUGINS.md): their own words, read and written through their context ----
+  {
+    static int32_t level = 3;
+    Own own{};
+    own.words = "Volume";
+    own.ctx = &level;
+    own.read = [](void *c) -> int32_t { return *static_cast<int32_t *>(c); };
+    own.write = [](void *c, int32_t v) { *static_cast<int32_t *>(c) = v; };
+    Row row{};
+    row.kind = Kind::number; row.low = 0; row.high = 10; row.step = 1; row.unit = ""; row.own = &own;
+    assert(std::string(label_text(row)) == "Volume" && readable(row) && writable(row));
+    put(row, stepped(row, get(row), 1));
+    assert(level == 4 && value_text(row) == "4");
+    assert(!has_plugin_pages() && page_total() == PAGE_COUNT && &page_at(PLUGINS_PAGE) == &pages[0]);
+    plugin_pages.push_back({screen_text::txt::settings_plugins, &row, 1, 0, nullptr});
+    plugin_pages.push_back({0, &row, 1, PLUGINS_PAGE, "Audio"});
+    assert(has_plugin_pages() && page_total() == PAGE_COUNT + 2);
+    assert(std::string(page_title(page_at(PLUGINS_PAGE + 1))) == "Audio" && page_at(PLUGINS_PAGE + 1).parent == PLUGINS_PAGE);
+    plugin_pages.clear();
+    // An action says how it is going on its right when it has a text (plugin API 0.3), and nothing when it has none.
+    static bool playing = false;
+    Own test{};
+    test.words = "Test the speaker";
+    test.ctx = &playing;
+    test.run = [](void *c) { *static_cast<bool *>(c) = true; };
+    test.text = [](void *c) -> std::string { return *static_cast<bool *>(c) ? "Playing" : ""; };
+    Row action{};
+    action.kind = Kind::action; action.own = &test;
+    assert(value_text(action).empty());
+    act(action);
+    assert(playing && value_text(action) == "Playing");
+    // While it runs, its row is lit (plugin API 0.3).
+    assert(!busy_row(action));
+    test.active = [](void *c) { return *static_cast<bool *>(c); };
+    assert(busy_row(action));
+    playing = false;
+    assert(!busy_row(action));
+    Own plain{};
+    plain.words = "Restart";
+    action.own = &plain;
+    assert(value_text(action).empty());
+  }
 }

@@ -2,6 +2,10 @@
 export type BuiltinName = "clock" | "nightstand" | "settings" | "map" | "energy";
 export const BUILTIN_CARDS: string[] = ["screen.clock", "screen.nightstand", "screen.settings", "screen.map", "screen.energy"];
 export type TileOptions = {
+  // A plugin tile's own options (design): what its manifest lets the inspector set.
+  plugin?: Record<string, string | number | boolean>;
+  // The entity a plugin tile belongs to, when its manifest names a domain (`entity`).
+  plugin_entity?: string;
   display?: string;
   size?: string;
   controls?: string;
@@ -27,7 +31,8 @@ export type ChildTile = {
 // A key of a bedside clock (app 0.4.12) is a tile like any other without a cell: it names the tile it stands under
 // (`in`, that tile's entity) and its place there (`key`, from 0), and its slot is -1.
 export type Tile = { id?: string; entity: string; name: string; slot: number; options?: TileOptions; in?: string; key?: number };
-export type HeaderItem = { id?: string; type: string; entity?: string; content?: string; icon?: string; show?: string };
+// `item`: a plugin's item (type "plugin"), plugin:<plugin>.<item> (docs/PLUGINS.md).
+export type HeaderItem = { id?: string; type: string; entity?: string; content?: string; icon?: string; show?: string; item?: string };
 // `pages`: the most pages the screen takes, when the grid is the screen's (model/pages.ts pageLimit).
 // What a screen says about the memory inside its chip (firmware 0.34.0+, components/smart_display/tile_memory.h), in
 // bytes: the room it has for tiles and what the tiles on it take now, and what the tile catalogue's prices need from the
@@ -38,16 +43,21 @@ export type HeaderItem = { id?: string; type: string; entity?: string; content?:
 export type ScreenMemory = { room: number | null; used: number; psram: boolean; tile: number; extra: number; page?: number; short?: boolean; live?: boolean };
 // `barItems`: the items one page's top bar takes there (model/pages.ts barLimit).
 export type PageGrid = Readonly<{ columns: number; rows: number; pages?: number; barItems?: number }>;
+// The grids a screen takes one way its glass hangs, and the one it keeps for that way (firmware 0.53.0+, its hello).
+export type GridWay = { columns: number; rows: number; min: [number, number]; max: [number, number] };
+export type ScreenGrids = { upright: boolean; landscape: GridWay; portrait: GridWay };
 export type PageTarget = { kind: "page"; pageId: string } | { kind: "home" };
 export type PageTile = {
   id: string;
-  content: { kind: "entity"; entityId: string } | { kind: "builtin"; name: BuiltinName } | { kind: "navigation"; target: PageTarget };
+  content: { kind: "entity"; entityId: string } | { kind: "builtin"; name: BuiltinName } | { kind: "navigation"; target: PageTarget }
+    // A plugin's tile type (design, docs: the plugins proposal): its options are the plugin's own, checked against its manifest.
+    | { kind: "plugin"; plugin: string; tile: string; entityId?: string; options?: Record<string, string | number | boolean> };
   // A footprint is a rectangle. The renderer's capabilities decide which
   // rectangles it supports; the page's grid is never user-overridable.
   placement: { row: number; column: number; columns: number; rows: number };
   appearance: { label: string; presentation?: "single" | "wide" | "tall" | "square" | "full" | `${number}x${number}`; display?: string; icon?: string; background?: string; historyHours?: number; refresh?: number; subtitle?: string; fit?: string; overlay?: string;
     mapEntities?: string[]; mapFraming?: string; mapDistance?: string; mapFollow?: string; mapMarkers?: string; mapNames?: string;
-    mapZones?: string; mapStreets?: string; mapLook?: string };
+    mapZones?: string; mapStreets?: string; mapLook?: string; energyFlow?: string };
   interaction: { tap?: string; inline?: string; controls?: string; action?: TileOptions["action"]; guard?: string; play?: FavoritePlay; speaker?: string; shuffle?: string; repeat?: string };
   children?: ChildTile[];
 };
@@ -102,7 +112,9 @@ export type SettingsView = { owner: string; keys: string[]; values: Record<strin
 // The two ways a screen can hang (app 0.2.107), chosen when it is built: lying down or standing up. A board's own
 // numbers for each way come from boards.json, which the add-on serves with the firmware status.
 export type Orientation = "landscape" | "portrait";
-export type BoardOrientation = { width: number; height: number; columns: number; rows: number; rotation: number };
+// `min` and `max`: the grids a screen of the board takes that way (firmware 0.53.0+, looks/shared/grid.yaml).
+export type BoardOrientation = { width: number; height: number; columns: number; rows: number; rotation: number;
+  min?: [number, number]; max?: [number, number] };
 // What the add-on says of a board (boards.yaml and the board's own files, through boards.json, app 0.2.129): what it is
 // called and printed on it, how far it has been tried, its glass, what it can do, and the choices made when a screen of
 // it is built (the first value of each is the board file's own).
@@ -142,6 +154,11 @@ export type Screen = {
   screensaver?: ScreensaverView;
   page_document?: PageDocument | PendingMigration | null;
   source_grid?: PageGrid | null;
+  // The grids it takes (firmware 0.53.0+): the editor offers its columns and rows beside the mockup. None for a screen
+  // whose grid is the one it was built with.
+  grids?: ScreenGrids | null;
+  // Which way it is to hang on glass that turns (app 0.4.85): what the editor chose, else the way it hangs; null on square glass.
+  hang?: "landscape" | "portrait" | null;
   tile_sizes?: string[];
   page_capability?: "ready" | "update_screen" | "offline";
   // Home Assistant ignores its taps: it may not perform actions (app 0.4.63, the ESPHome integration's own repair issue).
@@ -182,6 +199,8 @@ export type Screen = {
   orientation?: Orientation;
   // Whether its board draws pictures: camera tiles, an alert's snapshot, an album cover (app 0.2.94).
   pictures?: boolean;
+  // Plugins (design): the size of its last firmware image and its update slot, from the add-on's last build of it.
+  firmware_image?: { size: number; slot: number } | null;
   // Whether it has a battery the top bar can show (app 0.4.68, firmware 0.41.0): its hello said so, or its board has one.
   battery?: boolean;
 };
@@ -203,8 +222,14 @@ export type Languages = {
 export type ChangelogSection = { app: string; firmware: string; boards?: string[]; lines: string[] };
 export type Entity = { id: string; name: string; area?: string; device?: string; icon?: string; state?: string; tile?: boolean; screen_name?: string };
 export type IconInfo = { name: string; cp: string; label: string };
+// What is being built for one screen right now, whoever asked (Manager.builds in the add-on): the firmware update, the
+// plugin build queue, or Install over Wi-Fi from Firmware & USB. The editor's one source for "something is building".
+export type Build = {
+  by: "update" | "plugins" | "install"; state: "queued" | "running"; file?: string | null; stage?: string | null;
+  phase?: string | null; plugins?: string[];
+};
 export type Inventory = {
-  editor_features?: { tall_tiles?: boolean };
+  editor_features?: { tall_tiles?: boolean; plugins?: boolean };
   csrf?: string;
   connected?: boolean;
   screens: Screen[];
@@ -217,6 +242,7 @@ export type Inventory = {
   pending?: { friendly: string; file: string; node?: string; installed?: boolean; downloaded?: boolean; api_key?: string; seen?: boolean; pairing?: "adding" | "failed" | null }[];
   // `channel`: the branch the screens build from, when the app was added from this repository (docs/RELEASING.md).
   updates?: { target: string; busy?: boolean | string | null; pending?: number; auto?: boolean; channel?: "main" | "dev" | null };
+  builds?: Record<string, Build>;
   // The CHANGELOG by release, newest first: only in the full inventory, not in the live payload (app 0.2.78).
   changelog?: ChangelogSection[];
   claude_skill?: { path: string; installed: boolean; current: boolean; restart?: boolean };

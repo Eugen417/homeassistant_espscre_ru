@@ -36,9 +36,11 @@ script:
                 const bool paginated = runtime_tiles::enabled
                     ? runtime_tiles::model.page_data.included(id(tile_page)) && runtime_tiles::model.page_data.count() > 1
                     : count > 6;
-                // One card per cell of this board's grid: it is on screen when the page has a tile for its cell.
+                // One card per cell of the grid in use (the table holds the most cells a grid may have, firmware
+                // 0.53.0+): it is on screen when the page has a tile for its cell.
                 bool ok = screen_diagnostics::check_geometry(id(home_page)->obj);
-                for (auto &w : runtime_tiles::widgets) {
+                for (size_t i = 0; i < runtime_tiles::grid.slots(); ++i) {
+                  const auto &w = runtime_tiles::widgets[i];
                   bool visible = w.index < runtime_tiles::model.count;
                   ok = ok && w.tile && (lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) != visible);
                 }

@@ -16,7 +16,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.52.0"
+  SCREEN_FIRMWARE_VERSION: "0.53.0"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -37,12 +37,11 @@ substitutions:
   # What a board file, a feature or a screen's own YAML may state instead: the value here holds when none of them
   # does. A board states its hardware and what differs (docs/PROFILES.md, "Defaults").
   ROTATION_LANDSCAPE: "0"                          # the LVGL angle that lays the panel out lying down
-  LVGL_ROTATION: "${ROTATION_LANDSCAPE}"           # which way the screen hangs; ESP Screens writes it for one standing up
+  LVGL_ROTATION: "${ROTATION_LANDSCAPE}"           # which way it is built to hang (New screen writes it for one standing
+                                                   # up); the editor turns it later without a build (runtime_tiles::hang)
   TOUCH_SWAP_XY: "false"                           # the touch panel's axes against the display's own pixels
   TOUCH_MIRROR_X: "false"
   TOUCH_MIRROR_Y: "false"
-  GRID_COLS_PORTRAIT: "${GRID_COLS}"               # the cells of a page standing up: the same as lying down on
-  GRID_ROWS_PORTRAIT: "${GRID_ROWS}"               # square glass, a board of another shape states its own
   # The most tiles and pages one screen holds (firmware 0.34.0+), over all its pages whatever its grid. A board with
   # PSRAM states more; the memory the tiles need decides how many of them a layout really takes (tile_memory.h).
   SCREEN_MAX_TILES: "64"
@@ -51,6 +50,8 @@ substitutions:
   SCREEN_MAX_BAR_ITEMS: "6"
   BACKLIGHT_DIMMABLE: "true"                       # false: the backlight is lit or dark, a switch instead of a percentage
   CAN_STANDBY: "true"                              # false: the screen never goes dark (features/backlight-always-on.yaml)
+  # 0: the bedside clock takes the display step, never digits of its own (hardware/flash-4mb.yaml, looks/shared/digits.yaml).
+  BEDSIDE_OWN_DIGITS: "1"
   # The touch test page (CALIBRATION_ON_BOOT); its sizes are the look's.
   TOUCH_TEST_PAGE_PAINT: "paint_page_soft"         # the page
   TOUCH_TEST_TITLE: "calibration_touch_check"      # the words at the top
@@ -60,13 +61,10 @@ substitutions:
   # reads a touch panel and lights a backlight, so the board says how (features/capacitive-touch.yaml, features/backlight.yaml).
   CAMERA_PAINT_FILL: ""                            # the paint styles a feature brings (theme::paints)
   CALIBRATION_PAINT_FILL: ""
-  CLOSE_CARDS_HOOK: ""                             # in runtime_tiles::dismiss, after the detail card closes
   BOOT_CAMERA_HOOKS: ""                            # after the gesture: the camera images (features/camera.yaml)
   BOOT_CARDS_TAIL: ""                              # after the cards' hooks, before the settings page's
-  MAY_OPEN_EXTRA: ""                               # what else keeps the settings page closed (inline, in the condition)
-  TICK_HOOK: ""                                    # every 250 ms after runtime_tiles::tick()
-  AWAY_EXTRA: ""                                   # back_to_page_1_when_due: what else counts as away from page 1 (inline)
-  ALERT_SHOW_HOOK: ""                              # alert_show: after the settings page closed, before the card is made
+  # The screen's moments (every 250 ms, the cards closing, the settings page opening, away from page 1, an alert) are
+  # lists, not substitutions (screen_hooks.h): a feature adds to them at boot, a plugin through the plugin API.
   # one more line of the ui_state diagnostics
   UI_STATE_HOOK: "ESP_LOGI(\"ui_diag\", \"rotation=%u actual=%u\", (unsigned)runtime_tiles::rotation, (unsigned)id(screen_lvgl).get_rotation());"
 
@@ -101,6 +99,13 @@ esphome:
       # screen picks one at boot from its canvas, so one firmware serves a board either way round.
       - -DGRID_COLS_PORTRAIT=${GRID_COLS_PORTRAIT}
       - -DGRID_ROWS_PORTRAIT=${GRID_ROWS_PORTRAIT}
+      # The grids ESP Screens may give the screen (firmware 0.53.0+, looks/shared/grid.yaml): the tables are sized for the most.
+      - -DGRID_MIN_COLUMNS=${GRID_MIN_COLUMNS}
+      - -DGRID_MIN_ROWS=${GRID_MIN_ROWS}
+      - -DGRID_MAX_COLUMNS=${GRID_MAX_COLUMNS}
+      - -DGRID_MAX_ROWS=${GRID_MAX_ROWS}
+      - -DGRID_MAX_COLUMNS_PORTRAIT=${GRID_MAX_COLUMNS_PORTRAIT}
+      - -DGRID_MAX_ROWS_PORTRAIT=${GRID_MAX_ROWS_PORTRAIT}
       # The ceilings of one screen (firmware 0.34.0+): page_protocol.h sizes every per-tile and per-page table from them.
       - -DSCREEN_MAX_TILES=${SCREEN_MAX_TILES}
       - -DSCREEN_MAX_PAGES=${SCREEN_MAX_PAGES}
@@ -115,6 +120,12 @@ esphome:
   on_boot:
     priority: -100
     then:
+      - lambda: |-
+          // Which way the glass hangs (firmware 0.53.0+): as it was built, or as ESP Screens stood it up or laid it down
+          // since. Before anything else measures the canvas: the touch filter, the grid, the top bar, the alert card.
+          runtime_tiles::hang_at_boot(${ROTATION_LANDSCAPE}, ${LVGL_ROTATION}, ${PANEL_W} == ${PANEL_H});
+          const auto hung = static_cast<esphome::display::DisplayRotation>(runtime_tiles::base_turn);
+          if (id(screen_lvgl).get_rotation() != hung) id(screen_lvgl).set_rotation(hung);
       - lambda: |-
           ${BOOT_TOUCH}
       - lambda: |-
@@ -144,6 +155,7 @@ esphome:
           runtime_tiles::big_icon_font = id(materialdesign_icons_big)->get_lv_font();
           runtime_tiles::control_font = id(sublabel_big)->get_lv_font();
           runtime_tiles::small_font = id(sublabel)->get_lv_font();
+          runtime_tiles::label_font = id(label)->get_lv_font();
           // A plain card's name where it has room, in the compact look (runtime_tiles::name_font, firmware 0.6.0+).
           runtime_tiles::wide_name_font = id(${WIDE_NAME_FONT})->get_lv_font();
           // Top bar (0.2.32+): values in the text font, icons in the small icon font; the clock
@@ -159,9 +171,9 @@ esphome:
           runtime_tiles::time_label = id(lbl_time);
           runtime_tiles::enabled = true;
           // Turning (firmware 0.2.80 on every board): a half turn keeps the canvas and the grid, so every screen
-          // offers it; a quarter turn only a square one, whose canvas is the same either way. Which way a screen
-          // stands is chosen when it is built (LVGL_ROTATION, firmware 0.2.92+), because the other way round is
-          // another grid, and a layout made for six cells does not fit four.
+          // offers it; a quarter turn only a square one, whose canvas is the same either way. On other glass a quarter
+          // turn is another canvas and another grid, which the layout must be laid out on again: ESP Screens gives it
+          // with the layout (begin's "upright", runtime_tiles::hang, firmware 0.53.0+), never this page.
           settings_screen::quarter_turns = ${PANEL_W} == ${PANEL_H};
           // Whether this board's backlight takes levels (firmware 0.2.90+): a board whose backlight is one line
           // shows a switch where the others show a percentage. ESP Screens reads the same fact from boards.json.
@@ -198,7 +210,7 @@ esphome:
             effects_page::close();
             group_page::close();
             runtime_tiles::hide_detail();
-            ${CLOSE_CARDS_HOOK}
+            screen_hooks::run_cards_closed();
             id(active_entity).clear();
             lv_obj_add_flag(id(color_detail_overlay), LV_OBJ_FLAG_HIDDEN);
           };
@@ -248,10 +260,13 @@ esphome:
                                         id(alert_ok_label), id(alert_button2), id(alert_button2_label)};
           runtime_tiles::alert_place(false);
           runtime_tiles::setpoint_font = id(setpoint_digits)->get_lv_font();
-          // The cards of this board's grid (packages/cells/<number>.yaml), and their styles for the cards of kept pages
-          // (firmware 0.3.2+: runtime_tiles::make_card builds more of them on a board with PSRAM).
-          ${BIND_CELLS}
+          // The cards of the grid, one per cell, in the styles below (firmware 0.53.0+: made in C++, so the grid is
+          // no longer fixed by a file of cards per board); runtime_tiles::make_card builds more of them for the kept
+          // pages of a board with PSRAM (firmware 0.3.2+).
           runtime_tiles::card_look = {id(style_tile), id(style_icon_circle), id(style_title), id(style_value)};
+          runtime_tiles::make_cells(id(materialdesign_icons)->get_lv_font(), ${TILE_ICON_SIZE});
+          // Another grid from ESP Screens (firmware 0.53.0+) shows in the Screen layout sensor at once, not a minute later.
+          runtime_tiles::grid_changed = []() { id(screen_layout).update(); };
           runtime_tiles::detail = [](runtime_tiles::Tile &t) {
             light_controls::fallback = light_controls::State{};
             light_controls::fallback.hue = t.hue;
@@ -315,6 +330,7 @@ esphome:
           effects_page::now = []() { return (uint32_t) millis(); };
           runtime_tiles::options_received = effects_page::received;
           ${BOOT_CARDS_TAIL}
+          plugin_host::ready();
       # The settings page the screen opens on its own (0.2.44+): the same values ESP Screen Manager
       # writes, reachable by holding the top bar. Fonts and hooks only; the page itself is built
       # when it opens and thrown away when it closes, so it costs nothing while it is closed.
@@ -348,6 +364,7 @@ esphome:
             // Sleep stays asked for: the screen restarts after the update, and a failed one dims again on its own time.
             id(display_dimmed) = false;
             id(last_touch_ms) = millis();
+            plugin_host::before_update();
             runtime_tiles::saver_wake();
             lv_obj_add_flag(id(dim_wake_overlay), LV_OBJ_FLAG_HIDDEN);
             ${OTA_BACKLIGHT}
@@ -363,7 +380,7 @@ esphome:
           settings_screen::restart_device = []() { ESP_LOGI("settings", "restart from the screen"); App.safe_reboot(); };
           // A dimmed screen, a calibration or an alert owns the glass; the page waits.
           settings_screen::may_open = []() {
-            return runtime_tiles::enabled && !id(display_dimmed) && !id(calibration_active) && !id(alert_active)${MAY_OPEN_EXTRA};
+            return runtime_tiles::enabled && !id(display_dimmed) && !id(calibration_active) && !id(alert_active) && !screen_hooks::settings_kept_closed();
           };
           settings_screen::drift = []() { return screen_input::touch_guard.distance(); };
           settings_screen::before_open = []() { id(close_cards).execute(); };
@@ -625,11 +642,31 @@ api:
                     // Every page on every grid, whatever its cells (firmware 0.18.0+, app 0.4.30+): at most 64 tiles over
                     // eight pages then, or what this board states (below).
                     root["free_pages"] = 1;
-                    // This screen's own ceilings (firmware 0.34.0+, app 0.4.57+): the most tiles and pages its grid and its
-                    // board take (page_protocol.h). An app that knows nothing of them keeps to 64 and eight.
-                    root["max_tiles"] = runtime_tiles::grid.max_tiles();
+                    // This screen's own ceilings (firmware 0.34.0+, app 0.4.57+): the most tiles and pages its board takes
+                    // (page_protocol.h). An app that knows nothing of them keeps to 64 and eight. The tiles are the board's,
+                    // not those of the grid in use (firmware 0.53.0+): ESP Screens may give it another grid, and counts
+                    // the pages times the cells of that one itself (core.Grid.max_tiles).
+                    root["max_tiles"] = runtime_tiles::TILES_MAX;
                     root["max_pages"] = runtime_tiles::grid.pages();
                     root["max_bar_items"] = header_bar::MAX_ITEMS;
+                    // The grids this screen takes, each way its glass hangs, the one it keeps for each, and which way it
+                    // hangs now (firmware 0.53.0+): ESP Screens may send another grid with a layout ("grid" in begin).
+                    {
+                      auto grids = root["grids"].to<JsonObject>();
+                      grids["upright"] = runtime_tiles::canvas_upright;
+                      for (int i = 0; i < 2; ++i) {
+                        auto way = grids[i ? "portrait" : "landscape"].to<JsonObject>();
+                        const auto &range = runtime_tiles::GRID_RANGES[i];
+                        way["columns"] = runtime_tiles::chosen_grids[i].columns;
+                        way["rows"] = runtime_tiles::chosen_grids[i].rows;
+                        auto least = way["min"].to<JsonArray>();
+                        least.add(range.min_columns);
+                        least.add(range.min_rows);
+                        auto most = way["max"].to<JsonArray>();
+                        most.add(range.max_columns);
+                        most.add(range.max_rows);
+                      }
+                    }
                     // The memory its tiles may take, what they take now, and what the tile catalogue's prices need from
                     // this board to price a tile (tile_memory.h): whether it has PSRAM, the size of a tile and of its block
                     // of extras. In the reply to a hello or a ping: the app shows how full the screen is and refuses a
@@ -673,6 +710,11 @@ api:
                     // battery (firmware 0.41.0): this screen has a battery sensor (runtime_tiles::find_battery), so the
                     // top bar can show it; a screen without one never says so, and ESP Screens does not offer the item.
                     if (battery_status::level) features.add("battery");
+                    // plugins (docs/PLUGINS.md): this firmware takes plugin tiles and a plugin's item in the top bar.
+                    // plugin_api and plugins say which API it offers and which plugins are built in, with their tile
+                    // types (plugin_host::hello).
+                    features.add("plugins");
+                    plugin_host::hello(root);
                     auto sizes = root["tile_sizes"].to<JsonArray>();
                     for (const auto &size : page_protocol::TILE_SIZES)
                       if (size.fits(runtime_tiles::grid.columns, runtime_tiles::grid.rows)) sizes.add(size.name);
@@ -697,7 +739,8 @@ interval:
     then:
       - lambda: |-
           runtime_tiles::tick();
-          ${TICK_HOOK}
+          plugin_host::tick(millis(), id(display_dimmed));
+          screen_hooks::run_tick(millis());
   - interval: 1s
     then:
       - if:
@@ -1146,6 +1189,8 @@ font:
       - "\U000F00D6" # briefcase
       - "\U000F010B" # car
       - "\U000F00A3" # bike
+      - "\U000F00E7" # bus
+      - "\U000F052C" # train
       - "\U000F001D" # airplane
       - "\U000F034E" # map-marker
       - "\U000F0425" # power
@@ -1165,6 +1210,7 @@ font:
       - "\U000F00E2" # broom
       - "\U000F1126" # diabetes
       - "\U000F05D6" # alert-circle-outline
+      - "\U000F0A66" # puzzle-outline
       - "\U000F0143" # chevron-up
       - "\U000F0140" # chevron-down
       - "\U000F17B3" # arrow-u-left-top
@@ -1555,6 +1601,7 @@ text_sensor:
   # instead of guessing from the board it was built for (core.parse_shape reads it). The canvas follows the
   # rotation, which is why it is read from the display and not from the board file.
   - platform: template
+    id: screen_layout
     name: "Screen layout"
     entity_category: diagnostic
     lambda: |-
@@ -1605,7 +1652,8 @@ text_sensor:
 
 # Turning the screen as a Home Assistant choice (firmware 0.2.80+). Every screen offers the half turn, which keeps
 # its canvas and its grid; square glass the quarter turns as well, whose canvas is the same either way
-# (settings_screen::quarter_turns in on_boot). The screen applies the angle on top of LVGL_ROTATION.
+# (settings_screen::quarter_turns in on_boot). The screen applies the angle on top of the way it hangs
+# (runtime_tiles::base_turn: LVGL_ROTATION, or the way ESP Screens stood it up or laid it down).
 select:
   - platform: template
     id: setting_rotation
@@ -2043,7 +2091,7 @@ lvgl:
             text: ""
             styles: style_time
 
-        # Six tiles on page 1, four on page 2. No dragging on resistive glass.
+        # The tile area: the cards of the page on the glass, in the cells of the grid. No dragging on resistive glass.
         - obj:
             id: tile_scroll
             x: 0
@@ -2054,10 +2102,11 @@ lvgl:
             width: 1
             height: 1
             bg_opa: TRANSP
-            # The cells of the board's grid (GRID_COLS x GRID_ROWS). The rows and columns are free units, so LVGL
-            # divides the area over them and keeps the gaps; runtime_tiles::grid_bind sets the board's numbers at
-            # boot (a layout of one cell here is enough for LVGL's grid to be built in) and place_page only says
-            # which cell a card takes. Every card starts in the first cell, hence multiple_widgets_per_cell.
+            # The cells of the grid the screen runs on (the board's GRID_COLS x GRID_ROWS, or the one ESP Screens gave
+            # it, firmware 0.53.0+). The rows and columns are free units, so LVGL divides the area over them and keeps
+            # the gaps; runtime_tiles::grid_cells sets the numbers at boot and on a new grid (a layout of one cell here
+            # is enough for LVGL's grid to be built in) and place_page only says which cell a card takes. Every card
+            # starts in the first cell, hence multiple_widgets_per_cell.
             layout:
               type: GRID
               grid_rows: 1
@@ -2080,9 +2129,9 @@ lvgl:
             pad_bottom: 0
             scrollable: false
             scrollbar_mode: 'OFF'
-            widgets:
-              # The cards themselves come from packages/cells/<number>.yaml, the file for this board's grid:
-              # ESPHome has no loop, so one file per number of cells, written by tools/generate_cells.py.
+            # The cards themselves are made at boot, one per cell of the grid (runtime_tiles::make_cells); ESPHome
+            # asks a grid for its widgets key all the same.
+            widgets: []
 
         # ---------- VALUE SLIDER OVERLAY ----------
         # ---------- PAGE NAVIGATION: the band under the tiles ----------
@@ -2413,12 +2462,13 @@ script:
           const auto &settings = screen_settings::current;
           // Dark mode (firmware 0.2.54+): a look the screen already has costs nothing.
           theme::set_dark(settings_screen::dark_mode != 0);
-          // Turning the screen: the chosen angle on top of the board's own LVGL rotation (${LVGL_ROTATION} here; a CYD's
-          // panel is portrait and starts at 90). LVGL turns the display and the touch together. Not while the
+          // Turning the screen: the chosen angle on top of the way it hangs (runtime_tiles::base_turn: LVGL_ROTATION, or
+          // the way ESP Screens stood it up or laid it down; a CYD's panel is portrait and starts at 90). LVGL turns the
+          // display and the touch together. Not while the
           // calibration wizard measures: its crosses are laid out for the board's own orientation, and the next
           // settings change or restart turns the screen.
           if (runtime_tiles::enabled && !id(calibration_active)) {
-            const auto wanted = static_cast<esphome::display::DisplayRotation>((${LVGL_ROTATION} + settings_screen::rotation) % 360);
+            const auto wanted = static_cast<esphome::display::DisplayRotation>((runtime_tiles::base_turn + settings_screen::rotation) % 360);
             if (id(screen_lvgl).get_rotation() != wanted) {
               screen_input::touch_guard.consume();
               if (lv_indev_get_act()) lv_indev_wait_release(lv_indev_get_act());
@@ -2490,7 +2540,7 @@ script:
             lambda: |-
               if (!runtime_tiles::auto_home || id(touch_down) || id(calibration_active) || id(alert_active)) return false;
               if (id(display_dimmed)) return false;
-              bool away = settings_screen::visible() ||${AWAY_EXTRA} !id(active_entity).empty() || id(tile_page) != runtime_tiles::home_page() ||
+              bool away = settings_screen::visible() || screen_hooks::is_away() || !id(active_entity).empty() || id(tile_page) != runtime_tiles::home_page() ||
                           (runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root, LV_OBJ_FLAG_HIDDEN));
               return away && (millis() - id(last_use_ms)) > (uint32_t) runtime_tiles::auto_home_seconds * 1000UL;
           then:
@@ -2528,7 +2578,7 @@ script:
           runtime_tiles::alert_key(id(alert_ok), id(alert_ok_label), alert.button_color);
           runtime_tiles::alert_key(id(alert_button2), id(alert_button2_label), alert.button2_color);
           runtime_tiles::alert_place(false);
-          ${ALERT_SHOW_HOOK}
+          screen_hooks::run_alert_show();
           id(alert_active) = true;
           id(alert_title_text) = alert.title;
           id(alert_timeout_seconds) = alert.timeout_seconds;

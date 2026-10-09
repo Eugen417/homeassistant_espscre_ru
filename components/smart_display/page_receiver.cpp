@@ -23,6 +23,8 @@ static bool parse_bar_item(JsonVariant value, header_bar::Item &item) {
     item.only_weak = (item.kind == header_bar::Kind::wifi || item.kind == header_bar::Kind::battery) &&
                      value["a"].is<unsigned>() && value["a"].as<unsigned>() == 1;
     if (item.kind == header_bar::Kind::ago && item.epoch == 0) return false;
+    // A plugin's item names itself: plugin:<plugin>.<item> (docs/PLUGINS.md).
+    if (item.kind == header_bar::Kind::plugin && !plugin_key(item.text)) return false;
     return true;
 }
 static bool parse_bar(JsonVariant items, header_bar::Bar &out) {
@@ -117,10 +119,29 @@ std::string receive(const std::string &payload) {
     }
     sequenced = true;
     if (op == "begin") {
+      // The way the glass is to hang and the grid the layout is counted on (firmware 0.53.0+, the hello's "grids"): an
+      // app that sends neither means the way and the grid the screen has. Glass that is not square stands up or lies
+      // down with the grid of that way; a square screen hangs as it is, its Rotation setting turns it without a new
+      // grid. A grid that way of the glass cannot take is refused whole, before anything changes.
+      bool upright = canvas_upright;
+      if (!root["upright"].isNull()) {
+        if (!root["upright"].is<bool>()) return false;
+        if (!square_glass) upright = root["upright"].as<bool>();
+      }
+      Grid target = upright == canvas_upright ? grid : chosen_grids[upright ? 1 : 0];
+      if (!root["grid"].isNull()) {
+        auto cells = root["grid"].as<JsonArray>();
+        if (cells.isNull() || cells.size() != 2 || !cells[0].is<unsigned>() || !cells[1].is<unsigned>() ||
+            !GRID_RANGES[upright ? 1 : 0].takes(cells[0].as<unsigned>(), cells[1].as<unsigned>())) {
+          result = "Error: grid"; return false;
+        }
+        target = Grid{cells[0].as<unsigned>(), cells[1].as<unsigned>()};
+      }
+      const bool regridded = upright != canvas_upright || target.columns != grid.columns || target.rows != grid.rows;
       if (!root["tiles"].is<unsigned>() || !root["pages"].is<unsigned>() || !root["home"].is<unsigned>() ||
           !root["title"].is<const char *>() || root["title"].as<std::string>().size() > 96 ||
-          root["pages"].as<unsigned>() == 0 || root["pages"].as<unsigned>() > grid.pages() ||
-          root["tiles"].as<unsigned>() > grid.max_tiles() || root["home"].as<unsigned>() >= root["pages"].as<unsigned>() ||
+          root["pages"].as<unsigned>() == 0 || root["pages"].as<unsigned>() > target.pages() ||
+          root["tiles"].as<unsigned>() > target.max_tiles() || root["home"].as<unsigned>() >= root["pages"].as<unsigned>() ||
           !root["keepalive"].is<unsigned>() || root["keepalive"].as<unsigned>() < 5 || root["keepalive"].as<unsigned>() > 3600)
         return false;
       const bool was_active = transfer.active && model.ready();
@@ -128,7 +149,7 @@ std::string receive(const std::string &payload) {
       const auto begin = candidate.begin(revision, root["pages"].as<unsigned>(), root["tiles"].as<unsigned>());
       if (begin == page_protocol::Begin::reject) return false;
       const bool was_problem = protocol_problem != ProtocolProblem::none;
-      if (begin == page_protocol::Begin::unchanged) {
+      if (begin == page_protocol::Begin::unchanged && !regridded) {
         transfer = candidate;
         protocol_problem = ProtocolProblem::none;
         last_received = esphome::millis();
@@ -136,11 +157,27 @@ std::string receive(const std::string &payload) {
         if (was_problem) refresh_all();
         result = "Synced"; return true;
       }
+      if (upright != canvas_upright) {
+        // The other way round: the grid it is given that way is kept with it, and the screen starts again (hang).
+        chosen_grids[upright ? 1 : 0] = target;
+        save_grids();
+        hang(upright);
+        result = "Restarting";
+        return true;
+      }
       if (was_active && shown_page && *shown_page >= 0 && static_cast<size_t>(*shown_page) < model.page_data.records.size()) {
         previous_page_id = model.page_data.records[*shown_page].id;
         had_previous_page = true;
       }
+      // A new grid takes new cards: what was open closes first, as for any new layout, and the old layout goes with the
+      // cards it was drawn on (model.begin below replaces it).
+      if (regridded) {
+        cancel_layout_input();
+        regrid(target.columns, target.rows);
+      }
       if (!model.begin(root["tiles"].as<unsigned>(), root["pages"].as<unsigned>(), string(root["title"], 96), [] { cancel_layout_input(); })) {
+        // The layout of the old grid cannot stay on the new one: the screen says it has none (the refusal stays).
+        if (regridded) { const std::string refusal = model.refusal; model.begin(0, 1, ""); model.refusal = refusal; transfer.begun = false; }
         refresh_all(); result = model.refusal.empty() ? "Error: layout" : model.refusal; return false;
       }
       transfer = candidate;
@@ -488,6 +525,14 @@ std::string receive(const std::string &payload) {
       result = model.ready() ? "Synced" : "Loading tiles";
       return true;
     }
+    // An answer of the app to a plugin's request (docs/PLUGINS.md, tessera::send): to that plugin, as it came.
+    if (op == "plugin") {
+      const std::string plugin = string(root["p"], 32);
+      if (plugin.empty() || !root["m"].is<JsonObject>()) return false;
+      plugin_host::message(plugin, root["m"].as<JsonObjectConst>());
+      result = model.ready() ? "Synced" : "Loading tiles";
+      return true;
+    }
     if (op == "options") {
       if (!root["view"].is<unsigned>() || root["view"].as<unsigned>() != options_view_id) {
         result = "Synced"; return true;
@@ -617,6 +662,7 @@ std::string receive(const std::string &payload) {
     const int refresh = options["refresh"].is<int>() ? options["refresh"].as<int>() : 0;
     tile.refresh = refresh >= 5 && refresh <= 3600 ? refresh : 15;
     tile.overlay = string(options["overlay"], 8) != "none";
+    tile.energy_lines = string(options["flow"], 8) == "lines";
     tile.inline_control = string(options["inline"]); if (tile.inline_control.empty()) tile.inline_control="none";
     // What the second line says (firmware 0.2.90+); "auto" is the line the screen works out itself, as before.
     tile.subtitle = string(options["sub"], 96); if (tile.subtitle.empty()) tile.subtitle="auto";
@@ -671,7 +717,22 @@ std::string receive(const std::string &payload) {
       next.action = std::move(saved->action);
       next.action_data = std::move(saved->action_data);
       next.action_templates = std::move(saved->action_templates);
+      next.plugin_options = std::move(saved->plugin_options);
+      next.plugin_entity = std::move(saved->plugin_entity);
     }
+    // A plugin tile (docs/PLUGINS.md): its options come with the layout, its data with every state; both stay as the
+    // JSON they came in, for the plugin to read (plugin_host::render). A plugin's data is what the add-on mapped from
+    // the plugin's fetch, bounded there; the 4 KB message bounds it here.
+#ifdef USE_TESSERA_PLUGINS
+    if (tile.is_plugin()) {
+      if (initial && root["o"]["plugin"].is<JsonObject>()) serializeJson(root["o"]["plugin"], next.plugin_options);
+      if (initial) {
+        const std::string bound = string(root["o"]["pe"], 120);
+        if (valid_entity(bound) && bound.rfind("plugin:", 0) != 0 && bound.rfind("screen.", 0) != 0) next.plugin_entity = bound;
+      }
+      if (extra.is<JsonObject>()) serializeJson(extra, next.plugin_state);
+    }
+#endif
     if (extra["days"].is<JsonArray>()) for (JsonVariant day : extra["days"].as<JsonArray>()) {
       if (next.forecast.size() == 5) break;
       next.forecast.emplace_back(); auto &f = next.forecast.back();

@@ -156,8 +156,6 @@ cpp_tests() {
 }
 
 packages_current() { cd "$ROOT" && "$PYTHON" tools/check_packages.py; }
-# One card per cell of a board's grid: the files are written, not hand-kept (docs/RESPONSIVE.md).
-cells_current() { cd "$ROOT" && "$PYTHON" tools/generate_cells.py --check; }
 icons_current() { cd "$ROOT" && "$PYTHON" tools/generate_icons.py --check; }
 # The tile catalogue (docs/CATALOGUE.md): what each entity type can do, from catalogue/*.yaml to what the add-on, the
 # editor and the firmware read. With HA_CORE naming a home-assistant/core checkout, also Home Assistant's own facts
@@ -210,6 +208,8 @@ firmware_preview() {
   PREVIEW_WIDTH=720 PREVIEW_HEIGHT=720 PREVIEW_DPI=254 node web/wasm/test_runtime.mjs || return 1
   PREVIEW_WIDTH=800 PREVIEW_HEIGHT=480 PREVIEW_COLUMNS=3 node web/wasm/test_runtime.mjs || return 1
   node web/wasm/test_weather_detail.mjs || return 1
+  # The grid a layout brings (firmware 0.53.0+): begin changes it, a card per cell, a grid it does not take refused.
+  node web/wasm/test_grid.mjs || return 1
 }
 editor_build() { cd "$ROOT/web" && npm run build; }
 
@@ -469,7 +469,6 @@ if ((want_fast)); then
   run "Python tests" python_tests
   run "C++ tests" cpp_tests
   run "Packages fit together" packages_current
-  run "Cards of every grid" cells_current
   run "Board shapes for the manager" shapes_current
   run "Entry files of every board" entries_current
   run "Issue template boards" issue_templates_current

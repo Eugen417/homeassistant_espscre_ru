@@ -9,7 +9,9 @@ import sys
 root = Path(next((arg for arg in sys.argv[1:] if not arg.startswith('--')), Path(__file__).resolve().parents[2])).resolve()
 files = [root / "components/smart_display/runtime_tiles.h", root / "components/smart_display/renderer_host_api.h",
          root / "components/smart_display/page_receiver.cpp", root / "components/smart_display/media_library.cpp",
-         root / "components/smart_display/energy_view.cpp"]
+         root / "components/smart_display/energy_view.cpp",
+         root / "components/smart_display/plugin_host.cpp",
+         root / "components/smart_display/screen_hooks.cpp"]
 seen = set()
 pending = list(files)
 while pending:
@@ -39,7 +41,7 @@ for path in files:
     digest.update(str(path.relative_to(root)).encode())
     digest.update(path.read_bytes())
 # Hash the resolved UI portions, so changing a board's pins does not invalidate
-# the renderer but changing its look, glyph set, cell prototype or boot bindings does.
+# the renderer but changing its look, glyph set or boot bindings does.
 sys.path.insert(0, str(root / 'tools'))
 import profiles
 from preview_profiles import variants
@@ -55,7 +57,6 @@ for dpi, look, profile in variants():
         fonts = re.search(r'^font:\n.*?(?=^[a-z_]+:|\Z)', text, re.M | re.S)
         if fonts:
             digest.update(fonts[0].encode())
-digest.update((root / 'packages/cells/6.yaml').read_bytes())
 english = json.loads((root / 'screen_manager/translations/en.json').read_text())
 digest.update(json.dumps({key: english[key] for key in ('screen', '_meta')}).encode())
 digest.update(re.search(r'FROM ghcr.io/esphome/esphome:([^\s]+)', (root / 'screen_manager/Dockerfile').read_text())[1].encode())

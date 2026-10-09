@@ -24,7 +24,8 @@ constexpr size_t WIRE_ITEMS = 6;
 constexpr size_t TEXT_BYTES = 48;
 // `wifi` and `link` (firmware 0.38.0) and `battery` (firmware 0.41.0) are the screen's own: it reads them itself, so they
 // stay when Home Assistant goes.
-enum class Kind : uint8_t { none, clock, analog, date, text, ago, wifi, link, battery };
+// `plugin` (docs/PLUGINS.md): an item a plugin draws itself, its `text` is the item's key plugin:<plugin>.<item>.
+enum class Kind : uint8_t { none, clock, analog, date, text, ago, wifi, link, battery, plugin };
 
 inline Kind kind(const std::string &name) {
   if (name == "clock") return Kind::clock;
@@ -35,6 +36,7 @@ inline Kind kind(const std::string &name) {
   if (name == "wifi") return Kind::wifi;
   if (name == "link") return Kind::link;
   if (name == "battery") return Kind::battery;
+  if (name == "plugin") return Kind::plugin;
   return Kind::none;
 }
 
@@ -137,8 +139,12 @@ struct Shown {
   uint32_t icon = 0;
   std::string text;
 };
+// What a plugin's item shows now (plugin_host sets it): nothing while the plugin has nothing to say, or the plugin is
+// not on this screen.
+inline Shown (*plugin_item)(const std::string &key) = nullptr;
 inline Shown device_item(const Item &item, const Device &device) {
   Shown s;
+  if (item.kind == Kind::plugin) return plugin_item ? plugin_item(item.text) : s;
   if (item.kind == Kind::link) {
     s.shown = !device.linked;
     s.icon = LINK_GLYPH;

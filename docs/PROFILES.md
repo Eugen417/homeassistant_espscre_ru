@@ -19,7 +19,6 @@ numbers.
 | `packages/features/` | What a board can do, once for every board that can: `capacitive-touch.yaml` or `resistive-touch.yaml` (how its touch panel is read), `backlight.yaml` (a backlight the firmware dims) and `backlight-always-on.yaml` (one that must never go dark), `camera.yaml` (camera images, needs PSRAM), `self-test.yaml` (the UI self test with its geometry check), `snapshot.yaml` (a picture of the screen over the log), `rgb-led.yaml` (the RGB LED on the back of a board that has one, on the outputs its board file names). | Board files |
 | `packages/hardware/` | Hardware that several boards share: `esp-idf.yaml` (how every firmware is built), `esp32s3-rgb.yaml` (an ESP32-S3 with octal PSRAM driving an RGB panel), `waveshare-ch422g.yaml` (the Waveshare boards whose panel, touch and backlight hang on a CH422G expander), `guition-esp32p4.yaml` (the Guition ESP32-P4 boards with an ESP32-C6 for Wi-Fi) and the Guition boards on it, `guition-jc1060p470.yaml` and `guition-jc8012p4a1.yaml`, `m5stack-tab5.yaml` (the Tab5's different ESP32-C6 pins and I/O expander), and `cyd-2432s028.yaml` (the CYD apart from its display controller). | Board files, and each other |
 | `packages/boards/` | One board: its word (`BOARD_ID`), its glass (`PANEL_W`, `PANEL_H`, `DISPLAY_DPI`, `ROTATION_LANDSCAPE`), its grid, its draw buffer, the packages it includes, and its own hardware sections. `TOUCH_CONTROLLER` may name the physical chip when the ESPHome platform uses another chip's protocol driver. | The entry files |
-| `packages/cells/` | The cards of a grid, one per cell, written by `tools/generate_cells.py`. | Board files |
 | `packages/<board>.yaml` | The entry a screen installed from Tessera builds from over GitHub. Tessera Screen Manager writes every screen's YAML with `files: [packages/<board>.yaml]`, so these names never change. | A screen's own YAML |
 | `checkout/<board>.yaml` | The same entry for a build from a clone of this repository (checkout/README.md), with the secrets from `checkout/secrets.yaml` and the components of the checkout. | You |
 
@@ -32,7 +31,6 @@ A board file reads like this (the 4-inch Guition, without its comments):
 ```yaml
 packages:
   hardware: !include ../hardware/esp32s3-rgb.yaml
-  cells: !include ../cells/${GRID_CELLS}.yaml
   look: !include ../looks/standard.yaml
   touch: !include ../features/capacitive-touch.yaml
   backlight: !include ../features/backlight.yaml
@@ -49,7 +47,6 @@ substitutions:
   DISPLAY_DPI: "170"
   GRID_COLS: "2"
   GRID_ROWS: "3"
-  GRID_CELLS: "${ (GRID_COLS | int) * (GRID_ROWS | int) }"
   LVGL_BUFFER_SIZE: "25%"
   BACKLIGHT_FREQUENCY: "150Hz"
 
@@ -117,15 +114,32 @@ To make something bigger or smaller on every board of a look, change the number 
 
 Some of the core's lambdas have a line that differs between boards, for instance what the first boot step does with
 the touch panel, or the camera images a board with PSRAM sets up. The core writes a `${NAME}` there, a *hook*, and
-gives it a default (empty, or what most boards do). The feature that needs a hook sets it: `features/camera.yaml` sets
-`BOOT_CAMERA_HOOKS`, `CLOSE_CARDS_HOOK`, `TICK_HOOK` and the other camera lines; `features/capacitive-touch.yaml` and
-`features/resistive-touch.yaml` set `BOOT_TOUCH` and `BOOT_PAGE_GESTURE`; `features/backlight.yaml` sets
-`APPLY_BACKLIGHT`. Every screen reads a touch panel and lights a backlight, so those three have no default and a board
-without them does not build. A board file would set a hook only for code no other board has; since app 0.2.129 none
-does (the CYD used to drive its backlight and run its self test its own way).
+gives it a default (empty, or what most boards do). A hook is for a choice of the board that exactly one package makes:
+`features/capacitive-touch.yaml` and `features/resistive-touch.yaml` set `BOOT_TOUCH` and `BOOT_PAGE_GESTURE`;
+`features/backlight.yaml` sets `APPLY_BACKLIGHT` and `OTA_BACKLIGHT`; `features/camera.yaml` sets `BOOT_CAMERA_HOOKS`,
+its code at boot. Every screen reads a touch panel and lights a backlight, so those have no default and a board without
+them does not build. A board file would set a hook only for code no other board has; since app 0.2.129 none does (the CYD
+used to drive its backlight and run its self test its own way).
 
-Hooks are a stretch of C++ inside a shared lambda because ESPHome cannot merge two lambdas into one. A feature that
-needs a step of its own rather than a line inside a shared one brings its own script or automation instead.
+Hooks are a stretch of C++ inside a shared lambda because ESPHome cannot merge two lambdas into one, and one
+substitution holds one piece of code: a second package that set the same hook would silently replace the first.
+
+## The screen's moments: lists, not hooks
+
+What a feature or a plugin wants to do at a moment of the core is added to a list in `components/smart_display/
+screen_hooks.h`, never written into a substitution, so several parts can each add their own:
+
+| List | When |
+|---|---|
+| `screen_hooks::tick()` | Every 250 ms, after `runtime_tiles::tick()`. |
+| `screen_hooks::cards_closed()` | The cards closed (`runtime_tiles::dismiss`). |
+| `screen_hooks::keeps_settings_closed()` | Any true keeps the settings page from opening (a camera full screen). |
+| `screen_hooks::away()` | Any true counts as away from page 1, so Back to page 1 closes it in time. |
+| `screen_hooks::alert_show()` | An alert is about to show, before its card is made. |
+
+`features/camera.yaml` adds the camera's part in its boot code; the plugins take part through `plugin_host.cpp` (a
+plugin's card counts as away, `on_cards_closed`, `on_alert`; docs/PLUGINS.md). A new moment is a new list here, not a
+`${...}` in `packages/core.yaml`.
 
 ## Widgets made only in C++
 
@@ -137,13 +151,17 @@ looks unused; don't remove it.
 ## What an override may rely on
 
 An owner's Override YAML hangs on names in these files, and it lives on the owner's own Home Assistant where no test of
-ours sees it. These stay, whichever file they move to:
+ours sees it. A plugin's `plugin.yaml` hangs on the same names (docs/PLUGINS.md). These stay, whichever file they move to:
 
 - on every board: `my_display` (the display), `ts_touch` (the touch panel), `gpio_backlight_pwm` (the output that drives
   the backlight) and `back_light` (the light on it); on the Waveshare 4.3, 5 and 7, `backlight_line` as well;
+- on every board with an I2C bus: `touch_bus`, the bus its touch panel is on, where a plugin finds the other chips on it
+  (the audio codecs of the Waveshare P4 panel). The M5Stack Tab5 calls its bus `tab5_bus`. `tools/check_packages.py`
+  keeps the name;
 - the substitutions a board offers for its hardware: `DISPLAY_MODEL`, `DISPLAY_DATA_RATE` and `DISPLAY_INVERT_COLORS`
   on the CYD, `BACKLIGHT_FREQUENCY` on the boards with a PWM backlight, and `BACKLIGHT_DIMMABLE`, `LVGL_ROTATION` and the
-  `TOUCH_*` values on every board.
+  `TOUCH_*` values on every board; the grid's range, `GRID_MIN_*`, `GRID_MAX_*` and `GRID_CELL_MIN_*_MM`, on every board
+  (firmware 0.53.0+).
 
 The overrides people shared in GitHub issues are kept in `tests/fixtures/overrides/`. `tests/test_overrides.py` keeps
 the names they use, and `tools/check.sh --firmware` has ESPHome read each of them on its board, the way a screen's own
@@ -153,7 +171,7 @@ YAML loads it.
 
 docs/ADDING_A_BOARD.md is the whole recipe. In short: `tools/new_board.py` writes the board file from the board that
 resembles it most, you replace its hardware sections, add its entry to `boards.yaml` (the catalog New screen is drawn from) and run
-`tools/generate_entries.py` (the entries `packages/<board>.yaml` and `checkout/<board>.yaml`), `tools/generate_cells.py`,
+`tools/generate_entries.py` (the entries `packages/<board>.yaml` and `checkout/<board>.yaml`),
 `tools/generate_board_shapes.py` and `tools/check.sh --firmware --board <key>`. A board that shares a family's hardware includes that family's file under
 `packages/hardware/` and states only what differs; a board with hardware like no other keeps it in its own file until
 a second board shares it.

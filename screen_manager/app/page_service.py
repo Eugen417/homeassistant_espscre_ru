@@ -7,7 +7,7 @@ it does not import the server or keep another copy of a page document.
 import time
 import camera_feed
 import page_delivery
-from core import BUILTIN, CAMERA_DOMAINS, FREE_PAGES_MIN_FIRMWARE, board_of, firmware_features, page_target, state_message, version_text
+from core import plugin_tile, BUILTIN, CAMERA_DOMAINS, FREE_PAGES_MIN_FIRMWARE, board_of, firmware_features, page_target, sizes_on, state_message, version_text
 from i18n import t, shown, english
 from page_layout import (FORMAT as PAGE_FORMAT, LayoutError, bar_items, compile_tiles,
                          grid_of_record, grown, legacy_projection, screen_grid_of_record, validate_document)
@@ -20,7 +20,7 @@ def preflight_update(manager, inbox):
     if record is None: return  # A newly installed screen has no saved layout yet.
     if record['format'] != PAGE_FORMAT:
         raise LayoutError(t('addon.errors.pages.migration_pending'))
-    grid = manager.verified_grid(inbox)
+    grid = manager.record_grid(inbox, record)
     if grid is None or grid != grid_of_record(record):
         raise LayoutError(t('addon.errors.pages.adaptation'))
     validate_document(record['layout'], grid)
@@ -32,7 +32,7 @@ def preflight_pages(manager, inbox, record):
     flat = compile_tiles(record['layout'], grid_of_record(record))
     values = [state_message(i, tile, manager.ha.states) for i, tile in enumerate(flat)]
     bars = [manager.header_message({'header': {'items': bar_items(page)}})['items'] for page in record['layout']['pages']]
-    try: page_delivery.prepare(inbox, record, manager.page_region(), values, bars)
+    try: page_delivery.prepare(inbox, record, manager.page_region(inbox), values, bars)
     except page_delivery.Refused as error: raise LayoutError(shown(error.message)) from error
 
 
@@ -53,11 +53,19 @@ def save_pages(manager, inbox, data):
     screen = manager.screen(inbox)
     if screen is None: raise LayoutError(t('addon.errors.not_paired'))
     previous = manager.store.get(inbox)
-    grid = manager.verified_grid(inbox) or (screen_grid_of_record(previous) if previous and previous['format'] == PAGE_FORMAT else None)
+    grid = manager.record_grid(inbox, previous) or (screen_grid_of_record(previous) if previous and previous['format'] == PAGE_FORMAT else None)
     if grid is None: raise LayoutError(t('addon.errors.pages.source_grid'))
     adaptation = data.get('adaptation')
     if adaptation is not None:
+        # A screen that takes another grid (firmware 0.53.0+) takes any its glass holds now: the editor's own choice of
+        # columns and rows, which the layout carries to the screen. Any other screen only follows its own grid.
+        chosen = manager.chosen_grid(inbox, data)
+        if chosen is not None:
+            grid = chosen
         expected = {'from': previous.get('sourceGrid') if previous else None, 'to': {'columns': grid.columns, 'rows': grid.rows}}
+        # Standing up or lying down with it (app 0.4.85): only on a screen whose glass turns, and then on that way's grid.
+        if isinstance(adaptation, dict) and 'upright' in adaptation and chosen is not None:
+            expected['upright'] = adaptation['upright']
         if not previous or previous['format'] != PAGE_FORMAT or adaptation != expected or manager.verified_grid(inbox) is None:
             raise LayoutError(t('addon.errors.pages.adaptation'))
     document = validate_document(data.get('layout'), grid)
@@ -80,6 +88,9 @@ def save_pages(manager, inbox, data):
     # a span such as 3x2 (firmware 0.19.0).
     required_sizes = {tile.get('options', {}).get('size', 'single') for tile in flat['tiles']} - {'single', 'wide', 'full'}
     supported_sizes = getattr(sender, 'tile_sizes' if sender.protocol is not None else 'last_tile_sizes', set()) if sender else set()
+    # A screen that takes other grids (firmware 0.53.0+) takes the sizes of the grid the layout is laid out on.
+    if sender and (getattr(sender, 'grids', None) or getattr(sender, 'last_grids', None)):
+        supported_sizes = sizes_on(grid)
     if required_sizes and not required_sizes <= supported_sizes:
         raise LayoutError(t('addon.errors.pages.update_tall'))
     features = firmware_features(manager.firmware_version(inbox, screen), grid)
@@ -102,7 +113,9 @@ def save_pages(manager, inbox, data):
     _, entities = manager.inventory()
     known = {e['id'] for e in entities} | set(BUILTIN)
     existing = {tile['entity'] for tile in manager.layouts.get(inbox, {}).get('tiles', [])}
-    if any(tile['entity'] not in known and tile['entity'] not in existing and not page_target(tile['entity']) for tile in flat['tiles']):
+    # A plugin's tile has no entity behind it: a plugin the screen lacks draws a placeholder, never an error.
+    if any(tile['entity'] not in known and tile['entity'] not in existing and not page_target(tile['entity'])
+           and not plugin_tile(tile['entity']) for tile in flat['tiles']):
         raise LayoutError(t('addon.errors.layout.entity_gone'))
     existing_headers = {item['entity'] for page in previous['layout']['pages'] for item in bar_items(page)
                         if item['type'] == 'entity'} if previous and previous['format'] == PAGE_FORMAT else set()
@@ -115,7 +128,10 @@ def save_pages(manager, inbox, data):
     # durable save. Delivery checks the full refreshed state again because
     # forecasts, history and HA attributes can change independently.
     manager.preflight_pages(inbox, candidate)
-    record = manager.store.save(inbox, document, data.get('revision'), data.get('workspace'), adapt_grid=adaptation is not None)
+    record = manager.store.save(inbox, document, data.get('revision'), data.get('workspace'), adapt_grid=adaptation is not None, grid=grid)
+    if isinstance(adaptation, dict) and 'upright' in adaptation:
+        manager.hangs.set(screen.get('device_id'), 'portrait' if adaptation['upright'] else 'landscape',
+                          manager.built_as(screen).get('rotation'))
     manager.sent.pop(inbox, None)
     manager.status[inbox] = 'Saved, waiting for screen'
     manager.history_wake.set()
@@ -131,6 +147,10 @@ def grow_record(manager, inbox, record):
     grid = manager.reported_grid(inbox)
     if grid is None or grid == grid_of_record(record):
         return record
+    # A screen that takes the layout's grid is given it (firmware 0.53.0+): what it reports now is only what it had.
+    source = record['sourceGrid']
+    if manager.takes_grid(inbox, source['columns'], source['rows']) is not None:
+        return record
     try:
         layout = grown(record['layout'], grid_of_record(record), grid)
         if layout is None: return record
@@ -144,7 +164,7 @@ def grow_record(manager, inbox, record):
 
 async def sync_pages(manager, inbox, record, screen, dirty=None, force=False, context=None):
     record = grow_record(manager, inbox, record)
-    grid = manager.verified_grid(inbox)
+    grid = manager.record_grid(inbox, record)
     if grid is None or grid != grid_of_record(record):
         manager.status[inbox] = english('addon.errors.pages.adaptation')
         return False
@@ -173,14 +193,14 @@ async def sync_pages(manager, inbox, record, screen, dirty=None, force=False, co
         saved = manager.store.get(inbox)
         return saved is not None and saved.get('revision') == expected
     before = sender.confirmed
-    wanted = page_delivery.configuration(record, manager.page_region())
+    wanted = page_delivery.configuration(record, manager.page_region(inbox))
     # A layout this screen already refused is refused again without a word to it (Sender.failed_revision): the status keeps
     # the reason, instead of saying Applying on every pass and pushing the editor each time.
     if before != wanted and sender.failed_revision != wanted:
         manager.status[inbox] = 'Applying'
         manager.notify()
     try:
-        rev = await sender.synchronize(inbox, record, manager.page_region(), values, bars, current)
+        rev = await sender.synchronize(inbox, record, manager.page_region(inbox), values, bars, current)
     except page_delivery.Superseded:
         manager.ha.changed.set()
         return True

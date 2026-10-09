@@ -358,6 +358,11 @@ def message(layout, states, registry=None, units=None, tz=None, words=None, feat
             if features is None or needs in features:
                 items.append(status_item(item))
             continue
+        if item['type'] == 'plugin':
+            # Only to a screen whose firmware has plugins: an older one refuses a bar with an item it does not know.
+            if features is None or 'plugins' in features:
+                items.append({'k': 'plugin', 't': item['item']})
+            continue
         wire, shown = entity_item(item, states, registry, units, tz, words)
         if shown:
             items.append(wire)
@@ -369,6 +374,9 @@ def preview(header, states, registry=None, units=None, tz=None, words=None):
     for item in header['items']:
         if item['type'] in HEADER_BUILTIN or item['type'] in HEADER_STATUS:
             result.append({'k': item['type'], 'name': t(f"addon.labels.top_bar.builtin.{item['type']}"), 'shown': True})
+            continue
+        if item['type'] == 'plugin':
+            result.append({'k': 'plugin', 'name': item['item'], 'shown': True})
             continue
         wire, shown = entity_item(item, states, registry, units, tz, words)
         attrs = (states.get(item['entity']) or {}).get('attributes') or {}

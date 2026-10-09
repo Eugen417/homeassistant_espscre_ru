@@ -18,10 +18,10 @@ The code is in three places:
 ## Kept cards
 
 `widgets` is always the set of cards on the glass. A page that leaves the glass takes its set onto the shelf, hidden,
-and a page that comes back brings its own set with it (`keep_page`). The board's own cards (`packages/cells/<n>.yaml`)
+and a page that comes back brings its own set with it (`keep_page`). The board's own cards (`make_cells`, at boot)
 are the first set; `make_card` builds more of the same card, with the styles `packages/core.yaml` hands over at boot
 (`runtime_tiles::card_look`) and the sizes of the first card, so a new set never lays out the grid to measure itself.
-Keep the two in step: a change to the card in `tools/generate_cells.py` belongs in `make_card` too.
+Both go through `build_card`, so there is one card to change.
 
 Three rules keep this safe:
 
@@ -51,13 +51,17 @@ into their objects, and the glass's own set comes back before anything reaches t
 for that pass: LVGL's grid gives a hidden card no size (`lv_grid.c` skips `LV_OBJ_FLAG_HIDDEN`), and a card is laid out
 from its size. Its cards ask for no pictures while it runs (`warming`).
 
-- **The first layout since the start** is prepared on screen: "Preparing pages 3/8" over everything, with a
+- **Every layout** is prepared on screen: "Preparing pages 3/8" over everything, with a
   line of fun about what the next page holds (`screen.preparing` in the translations; every line only looks, none
   sounds like the screen does something to a device). One page per step of an LVGL timer, 70 to 250 ms each on an S3.
   After the last one the screen stays up to 3 s (`SETTLE_MAX_MS`) while the data Tessera sends after a layout (a
-  graph's history, a player's details) lands on the cards it belongs to.
-- **A later layout** (a save in the editor) is prepared in the background, one page every 300 ms while nobody touches
-  the screen (`PREPARE_QUIET_MS`).
+  graph's history, a player's details) lands on the cards it belongs to. A save in the editor goes the same way as
+  the first layout since the start: from the moment the new layout begins to arrive ("Loading tiles") until its pages
+  are prepared, the loading screen covers the glass, and it goes in one step, so nothing half drawn ever shows.
+  A board that keeps no pages (the CYD) takes the cover away as soon as the layout is complete and its page is drawn.
+  A change of names or colours alone (`appearance`) is no new layout and shows at once, without the loading screen.
+- **A page still unbuilt after that** is built in the background, one page every 300 ms while
+  nobody touches the screen (`PREPARE_QUIET_MS`).
 - **From then on** a kept page that is behind is brought up to date while the screen is idle, at most one page a
   second (`FRESHEN_QUIET_MS`, `FRESHEN_GAP_MS`), so a lamp switched elsewhere is already right on its page before
   anyone turns to it.

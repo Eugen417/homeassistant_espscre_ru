@@ -371,7 +371,8 @@ class ParityTests(unittest.TestCase):
         # Firmware 0.38.0: step by step, with what the screen knows of each step (boot_view).
         self.assertIn('const auto view = boot_view(esphome::millis());', render)
         # Firmware 0.45.0: no spinner while it waits for a person to choose its first tiles, the steps instead.
-        self.assertIn('boot_status(lv_obj_get_parent(room), view.title.c_str(), view.steps.empty(), false, view.facts, view.hint, std::string(), view.steps);', render)
+        # Firmware 0.53.0: a layout on its way covers the glass whole, so its cards never show one by one over the words.
+        self.assertIn('boot_status(lv_obj_get_parent(room), view.title.c_str(), view.steps.empty(), transfer.begun, view.facts, view.hint, std::string(), view.steps);', render)
         self.assertIn('else if (boot_panel) boot_forget();', render)
         view = TILES.split('inline BootView boot_view(uint32_t now) {', 1)[1].split('\n}', 1)[0]
         for step in ('txt::status_wifi_connecting', 'txt::status_wifi_address', 'txt::status_connecting',

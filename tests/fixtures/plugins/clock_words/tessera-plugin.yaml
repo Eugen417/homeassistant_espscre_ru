@@ -1,0 +1,12 @@
+# A plugin for the app's tests: a tile without data, the smallest manifest that adds one.
+id: clock_words
+version: 1.0.0
+api: "0.1"
+icon: clock-outline
+maintainer: someone
+license: MIT
+tiles:
+  - id: words
+    name: tile
+    sizes: { min: 1x1, max: 2x1 }
+    memory: 300

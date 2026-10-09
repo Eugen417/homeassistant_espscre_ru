@@ -186,7 +186,8 @@
       "hours": "{n} h",
       "hours_minutes": "{h} h {m}",
       "wifi": "Wi-Fi",
-      "tessera": "Tessera"
+      "tessera": "Tessera",
+      "plugins": "Plugins"
     },
     "tile": {
       "tap_to_open": "Tap to open",
@@ -547,7 +548,11 @@
       "battery": "Battery",
       "home": "Home",
       "other": "Other",
+      "untracked": "Untracked",
       "no_power": "No power sensors in Home Assistant's energy settings"
+    },
+    "plugin": {
+      "missing": "Plugin missing"
     }
   },
   "addon": {
@@ -708,7 +713,7 @@
         "substitutions_managed": "These substitutions stay managed by Tessera: {names}.",
         "substitutions_in_profile": "{names} is set in this screen's own YAML (chosen under New screen), which wins over the override. Change it there instead.",
         "orientation": "Choose whether the screen hangs lying down or standing up.",
-        "orientation_managed": "Which way a screen hangs is chosen when it is built, under New screen, so LVGL_ROTATION stays managed by Tessera.",
+        "orientation_managed": "Which way a screen hangs is chosen in the editor, under Grid beside the pages, or when it is built, under New screen, so LVGL_ROTATION stays managed by Tessera.",
         "usb_port": "Choose the connected USB port from the list.",
         "busy_wait": "A build or installation is already running. Wait for it to finish.",
         "busy": "A build or installation is already running.",
@@ -716,7 +721,8 @@
         "still_building": "The firmware is still being built. Download it when the build has finished.",
         "build_first": "Build the firmware first; the download appears when the build has finished.",
         "unknown_action": "Unknown firmware action.",
-        "host": "Enter the IP address or hostname of the intended screen."
+        "host": "Enter the IP address or hostname of the intended screen.",
+        "grid": "Choose a grid this screen takes."
       },
       "updates": {
         "automatic": "Choose on or off for automatic updates.",
@@ -777,7 +783,8 @@
         "save_first": "Save a page document before saving document settings",
         "destination_exists": "Destination screen already has a saved layout",
         "update_tall": "Update the screen to use these tile sizes",
-        "memory": "The screen does not have enough free memory for this layout. Reduce the number of tiles."
+        "memory": "The screen does not have enough free memory for this layout. Reduce the number of tiles.",
+        "grid_range": "This screen does not take a grid of that size. Choose another grid beside the mockup."
       },
       "feedback": {
         "invalid": "This answer can't be shared. Choose yes or not quite, and only the listed problems.",
@@ -796,6 +803,24 @@
         "not_allowed": "Home Assistant doesn't let this app change its integrations. Do it in Home Assistant itself, under Settings → Devices & services.",
         "no_entry": "Home Assistant doesn't have this screen as an ESPHome device.",
         "failed": "Home Assistant didn't take it. In Home Assistant open Settings → Devices & services → ESPHome, choose this screen, then Configure, and turn on “Allow the device to perform Home Assistant actions”."
+      },
+      "plugins": {
+        "request": "This plugin request is not complete.",
+        "unknown": "There is no plugin {id}.",
+        "misfit_api": "{name} was written for another plugin API than this app's.",
+        "misfit_board": "{name} is made for other boards.",
+        "misfit_psram": "{name} needs a board with PSRAM.",
+        "misfit_blocked": "{name} is blocked: this version is known to be harmful or broken.",
+        "requires": "{name} needs the plugin {other} on this screen first.",
+        "firmware": "This screen's firmware has no plugins yet. Update it, then the plugin tiles appear.",
+        "file": "The plugins file is not valid.",
+        "other_include": "This screen's YAML already has a different tessera_plugins include.",
+        "link_invalid": "That is not a link to a GitHub repository (https://github.com/owner/repository).",
+        "link_not_found": "No plugin was found there: no release, or no tessera-plugin.yaml in that folder.",
+        "link_rate": "GitHub is not answering right now (too many questions in an hour). Try again later.",
+        "folder": "The folder {folder} in tessera-plugins is not a plugin yet: {why}",
+        "manifest": "The plugin's description is not valid: {why}",
+        "consent": "{name} asks for other rights than before. Look at what it may do now and agree, then update."
       }
     },
     "status": {
@@ -1191,6 +1216,8 @@
         "briefcase": "Work",
         "car": "Car",
         "bike": "Bike",
+        "bus": "Bus",
+        "train": "Train",
         "airplane": "Vacation",
         "map_marker": "Location",
         "power": "On/off",
@@ -1314,7 +1341,8 @@
       "firmware": "Firmware & USB",
       "alerts": "Alerts",
       "settings": "Settings",
-      "new_screen_detail": "Connect and install"
+      "new_screen_detail": "Connect and install",
+      "plugins": "Plugins"
     },
     "api": {
       "failed": "That didn't work. Refresh the page and try again."
@@ -1351,6 +1379,10 @@
       "screen_name": {
         "copied": "Screen name copied.",
         "selected": "Screen name is selected. Copy with Ctrl+C or Command+C."
+      },
+      "log": {
+        "copied": "Log copied.",
+        "selected": "Log is selected. Copy with Ctrl+C or Command+C."
       }
     },
     "sidebar": {
@@ -1359,6 +1391,9 @@
         "reconnecting": "Reconnecting to Home Assistant…"
       },
       "search": "Search",
+      "fold": "Collapse sidebar",
+      "unfold": "Expand sidebar",
+      "resize": "Resize sidebar: drag, or use the arrow keys; double-click to reset",
       "screens": "Screens",
       "refresh": "Refresh",
       "update": {
@@ -1465,7 +1500,8 @@
       "offline": "Offline · changes are saved",
       "tabs": {
         "layout": "Layout",
-        "settings": "Screen settings"
+        "settings": "Screen settings",
+        "plugins": "Plugins"
       },
       "sent": "Saved · sent to screen",
       "all_saved": "All saved",
@@ -1577,7 +1613,8 @@
       "hint": "Drag onto a page, or tap + to add to the first free slot. ⌘K searches everything.",
       "resize": "Drag to resize the library",
       "filter_label": "Filter by type",
-      "no_room": "No room"
+      "no_room": "No room",
+      "plugins": "Plugins"
     },
     "memory": {
       "label": "Memory for tiles",
@@ -1873,7 +1910,13 @@
       },
       "energy": {
         "hint": "The power of the house right now, drawn the way Home Assistant's own Energy view draws it: solar, grid, battery and your devices, from the Energy settings in Home Assistant. A tap on a circle opens that sensor's history.",
-        "needs_firmware": "The energy card needs firmware 0.47.0 or newer: press Update on the screen after saving."
+        "needs_firmware": "The energy card needs firmware 0.47.0 or newer: press Update on the screen after saving.",
+        "flow": {
+          "label": "Flow",
+          "hint": "Dots run along each line, faster as more power flows. Lines and arrows is calmer: a line grows thicker with the power and an arrow shows which way it goes. A screen with older firmware keeps the dots.",
+          "dots": "Moving dots",
+          "lines": "Lines and arrows"
+        }
       }
     },
     "tile_card": {
@@ -1980,7 +2023,8 @@
         "entity": "An entity",
         "search": "Search by name, room, or entity, e.g. temperature or door",
         "search_label": "Search for an entity for the top bar",
-        "none_found": "No entities found."
+        "none_found": "No entities found.",
+        "plugins": "From plugins"
       },
       "left": "Left",
       "left_hint": "Title and home button: in the page settings",
@@ -1992,7 +2036,8 @@
       "link_hint": "Appears only while Home Assistant or Tessera is away, so you can tell at a glance why values are missing.",
       "battery_hint": "The screen reads its own battery, so this item stays in the bar when Home Assistant is away. The icon follows the level the way Home Assistant draws it, with a lightning bolt while it charges.",
       "battery_show_hint": "Only when low keeps the bar clear until the battery is at 20 % or less.",
-      "status_firmware": "This item shows from firmware {version}. Until that update, the screen leaves it out."
+      "status_firmware": "This item shows from firmware {version}. Until that update, the screen leaves it out.",
+      "plugin_item": "Shows what its plugin says, only while it has something to say. On a screen without that plugin it stays away."
     },
     "screen_settings": {
       "groups": {
@@ -2226,19 +2271,14 @@
         "calibration": "Touch calibration on first start"
       },
       "choice": {
-        "DISPLAY_MODEL": "Display controller",
-        "GRID_ROWS": "Tiles on a page"
+        "DISPLAY_MODEL": "Display controller"
       },
       "choice_hint": {
-        "DISPLAY_MODEL": "Most of these boards have the first one. Take the other when the screen shows noise or a garbled picture.",
-        "GRID_ROWS": "More rows fit more tiles on a page; fewer rows keep the tiles larger and easier to read."
+        "DISPLAY_MODEL": "Most of these boards have the first one. Take the other when the screen shows noise or a garbled picture."
       },
       "choice_usual": "most boards",
-      "orientation": "Which way will it hang?",
       "orientation_landscape": "Lying down",
       "orientation_portrait": "Standing up",
-      "orientation_tiles": "{n} tile a page | {n} tiles a page",
-      "orientation_hint": "You choose this when the screen is built. To hang it the other way later, build the screen again.",
       "name": "Name",
       "name_placeholder": "Living room screen",
       "device_name": "Device name",
@@ -2370,15 +2410,6 @@
         "change": "Change Wi-Fi and install again",
         "failed": "Tessera can't add {name} to Home Assistant by itself. Add it yourself below."
       },
-      "choice_option": {
-        "GRID_ROWS": {
-          "3": "3 rows",
-          "4": "4 rows, smaller tiles"
-        }
-      },
-      "choice_first": {
-        "GRID_ROWS": "the usual size"
-      },
       "memory": {
         "low_title": "Little memory free on the Home Assistant machine",
         "low": "{free} of memory is free, so the firmware builds with fewer compilers at a time ({jobs} instead of {cores}). That takes longer, but it fits.",
@@ -2391,7 +2422,10 @@
         "limit_title": "Not enough memory to build the firmware",
         "limit": "The build ran out of memory, also with one compiler at a time. Stop a few add-ons for a while or give the machine more memory, then try again."
       },
-      "pair_yourself": "Add it in Home Assistant yourself"
+      "pair_yourself": "Add it in Home Assistant yourself",
+      "grid": "Grid",
+      "grid_hint": "The suggested grid is the best for this screen. You can change it, and which way it hangs, later beside the pages in the editor, without a new build.",
+      "grid_best": "Back to the best"
     },
     "alerts": {
       "eyebrow": "Alerts · cheatsheet",
@@ -2661,7 +2695,7 @@
       "history_empty": "No recorded history",
       "grid_changed": "The screen grid has changed. Review tile positions before saving or sending.",
       "grid_review": "Review grid adaptation",
-      "grid_review_hint": "Compare the saved positions on the left with the proposed positions on the right. Every tile stays on its original page. Nothing is sent until you save.",
+      "grid_review_hint": "Compare the saved positions on the left with the proposed positions on the right. Tiles that no longer fit move on to a new page right after their own. Nothing is sent until you save.",
       "grid_accept": "Use these positions",
       "selected_full": "This page is full. Select an empty cell on another page.",
       "choose_page": "Page",
@@ -2848,6 +2882,239 @@
       "later": "Maybe later",
       "donated": "I already donated",
       "thanks": "Thank you! This won't ask again."
+    },
+    "plugins": {
+      "title": "Plugins",
+      "intro": "Extras for your screens: hardware on the board, or something more a screen can do. A plugin is built into a screen's firmware, so you choose per screen which ones it gets.",
+      "search": "Search by name, maker or what it does",
+      "filter": "Show",
+      "filters": {
+        "all": "All",
+        "tessera": "From Tessera",
+        "community": "Community",
+        "in_use": "In use"
+      },
+      "from_tessera": "From Tessera",
+      "by": "By {maker}",
+      "label": {
+        "tessera": "From Tessera",
+        "community": "Community",
+        "test": "Test"
+      },
+      "state": {
+        "building": "Building…",
+        "installed": "Installed",
+        "update": "Update {version}",
+        "test_on": "Test on {name}",
+        "updates": "Update on {n} screen | Update on {n} screens",
+        "on_screens": "On {n} screen | On {n} screens",
+        "fits_none": "Fits none of your screens",
+        "failed": "Build failed",
+        "queued": "Waits its turn"
+      },
+      "source": {
+        "link": "From a link",
+        "branch": "Test from a branch",
+        "folder": "Test from a folder"
+      },
+      "misfit_short": {
+        "board": "Not for this board",
+        "psram": "Needs PSRAM",
+        "firmware": "Needs newer firmware",
+        "flash": "Too large for this screen",
+        "blocked": "Blocked"
+      },
+      "misfit": {
+        "board": "This plugin is made for other boards than {screen}'s.",
+        "psram": "This plugin needs a board with PSRAM, and {screen} has none.",
+        "firmware": "{screen} needs a firmware update before it can take this plugin.",
+        "flash": "{screen} has room for about {kb} KB more, and this plugin is larger.",
+        "blocked": "This version of the plugin is blocked: it is known to be harmful or broken."
+      },
+      "none_installed": "No plugins on this screen yet.",
+      "none_found": "No plugin matches “{query}”.",
+      "make": "Making a plugin of your own?",
+      "template": "Start from the template",
+      "version": "version {version}",
+      "kind": {
+        "hardware": "Hardware",
+        "behaviour": "Feature"
+      },
+      "stage": {
+        "beta": "Beta",
+        "example": "Example"
+      },
+      "stage_hint": {
+        "beta": "Beta: it works, but it is still finding its feet. Tell the maker how it goes.",
+        "example": "An example: made to show what a plugin can do. Try it, and read its code to make your own."
+      },
+      "attribute": {
+        "cloud": "Uses a cloud service",
+        "commercial": "Commercial",
+        "ai-developed": "Made with AI"
+      },
+      "test_note": "A test: every build takes the newest version, and Tessera offers no updates for it.",
+      "remove": "Remove from {screen}",
+      "building": "Building the firmware for {screen}…",
+      "installed_on": "On {screen}, version {version}",
+      "update": "Update to {version}",
+      "trust": {
+        "title": "I trust this maker",
+        "text": "Tessera did not review this plugin. It runs on your screen and can do what the screen can do in Home Assistant."
+      },
+      "install": "Add to {screen}",
+      "adds": {
+        "title": "What it adds",
+        "tile": "Tile “{name}”",
+        "tile_sizes": "From {min} to {max} on a page",
+        "tap": "Tap action “{name}”",
+        "tap_on": "On tiles of {domains}",
+        "card": "“{name}”, a screen of its own on the glass",
+        "bar": "Top bar item “{name}”",
+        "settings": "Settings",
+        "settings_where": "On the screen's settings page and under Screen settings"
+      },
+      "may": {
+        "title": "What it may do",
+        "ha": "Uses these Home Assistant commands",
+        "ha_none": "Runs no Home Assistant actions",
+        "network": "Connects to {hosts}",
+        "network_none": "Makes no connections outside Home Assistant",
+        "read": "Reads these entities from Home Assistant"
+      },
+      "warning": "A plugin runs on your screen with full access to it, including its Wi-Fi and the actions it may perform in Home Assistant. Only add plugins from makers you trust, or read the code first.",
+      "room": {
+        "title": "Room on {screen}",
+        "small": "{kb} KB more: the firmware goes from {before} to {after} of its slot.",
+        "large": "{kb} KB, well within the room this screen has.",
+        "title_all": "Room",
+        "per_screen": "{kb} KB on each screen it goes on. A 4 MB board shows here whether it has room for it."
+      },
+      "works": {
+        "title": "Works on:",
+        "any": "every board",
+        "any_psram": "every board with PSRAM"
+      },
+      "source_code": "Source code",
+      "issues": "Report a problem",
+      "removed": "{name} removed from {screens}. The screen loses it with its next build.",
+      "add_link": "Add with a link",
+      "link": {
+        "title": "Add with a link",
+        "intro": "A plugin that is not in the list, or one you are making. Tessera reads its description first and says whether it fits before anything is built.",
+        "sources": {
+          "link": "Release",
+          "branch": "Test a branch",
+          "folder": "Test a folder"
+        },
+        "url": "GitHub link",
+        "branch": "Branch",
+        "folder": "Folder on this machine",
+        "hints": {
+          "link": "Tessera takes the newest release and keeps the screen on it. A new release shows up as an update.",
+          "branch": "Every build takes the newest commit of this branch. For trying out, not for every day.",
+          "folder": "For a plugin you are making: save, and the next build takes it. The folder lives in Home Assistant's config."
+        },
+        "fetch": "Read the plugin",
+        "test": "Add to {screen} as a test",
+        "not_found": "No plugin description at this link.",
+        "on_screen": "On screen"
+      },
+      "none_in_use": "None of your screens has a plugin yet.",
+      "screen_update": "Version {from}, update to {to}",
+      "screen_version": "Version {version}",
+      "on_screens": "On which screens",
+      "apply": {
+        "add": "Add to {n} screen | Add to {n} screens",
+        "remove": "Remove from {n} screen | Remove from {n} screens",
+        "both": "Apply to {n} screen | Apply to {n} screens",
+        "none": "Apply"
+      },
+      "update_all": "Update {n} screen to {version} | Update {n} screens to {version}",
+      "tab": {
+        "intro": "The plugins {screen} runs, and what it can add. Each change builds new firmware for this screen.",
+        "all": "All plugins",
+        "here": "On this screen",
+        "add": "Add",
+        "misfits": "Does not fit this screen ({n}) | Do not fit this screen ({n})",
+        "updates": "An update for {n} plugin | Updates for {n} plugins",
+        "updates_note": "One build for {screen}: {names}.",
+        "updates_rights": "{names} asks for other rights than before. | {names} ask for other rights than before.",
+        "update_all": "Update all on this screen"
+      },
+      "pending": {
+        "add": "Will be added when you apply",
+        "remove": "Will be removed when you apply"
+      },
+      "setup": {
+        "on_screen": "{label} on {screen}",
+        "choose_pin": "Choose a pin",
+        "part_kb": "{kb} KB more",
+        "secret_set": "Set. Fill in a new one to replace it."
+      },
+      "readme": {
+        "title": "Read me"
+      },
+      "english_only": "In English only",
+      "build_note": "Built with ESPHome Device Builder or on another computer? The plugin is in the screen's YAML; build it there as you always do.",
+      "attach": {
+        "row": "Attach once, in the screen's tab",
+        "text": "{screen} is built from its own YAML. Add this line to it once; after that Tessera keeps its plugins in their own file, and ESPHome Device Builder builds them as always, also after an update.",
+        "copy": "Copy the line",
+        "done": "I added it",
+        "file": "What Tessera writes in {file}"
+      },
+      "folder_note": "Making a plugin? Put its folder in {path} and it shows up here as a test.",
+      "folder_error": "The folder {folder} is no plugin yet: {why}",
+      "rebuild": "Build again",
+      "failed": "The firmware for {screen} did not build with this plugin. Its log is under Firmware & USB.",
+      "retry": "Try again",
+      "privacy": "Privacy",
+      "consent": {
+        "title": "This update asks for other rights",
+        "agree": "I agree to what it may do now"
+      },
+      "settings_missing": "Not on this screen yet: it comes with the plugin's next build.",
+      "changes": "What changed"
+    },
+    "plugin_tile": {
+      "from": "A tile of the plugin {plugin}",
+      "details": "Plugin details",
+      "options": "Options",
+      "choose": "Choose…",
+      "less": "Less",
+      "more": "More",
+      "from_fetch": "The choices come from the plugin's own data source, through Tessera.",
+      "on_screen": "On the screen",
+      "sizes": "From {min} to {max}; drag an edge of the tile to change its size.",
+      "placeholder": "The editor shows a placeholder: what the plugin draws appears on the screen itself.",
+      "now": "now",
+      "minutes": "{n} min",
+      "live": "The editor draws it from the plugin's own data; the screen draws it itself and counts down on its own clock.",
+      "entity": "Entity"
+    },
+    "build": {
+      "plugins": "Building with its plugins",
+      "install": "Installing",
+      "failed": "The last build of {screen} failed. The log says why."
+    },
+    "grid": {
+      "title": "Grid",
+      "columns": "Columns",
+      "rows": "Rows",
+      "columns_less": "Fewer columns",
+      "columns_more": "More columns",
+      "rows_less": "Fewer rows",
+      "rows_more": "More rows",
+      "hint": "Tiles that no longer fit on a page move on to a new page right after it. The screen gets the new grid when you save.",
+      "update_first": "Update this screen to choose its grid here.",
+      "pages_added": "1 page added for the tiles that no longer fit | {n} pages added for the tiles that no longer fit",
+      "new_page": "New page for what no longer fit",
+      "too_many_pages": "On {grid} these tiles need {needed} pages, and this screen takes {most}. Remove tiles or choose another grid; nothing was changed.",
+      "way": "Way",
+      "landscape": "Landscape",
+      "portrait": "Portrait",
+      "turn_hint": "When it turns, the screen starts again once to measure its new canvas."
     }
   }
 }

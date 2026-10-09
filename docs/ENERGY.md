@@ -15,8 +15,10 @@ The add-on asks Home Assistant for its Energy settings (`energy/get_prefs`) and 
   its power sensors in a list of its own (`power`), and the card adds those up as Home Assistant's frontend did then;
 - the battery's charge (`stat_soc`), combined as Home Assistant's energy distribution card combines it: weighted by each
   battery's usable capacity (`capacity`), a battery without one counting as the mean of the others;
-- the devices with a power sensor (`device_consumption`). Only the top of Home Assistant's device tree counts: a device
-  that is part of another one (`included_in_stat`) is already in that one's value.
+- the devices with a power sensor (`device_consumption`), split as Home Assistant's live view splits them
+  (`buildSankeyDeviceNodes` in common/sankey.ts): a device that is part of another one (`included_in_stat`) is already
+  in the value of the first device up its chain that the view draws; with none drawn above it, it stands under the
+  house itself. A sensor without a number counts as 0 W.
 
 `screen_manager/app/energy_flow.py` works out the moment step for step as Home Assistant's frontend does
 (`_computePowerData` in hui-power-sankey-card.ts):
@@ -25,7 +27,7 @@ The add-on asks Home Assistant for its Energy settings (`energy/get_prefs`) and 
 - solar counts only while it produces;
 - the grid splits into import and export, and the batteries into discharge and charge;
 - the flows between them are routed in Home Assistant's order;
-- a device under 0.1 % of the house is left out, as the sankey's threshold does.
+- a device under 0.1 % of the house has no place of its own, as the sankey's threshold does, and counts in Other.
 
 A device is named as Home Assistant names it in the Energy view: its display name there, else the sensor's name. Its icon
 is the sensor's own, else a lightning bolt. The house is named after the home, its name in Home Assistant
@@ -58,6 +60,16 @@ LVGL object that draws in its draw event, so a card costs one object however man
   search draws.
 - Nothing runs while the screen sleeps, while the card is off the glass, or while a card is open over it.
 
+### Dots or lines
+
+The editor's Flow choice (the tile's `flow`, `energy` in catalogue/screen.yaml) sets how power shows along a line.
+Moving dots is the default and is never stored. Lines and arrows is calm: no dot runs and no timer ticks. A line that
+carries power grows thicker in two steps up to 2 kW, the power at which a dot runs its fastest, and has an arrow halfway
+along it in its colour, pointing the way the power goes (`flow_width` and `Arrow` in `energy_card.h`). Each step adds
+the same even number of pixels, so a line stays centred on the pixel grid of its turns. No line grows past a quarter of
+the room between two neighbours, and an arrow is never longer than half the part of its line that shows between two
+circles. A firmware that doesn't know the choice keeps the dots.
+
 The card is responsive the way every card is: it takes the richest form and the largest of the board's fonts that fit.
 
 1. Both directions of a flow, then one direction.
@@ -68,10 +80,22 @@ It turns the diagram upright when that leaves bigger circles, which is how a scr
 four devices. When there are more devices than places, the biggest keep a place and the smallest share the last one as
 Other, at least two of them, as Home Assistant's sankey groups its smallest devices. The devices that keep a place stand
 in the order of the Energy settings, as Home Assistant shows them.
-What no device measures stays in the house's own number, as in power-flow-card-plus; Home Assistant's sankey draws it
-as a node of its own ("Untracked consumption"), which a card of four places has no room for.
 
-A device's name wraps to two lines before the card drops a device. Only when no device fits with its whole name are the
+What no device measures is Untracked consumption, as Home Assistant's sankey draws it (`common/sankey.ts`): the house
+less every device and Other, shown from 1 W, in the last place. The devices, Other and it add up to the house. It takes
+a place where the devices before it all fit, or from three places on with Other beside it; two places for more devices
+than one stay the biggest and Other, so no device goes missing from the sum. The card works it out from the moment it
+has; a house without a measured device keeps it in the house's own number, where a circle of its own would only repeat
+it. Its name is Home Assistant's short word for it (`energy_devices_detail_graph.untracked`, "Untracked"), which fits
+where a device's name fits; the long one takes two lines that a card seldom has. Other and Untracked are grey, Home
+Assistant's `--state-unavailable-color`, and have no sensor, so a tap on them does nothing.
+
+The battery's charge stands beside its glyph, as Home Assistant's energy distribution card shows it. In the compact form,
+whose circles hold their icon alone, it stands before the battery's number under the circle. Only where even that does
+not fit is the glyph, which fills with the charge, left to show it; no card the editor offers is that small.
+
+Every name stands centred under or over its own circle; only a name that would cross the card's edge moves in, as far
+as it must. A device's name wraps to two lines before the card drops a device. Only when no device fits with its whole name are the
 names cut with three dots, as power-flow-card-plus cuts them.
 
 Room is kept for the widest number the card has shown, so a car that charges at 11 kW does not make the circles grow
@@ -110,7 +134,7 @@ read by `page_receiver.cpp`):
 | `e`, `u` | the sensor behind each source (solar, grid, battery), or the key of their sum, and its state and unit, for the history card |
 | `d` | the eight biggest devices at most, in the order of the Energy settings: name `n`, sensor `e`, icon `i`, power `w`, state `s`, unit `u` |
 | `n` | the home's name in Home Assistant |
-| `o` | the power of the devices beyond those eight |
+| `o` | the power of the devices beyond those eight and of those under 0.1 % of the house (Other) |
 
 ## Memory
 

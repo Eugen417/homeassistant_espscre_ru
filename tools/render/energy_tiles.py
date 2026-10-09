@@ -3,6 +3,7 @@ size the editor offers on the board, the houses of tests/fixtures/energy (moment
 house in its Energy settings), light and Dark mode, and a tap on the solar circle, which opens that sensor's history.
 
     python3 tools/render/energy_tiles.py guition cyd cyd-portrait waveshare43
+    python3 tools/render/energy_tiles.py --compare guition   # moving dots beside lines and arrows (the tile's flow)
 
 Each card's numbers are the add-on's own (core.extras, energy_flow.payload), so a shot is what a screen shows for that
 moment. The dots run while a shot is taken; a shot is kept once two snapshots in a row match, so the run waits for the
@@ -86,8 +87,10 @@ def solar_day(entity, hours):
 
 
 class Study(run.Run):
-    def __init__(self, build, out, pictures):
+    def __init__(self, build, out, pictures, compare=False):
         super().__init__(build, out, pictures, (1280, 720))
+        # --compare: every card twice, with moving dots and with lines and arrows (the tile's flow), light only.
+        self.compare = compare
 
     def answer(self, call):
         if call.service != 'esphome.screen_history':
@@ -123,14 +126,16 @@ class Study(run.Run):
         self.sender = send_layout.api_sender(self.client, services)
         region = dict(keepalive=120, clock_24h=True, numbers='point', group_min=1, percent_space=False)
         pages = []
-        for name, key, size in PAGES:
-            for one in ([size] if size else SIZES):
+        for name, key, size in PAGES[:2] if self.compare else PAGES:
+            # Compared, a card takes two pages: the smallest and the largest size keep it within a screen's eight.
+            for one in ([size] if size else ('square', 'full') if self.compare else SIZES):
                 if offered(shape, side, grid, one):
-                    pages.append((f'{name}-{one}', key, one))
+                    for flow in (('dots', 'lines') if self.compare else ('dots',)):
+                        pages.append((f'{name}-{one}' + (f'-{flow}' if self.compare else ''), key, one, flow))
         tiles, states, moments = [], {}, []
-        for page, (_, key, size) in enumerate(pages):
+        for page, (_, key, size, flow) in enumerate(pages):
             first = page * grid.slots
-            tiles.append(dict(entity='screen.energy', name='', slot=first, options={'size': size}))
+            tiles.append(dict(entity='screen.energy', name='', slot=first, options={'size': size, **({'flow': flow} if flow != 'dots' else {})}))
             moments.append(house(key))
             taken = set(grid.footprint(first, size))
             for cell, neighbour in zip([c for c in range(first, first + grid.slots) if c not in taken], NEIGHBOURS):
@@ -148,11 +153,11 @@ class Study(run.Run):
         bars = [[{'k': 'clock'}] for _ in record['layout']['pages']]
         await self.sender.synchronize(self.inbox.object_id, record, region, values, bars)
         shots = 0
-        for look in ('light', 'dark'):
+        for look in ('light',) if self.compare else ('light', 'dark'):
             if look == 'dark':
                 self.client.switch_command(dark.key, True)
                 await asyncio.sleep(1.0)
-            for page, (name, key, size) in enumerate(pages):
+            for page, (name, key, size, _) in enumerate(pages):
                 start = len(self.lines)
                 await self.call('render_page', page=page)
                 await self.page_done(page)
@@ -160,7 +165,7 @@ class Study(run.Run):
                 await self.render(f'{name}-{look}', timeout=6)
                 shots += 1
                 # A tap on the solar circle opens its sensor's history, as Home Assistant's live view opens its more-info.
-                if name == 'noon-full':
+                if name == 'noon-full' and not self.compare:
                     circles = {m[1]: (int(m[2]), int(m[3])) for line in self.lines[start:] for m in [CIRCLE.search(line)] if m}
                     solar = next((at for entity, at in circles.items() if 'solar' in entity), None)
                     if not solar:
@@ -176,18 +181,19 @@ class Study(run.Run):
         return len(pages), shots
 
 
-def sheet(out, key):
-    shots = sorted(p for p in (out / key).glob('*-light.png'))
+def sheet(out, key, compare=False):
+    columns = ('dots-light', 'lines-light') if compare else ('light', 'dark')
+    shots = sorted(p for p in (out / key).glob(f'*-{columns[0]}.png'))
     if not shots:
         return
-    names = [p.name[:-len('-light.png')] for p in shots]
+    names = [p.name[:-len(f'-{columns[0]}.png')] for p in shots]
     w, h = Image.open(shots[0]).size
     font = ImageFont.truetype(str(run.REPO / 'fonts/Roboto-500.ttf'), 18)
     image = Image.new('RGB', (2 * (w + 24) + 24, len(names) * (h + 48) + 24), '#f5f6f8')
     draw = ImageDraw.Draw(image)
     for row, name in enumerate(names):
         draw.text((24, 24 + row * (h + 48)), f'{key} · {name}', font=font, fill='#17202c')
-        for col, look in enumerate(('light', 'dark')):
+        for col, look in enumerate(columns):
             path = out / key / f'{name}-{look}.png'
             if path.exists():
                 with Image.open(path) as shot:
@@ -199,6 +205,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('variants', nargs='+')
     parser.add_argument('--out', type=Path, default=run.REPO / '.esphome' / 'energy-tiles' / 'out')
+    parser.add_argument('--compare', action='store_true', help='moving dots beside lines and arrows, light only')
     args = parser.parse_args()
     args.out = args.out.resolve()
     esphome = shlex.split(os.environ.get('ESPHOME', 'esphome'))
@@ -211,10 +218,10 @@ def main():
         if not ok:
             print(f'{key}: BUILD FAILED\n{output[-6000:]}', flush=True)
             continue
-        study = Study(build, args.out / key, pictures)
+        study = Study(build, args.out / key, pictures, args.compare)
         try:
             summary = asyncio.run(study.run())
-            sheet(args.out, key)
+            sheet(args.out, key, args.compare)
         except Exception as error:
             summary = f'stopped: {type(error).__name__}: {error}'
         print(f'{key}: {summary} ({time.monotonic() - started:.0f} s) {study.warnings}', flush=True)

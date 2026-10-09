@@ -186,7 +186,8 @@
       "hours": "{n} u",
       "hours_minutes": "{h} u {m}",
       "wifi": "Wifi",
-      "tessera": "Tessera"
+      "tessera": "Tessera",
+      "plugins": "Plugins"
     },
     "tile": {
       "tap_to_open": "Tik om te openen",
@@ -547,7 +548,11 @@
       "battery": "Batterij",
       "home": "Thuis",
       "other": "Overig",
+      "untracked": "Niet getraceerd",
       "no_power": "Geen vermogenssensoren in de energie-instellingen van Home Assistant"
+    },
+    "plugin": {
+      "missing": "Plugin ontbreekt"
     }
   },
   "addon": {
@@ -708,7 +713,7 @@
         "substitutions_managed": "Deze substitutions blijven in beheer van Tessera: {names}.",
         "substitutions_in_profile": "{names} staat in de eigen YAML van dit scherm (gekozen bij Nieuw scherm), en die wint van de override. Pas het daar aan.",
         "orientation": "Kies of het scherm liggend of staand hangt.",
-        "orientation_managed": "Hoe een scherm hangt kies je bij het bouwen, onder Nieuw scherm; daarom blijft LVGL_ROTATION in beheer van Tessera.",
+        "orientation_managed": "Hoe een scherm hangt kies je in de editor, onder Raster naast de pagina’s, of bij het bouwen, onder Nieuw scherm; daarom blijft LVGL_ROTATION in beheer van Tessera.",
         "usb_port": "Kies de aangesloten USB-poort uit de lijst.",
         "busy_wait": "Er loopt al een build of installatie. Wacht tot die klaar is.",
         "busy": "Er loopt al een build of installatie.",
@@ -716,7 +721,8 @@
         "still_building": "De firmware wordt nog gebouwd. Download hem zodra de build klaar is.",
         "build_first": "Bouw eerst de firmware; de download verschijnt zodra de build klaar is.",
         "unknown_action": "Onbekende firmwareactie.",
-        "host": "Vul het IP-adres of de hostnaam van het bedoelde scherm in."
+        "host": "Vul het IP-adres of de hostnaam van het bedoelde scherm in.",
+        "grid": "Kies een raster dat dit scherm aanneemt."
       },
       "updates": {
         "automatic": "Kies aan of uit voor automatisch bijwerken.",
@@ -777,7 +783,8 @@
         "save_first": "Sla eerst de pagina-indeling op voordat je de instellingen opslaat",
         "destination_exists": "Het doelscherm heeft al een opgeslagen indeling",
         "update_tall": "Werk het scherm bij om deze tegelmaten te gebruiken",
-        "memory": "Het scherm heeft onvoldoende vrij geheugen voor deze indeling. Gebruik minder tegels."
+        "memory": "Het scherm heeft onvoldoende vrij geheugen voor deze indeling. Gebruik minder tegels.",
+        "grid_range": "Dit scherm neemt geen raster van deze grootte aan. Kies een ander raster naast het voorbeeld."
       },
       "feedback": {
         "invalid": "Dit antwoord kan niet gedeeld worden. Kies ja of niet helemaal, en alleen de genoemde problemen.",
@@ -796,6 +803,24 @@
         "not_allowed": "Home Assistant laat deze app zijn integraties niet wijzigen. Doe het in Home Assistant zelf, onder Instellingen → Apparaten & diensten.",
         "no_entry": "Home Assistant heeft dit scherm niet als ESPHome-apparaat.",
         "failed": "Home Assistant nam het niet over. Open in Home Assistant Instellingen → Apparaten & diensten → ESPHome, kies dit scherm, dan Configureren, en zet “Sta het apparaat toe om Home Assistant-acties uit te voeren” aan."
+      },
+      "plugins": {
+        "request": "Dit pluginverzoek is niet compleet.",
+        "unknown": "Er is geen plugin {id}.",
+        "misfit_api": "{name} is geschreven voor een andere plugin-API dan die van deze app.",
+        "misfit_board": "{name} is gemaakt voor andere bordjes.",
+        "misfit_psram": "{name} heeft een bordje met PSRAM nodig.",
+        "misfit_blocked": "{name} is geblokkeerd: deze versie is schadelijk of kapot.",
+        "requires": "{name} heeft eerst de plugin {other} op dit scherm nodig.",
+        "firmware": "De firmware van dit scherm kent nog geen plugins. Werk hem bij, dan verschijnen de plugintegels.",
+        "file": "Het pluginsbestand is niet geldig.",
+        "other_include": "De YAML van dit scherm heeft al een andere tessera_plugins-include.",
+        "link_invalid": "Dat is geen link naar een GitHub-repository (https://github.com/eigenaar/repository).",
+        "link_not_found": "Daar is geen plugin gevonden: geen release, of geen tessera-plugin.yaml in die map.",
+        "link_rate": "GitHub antwoordt nu niet (te veel vragen in een uur). Probeer het later opnieuw.",
+        "folder": "De map {folder} in tessera-plugins is nog geen plugin: {why}",
+        "manifest": "De beschrijving van de plugin klopt niet: {why}",
+        "consent": "{name} vraagt andere rechten dan eerst. Bekijk wat hij nu mag en stem in, en werk dan bij."
       }
     },
     "status": {
@@ -1191,6 +1216,8 @@
         "briefcase": "Werk",
         "car": "Auto",
         "bike": "Fiets",
+        "bus": "Bus",
+        "train": "Trein",
         "airplane": "Vakantie",
         "map_marker": "Locatie",
         "power": "Aan/uit",
@@ -1314,7 +1341,8 @@
       "firmware": "Firmware & USB",
       "alerts": "Alerts",
       "settings": "Instellingen",
-      "new_screen_detail": "Aansluiten en installeren"
+      "new_screen_detail": "Aansluiten en installeren",
+      "plugins": "Plugins"
     },
     "api": {
       "failed": "Dat lukte niet. Vernieuw de pagina en probeer het opnieuw."
@@ -1351,6 +1379,10 @@
       "screen_name": {
         "copied": "Schermnaam gekopieerd.",
         "selected": "Schermnaam is geselecteerd. Kopieer met Ctrl+C of Command+C."
+      },
+      "log": {
+        "copied": "Log gekopieerd.",
+        "selected": "Log is geselecteerd. Kopieer met Ctrl+C of Command+C."
       }
     },
     "sidebar": {
@@ -1359,6 +1391,9 @@
         "reconnecting": "Verbinding met Home Assistant herstellen…"
       },
       "search": "Zoeken",
+      "fold": "Zijbalk inklappen",
+      "unfold": "Zijbalk uitklappen",
+      "resize": "Breedte van de zijbalk: sleep, of gebruik de pijltjestoetsen; dubbelklik om te herstellen",
       "screens": "Schermen",
       "refresh": "Vernieuwen",
       "update": {
@@ -1465,7 +1500,8 @@
       "offline": "Offline · wijzigingen worden bewaard",
       "tabs": {
         "layout": "Indeling",
-        "settings": "Scherminstellingen"
+        "settings": "Scherminstellingen",
+        "plugins": "Plugins"
       },
       "sent": "Opgeslagen · naar scherm verstuurd",
       "all_saved": "Alles opgeslagen",
@@ -1577,7 +1613,8 @@
       "hint": "Sleep naar een pagina, of tik op + voor de eerste vrije plek. ⌘K doorzoekt alles.",
       "resize": "Sleep om de bibliotheek groter of kleiner te maken",
       "filter_label": "Filter op soort",
-      "no_room": "Zonder ruimte"
+      "no_room": "Zonder ruimte",
+      "plugins": "Plugins"
     },
     "memory": {
       "label": "Geheugen voor tegels",
@@ -1873,7 +1910,13 @@
       },
       "energy": {
         "hint": "Het vermogen van het huis op dit moment, getekend zoals de Energie-weergave van Home Assistant het tekent: zon, net, batterij en je apparaten, uit de Energie-instellingen van Home Assistant. Een tik op een cirkel opent de geschiedenis van die sensor.",
-        "needs_firmware": "De energiekaart heeft firmware 0.47.0 of nieuwer nodig: druk na het opslaan op Bijwerken bij het scherm."
+        "needs_firmware": "De energiekaart heeft firmware 0.47.0 of nieuwer nodig: druk na het opslaan op Bijwerken bij het scherm.",
+        "flow": {
+          "label": "Stroom",
+          "hint": "Bolletjes lopen over elke lijn, sneller naarmate er meer stroom loopt. Lijnen en pijlen is rustiger: een lijn wordt dikker met het vermogen en een pijl laat zien welke kant het op gaat. Een scherm met oudere firmware houdt de bolletjes.",
+          "dots": "Bewegende bolletjes",
+          "lines": "Lijnen en pijlen"
+        }
       }
     },
     "tile_card": {
@@ -1980,7 +2023,8 @@
         "entity": "Een entiteit",
         "search": "Zoek op naam, ruimte of entiteit, bijv. temperatuur of deur",
         "search_label": "Zoek een entiteit voor de bovenbalk",
-        "none_found": "Geen entiteiten gevonden."
+        "none_found": "Geen entiteiten gevonden.",
+        "plugins": "Van plugins"
       },
       "left": "Links",
       "left_hint": "Titel en thuisknop: in de pagina-instellingen",
@@ -1992,7 +2036,8 @@
       "link_hint": "Verschijnt alleen als Home Assistant of Tessera weg is, zodat je in één oogopslag ziet waarom waarden ontbreken.",
       "battery_hint": "Het scherm leest zijn eigen accu, dus dit item blijft in de balk als Home Assistant weg is. Het icoon volgt het niveau zoals Home Assistant het tekent, met een bliksemschicht tijdens het laden.",
       "battery_show_hint": "Alleen als laag houdt de balk leeg tot de accu op 20 % of minder staat.",
-      "status_firmware": "Dit item verschijnt vanaf firmware {version}. Tot die update laat het scherm het weg."
+      "status_firmware": "Dit item verschijnt vanaf firmware {version}. Tot die update laat het scherm het weg.",
+      "plugin_item": "Toont wat de plugin zegt, alleen als hij iets te zeggen heeft. Op een scherm zonder die plugin blijft het weg."
     },
     "screen_settings": {
       "groups": {
@@ -2226,19 +2271,14 @@
         "calibration": "Touch-kalibratie bij de eerste start"
       },
       "choice": {
-        "DISPLAY_MODEL": "Displaycontroller",
-        "GRID_ROWS": "Tegels op een pagina"
+        "DISPLAY_MODEL": "Displaycontroller"
       },
       "choice_hint": {
-        "DISPLAY_MODEL": "De meeste van deze borden hebben de eerste. Kies de andere als het scherm ruis of een verminkt beeld laat zien.",
-        "GRID_ROWS": "Meer rijen tonen meer tegels op een pagina; minder rijen houden de tegels groter en beter leesbaar."
+        "DISPLAY_MODEL": "De meeste van deze borden hebben de eerste. Kies de andere als het scherm ruis of een verminkt beeld laat zien."
       },
       "choice_usual": "de meeste",
-      "orientation": "Hoe komt hij te hangen?",
       "orientation_landscape": "Liggend",
       "orientation_portrait": "Staand",
-      "orientation_tiles": "{n} tegel per pagina | {n} tegels per pagina",
-      "orientation_hint": "Dit kies je als het scherm gebouwd wordt. Wil je hem later andersom hangen, bouw het scherm dan opnieuw.",
       "name": "Naam",
       "name_placeholder": "Scherm woonkamer",
       "device_name": "Apparaatnaam",
@@ -2370,15 +2410,6 @@
         "change": "Wifi wijzigen en opnieuw installeren",
         "failed": "Tessera kan {name} niet zelf aan Home Assistant toevoegen. Voeg hem hieronder zelf toe."
       },
-      "choice_option": {
-        "GRID_ROWS": {
-          "3": "3 rijen",
-          "4": "4 rijen, kleinere tegels"
-        }
-      },
-      "choice_first": {
-        "GRID_ROWS": "het gewone formaat"
-      },
       "memory": {
         "low_title": "Weinig geheugen vrij op de Home Assistant-machine",
         "low": "Er is {free} geheugen vrij, dus de firmware bouwt met minder compilers tegelijk ({jobs} in plaats van {cores}). Dat duurt langer, maar het past.",
@@ -2391,7 +2422,10 @@
         "limit_title": "Te weinig geheugen om de firmware te bouwen",
         "limit": "Het geheugen was op, ook met één compiler tegelijk. Stop een paar add-ons tijdelijk of geef de machine meer geheugen en probeer het dan opnieuw."
       },
-      "pair_yourself": "Zelf toevoegen in Home Assistant"
+      "pair_yourself": "Zelf toevoegen in Home Assistant",
+      "grid": "Raster",
+      "grid_hint": "Het voorgestelde raster is het beste voor dit scherm. Je kunt het, en hoe het hangt, later naast de pagina’s in de editor aanpassen, zonder opnieuw te bouwen.",
+      "grid_best": "Terug naar het beste"
     },
     "alerts": {
       "eyebrow": "Alerts · cheatsheet",
@@ -2661,7 +2695,7 @@
       "history_empty": "Geen geschiedenis beschikbaar",
       "grid_changed": "Het raster van het scherm is gewijzigd. Bekijk de tegelposities voor je opslaat of verstuurt.",
       "grid_review": "Rasteraanpassing bekijken",
-      "grid_review_hint": "Vergelijk de opgeslagen posities links met het voorstel rechts. Elke tegel blijft op zijn eigen pagina. Pas na opslaan wordt de indeling verstuurd.",
+      "grid_review_hint": "Vergelijk de opgeslagen posities links met het voorstel rechts. Tegels die niet meer passen, schuiven door naar een nieuwe pagina direct na hun eigen pagina. Pas na opslaan wordt de indeling verstuurd.",
       "grid_accept": "Gebruik deze posities",
       "selected_full": "Deze pagina is vol. Kies een lege cel op een andere pagina.",
       "choose_page": "Pagina",
@@ -2848,6 +2882,239 @@
       "later": "Misschien later",
       "donated": "Ik heb al gedoneerd",
       "thanks": "Dank je wel! Dit komt niet meer terug."
+    },
+    "plugins": {
+      "title": "Plugins",
+      "intro": "Extra's voor je schermen: hardware op het bordje, of iets wat een scherm extra kan. Een plugin wordt in de firmware van een scherm gebouwd, dus je kiest per scherm welke het krijgt.",
+      "search": "Zoek op naam, maker of wat hij doet",
+      "filter": "Toon",
+      "filters": {
+        "all": "Alle",
+        "tessera": "Van Tessera",
+        "community": "Community",
+        "in_use": "In gebruik"
+      },
+      "from_tessera": "Van Tessera",
+      "by": "Door {maker}",
+      "label": {
+        "tessera": "Van Tessera",
+        "community": "Community",
+        "test": "Test"
+      },
+      "state": {
+        "building": "Wordt gebouwd…",
+        "installed": "Geïnstalleerd",
+        "update": "Update {version}",
+        "test_on": "Test op {name}",
+        "updates": "Update op {n} scherm | Update op {n} schermen",
+        "on_screens": "Op {n} scherm | Op {n} schermen",
+        "fits_none": "Past op geen van je schermen",
+        "failed": "Bouwen mislukt",
+        "queued": "Wacht op zijn beurt"
+      },
+      "source": {
+        "link": "Via een link",
+        "branch": "Test van een branch",
+        "folder": "Test uit een map"
+      },
+      "misfit_short": {
+        "board": "Niet voor dit bordje",
+        "psram": "Heeft PSRAM nodig",
+        "firmware": "Heeft nieuwere firmware nodig",
+        "flash": "Te groot voor dit scherm",
+        "blocked": "Geblokkeerd"
+      },
+      "misfit": {
+        "board": "Deze plugin is gemaakt voor andere bordjes dan dat van {screen}.",
+        "psram": "Deze plugin heeft een bordje met PSRAM nodig, en {screen} heeft dat niet.",
+        "firmware": "{screen} heeft eerst een firmware-update nodig voordat deze plugin erop kan.",
+        "flash": "{screen} heeft nog ruimte voor ongeveer {kb} KB, en deze plugin is groter.",
+        "blocked": "Deze versie van de plugin is geblokkeerd: hij is schadelijk of kapot."
+      },
+      "none_installed": "Nog geen plugins op dit scherm.",
+      "none_found": "Geen plugin gevonden voor “{query}”.",
+      "make": "Zelf een plugin maken?",
+      "template": "Begin met het template",
+      "version": "versie {version}",
+      "kind": {
+        "hardware": "Hardware",
+        "behaviour": "Functie"
+      },
+      "stage": {
+        "beta": "Beta",
+        "example": "Voorbeeld"
+      },
+      "stage_hint": {
+        "beta": "Beta: het werkt, maar is nog in ontwikkeling. Laat de maker weten hoe het gaat.",
+        "example": "Een voorbeeld: gemaakt om te laten zien wat een plugin kan. Probeer het, en lees de code om je eigen plugin te maken."
+      },
+      "attribute": {
+        "cloud": "Gebruikt een clouddienst",
+        "commercial": "Commercieel",
+        "ai-developed": "Gemaakt met AI"
+      },
+      "test_note": "Een test: elke build neemt de nieuwste versie, en Tessera biedt er geen updates voor aan.",
+      "remove": "Verwijderen van {screen}",
+      "building": "De firmware voor {screen} wordt gebouwd…",
+      "installed_on": "Op {screen}, versie {version}",
+      "update": "Bijwerken naar {version}",
+      "trust": {
+        "title": "Ik vertrouw deze maker",
+        "text": "Tessera heeft deze plugin niet nagekeken. Hij draait op je scherm en kan doen wat het scherm in Home Assistant mag."
+      },
+      "install": "Toevoegen aan {screen}",
+      "adds": {
+        "title": "Wat hij toevoegt",
+        "tile": "Tegel “{name}”",
+        "tile_sizes": "Van {min} tot {max} op een pagina",
+        "tap": "Tikactie “{name}”",
+        "tap_on": "Op tegels van {domains}",
+        "card": "“{name}”, een eigen scherm op het glas",
+        "bar": "Bovenbalk-item “{name}”",
+        "settings": "Instellingen",
+        "settings_where": "Op de instellingenpagina van het scherm en onder Scherminstellingen"
+      },
+      "may": {
+        "title": "Wat hij mag",
+        "ha": "Gebruikt deze Home Assistant-commando's",
+        "ha_none": "Voert geen acties uit in Home Assistant",
+        "network": "Maakt verbinding met {hosts}",
+        "network_none": "Maakt geen verbindingen buiten Home Assistant",
+        "read": "Leest deze entiteiten uit Home Assistant"
+      },
+      "warning": "Een plugin draait op je scherm met volledige toegang ertoe, ook tot de Wi-Fi en de acties die het scherm in Home Assistant mag uitvoeren. Voeg alleen plugins toe van makers die je vertrouwt, of lees eerst de code.",
+      "room": {
+        "title": "Ruimte op {screen}",
+        "small": "{kb} KB extra: de firmware gaat van {before} naar {after} van zijn ruimte.",
+        "large": "{kb} KB, ruim binnen de ruimte van dit scherm.",
+        "title_all": "Ruimte",
+        "per_screen": "{kb} KB op elk scherm waar hij op komt. Bij een bordje met 4 MB staat hierboven of er ruimte voor is."
+      },
+      "works": {
+        "title": "Werkt op:",
+        "any": "elk bordje",
+        "any_psram": "elk bordje met PSRAM"
+      },
+      "source_code": "Broncode",
+      "issues": "Probleem melden",
+      "removed": "{name} verwijderd van {screens}. Het scherm verliest hem bij de volgende build.",
+      "add_link": "Toevoegen met link",
+      "link": {
+        "title": "Toevoegen met een link",
+        "intro": "Een plugin die niet in de lijst staat, of een die je zelf maakt. Tessera leest eerst zijn beschrijving en zegt of hij past, voordat er iets gebouwd wordt.",
+        "sources": {
+          "link": "Release",
+          "branch": "Branch testen",
+          "folder": "Map testen"
+        },
+        "url": "GitHub-link",
+        "branch": "Branch",
+        "folder": "Map op deze machine",
+        "hints": {
+          "link": "Tessera neemt de nieuwste release en houdt het scherm daarop. Een nieuwe release verschijnt als update.",
+          "branch": "Elke build neemt de nieuwste commit van deze branch. Om te proberen, niet voor elke dag.",
+          "folder": "Voor een plugin die je zelf maakt: opslaan, en de volgende build neemt hem mee. De map staat in de config van Home Assistant."
+        },
+        "fetch": "Plugin lezen",
+        "test": "Als test toevoegen aan {screen}",
+        "not_found": "Geen pluginbeschrijving gevonden op deze link.",
+        "on_screen": "Op scherm"
+      },
+      "none_in_use": "Nog geen van je schermen heeft een plugin.",
+      "screen_update": "Versie {from}, update naar {to}",
+      "screen_version": "Versie {version}",
+      "on_screens": "Op welke schermen",
+      "apply": {
+        "add": "Toevoegen aan {n} scherm | Toevoegen aan {n} schermen",
+        "remove": "Verwijderen van {n} scherm | Verwijderen van {n} schermen",
+        "both": "Toepassen op {n} scherm | Toepassen op {n} schermen",
+        "none": "Toepassen"
+      },
+      "update_all": "{n} scherm bijwerken naar {version} | {n} schermen bijwerken naar {version}",
+      "tab": {
+        "intro": "De plugins die {screen} draait, en wat er nog bij kan. Elke wijziging bouwt nieuwe firmware voor dit scherm.",
+        "all": "Alle plugins",
+        "here": "Op dit scherm",
+        "add": "Toevoegen",
+        "misfits": "Past niet op dit scherm ({n}) | Passen niet op dit scherm ({n})",
+        "updates": "Een update voor {n} plugin | Updates voor {n} plugins",
+        "updates_note": "Eén build voor {screen}: {names}.",
+        "updates_rights": "{names} vraagt om andere rechten dan eerst. | {names} vragen om andere rechten dan eerst.",
+        "update_all": "Alles bijwerken op dit scherm"
+      },
+      "pending": {
+        "add": "Wordt toegevoegd als je toepast",
+        "remove": "Wordt verwijderd als je toepast"
+      },
+      "setup": {
+        "on_screen": "{label} op {screen}",
+        "choose_pin": "Kies een pin",
+        "part_kb": "{kb} KB extra",
+        "secret_set": "Ingesteld. Vul een nieuwe in om hem te vervangen."
+      },
+      "readme": {
+        "title": "Lees mij"
+      },
+      "english_only": "Alleen in het Engels",
+      "build_note": "Bouw je met ESPHome Device Builder of op een andere computer? De plugin staat in de YAML van het scherm; bouw hem daar zoals altijd.",
+      "attach": {
+        "row": "Eenmalig koppelen, in de tab van het scherm",
+        "text": "{screen} wordt gebouwd uit eigen YAML. Zet deze regel er één keer in; daarna houdt Tessera de plugins bij in een eigen bestand, en bouwt ESPHome Device Builder ze zoals altijd, ook na een update.",
+        "copy": "Regel kopiëren",
+        "done": "Ik heb hem toegevoegd",
+        "file": "Wat Tessera in {file} zet"
+      },
+      "folder_note": "Maak je een plugin? Zet zijn map in {path}, dan verschijnt hij hier als test.",
+      "folder_error": "De map {folder} is nog geen plugin: {why}",
+      "rebuild": "Opnieuw bouwen",
+      "failed": "De firmware voor {screen} bouwde niet met deze plugin. Het log staat onder Firmware & USB.",
+      "retry": "Opnieuw proberen",
+      "privacy": "Privacy",
+      "consent": {
+        "title": "Deze update vraagt andere rechten",
+        "agree": "Ik ga akkoord met wat hij nu mag"
+      },
+      "settings_missing": "Nog niet op dit scherm: het komt met de volgende build van de plugin.",
+      "changes": "Wat er veranderde"
+    },
+    "plugin_tile": {
+      "from": "Een tegel van de plugin {plugin}",
+      "details": "Details van de plugin",
+      "options": "Opties",
+      "choose": "Kies…",
+      "less": "Minder",
+      "more": "Meer",
+      "from_fetch": "De keuzes komen uit de eigen gegevensbron van de plugin, via Tessera.",
+      "on_screen": "Op het scherm",
+      "sizes": "Van {min} tot {max}; sleep aan een rand van de tegel om de maat te wijzigen.",
+      "placeholder": "De editor toont een plaatshouder: wat de plugin tekent, zie je op het scherm zelf.",
+      "now": "nu",
+      "minutes": "{n} min",
+      "live": "De editor tekent hem met de eigen data van de plugin; het scherm tekent hem zelf en telt af op zijn eigen klok.",
+      "entity": "Entiteit"
+    },
+    "build": {
+      "plugins": "Bouwt met zijn plugins",
+      "install": "Installeert",
+      "failed": "De laatste build van {screen} is mislukt. De log zegt waarom."
+    },
+    "grid": {
+      "title": "Raster",
+      "columns": "Kolommen",
+      "rows": "Rijen",
+      "columns_less": "Minder kolommen",
+      "columns_more": "Meer kolommen",
+      "rows_less": "Minder rijen",
+      "rows_more": "Meer rijen",
+      "hint": "Tegels die niet meer op een pagina passen, schuiven door naar een nieuwe pagina direct erachter. Het scherm krijgt het nieuwe raster als je opslaat.",
+      "update_first": "Werk dit scherm bij om hier zijn raster te kiezen.",
+      "pages_added": "1 pagina toegevoegd voor de tegels die niet meer pasten | {n} pagina’s toegevoegd voor de tegels die niet meer pasten",
+      "new_page": "Nieuwe pagina voor wat niet meer paste",
+      "too_many_pages": "Op {grid} hebben deze tegels {needed} pagina’s nodig, en dit scherm neemt er {most}. Haal tegels weg of kies een ander raster; er is niets veranderd.",
+      "way": "Stand",
+      "landscape": "Liggend",
+      "portrait": "Staand",
+      "turn_hint": "Bij een draai start het scherm één keer opnieuw om zijn nieuwe beeld op te meten."
     }
   }
 }

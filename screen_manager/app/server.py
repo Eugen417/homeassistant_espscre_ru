@@ -17,6 +17,7 @@ import math
 from urllib.parse import urlsplit
 import camera_feed
 import claude_skill
+import screen_hang
 import screen_labels
 import screen_saver
 import feedback
@@ -34,11 +35,12 @@ import map_tiles
 import tile_icons
 from updates import Updater
 import core
+import plugins
 
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
 from core import alarm_extras, lock_extras, ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_choice, alert_data, choice_service, ALERT_CHOICE_ACTION, ALERT_CHOICE_MIN_FIRMWARE, parse_firmware, alert_reference, alert_screen_choice, alert_screen_names, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, entity_slug, extras, media_cover, media_extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, name_clash, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 from core import ENERGY_TILE, MAP_TILE_MIN_FIRMWARE, calibrate_entity, can_standby, dimmable, SETTING_ENTITIES, SETTING_RULES, STANDBY_KEYS, setting_action, setting_entities, setting_from_state, state_word
-from core import BOARD_KEYS, has_battery, is_key, drawn_controls, FAVORITE_KINDS, SCREENSAVER_MIN_FIRMWARE, short
+from core import BOARD_KEYS, has_battery, is_key, drawn_controls, FAVORITE_KINDS, SCREENSAVER_MIN_FIRMWARE, short, plugin_tile
 from core import (FIRMWARE_MAX_BAR_ITEMS, FIRMWARE_MAX_PAGES, FIRMWARE_MAX_TILES, Grid, page_target, PAGE_TILE_REPEAT_MIN_FIRMWARE, ENTITY_REPEAT_MIN_FIRMWARE, ROTATION_MIN_FIRMWARE, SHAPES, firmware_features, grid_of, orientation_at,
                   packed_slots, run_tile_event, screen_firmware, shape_of, turns_of, update_in_tessera, version_text)
 import header_bar
@@ -108,6 +110,8 @@ ENERGY_PREFS_SECONDS = 300
 ANSWER_TIMEOUT_SECONDS = 5
 ANSWER_RETRY_SECONDS = 30
 SERVICE_EVENTS = ('service_registered', 'service_removed')
+# A plugin on a screen asks the app something (docs/PLUGINS.md): the event its tessera::send() fires.
+PLUGIN_EVENT = 'esphome.screen_plugin'
 
 def samples(events, begin, span):
     """24 values, one per bucket: the last known value at the end of each bucket (None until the first)."""
@@ -234,6 +238,8 @@ class HomeAssistant:
         self.options_requests = asyncio.Queue()
         # A player's library (firmware 0.24.0+): a folder a screen opens and an item it plays, for Manager.media_loop.
         self.media_requests = asyncio.Queue()
+        # A plugin's question to the app (docs/PLUGINS.md, tessera::send): answered by Plugins.answer.
+        self.plugin_requests = asyncio.Queue()
         # The widest features a media player reported (media_library.FeatureMemory), set by the manager: what the
         # editor offers for a player at rest (GitHub #88).
         self.widen = None
@@ -276,6 +282,9 @@ class HomeAssistant:
                     self.camera_requests.put_nowait(body)
                 elif event.get('event_type') == light_effects.OPTIONS_EVENT:
                     self.options_requests.put_nowait(body)
+                elif event.get('event_type') == PLUGIN_EVENT:
+                    if self.plugin_requests.qsize() < 32:
+                        self.plugin_requests.put_nowait(body)
                 elif event.get('event_type') in (media_library.BROWSE_EVENT, media_library.PLAY_EVENT, speakers.SPEAKER_EVENT):
                     self.media_requests.put_nowait((event['event_type'], body))
                 elif event.get('event_type') == 'state_changed':
@@ -495,6 +504,7 @@ class HomeAssistant:
                     await self.request('subscribe_events', event_type='esphome.screen_history')
                     await self.request('subscribe_events', event_type='esphome.screen_camera')
                     await self.request('subscribe_events', event_type=light_effects.OPTIONS_EVENT)
+                    await self.request('subscribe_events', event_type=PLUGIN_EVENT)
                     await self.request('subscribe_events', event_type=media_library.BROWSE_EVENT)
                     await self.request('subscribe_events', event_type=media_library.PLAY_EVENT)
                     await self.request('subscribe_events', event_type=speakers.SPEAKER_EVENT)
@@ -860,11 +870,15 @@ class Manager:
         self.forecasts = {}
         self.listeners = set()  # asyncio.Event per open /api/events stream
         self.firmware = Firmware(os.environ.get("ESPHOME_CONFIG", "/homeassistant/esphome"), self.path.parent)
+        # Plugins (docs/PLUGINS.md): which exist, which each screen runs, their files and their tiles' data.
+        self.plugins = plugins.Plugins(self, self.path.parent, self.firmware.root)
         self.updates = Updater(self, self.path.parent / 'updates.json')
         # Does this screen work as you expect? One shared answer per board, with its own key (app 0.3.10).
         self.feedback = feedback.Feedback(self.path.parent / 'feedback.json')
         # The names the editor shows instead of Home Assistant's (app 0.4.2).
         self.labels = screen_labels.ScreenLabels(self.path.parent / 'screen-labels.json')
+        # Which way each screen is to hang, as the editor chose beside the mockup (app 0.4.85, firmware 0.53.0+).
+        self.hangs = screen_hang.ScreenHang(self.path.parent / 'screen-hang.json')
         # Screens this app made, added to Home Assistant with their actions allowed once it finds them (app 0.4.73).
         self.pairing = ha_pairing.Pairing()
         self._pairing_trouble = None
@@ -929,7 +943,7 @@ class Manager:
         self.map_hits = {}
         # The action behind an alert's button (app 0.2.91): node -> (key, action, data) of the alert on that screen.
         self.alert_actions = {}
-        self.store = LayoutStore(self.path, self.verified_grid)
+        self.store = LayoutStore(self.path, self.record_grid)
         # An app from before Language & region (app 0.2.90): its screens keep the 24 hours they show, until Home Assistant
         # says every screen's own clock setting was 12 hours (resolve_clock_pin). A new install starts on Automatic, and
         # is stored right away so a restart never takes it for an old one.
@@ -975,6 +989,85 @@ class Manager:
         if board_of(screen) in SHAPES:
             return self.grid_of(screen)
         return Grid(2, 3).with_ceilings(*self.ceilings(inbox))
+
+    def screen_grids(self, inbox):
+        """The grids a screen takes and keeps, each way its glass hangs (firmware 0.53.0+): what its hello said, or the last
+        it said while it is offline (page_capabilities); None for a screen whose grid is the one it was built with."""
+        sender = self.page_senders.get(inbox) if inbox else None
+        return (getattr(sender, 'grids', None) or getattr(sender, 'last_grids', None)) if sender else None
+
+    def turnable(self, inbox):
+        """Whether ESP Screens may stand this screen up or lay it down (firmware 0.53.0+): it says the grids it takes,
+        and its glass is not square (a square screen turns with its own Rotation setting and keeps its grid)."""
+        if not self.screen_grids(inbox):
+            return False
+        # The glass of its board, which is known offline too (and during the start a turn makes); the shape it reported
+        # for a board this app does not know.
+        screen = self._discovered(inbox) or {}
+        glass = SHAPES.get(board_of(screen)) or screen.get('shape') or {}
+        return isinstance(glass.get('width'), int) and glass.get('width') != glass.get('height')
+
+    def wanted_way(self, inbox):
+        """The way a screen that takes grids is to hang, 'landscape' or 'portrait': the one the editor chose for it
+        (screen_hang), else the way it hangs now. None for a screen that takes no other grid."""
+        grids = self.screen_grids(inbox)
+        if not grids:
+            return None
+        screen = self._discovered(inbox) or {}
+        device = screen.get('device_id')
+        # The profile is read only for a screen someone turned: it says whether the choice still counts (screen_hang).
+        chosen = (self.hangs.get(device, self.built_as(screen).get('rotation'))
+                  if self.hangs.has(device) and self.turnable(inbox) else None)
+        return chosen or ('portrait' if grids['upright'] else 'landscape')
+
+    def takes_grid(self, inbox, columns, rows, way=None):
+        """Columns x rows as a Grid with this screen's ceilings when `way` of its glass (the way it is to hang when
+        none is named, wanted_way) takes them, else None."""
+        grids = self.screen_grids(inbox)
+        if not grids or type(columns) is not int or type(rows) is not int:
+            return None
+        way = way or self.wanted_way(inbox)
+        if not page_delivery.grid_takes(grids, way, columns, rows):
+            return None
+        return Grid(columns, rows, *self.ceilings(inbox))
+
+    def chosen_grid(self, inbox, data):
+        """The grid a save chooses for a screen that takes another (firmware 0.53.0+): its adaptation's target when the
+        way the screen's glass hangs takes it, else None (the save is counted on the grid the screen is given)."""
+        adaptation = data.get('adaptation') if isinstance(data, dict) else None
+        target = adaptation.get('to') if isinstance(adaptation, dict) else None
+        if not isinstance(target, dict):
+            return None
+        # Standing up or lying down as well (app 0.4.85): the grid of that way, on glass that turns.
+        upright = adaptation.get('upright')
+        if upright is not None and (type(upright) is not bool or not self.turnable(inbox)):
+            return None
+        way = None if upright is None else 'portrait' if upright else 'landscape'
+        return self.takes_grid(inbox, target.get('columns'), target.get('rows'), way)
+
+    def given_grid(self, inbox, record):
+        """The grid a screen that takes another runs on once `record` (its saved layout) reached it: that layout's, when
+        the screen takes it, else the one it keeps itself. None for a screen that takes no other grid. The record comes
+        from the caller: the store asks this while it holds its lock (record_grid), so this never reads the store."""
+        grids = self.screen_grids(inbox)
+        if not grids:
+            return None
+        source = record.get('sourceGrid') if isinstance(record, dict) and record.get('format') == PAGE_FORMAT else None
+        given = self.takes_grid(inbox, source['columns'], source['rows']) if isinstance(source, dict) else None
+        if given is not None:
+            return given
+        way = grids[self.wanted_way(inbox)]
+        return Grid(way['columns'], way['rows'], *self.ceilings(inbox))
+
+    def record_grid(self, inbox, record=None):
+        """The grid a saved layout of this screen is counted on: the one the screen is given (given_grid, firmware
+        0.53.0+), else the one it reports, its profile builds or its board has (verified_grid). The store's grid_for."""
+        return self.given_grid(inbox, record) or self.verified_grid(inbox)
+
+    def layout_grid(self, inbox, screen):
+        """The grid this screen's saved layout is counted on, for a tile event, its answer and the layout sensor: the one
+        the screen is given (firmware 0.53.0+, offline too and before the layout reached it), else its own."""
+        return self.record_grid(inbox, self.store.get(inbox)) or self.grid_of(screen)
 
     def ceilings(self, inbox):
         """The most pages, tiles and top-bar items a page this screen takes: what its hello said (firmware 0.34.0+,
@@ -1081,10 +1174,15 @@ class Manager:
         sender = self.page_senders.get(inbox)
         return {'session': sender.session, 'rev': sender.confirmed} if sender else {}
 
-    def page_region(self):
-        return {'keepalive': KEEPALIVE_SECONDS, 'clock_24h': self.region.clock_24h(),
-                'numbers': self.region.number_style(), 'group_min': self.region.group_min(),
-                'percent_space': self.region.percent_space()}
+    def page_region(self, inbox=None):
+        """What a layout's begin says besides its pages: the region, and for a screen that may be turned the way it is to
+        hang (firmware 0.53.0+, "upright"), so a turn is another configuration and goes out even with the same grid."""
+        region = {'keepalive': KEEPALIVE_SECONDS, 'clock_24h': self.region.clock_24h(),
+                  'numbers': self.region.number_style(), 'group_min': self.region.group_min(),
+                  'percent_space': self.region.percent_space()}
+        if inbox and self.turnable(inbox):
+            region['upright'] = self.wanted_way(inbox) == 'portrait'
+        return region
 
     def preflight_update(self, inbox):
         return page_service.preflight_update(self, inbox=inbox)
@@ -1341,7 +1439,9 @@ class Manager:
             with contextlib.suppress(ClientError, ConnectionError, TimeoutError, OSError):
                 await self.ha.remove_state(sensor)
         self.forget_inbox(inbox)
+        self.plugins.forget_screen(inbox)
         self.labels.forget(screen.get('device_id'))
+        self.hangs.forget(screen.get('device_id'))
         self.savers.forget(screen.get('device_id'))
         # The registry again at once, so the screen leaves the page now instead of when Home Assistant's own
         # event arrives; the editor opens another screen as soon as it does.
@@ -1381,18 +1481,22 @@ class Manager:
         grid itself and needs none of this; an offline one gets the grid it was actually built with, so its editor
         places tiles where the screen has cells."""
         known = {**screen, 'package': screen.get('package') or self.package_of(screen, profiles)} if isinstance(screen, dict) else screen
+        # A screen the editor stood up or laid down since (firmware 0.53.0+) hangs the way it was turned to.
+        inbox = screen.get('id') if isinstance(screen, dict) else None
+        if inbox and self.turnable(inbox):
+            return self.wanted_way(inbox)
         return orientation_at(SHAPES.get(board_of(known), {}), self.built_as(screen, profiles).get('rotation'))
 
     def grid_of(self, screen):
         """The grid of a screen's pages (core.grid_of), with the board its profile builds from and the way it was built
         to hang filled in, so a save, an event and the message to the screen count the same cells whether the screen is
         online or not."""
-        if isinstance(screen, dict) and not (screen.get('package') and screen.get('orientation') and 'grid_rows' in screen):
+        if isinstance(screen, dict) and not (screen.get('package') and screen.get('orientation') and 'built_grid' in screen):
             # The profiles once, not once per question: reading them stats every file in the ESPHome folder.
             profiles = self.firmware.profile_names()
             screen = {**screen, 'package': screen.get('package') or self.package_of(screen, profiles),
                       'orientation': screen.get('orientation') or self.orientation_of(screen, profiles),
-                      'grid_rows': screen.get('grid_rows', self.built_as(screen, profiles).get('grid_rows'))}
+                      'built_grid': screen.get('built_grid', self.built_as(screen, profiles).get('built_grid'))}
         return grid_of(screen).with_ceilings(*self.ceilings(screen.get('id') if isinstance(screen, dict) else None))
 
     def turns(self, screen):
@@ -1519,12 +1623,12 @@ class Manager:
         stays, so the next ping still matches."""
         base = self.layouts.get(inbox) or {'title': (screen or {}).get('name') or screen_t('screen.status.home'), 'tiles': []}
         previous = self.store.get(inbox)
-        grid = self.verified_grid(inbox) or (screen_grid_of_record(previous) if previous and previous['format'] == PAGE_FORMAT else None)
+        grid = self.record_grid(inbox, previous) or (screen_grid_of_record(previous) if previous and previous['format'] == PAGE_FORMAT else None)
         layout = validate_layout({**base, 'settings': settings}, grid=grid)
         if not previous:
             if grid is None: raise LayoutError(t('addon.errors.pages.source_grid'))
             record = migrate_legacy(base, grid)
-            self.store.save(inbox, record['layout'], None, settings=settings)
+            self.store.save(inbox, record['layout'], None, settings=settings, grid=grid)
         else:
             self.store.save_settings(inbox, settings)
         if on_screen and inbox in self.sent:
@@ -1641,6 +1745,15 @@ class Manager:
                 await self.answer_options(request)
             except (ClientError, ConnectionError, TimeoutError, OSError, ValueError) as error:
                 LOG.info('No options for %s (%s)', request.get('entity') if isinstance(request, dict) else '?', type(error).__name__)
+
+    async def plugin_loop(self):
+        """Answer the plugins on the screens (docs/PLUGINS.md): a Home Assistant command their manifest names."""
+        while True:
+            request = await self.ha.plugin_requests.get()
+            try:
+                await self.plugins.answer(request)
+            except Exception as error:   # one plugin's question never stops the app
+                LOG.info('A plugin question went unanswered (%s)', type(error).__name__)
 
     async def answer_options(self, request):
         """One screen's request: a light on its own layout, or a select on that light's device; a page it asked for."""
@@ -2149,6 +2262,10 @@ class Manager:
         """Entities a card reads besides its own: a vacuum's cleaning mode and water selects and its battery sensor, a
         cover's battery sensor."""
         from core import cover_related, vacuum_related
+        # A plugin tile that belongs to an entity (docs/PLUGINS.md) is sent again when that entity changes.
+        if plugin_tile(tile['entity']):
+            entity = (tile.get('options') or {}).get('plugin_entity')
+            return (entity,) if entity else ()
         if tile['entity'].startswith('vacuum.'):
             return tuple(vacuum_related(tile['entity'], self.device_entries(tile['entity']), self.ha.states).values())
         if tile['entity'].startswith('cover.'):
@@ -2210,7 +2327,9 @@ class Manager:
         # Every position on the grid of this screen's pages: two by three on the first boards, whatever a newer
         # screen reports or its profile builds from (Manager.grid_of).
         # With the pages its firmware takes: eight from 0.18.0, as many as 64 tiles fill before.
-        grid = self.grid_of(screen).for_firmware(self.firmware_version(inbox, screen))
+        # A screen that takes another grid is counted on the one its saved layout gives it (firmware 0.53.0+).
+        given = self.given_grid(inbox, self.store.get(inbox))
+        grid = (given or self.grid_of(screen)).for_firmware(self.firmware_version(inbox, screen))
         layout = validate_layout(data, grid=grid)
         # A CYD has no memory for camera images, whatever its firmware; say so before asking for an update.
         if any(t['entity'].split('.')[0] in CAMERA_DOMAINS for t in layout['tiles']) and board_of(screen) not in camera_feed.BOXES:
@@ -2258,7 +2377,7 @@ class Manager:
                 tile['slot'] = slot
         layout = validate_layout(layout, grid=grid)
         known = {e['id'] for e in entities} | set(BUILTIN)
-        if any(t['entity'] not in known for t in layout['tiles']):
+        if any(t['entity'] not in known and not plugin_tile(t['entity']) for t in layout['tiles']):
             raise ValueError(t('addon.errors.layout.entity_gone'))
         if any(item['type'] == 'entity' and item['entity'] not in known and item['entity'] not in self.ha.states for item in header_items(layout)):
             raise ValueError(t('addon.errors.top_bar.entity_gone'))
@@ -2275,7 +2394,7 @@ class Manager:
             document = legacy_edit(previous, layout)
         else:
             document = migrate_legacy(layout, grid)['layout']
-        self.store.save(inbox, document, previous['revision'] if previous else None, settings=layout.get('settings'))
+        self.store.save(inbox, document, previous['revision'] if previous else None, settings=layout.get('settings'), grid=given)
         self.sent.pop(inbox, None)
         self.status[inbox] = english('addon.status.saved')
         self.history_wake.set()
@@ -2292,11 +2411,11 @@ class Manager:
         inbox = self.aliases.get(inbox, inbox)
         screen = self.screen(inbox)
         if isinstance(data, dict) and data.get('format') == PAGE_FORMAT:
-            grid = self.grid_of(screen)
+            grid = self.chosen_grid(inbox, data) or self.layout_grid(inbox, screen)
             document = validate_document(data.get('layout'), grid)
             layout = {'title': document['title'], 'tiles': compile_tiles(document, grid)}
         else:
-            layout = validate_layout(data, grid=self.grid_of(screen) if screen else None)
+            layout = validate_layout(data, grid=self.layout_grid(inbox, screen) if screen else None)
         # An entity may stand on several tiles (firmware 0.16.0+): a setting one of its tiles already has passes.
         before = {}
         for tile in self.layouts.get(inbox, {}).get('tiles', []):
@@ -2347,6 +2466,39 @@ class Manager:
                     LOG.info('%s builds in %s from its next update', profile, language)
             except (OSError, ValueError) as error:
                 LOG.warning('Could not write the language into %s (%s)', profile, error)
+
+    def builds(self, screens, profiles=None):
+        """What is being built for each screen right now, whoever asked for it: one record per screen, so the editor tracks
+        every build in one place (its store, `buildOf`) and shows it wherever it fits. `by` is who asked: `update` (the
+        firmware update, its phase in `phase`), `plugins` (the plugin build queue, `plugins` names what it adds) or
+        `install` (Firmware & USB, Install over Wi-Fi). `state` is `queued` or `running`; `stage` is ESPHome's step of the
+        build that runs now (firmware.job), the same the update's progress reads. A screen with nothing on the way has
+        no record."""
+        if profiles is None:
+            profiles = self.firmware.profile_names()
+        job = self.firmware.job if (self.firmware.job or {}).get('state') == 'running' else None
+        plugin_jobs = getattr(getattr(self, 'plugins', None), 'jobs', {}) or {}
+        out = {}
+        for screen in screens:
+            inbox = screen['id']
+            profile, _ = self.updates.resolve(screen, profiles)
+            here = bool(job and profile and job.get('file') == profile)
+            plugin = plugin_jobs.get(inbox) or {}
+            record = None
+            if inbox == self.updates.current:
+                record = {'by': 'update', 'state': 'running', 'phase': self.updates.phase}
+            elif plugin.get('state') == 'building':
+                record = {'by': 'plugins', 'state': 'running', 'plugins': list(plugin.get('add') or [])}
+            elif here:
+                record = {'by': 'install', 'state': 'running'}
+            elif inbox in self.updates.queue:
+                record = {'by': 'update', 'state': 'queued'}
+            elif plugin.get('state') == 'queued':
+                record = {'by': 'plugins', 'state': 'queued', 'plugins': list(plugin.get('add') or [])}
+            if record:
+                record.update(file=profile, stage=job.get('stage') if here and record['state'] == 'running' else None)
+                out[inbox] = record
+        return out
 
     def pending_profiles(self, screens, profiles):
         """ESP Screens profiles without a paired screen: flashed but not yet added in Home Assistant, or not flashed yet.
@@ -2410,6 +2562,9 @@ class Manager:
         """The state message of one tile: state, options, extras, and the history the background task holds. `lamps`:
         the screen takes a light group's lamps (its hello said `group_lamps`, firmware 0.3.9+). `features`: the other
         flags its hello said (page_delivery), None where the screen's hello is not known."""
+        # A plugin's tile (docs/PLUGINS.md): no entity behind it; its options and the data of its fetch.
+        if plugin_tile(tile['entity']):
+            return await self.plugins.tile_message(index, tile)
         forecast=hourly=None
         if tile['entity'].startswith('weather.') and hasattr(self.ha,'forecast'):
             entity = tile['entity']
@@ -2909,9 +3064,12 @@ class Manager:
 
     async def sync_saver(self, inbox, screen):
         """Tell a screen that takes a screensaver (its hello lists it, firmware 0.29.0+) what it shows now, whenever that
-        changes and once in every new session. A small message in the screen's session, as a camera's answer is."""
+        changes and once in every new session. A small message in the screen's session, as a camera's answer is. Only
+        once the screen holds a layout: before it confirmed one (a saved layout that waits for its grid to be adapted,
+        say) the screen refuses a message without a revision, and its refusal would stand in place of the real status."""
         sender = self.page_senders.get(inbox)
-        if not sender or sender.protocol != 2 or screen_saver.FEATURE not in (getattr(sender, 'features', None) or ()):
+        if not sender or sender.protocol != 2 or not sender.confirmed \
+                or screen_saver.FEATURE not in (getattr(sender, 'features', None) or ()):
             return
         message = self.saver_message(screen)
         key = (sender.session, json.dumps(message, sort_keys=True))
@@ -3406,7 +3564,7 @@ class Manager:
         # screen keeps one per page a navigation tile goes to, and one of everything else.
         firmware = self.firmware_version(inbox, screen) or (0, 0, 0)
         layout, tile = run_tile_event(self.layouts.get(inbox) or {'title': screen['name'], 'tiles': []}, TILE_EVENTS[event_type], data,
-                                      firmware >= PAGE_TILE_REPEAT_MIN_FIRMWARE, self.grid_of(screen).for_firmware(firmware),
+                                      firmware >= PAGE_TILE_REPEAT_MIN_FIRMWARE, self.layout_grid(inbox, screen).for_firmware(firmware),
                                       firmware >= ENTITY_REPEAT_MIN_FIRMWARE)
         await self.check_supported(inbox, layout)
         record = self.store.get(inbox)
@@ -3428,7 +3586,8 @@ class Manager:
                 answer.update(ok=True, screen=screen['name'])
                 if tile is not None and 'slot' in tile:
                     # Which tile it was, which matters for a navigation tile that is on several pages (app 0.2.78).
-                    answer.update(page=self.grid_of(screen).page_of(tile['slot']) + 1, slot=tile['slot'])
+                    inbox = self.aliases.get(screen['id'], screen['id'])
+                    answer.update(page=self.layout_grid(inbox, screen).page_of(tile['slot']) + 1, slot=tile['slot'])
                 LOG.info('%s: %s on %s', event_type, answer['entity'] or 'order', screen['name'])
                 await self.publish_layouts()
             except Exception as error:
@@ -3448,7 +3607,7 @@ class Manager:
             layout, node = self.layouts.get(inbox), screen.get('node')
             if not layout or not node:
                 continue
-            snapshot = layout_snapshot(screen, layout, self.grid_of(screen).for_firmware(self.firmware_version(inbox, screen)))
+            snapshot = layout_snapshot(screen, layout, self.layout_grid(inbox, screen).for_firmware(self.firmware_version(inbox, screen)))
             if self.published.get(inbox) == snapshot:
                 continue
             try:
@@ -3537,7 +3696,8 @@ def create_app(manager, development=False):
     # rules allow stays under about 75 KB (app 0.2.78). The YAML override keeps its own 12 KB limit (firmware.py).
     # Named editor features. An experiment can sit behind SCREEN_EDITOR_ENV=development here and never changes
     # authentication or firmware capabilities; taller tiles left that stage in 0.3.1.
-    editor_features = {'tall_tiles': True}
+    # Plugins (docs/PLUGINS.md) are on dev only while their API is 0.x (core.plugins_enabled).
+    editor_features = {'tall_tiles': True, 'plugins': core.plugins_enabled()}
     app = web.Application(middlewares=[guard], client_max_size=128*1024)
     static = Path(__file__).parent / 'static'
 
@@ -3573,9 +3733,13 @@ def create_app(manager, development=False):
                                                            ('addon.errors.pages.source_grid', 'addon.errors.pages.migration_unreadable')
                                                            else 'addon.errors.pages.migration_unreadable')}
                                        if record and record['format'] == 'legacy-v1' else record)
-            source = manager.verified_grid(screen['id'])
-            screen['source_grid'] = {'columns': source.columns, 'rows': source.rows} if source else None
             sender = manager.page_sender(screen['id'], screen)
+            source = manager.record_grid(screen['id'], record)
+            screen['source_grid'] = {'columns': source.columns, 'rows': source.rows} if source else None
+            # The grids it takes each way its glass hangs (firmware 0.53.0+): the editor offers them beside the mockup,
+            # and which way it is to hang on glass that turns ('landscape' or 'portrait', None on square glass).
+            screen['grids'] = manager.screen_grids(screen['id'])
+            screen['hang'] = manager.wanted_way(screen['id']) if manager.turnable(screen['id']) else None
             screen['tile_sizes'] = sorted(sender.tile_sizes if sender.protocol is not None else sender.last_tile_sizes) if sender else ['single', 'wide', 'full']
             screen['page_capability'] = ('offline' if not screen.get('online') or not sender or sender.protocol is None
                                          else 'ready' if sender.protocol == 2 else 'update_screen')
@@ -3605,6 +3769,8 @@ def create_app(manager, development=False):
             # for it again when the integration is removed and re-added, or the screen is paired with another HA.
             profile, _ = manager.updates.resolve(screen, profiles)
             screen['api_key'] = (profiles.get(profile) or {}).get('api_key') if profile else None
+            # Its last image against its slot on a 4 MB board: what the editor says is left for a plugin (PLUGINS.md).
+            screen['firmware_image'] = manager.firmware.image_room(profile, screen.get('flash')) if profile else None
             # What this screen looks like: what it reported itself, else the board package its profile builds
             # from (the YAML), else its board. The editor draws its mockup and places tiles on this grid.
             screen['package'] = manager.package_of(screen, profiles)
@@ -3616,9 +3782,16 @@ def create_app(manager, development=False):
             # And which way it was built to hang (app 0.2.107), for the same reason: a screen standing up has another
             # canvas and another grid, and while it is offline only its own YAML says so.
             screen['orientation'] = manager.orientation_of(screen, profiles)
-            # And the rows it was built with, when its own YAML chose them (a Guition with four rows, app 0.4.31).
-            screen['grid_rows'] = manager.built_as(screen, profiles).get('grid_rows')
+            # And the grid it was built with, when its own YAML chose one (app 0.4.31 rows, app 0.4.85 columns and rows).
+            screen['built_grid'] = manager.built_as(screen, profiles).get('built_grid')
             screen['shape'] = shape_of(screen)
+            # A screen that takes another grid runs on the one its saved layout gives it, offline too (firmware 0.53.0+):
+            # the mockup shows that grid, not the one the screen reported before the layout reached it.
+            if screen['grids'] and source:
+                screen['shape'] = {**screen['shape'], 'columns': source.columns, 'rows': source.rows}
+                # And the way it is to hang, before it turned: the other way round, the canvas is the other way round.
+                if screen['hang'] and (screen['hang'] == 'portrait') != screen['grids']['upright']:
+                    screen['shape'] = {**screen['shape'], 'width': screen['shape']['height'], 'height': screen['shape']['width']}
             # And whether it has a battery for the top bar (firmware 0.41.0): what its hello said, else its board.
             screen['battery'] = manager.has_battery(screen)
             # Whether the board draws pictures (camera tiles, an alert's snapshot, an album cover): the boards with
@@ -3650,6 +3823,8 @@ def create_app(manager, development=False):
                 'editor_features': editor_features,
                 'pending': manager.pending_profiles(screens, profiles),
                 'updates': manager.updates.summary(screens, profiles),
+                # Every build on the way, per screen (Manager.builds): the editor's one source for "something is building".
+                'builds': manager.builds(screens, profiles),
                 'language': manager.region.view()}
     async def seen_pending(payload):
         """Marks each screen that waits for pairing that Home Assistant has found on the network (`seen`); the rest is
@@ -4294,6 +4469,62 @@ def create_app(manager, development=False):
     app.router.add_delete('/api/firmware/profiles/{file}', firmware_forget)
     app.router.add_post('/api/firmware/profiles', firmware_create)
     app.router.add_put('/api/firmware/wifi', firmware_wifi)
+    # Plugins (docs/PLUGINS.md): only where they are on, so the stable app has none of these routes.
+    if editor_features['plugins']:
+        async def plugins_list(request):
+            await manager.plugins.refresh_index(force=request.query.get('refresh') == '1')
+            await manager.plugins.refresh_links(force=request.query.get('refresh') == '1')
+            return web.json_response(manager.plugins.payload(REQUEST_LANGUAGE.get()))
+
+        async def plugins_apply(request):
+            result = await manager.plugins.apply(request.match_info['inbox'], await request.json())
+            manager.notify()
+            return web.json_response(result)
+
+        async def plugins_file(request):
+            return web.json_response(manager.plugins.file_for(request.match_info['inbox']))
+
+        async def plugins_secret(request):
+            data = await request.json()
+            if not isinstance(data, dict):
+                raise ValueError(t('addon.errors.plugins.request'))
+            return web.json_response(manager.plugins.set_secret(request.match_info['plugin'], request.match_info['input'],
+                                                                data.get('value')))
+
+        async def plugins_choices(request):
+            values = {key: value for key, value in request.query.items() if key != 'language'}
+            return web.json_response(await manager.plugins.choices(request.match_info['plugin'], request.match_info['fetch'], values))
+
+        app.router.add_get('/api/plugins', plugins_list)
+        app.router.add_post('/api/screens/{inbox}/plugins', plugins_apply)
+        app.router.add_get('/api/screens/{inbox}/plugins/file', plugins_file)
+        app.router.add_put('/api/plugins/{plugin}/secrets/{input}', plugins_secret)
+        app.router.add_get('/api/plugins/{plugin}/choices/{fetch}', plugins_choices)
+
+        async def plugins_preview(request):
+            options = {key: value for key, value in request.query.items() if key != 'language'}
+            return web.json_response(await manager.plugins.preview(request.match_info['plugin'], request.match_info['tile'], options))
+        app.router.add_get('/api/plugins/{plugin}/preview/{tile}', plugins_preview)
+
+        async def plugins_link(request):
+            data = await request.json()
+            if not isinstance(data, dict):
+                raise ValueError(t('addon.errors.plugins.request'))
+            entry = await manager.plugins.resolve_link(data.get('url'), data.get('branch'), data.get('folder'))
+            return web.json_response(manager.plugins.editor_plugin(entry, REQUEST_LANGUAGE.get()))
+        app.router.add_post('/api/plugins/link', plugins_link)
+
+        async def plugins_settings(request):
+            return web.json_response(manager.plugins.settings_for(request.match_info['inbox'], REQUEST_LANGUAGE.get()))
+
+        async def plugins_setting(request):
+            data = await request.json()
+            if not isinstance(data, dict):
+                raise ValueError(t('addon.errors.plugins.request'))
+            result = await manager.plugins.set_setting(request.match_info['inbox'], data.get('entity'), data.get('value'))
+            return web.json_response(result)
+        app.router.add_get('/api/screens/{inbox}/plugins/settings', plugins_settings)
+        app.router.add_post('/api/screens/{inbox}/plugins/settings', plugins_setting)
     app.router.add_get('/', index)
     app.router.add_get('/api/inventory', inventory)
     app.router.add_get('/api/capabilities', capabilities)
@@ -4333,20 +4564,22 @@ def create_app(manager, development=False):
     app.router.add_static('/assets/', static / 'assets')
     return app
 
-async def addon_slug(session):
-    """This app's slug from the Supervisor (/addons/self/info, which needs no role), None without a Supervisor."""
+async def addon_self(session):
+    """This app's slug and version from the Supervisor (/addons/self/info, which needs no role), (None, None) without a
+    Supervisor."""
     token = os.environ.get('SUPERVISOR_TOKEN', '')
     if not token:
-        return None
+        return None, None
     try:
         async with session.get('http://supervisor/addons/self/info', headers={'Authorization': f'Bearer {token}'},
                                timeout=ClientTimeout(total=10)) as response:
             info = await response.json()
-        slug = (info.get('data') or {}).get('slug')
-        return slug if isinstance(slug, str) else None
+        data = info.get('data') or {}
+        slug, version = data.get('slug'), data.get('version')
+        return (slug if isinstance(slug, str) else None), (version if isinstance(version, str) else None)
     except Exception as error:
         LOG.info('Reading the app slug failed (%s)', type(error).__name__)
-        return None
+        return None, None
 
 async def main():
     development = os.environ.get('SCREEN_DEV') == '1'
@@ -4357,11 +4590,19 @@ async def main():
         raise SystemExit('No Home Assistant access. Start the app via Supervisor.')
     async with ClientSession(timeout=ClientTimeout(total=20)) as session:
         # The branch the screens build from (docs/RELEASING.md, "Testing dev"): dev for an app added from the `#dev` URL.
-        slug = await addon_slug(session)
+        slug, version = await addon_self(session)
         core.set_channel(core.channel_of(slug))
-        LOG.info('App %s, channel %s', slug or 'without a Supervisor', core.channel() or 'none (screens keep their ref)')
+        core.set_local(slug)
+        core.set_version(version)
+        LOG.info('App %s %s, channel %s, screens build from %s', slug or 'without a Supervisor', version or '',
+                 core.channel() or 'none', core.ref() if core.channel() else 'the ref they have')
         ha = HomeAssistant(session, os.environ.get('HA_API', 'http://supervisor/core/api'), token)
         manager = Manager(ha, Path(os.environ.get('SCREEN_DATA', '/data')) / 'screens.json')
+        # Every screen's YAML on what this app builds from, before anything can build it (core.ref): after an update of
+        # the app its screens build its new release, whoever starts the build.
+        moved = manager.firmware.follow_release()
+        if moved:
+            LOG.info('Screens now build from %s: %s', core.ref(), ', '.join(moved))
         # handle_signals: SIGTERM (the Supervisor stopping the app, `docker stop`) and SIGINT end the app through the
         # cleanup below, which also stops a running build, instead of waiting ten seconds for SIGKILL (app 0.2.78).
         runner = web.AppRunner(create_app(manager, development), access_log=None, handle_signals=True)
@@ -4378,7 +4619,8 @@ async def main():
         try:
             await asyncio.gather(ha.run(), manager.run(), manager.history_loop(), manager.updates.run(),
                                  manager.alert_loop(), manager.tile_loop(), manager.card_history_loop(), manager.camera_loop(), manager.card_options_loop(),
-                                 manager.media_loop(), manager.pairing_loop())
+                                 manager.media_loop(), manager.pairing_loop(),
+                                 *([manager.plugins.loop(), manager.plugin_loop()] if core.plugins_enabled() else []))
         finally:
             await cameras.cleanup()
             await runner.cleanup()

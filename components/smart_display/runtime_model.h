@@ -57,11 +57,42 @@ constexpr unsigned BEDSIDE_KEYS = 3;
 // follow from the cells, only the tiles of the whole screen (TILES_MAX) do. Before, a grid had 64 / cells pages, three
 // on a 5 x 4 grid, and a grid that grew lost the pages of a saved layout.
 constexpr size_t PAGES_MAX = page_protocol::MAX_PAGES;
-// The bigger of the two grids: what the cards, the page's own arrays and the grid descriptors are sized for. A
-// CYD carries six cards and shows four of them standing up; nothing is allocated twice.
-constexpr size_t CELLS_MAX = (GRID_COLS * GRID_ROWS) > (GRID_COLS_PORTRAIT * GRID_ROWS_PORTRAIT)
-                                 ? (GRID_COLS * GRID_ROWS)
-                                 : (GRID_COLS_PORTRAIT * GRID_ROWS_PORTRAIT);
+// The grids a screen may be given (firmware 0.53.0+): ESP Screens sends one with a layout and the screen keeps it, one
+// for each way the glass hangs. The board's own pair is where a screen starts. The least is one cell; the most is what
+// the glass holds at the look's smallest cell (GRID_CELL_MIN_W_MM x GRID_CELL_MIN_H_MM, packages/looks/shared/grid.yaml),
+// wide on purpose: a grid that is too fine is someone's to see and to change back. A screen's own YAML may move both.
+#ifndef GRID_MIN_COLUMNS
+#define GRID_MIN_COLUMNS 1
+#endif
+#ifndef GRID_MIN_ROWS
+#define GRID_MIN_ROWS 1
+#endif
+#ifndef GRID_MAX_COLUMNS
+#define GRID_MAX_COLUMNS GRID_COLS
+#endif
+#ifndef GRID_MAX_ROWS
+#define GRID_MAX_ROWS GRID_ROWS
+#endif
+#ifndef GRID_MAX_COLUMNS_PORTRAIT
+#define GRID_MAX_COLUMNS_PORTRAIT GRID_COLS_PORTRAIT
+#endif
+#ifndef GRID_MAX_ROWS_PORTRAIT
+#define GRID_MAX_ROWS_PORTRAIT GRID_ROWS_PORTRAIT
+#endif
+// The grids one way of the glass takes: from the least to the most columns and rows.
+struct GridRange {
+  size_t min_columns, min_rows, max_columns, max_rows;
+  constexpr bool takes(size_t columns, size_t rows) const {
+    return columns >= min_columns && columns <= max_columns && rows >= min_rows && rows <= max_rows;
+  }
+  constexpr size_t most_cells() const { return max_columns * max_rows; }
+};
+constexpr GridRange GRID_RANGES[2] = {{GRID_MIN_COLUMNS, GRID_MIN_ROWS, GRID_MAX_COLUMNS, GRID_MAX_ROWS},
+                                      {GRID_MIN_COLUMNS, GRID_MIN_ROWS, GRID_MAX_COLUMNS_PORTRAIT, GRID_MAX_ROWS_PORTRAIT}};
+// The biggest grid either way: what the page's own arrays and the grid descriptors are sized for. The cards themselves
+// are made for the grid in use only (make_cells), so a screen pays in cards for the grid it shows, not for the most.
+constexpr size_t CELLS_MAX = GRID_RANGES[0].most_cells() > GRID_RANGES[1].most_cells() ? GRID_RANGES[0].most_cells()
+                                                                                         : GRID_RANGES[1].most_cells();
 constexpr size_t dim_max(size_t a, size_t b, size_t c, size_t d) {
   size_t most = a;
   if (b > most) most = b;
@@ -69,8 +100,13 @@ constexpr size_t dim_max(size_t a, size_t b, size_t c, size_t d) {
   if (d > most) most = d;
   return most;
 }
-constexpr size_t DIM_MAX = dim_max(GRID_COLS, GRID_ROWS, GRID_COLS_PORTRAIT, GRID_ROWS_PORTRAIT);
+constexpr size_t DIM_MAX = dim_max(GRID_MAX_COLUMNS, GRID_MAX_ROWS, GRID_MAX_COLUMNS_PORTRAIT, GRID_MAX_ROWS_PORTRAIT);
 static_assert(GRID_COLS >= 1 && GRID_ROWS >= 1 && GRID_COLS_PORTRAIT >= 1 && GRID_ROWS_PORTRAIT >= 1, "a grid needs a cell");
+// The board's own grid lies between GRID_MIN_* and GRID_MAX_*, each way.
+constexpr bool OWN_GRIDS_TAKEN = GRID_RANGES[0].takes(GRID_COLS, GRID_ROWS) && GRID_RANGES[1].takes(GRID_COLS_PORTRAIT, GRID_ROWS_PORTRAIT);
+static_assert(OWN_GRIDS_TAKEN, "the board's own grid is out of its range");
+// The editor's preview holds eight by eight (web/wasm/build.py), and a size goes as "CxR" with one digit each.
+static_assert(DIM_MAX <= 8, "at most eight columns and eight rows");
 static_assert(CELLS_MAX <= TILES_MAX, "a page holds at most as many cells as a screen holds tiles");
 // A slot (page * cells + cell) is kept in 16 bits (Model::slots): eight pages of a big grid pass 256, 512 on the
 // preview's eight by eight. Within its page (Placement) a cell still fits a byte.
@@ -98,12 +134,17 @@ struct Grid {
 // The grid this screen runs on. It stands at the board's landscape grid until grid_select reads the canvas, so a
 // host test or a board that never turns needs no boot step.
 inline Grid grid{GRID_COLS, GRID_ROWS};
+// The grid for each way the glass hangs, lying down first: the board's own until ESP Screens sends another with a layout
+// (firmware 0.53.0+), which the screen keeps (runtime_tiles::load_settings) and reports in its hello.
+inline Grid chosen_grids[2] = {{GRID_COLS, GRID_ROWS}, {GRID_COLS_PORTRAIT, GRID_ROWS_PORTRAIT}};
+// Whether the canvas stands up, as grid_select last read it.
+inline bool canvas_upright = false;
 // Pick the grid from the canvas LVGL draws on. A square canvas counts as lying down, as LVGL's own orientation
 // does, so a square board answers the same grid either way.
 inline void grid_select(int canvas_width, int canvas_height) {
 #ifndef ESP_SCREEN_HOST
-  const bool upright = canvas_height > canvas_width;
-  grid = upright ? Grid{GRID_COLS_PORTRAIT, GRID_ROWS_PORTRAIT} : Grid{GRID_COLS, GRID_ROWS};
+  canvas_upright = canvas_height > canvas_width;
+  grid = chosen_grids[canvas_upright ? 1 : 0];
 #endif
 }
 using page_protocol::TileSet;
@@ -117,8 +158,24 @@ inline unsigned page_number(const std::string &entity) {
   return static_cast<unsigned>(entity[12] - '0') * 10 + static_cast<unsigned>(entity[13] - '0');
 }
 inline bool page_entity(const std::string &entity) { return page_number(entity) > 0; }
+// A key of a plugin's part (docs/PLUGINS.md): plugin:<plugin>.<part>, each an id of a-z, 0-9 and _ that starts with a
+// letter; a tile in a layout, an item in a top bar, a tap action. Whether this screen has that plugin decides only how
+// it is drawn (plugin_host::known); any such key is valid. (A plugin tile's Home Assistant entity is Extra::plugin_entity.)
+inline bool plugin_key(const std::string &entity) {
+  if (entity.size() > 72 || entity.rfind("plugin:", 0) != 0) return false;
+  const size_t dot = entity.find('.', 7);
+  if (dot == std::string::npos || dot == 7 || dot + 1 == entity.size() || dot - 7 > 32 || entity.size() - dot - 1 > 32) return false;
+  for (size_t i = 7; i < entity.size(); ++i) {
+    const char c = entity[i];
+    if (i == dot) continue;
+    const bool first = i == 7 || i == dot + 1;
+    if (!((c >= 'a' && c <= 'z') || (!first && ((c >= '0' && c <= '9') || c == '_')))) return false;
+  }
+  return true;
+}
 inline bool valid_entity(const std::string &entity) {
   if (entity.size() > 120) return false;
+  if (entity.rfind("plugin:", 0) == 0) return plugin_key(entity);
   auto dot = entity.find('.');
   if (dot == std::string::npos || dot == 0 || dot + 1 == entity.size()) return false;
   for (size_t i = 0; i < entity.size(); ++i)
@@ -303,6 +360,11 @@ struct Extra {
   // A lock (firmware 0.5.0+) shares code_format, changed_by and code_saved with the alarm panel, and says whether the
   // integration only assumes its state (assumed_state), which lets every key work as in Home Assistant's dialog.
   bool assumed = false;
+  // A plugin tile (docs/PLUGINS.md): its options as the editor set them, and what the add-on sent for it (its `x`), each
+  // as the JSON it came in. The plugin reads them when its card is made and when they change (plugin_host::render).
+  std::string plugin_options, plugin_state;
+  // The Home Assistant entity a plugin tile belongs to (its manifest's `entity`), "" for none.
+  std::string plugin_entity;
   Choice *choice(char kind) { for (auto &c : choices) if (c.kind == kind) return &c; return nullptr; }
   bool empty() const {
     return hvac_modes.empty() && fan_modes.empty() && swing_modes.empty() && fan_mode.empty() && swing_mode.empty() &&
@@ -317,7 +379,7 @@ struct Extra {
            media_source.empty() && media_repeat.empty() && media_sources.empty() && media_shuffle < 0 && !media_features &&
            speaker_flags.empty() && speaker_volumes.empty() && media_inputs.empty() && media_input.empty() && media_target.empty() &&
            !has_ground && !ground_known && !media_library && fav_kind.empty() && fav_source.empty() && fav_mark.empty() &&
-           fav_glyph.empty() && !fav_playing && !energy;
+           fav_glyph.empty() && !fav_playing && !energy && plugin_options.empty() && plugin_state.empty() && plugin_entity.empty();
   }
 };
 // The numbers of a clock text ("0:05:00", "07:45"), at most `max` of them, each after optional white space, up to the
@@ -415,6 +477,8 @@ struct Tile {
   // On a 1x2 or 2x2 tile the picture fills the card (firmware 0.3.3+) with the name at the bottom; "overlay": "none"
   // leaves the picture alone. Fill or contain is the app's: it sends the picture cut the way the tile asks.
   bool overlay = true;
+  // The energy card drawn calm: lines that grow with the power and an arrow on each, no running dots ("flow": "lines").
+  bool energy_lines = false;
   bool live() const { const auto d = domain(); return display == "live" && (d == "camera" || d == "image"); }
   // A media player's album cover in the icon's place (firmware 0.2.78+): "display": "cover" on a single or double-width
   // tile, while the player has a picture; the tile over the whole page keeps the card's big cover.
@@ -569,7 +633,9 @@ struct Tile {
     if (field && std::isfinite(slider_sent)) *field = slider_real;
     slider_sent = NAN;
   }
-  std::string domain() const { return entity.substr(0, entity.find('.')); }
+  std::string domain() const { return is_plugin() ? std::string("plugin") : entity.substr(0, entity.find('.')); }
+  // A tile of a plugin (plugin:<plugin>.<tile>): no Home Assistant entity behind it, it draws itself (plugin_host).
+  bool is_plugin() const { return entity.rfind("plugin:", 0) == 0; }
   bool builtin() const { return domain() == "screen"; }
   // Two built-in cards, and only one of them is a clock that has to be redrawn every minute.
   bool is_clock() const { return entity == "screen.clock"; }

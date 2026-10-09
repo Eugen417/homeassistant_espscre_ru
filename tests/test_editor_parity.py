@@ -122,7 +122,7 @@ def run_ts(body, data, tmp):
     script.write_text(f'''import {{ readFileSync }} from "node:fs";
 import {{ cardContent, cardHeight, cellContent, modeBar, pillMetrics, uiScale, watchCard, watchPadding, widestSetpoint }} from "{model / 'ui-scale'}";
 import {{ barGaps, barLayout, barMetricsFor }} from "{model / 'topbar'}";
-import {{ sizeColumns, sizeFor, sizeRows, spanOf, spanOffered }} from "{model / 'sizes'}";
+import {{ sizeColumns, sizeFor, sizeRows, sizesOn, spanOf, spanOffered }} from "{model / 'sizes'}";
 import {{ accent, tileActive }} from "{model / 'tile-palette'}";
 import {{ barKeys }} from "{model / 'tall-controls'}";
 const DATA = JSON.parse(readFileSync("{Path(tmp) / 'data.json'}", "utf8"));
@@ -340,8 +340,9 @@ class WatchCard(unittest.TestCase):
         for key, board, shape in SHAPES:
             profile = drawn[(shape['dpi'], shape['look'])]
             mine = {**shape, 'fonts': profile['fonts'], 'spacing': profile['spacing']}
-            choices = (shape.get('catalog') or {}).get('choices', {}).get('GRID_ROWS') or []
-            downs = sorted({shape['rows'], *(int(rows) for rows in choices if key.endswith('-landscape'))})
+            # The rows it is built with, and the most it may be given that way on its own columns (firmware 0.53.0+):
+            # the mockup follows the firmware on the finest grid too.
+            downs = sorted({shape['rows'], *([shape['max'][1]] if shape.get('max') else [])})
             for down in downs:
                 layouts = []
                 for pages in (1, 3):
@@ -414,6 +415,10 @@ console.log(JSON.stringify(DATA.cases.map((c: any) => {
                 circle = fw['circle']
                 self.assertEqual(card['circle']['size'], circle['x2'] - circle['x1'] + 1, f'{where}: the circle')
                 self.assertEqual(card['circle']['y'], circle['y1'] - top, f'{where}: the circle from the top')
+            # A known card a pixel lower in the preview than on the screen can take the next face down there (the
+            # finest grid of the 5-inch), where the editor follows the screen.
+            if case['known'] and case['down'] != case['shape']['rows'] and ts['height'] != fw['box']['y2'] - fw['box']['y1'] + 1:
+                continue
             for part, label in (('title', fw['name']), ('value', fw['number']), ('unit', fw['unit'])):
                 mine = card[part]
                 if label is None or mine is None:
@@ -525,6 +530,7 @@ console.log(JSON.stringify({
   rows: DATA.names.map((name: string) => sizeRows(name)), columns: DATA.names.map((name: string) => sizeColumns(name)),
   offered: grids.map((g: any) => DATA.rect.map(([c, r]: number[]) => spanOffered(c, r, g))),
   sizes: grids.map((g: any) => DATA.rect.map(([c, r]: number[]) => sizeFor(c, r, g))),
+  hello: grids.map((g: any) => sizesOn(g)),
 }));''', {'names': cls.names, 'grids': cls.grids, 'rect': [[c, r] for c in range(1, 10) for r in range(1, 10)]}, tmp)
             names = cpp_strings(cls.names)
             grids = ', '.join(f'{{{c}, {r}}}' for c, r in cls.grids)
@@ -543,11 +549,16 @@ int main() {{
     for (unsigned c = 1; c <= 9; ++c) for (unsigned r = 1; r <= 9; ++r) std::printf(" %d", page_protocol::span_offered(c, r, g[0], g[1]) ? 1 : 0);
     std::printf("\\naccepts");
     for (const char *name : NAMES) std::printf(" %d", page_protocol::accepts_size(name, g[0], g[1]) ? 1 : 0);
+    // What the hello says it takes (tile_sizes, packages/core.yaml): the names that fit, then the spans.
+    std::printf("\\nhello");
+    for (const auto &size : page_protocol::TILE_SIZES) if (size.fits(g[0], g[1])) std::printf(" %s", size.name);
+    for (unsigned c = 1; c <= g[0]; ++c) for (unsigned r = 1; r <= g[1]; ++r)
+      if (page_protocol::span_offered(c, r, g[0], g[1])) std::printf(" %ux%u", c, r);
     std::printf("\\n");
   }}
 }}
 ''', tmp)
-        cls.firmware = {tag: [line.split()[1:] for line in cls.cpp.splitlines() if line.startswith(tag + ' ')] for tag in ('span', 'offered', 'accepts')}
+        cls.firmware = {tag: [line.split()[1:] for line in cls.cpp.splitlines() if line.startswith(tag + ' ')] for tag in ('span', 'offered', 'accepts', 'hello')}
 
     def test_a_span_is_read_alike(self):
         for name, mine, (found, c, r) in zip(self.names, self.ts['spans'], self.firmware['span']):
@@ -567,6 +578,14 @@ int main() {{
             self.assertEqual(mine, [v == '1' for v in firmware], f'{gc}x{gr}: spanOffered and page_protocol::span_offered')
             if gc * gr <= 64:
                 self.assertEqual(mine, python, f'{gc}x{gr}: spanOffered and core.span_offered')
+
+    def test_the_sizes_of_a_grid_are_those_its_hello_names(self):
+        """A screen given another grid (firmware 0.53.0+) takes that grid's sizes, which its hello does not name yet: the
+        add-on (core.sizes_on) and the editor (sizesOn) work them out as the hello would."""
+        for (gc, gr), mine, firmware in zip(self.grids, self.ts['hello'], self.firmware['hello']):
+            self.assertEqual(sorted(mine), sorted(firmware), f'{gc}x{gr}: sizesOn and the hello')
+            if gc * gr <= 64:
+                self.assertEqual(sorted(core.sizes_on(core.Grid(gc, gr))), sorted(firmware), f'{gc}x{gr}: core.sizes_on and the hello')
 
     def test_every_rectangle_the_editor_names_the_screen_takes(self):
         rect = [(c, r) for c in range(1, 10) for r in range(1, 10)]

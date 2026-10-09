@@ -54,6 +54,9 @@
 #include "media_card.h"
 #include "saver_view.h"
 #include "energy_view.h"
+#include "plugin_api.h"
+#include "plugin_host.h"
+#include "screen_hooks.h"
 #include "light_card.h"
 #include "weather_card.h"
 #include "forecast_tile.h"
@@ -85,6 +88,44 @@ inline esphome::ESPPreferenceObject buttons_preference;
 inline esphome::ESPPreferenceObject swipe_preference;
 inline esphome::ESPPreferenceObject home_preference;
 inline esphome::ESPPreferenceObject dark_preference;
+// The grid chosen for each way the glass hangs (firmware 0.53.0+, regrid), lying down first.
+struct GridChoice { uint8_t columns[2], rows[2]; };
+inline esphome::ESPPreferenceObject grid_preference;
+inline void save_grids() {
+  GridChoice choice{};
+  for (int i = 0; i < 2; ++i) { choice.columns[i] = (uint8_t) chosen_grids[i].columns; choice.rows[i] = (uint8_t) chosen_grids[i].rows; }
+  grid_preference.save(&choice);
+}
+// Which way the glass hangs (firmware 0.53.0+): the LVGL angle the screen is turned to, before the turn its Rotation
+// setting adds. A screen is built lying down or standing up (LVGL_ROTATION, its board's ROTATION_LANDSCAPE or a quarter
+// further); ESP Screens may stand it up or lay it down with a layout (begin's "upright"), and the screen keeps that. A
+// square screen keeps the angle it was built with: a quarter turn there is its Rotation setting and keeps the canvas.
+inline int landscape_turn = 0, base_turn = 0;
+inline bool square_glass = true;
+inline esphome::ESPPreferenceObject upright_preference;
+// At the start, before anything measures the canvas (packages/core.yaml turns LVGL to base_turn right after).
+inline void hang_at_boot(int landscape, int built, bool square) {
+  landscape_turn = ((landscape % 360) + 360) % 360;
+  square_glass = square;
+  base_turn = ((built % 360) + 360) % 360;
+  if (square) return;
+  upright_preference = esphome::global_preferences->make_preference<uint32_t>(0x55505231);
+  uint32_t upright = 0;
+  if (upright_preference.load(&upright) && upright <= 1) base_turn = (landscape_turn + (upright ? 90 : 0)) % 360;
+}
+// When the screen was asked to hang the other way, 0 for never: it starts again a moment later (tick), standing or lying
+// as asked, because every size it measures from its canvas is measured at its start. ESP Screens sends the layout again
+// once it is back.
+inline uint32_t turn_restart_at = 0;
+inline void hang(bool upright) {
+  if (square_glass) return;
+  uint32_t value = upright ? 1 : 0;
+  upright_preference.save(&value);
+  esphome::global_preferences->sync();
+  base_turn = (landscape_turn + (upright ? 90 : 0)) % 360;
+  turn_restart_at = std::max<uint32_t>(1, esphome::millis());
+  ESP_LOGI("grid", "the screen stands %s now: starting again", upright ? "up" : "lying down");
+}
 // The number format of Settings -> Language & region (app 0.2.90), kept for the next start: screen_text::number_style
 // (bits 0-3), number_group_min (4-5) and number_percent (6-7) in one word.
 inline esphome::ESPPreferenceObject numbers_preference;
@@ -117,6 +158,8 @@ inline const lv_font_t *bedside_font = nullptr;
 inline const lv_font_t *display_font = nullptr;
 // Text in the -/+ pill and the run key of direct controls; the board profile sets it.
 inline const lv_font_t *control_font = nullptr;
+// A tile's name (the `label` font): the plugin API's Font::TITLE (plugin_host.cpp).
+inline const lv_font_t *label_font = nullptr;
 // The smallest regular text (sublabel): axis labels and the legend of the history card.
 inline const lv_font_t *small_font = nullptr;
 inline lv_obj_t *room_label = nullptr;  // remembered by render() so page switches can render synchronously
@@ -446,6 +489,13 @@ inline void load_settings() {
   }
   // The turn the screen was left at (every board since firmware 0.2.80, the Guition before that). A quarter turn
   // saved on glass that cannot take one (a board file that changed) is left where it is.
+  // The grids ESP Screens gave this screen (firmware 0.53.0+); one this firmware cannot take (a screen's YAML that
+  // narrowed GRID_MAX_*) leaves the board's own for that way of the glass.
+  grid_preference=esphome::global_preferences->make_preference<GridChoice>(0x47524431);
+  GridChoice grids{};
+  if(grid_preference.load(&grids))
+    for(int i=0;i<2;++i)
+      if(GRID_RANGES[i].takes(grids.columns[i],grids.rows[i]))chosen_grids[i]=Grid{grids.columns[i],grids.rows[i]};
   rotation_preference=esphome::global_preferences->make_preference<uint32_t>(0x524F5431);
   uint32_t saved_turn=0;
   if(rotation_preference.load(&saved_turn) && saved_turn<=270 && saved_turn%90==0 && (saved_turn%180==0 || quarter_turns))rotation=(int32_t)saved_turn;
@@ -527,18 +577,33 @@ struct Widgets {
   bool media_live=false;  // the media card shows "Live" for a stream (media_live), drawn again when that changes
   // The energy card's scene and running dots (firmware 0.47.0+, energy_view.cpp); it goes with the card's extra layer.
   energy_view::View *energy{};
+  // A plugin tile's card (docs/PLUGINS.md, plugin_host.cpp): the plugin's object; it goes with the card's extra layer.
+  plugin_host::Card *plugin{};
 };
 // A page is being built off the glass (warm_page): its cards ask for no pictures and wake nothing.
 inline bool warming=false;
 constexpr unsigned POINT_BUFFER = 128;
-// One widget per cell of the board's grid: the cards packages/cells/<number>.yaml brings, bound at boot.
-inline std::array<Widgets, CELLS_MAX> widgets;
+// One widget per cell of the grid the screen runs on: the cards make_cells makes at boot. The table is sized for the
+// biggest grid the screen may be given (CELLS_MAX, about 700 bytes a cell), so a board with PSRAM keeps it there, beside
+// the kept pages' sets (firmware 0.53.0+): fifteen cells inside the chip would take 10 KB the 4-inch Guition does not
+// have to spare. Without PSRAM it stays inside the chip, as before.
+inline std::array<Widgets, CELLS_MAX> &glass_cards() {
+  using Table = std::array<Widgets, CELLS_MAX>;
+#ifdef USE_ESP32
+  void *memory = heap_caps_malloc(sizeof(Table), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (!memory) memory = heap_caps_malloc(sizeof(Table), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+#else
+  void *memory = std::malloc(sizeof(Table));
+#endif
+  return *new (memory) Table();
+}
+inline std::array<Widgets, CELLS_MAX> &widgets = glass_cards();
 // ---- Pages kept whole (firmware 0.3.2+, kept_pages.h) ----
 // A board with PSRAM keeps the cards of the pages it has shown. `widgets` is always the set on the glass; a page that
 // leaves the glass takes its set onto the shelf, hidden, and a page that comes back brings its own set with it. A card
 // keeps its index in whichever set holds it, and its callbacks name that index (or `&widgets[index]`), so a set is only
 // ever exchanged whole: a callback fires on the glass, where `widgets[index]` is that very card. Cards are drawn only
-// while they are on the glass. The first set is the board's own (packages/cells), make_card builds the others alike.
+// while they are on the glass. The first set is the board's own (make_cells), make_card builds the others alike.
 using CardSet = std::array<Widgets, CELLS_MAX>;
 inline kept_pages::Shelf shelf;
 inline kept_pages::Changes changes;  // what a card could show, numbered as it is asked for (kept_pages.h)
@@ -567,6 +632,7 @@ inline std::array<int32_t, DIM_MAX + 1> grid_rows_dsc{};
 // canvas LVGL hands us says which way the glass hangs, so it picks the grid; the area then runs the full width
 // and from under the top bar down to where the page bar starts. A board states a margin, a gap and the height of
 // that bar, all of them a look and not an orientation, and no pixel here comes from a substitution.
+inline void grid_cells();
 inline void grid_bind(lv_obj_t *container, int margin, int page_bar_height) {
   tile_grid = container;
   grid_margin = margin;
@@ -581,12 +647,17 @@ inline void grid_bind(lv_obj_t *container, int margin, int page_bar_height) {
   lv_obj_update_layout(container);
   grid_base_height = canvas_h - lv_obj_get_y(container) - page_bar_height;
   lv_obj_set_height(container, grid_base_height);
+  grid_cells();
+}
+// The tile area's columns and rows as free units, for the grid in use (grid_bind, regrid).
+inline void grid_cells() {
+  if (!tile_grid) return;
   for (size_t c = 0; c < grid.columns; ++c) grid_columns_dsc[c] = LV_GRID_FR(1);
   grid_columns_dsc[grid.columns] = LV_GRID_TEMPLATE_LAST;
   for (size_t r = 0; r < grid.rows; ++r) grid_rows_dsc[r] = LV_GRID_FR(1);
   grid_rows_dsc[grid.rows] = LV_GRID_TEMPLATE_LAST;
-  lv_obj_set_grid_dsc_array(container, grid_columns_dsc.data(), grid_rows_dsc.data());
-  lv_obj_update_layout(container);
+  lv_obj_set_grid_dsc_array(tile_grid, grid_columns_dsc.data(), grid_rows_dsc.data());
+  lv_obj_update_layout(tile_grid);
 }
 
 inline void tile_picture_place(Widgets &w, const Tile &t, int size, int x, int y);
@@ -1288,6 +1359,8 @@ inline void lock_card_closed();
 // keypad: it never waits in memory for the next person at the screen.
 inline void hide_detail(){
   alarm_close_pad();lock_card_closed();
+  // A plugin's card closes on every way Tessera's own cards close (docs/PLUGINS.md).
+  plugin_host::close_card();
   if(detail_backdrop)lv_obj_add_flag(detail_backdrop,LV_OBJ_FLAG_HIDDEN);if(detail_root)lv_obj_add_flag(detail_root,LV_OBJ_FLAG_HIDDEN);
   // A player's library and speaker menu go with its card (firmware 0.24.0+), after it: the card stays as it was.
   media_library::close();}
@@ -5394,9 +5467,22 @@ inline void event(lv_event_t *event) {
     if (allowed(esphome::millis(), TILE_TOUCH + static_cast<int>(w.index), card.entity)) settings_screen::open();
     return;
   }
+  // A plugin's tile (docs/PLUGINS.md): a short tap goes to the plugin, through the same guard as every tile's.
+  if (model.tiles[w.index].is_plugin()) {
+    if (code == LV_EVENT_SHORT_CLICKED && model.tiles[w.index].tap != "none" && w.plugin &&
+        allowed(esphome::millis(), TILE_TOUCH + static_cast<int>(w.index), model.tiles[w.index].entity))
+      plugin_host::tap(w);
+    return;
+  }
   if (!fresh()) return;
   auto &tile = model.tiles[w.index];
   auto d = tile.domain();
+  // A tap set to a plugin's tap action (docs/PLUGINS.md): a short tap runs it, through the guard every tap passes; a
+  // hold still opens the tile's own card. A screen without that plugin does nothing on the tap.
+  if (code == LV_EVENT_SHORT_CLICKED && tile.tap.rfind("plugin:", 0) == 0) {
+    if (allowed(esphome::millis(), TILE_TOUCH + static_cast<int>(w.index), tile.entity)) plugin_host::tap_action(w.index);
+    return;
+  }
   // A tap that switches is a wish and takes every clean tap; one that opens or runs something keeps the guard.
   {
     const auto route = tile_controls::tap_route(tile, code == LV_EVENT_LONG_PRESSED);
@@ -5687,22 +5773,19 @@ inline void bind_card(Widgets &into, size_t index, lv_obj_t *tile, lv_obj_t *tit
   lv_obj_add_event_cb(tile, event, LV_EVENT_LONG_PRESSED, &widgets[index]);
   lv_obj_add_event_cb(tile, ring_draw, LV_EVENT_DRAW_POST, nullptr);
 }
-// The board's own cards (packages/cells/<n>.yaml, bound at boot).
-inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value, lv_obj_t *circle, lv_obj_t *icon) {
-  bind_card(widgets[index], index, tile, title, value, circle, icon);
-}
-// A card like the ones packages/cells/<n>.yaml brings (tools/generate_cells.py writes those): the same four styles, the
-// same parts and flags, the board's icon size and icon font as its first card has them. Hidden until a page shows it.
-inline void make_card(Widgets &into, size_t index, const Widgets &like) {
+// A card: the four styles of packages/core.yaml (card_look), a circle of the board's icon size with its icon, and the
+// name and the state. Hidden until a page shows it. Without `like` it is measured in the grid's first cell (bind_card),
+// and only hidden after that, as LVGL's grid gives a hidden card no size.
+inline void build_card(Widgets &into, size_t index, int circle_size, const lv_font_t *icon_font, const Widgets *like) {
   auto *tile = lv_obj_create(tile_grid);
-  lv_obj_add_flag(tile, LV_OBJ_FLAG_HIDDEN);  // out of the grid's layout from the start
+  if (like) lv_obj_add_flag(tile, LV_OBJ_FLAG_HIDDEN);  // out of the grid's layout from the start
   lv_obj_add_style(tile, card_look.tile, 0);
   lv_obj_set_size(tile, 1, 1);
   auto *circle = lv_obj_create(tile);
   lv_obj_add_style(circle, card_look.circle, 0);
-  lv_obj_set_size(circle, like.base_circle, like.base_circle);
+  lv_obj_set_size(circle, circle_size, circle_size);
   auto *icon = lv_label_create(circle);
-  lv_obj_set_style_text_font(icon, like.icon_font, 0);
+  lv_obj_set_style_text_font(icon, icon_font, 0);
   lv_obj_align(icon, LV_ALIGN_CENTER, 0, 0);
   auto *title = lv_label_create(tile);
   lv_obj_add_style(title, card_look.title, 0);
@@ -5710,7 +5793,25 @@ inline void make_card(Widgets &into, size_t index, const Widgets &like) {
   lv_obj_add_style(value, card_look.value, 0);
   for (auto *o : {tile, circle}) { lv_obj_remove_flag(o, LV_OBJ_FLAG_SCROLLABLE); lv_obj_set_scrollbar_mode(o, LV_SCROLLBAR_MODE_OFF); }
   for (auto *o : {circle, icon, title, value}) lv_obj_remove_flag(o, LV_OBJ_FLAG_CLICKABLE);
-  bind_card(into, index, tile, title, value, circle, icon, &like);
+  bind_card(into, index, tile, title, value, circle, icon, like);
+  if (!like) lv_obj_add_flag(tile, LV_OBJ_FLAG_HIDDEN);
+}
+// A card like the first of the board's set, whose measurements it takes over: the cards of a kept page.
+inline void make_card(Widgets &into, size_t index, const Widgets &like) {
+  build_card(into, index, like.base_circle, like.icon_font, &like);
+}
+// The board's own cards, one per cell of the grid the screen runs on, made at boot (packages/core.yaml) from the board's
+// icon size and the icon font. They used to be widgets in YAML, a file of them per number of cells (packages/cells/,
+// before firmware 0.53.0), which tied a screen to the grid it was built with.
+inline const lv_font_t *cell_icon_font = nullptr;
+inline int cell_circle = 0;
+inline void make_cells(const lv_font_t *icon_font, int circle_size) {
+  cell_icon_font = icon_font;
+  cell_circle = circle_size;
+  for (size_t i = 0; i < grid.slots(); ++i) {
+    if (i == 0) build_card(widgets[0], 0, circle_size, icon_font, nullptr);
+    else make_card(widgets[i], i, widgets[0]);
+  }
 }
 inline void label(lv_obj_t *obj, const std::string &text) {
   if (text != lv_label_get_text(obj)) lv_label_set_text(obj, text.c_str());
@@ -5747,6 +5848,7 @@ inline void end_extra(Widgets &w) {
   if(!w.extra_mode.empty()){
     if(captured_slider&&std::find(w.parts.begin(),w.parts.end(),captured_slider)!=w.parts.end()){captured_slider=nullptr;slider_changed=false;}
     if(w.energy)energy_view::release(w);
+    if(w.plugin)plugin_host::release(w);
     lv_obj_clean(w.extra);w.parts.fill(nullptr);w.extra_mode.clear();delete[] w.points;w.points=nullptr;}
 }
 // Two triangles per segment between the polyline and its baseline. No canvas
@@ -6294,9 +6396,14 @@ inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int heigh
   // The card's own name font, not the name label's: a card that showed a centred name before (a tall on/off card)
   // left its label in that card's font, and a card reused for another page kept it (firmware 0.3.2).
   const lv_font_t *small=w.title_font;
+  // The time beside a wide dial: on a card lower than the clock's own line (a fine grid, firmware 0.53.0+) the largest
+  // step whose line fits.
+  const lv_font_t *time_font=big;
+  if(lv_font_get_line_height(big)>height)
+    for(auto *f:{watch_value_font,watch_font,w.value_font})if(f && lv_font_get_line_height(f)<=height){time_font=f;break;}
   // The date line only appears when both lines fit the card height.
-  bool with_date=lv_font_get_line_height(big)+2+lv_font_get_line_height(small)<=height;
-  int text_h=lv_font_get_line_height(big)+(with_date?2+lv_font_get_line_height(small):0);
+  bool with_date=lv_font_get_line_height(time_font)+2+lv_font_get_line_height(small)<=height;
+  int text_h=lv_font_get_line_height(time_font)+(with_date?2+lv_font_get_line_height(small):0);
   if(!analog){
     // The largest time that fits, with the date under it when that fits too, centred on the digits themselves
     // (firmware 0.3.6+: a 61 px time in a 63 px card no longer hangs 8 px out of it).
@@ -6319,7 +6426,7 @@ inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int heigh
     // Multi-row cards can be taller than they are wide. Keep the dial centred
     // when its usual time/date column has no room beside it.
     const int room=width-dial-ui::px(large?16:8);
-    const int need=std::max(text_width(time_text(now),big),with_date?text_width(date_text(now),small):0);
+    const int need=std::max(text_width(time_text(now),time_font),with_date?text_width(date_text(now),small):0);
     date_fits=room>=need;
   }
   if(!w.full && !w.wide){
@@ -6379,8 +6486,8 @@ inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int heigh
   if(!date_fits)return;
   if(w.wide){
     int x=dial+(ui::px(large?16:8)),y=std::max(0,(height-text_h)/2);
-    part_label(w,15,big,x,y,width-x,LV_TEXT_ALIGN_CENTER,time_text(now));
-    part_label(w,16,small,x,with_date?y+lv_font_get_line_height(big)+2:y,width-x,LV_TEXT_ALIGN_CENTER,with_date?date_text(now):"");
+    part_label(w,15,time_font,x,y,width-x,LV_TEXT_ALIGN_CENTER,time_text(now));
+    part_label(w,16,small,x,with_date?y+lv_font_get_line_height(time_font)+2:y,width-x,LV_TEXT_ALIGN_CENTER,with_date?date_text(now):"");
     return;
   }
   int x=dial+(ui::px(large?10:6)),room=std::max(1,width-x);
@@ -7755,8 +7862,11 @@ inline void render_slot(size_t slot) {
   // but not over the two that say the screen cannot answer: an unavailable entity and a refused tap still say so.
   std::string chosen;
   const bool set_by_hand = chosen_subtitle(t, chosen);
+  // A tile of a plugin this screen does not have (docs/PLUGINS.md) is a plain card that says so; one it has draws itself.
+  if (t.is_plugin())
+    value = plugin_host::known(t) ? std::string() : std::string(tr(txt::plugin_missing));
   // Nothing in Home Assistant stands behind a built-in card, so it says its own line with the link down too.
-  if (t.is_settings() || t.is_page())
+  else if (t.is_settings() || t.is_page())
     value = set_by_hand ? chosen
           : t.is_settings() ? std::string(tr(txt::tile_tap_to_open))
           : fill(txt::tile_page, "n", t.page_target());
@@ -7854,7 +7964,9 @@ inline void render_slot(size_t slot) {
   bool graph=d=="sensor" && t.display=="graph" && t.has_history && !clock;
   // The energy card (firmware 0.47.0+) draws its own diagram, on any size it takes.
   bool energy=t.is_energy();
-  bool custom=clock||forecast||sunpath||bedside||energy;
+  // A plugin's tile (docs/PLUGINS.md) draws itself too, when this screen has its plugin; else it is a plain card.
+  bool plugin=t.is_plugin() && plugin_host::known(t);
+  bool custom=clock||forecast||sunpath||bedside||energy||plugin;
   if(!large_tile)pad_vertical(w.tile,watch||custom||graph?2:4);
   // A big value that stepped up to the setpoint's digits (the watch block below) keeps them until that block
   // decides again, so a card is not restyled twice a render.
@@ -7870,7 +7982,7 @@ inline void render_slot(size_t slot) {
   set_busy(w,w.busy_drawn,large_tile);
   lap(swipe_profile::BUSY);
   for(auto *o:{w.title,w.value,w.circle,w.unit})set_hidden(o,custom);  // a big-value card on a short cell hides its circle again below
-  if(!w.key)set_hidden(w.icon,false);  // a key that showed a value hid its icon
+  if(!w.key)set_hidden(w.icon,plugin);  // a key that showed a value hid its icon; a plugin tile draws its own
   if(custom && w.picture)lv_obj_add_flag(w.picture,LV_OBJ_FLAG_HIDDEN);
   if(w.key){
     // A key of a bedside clock: the card is the key, round, with the tile's icon in the middle, or its value where
@@ -7893,6 +8005,12 @@ inline void render_slot(size_t slot) {
     lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);hide_panel(w);lv_obj_add_flag(w.progress,LV_OBJ_FLAG_HIDDEN);
     lap(swipe_profile::GEOMETRY);
     energy_view::render(w,t,content_w,content_h);
+    lap(swipe_profile::CUSTOM);
+  }else if(plugin){
+    lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);hide_panel(w);lv_obj_add_flag(w.progress,LV_OBJ_FLAG_HIDDEN);
+    if(w.picture)lv_obj_add_flag(w.picture,LV_OBJ_FLAG_HIDDEN);
+    lap(swipe_profile::GEOMETRY);
+    plugin_host::render(w,t,content_w,content_h);
     lap(swipe_profile::CUSTOM);
   }else if((t.live()||t.is_map())&&render_camera_card(w,t,content_w,content_h)){
     lap(swipe_profile::GEOMETRY);
@@ -8367,6 +8485,10 @@ inline void boot_status(lv_obj_t *page, const char *text, bool waiting = true, b
   } else {
     lv_obj_remove_flag(boot_panel, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_style_bg_opa(boot_panel, LV_OPA_TRANSP, 0);
+    // Back under the tiles after a cover (a layout that stopped on its way): a see-through panel over them would lay
+    // its words across the cards.
+    if (room_label && lv_obj_get_index(boot_panel) > lv_obj_get_index(room_label))
+      lv_obj_move_to_index(boot_panel, lv_obj_get_index(room_label));
   }
   if (boot_spinner) set_hidden(boot_spinner, !waiting);
   if (strcmp(lv_label_get_text(boot_text), text) != 0) lv_label_set_text(boot_text, text);
@@ -8691,8 +8813,11 @@ inline void render(lv_obj_t *room) {
   }
   if (!model.configured && !model.refusal.empty()) boot_status(lv_obj_get_parent(room), tr(txt::tile_refused), false);
   else if (!model.configured) {
+    // A layout on its way (transfer.begun) covers everything until it is complete and its pages are prepared: the
+    // cards of the new layout are drawn as their tiles arrive, and through a see-through screen they showed one by
+    // one over the words, with the page flickering under them.
     const auto view = boot_view(esphome::millis());
-    boot_status(lv_obj_get_parent(room), view.title.c_str(), view.steps.empty(), false, view.facts, view.hint, std::string(), view.steps);
+    boot_status(lv_obj_get_parent(room), view.title.c_str(), view.steps.empty(), transfer.begun, view.facts, view.hint, std::string(), view.steps);
   }
   else if (preparing.foreground) prepare_status();
   else if (boot_panel) boot_forget();
@@ -9253,7 +9378,9 @@ inline size_t layout_cost() {
   size_t sum = 0;
   for (size_t i = 0; i < model.count && i < model.tiles.size(); ++i) {
     const auto &t = model.tiles[i];
-    sum += tile_memory::cost(t.entity, tile_memory::own_action(t.tap), tile_memory::own_line(t.subtitle), board);
+    // A plugin's tile costs what its plugin says (its manifest's memory), and keeps its options and data as extras.
+    if (t.is_plugin()) sum += plugin_host::bytes(t.entity) + (board.psram ? 0 : board.tile_bytes + board.extra_bytes);
+    else sum += tile_memory::cost(t.entity, tile_memory::own_action(t.tap), tile_memory::own_line(t.subtitle), board);
   }
   // And its pages: a page's title, and each item of its top bar that shows an entity (a text or a moment).
   for (const auto &page : model.page_data.records) {
@@ -9347,16 +9474,44 @@ inline size_t kept_capacity() {
   while (made < room && kept_sets[made]) ++made;
   return room > made && psram_free() < KEEP_RESERVE ? made : room;
 }
+// A card and everything it made goes: its custom parts and their points, its energy scene, its plugin, its objects.
+inline void drop_card(Widgets &w) {
+  end_extra(w);
+  if (w.energy) energy_view::release(w);
+  if (w.plugin) plugin_host::release(w);
+  if (captured_slider && (captured_slider == w.slider || captured_slider == w.control_slider)) { captured_slider = nullptr; slider_changed = false; }
+  if (w.tile) lv_obj_delete(w.tile);
+  w = Widgets{};
+}
 // A kept set the board no longer needs (fewer pages, or a smaller limit) goes, cards and all.
 inline void release_kept(size_t from) {
   for (size_t i = from; i < kept_sets.size(); ++i) {
     if (!kept_sets[i]) continue;
-    for (auto &w : *kept_sets[i]) { if (w.energy) energy_view::release(w); if (w.tile) lv_obj_delete(w.tile); }
+    for (auto &w : *kept_sets[i]) drop_card(w);
     kept_sets[i]->~CardSet();
     kept_free(kept_sets[i]);
     kept_sets[i] = nullptr;
     shelf.entries[i] = kept_pages::Shelf::Entry{};
   }
+}
+// Told when the grid changed (packages/core.yaml: the Screen layout sensor says so at once).
+inline std::function<void()> grid_changed;
+// Another grid for the way the glass hangs now, sent by ESP Screens with a layout (firmware 0.53.0+, page_receiver.cpp):
+// every card goes, the kept ones too, as each was measured in a cell of the old grid, and the cards of the new one are
+// made, all under the loading screen the layout brings. The caller has closed what was open (cancel_layout_input). The
+// screen keeps the grid for its next start and reports it in its hello.
+inline void regrid(size_t columns, size_t rows) {
+  if (columns == grid.columns && rows == grid.rows) return;
+  shelf.forget();
+  release_kept(0);
+  for (auto &w : widgets) drop_card(w);
+  grid = Grid{columns, rows};
+  chosen_grids[canvas_upright ? 1 : 0] = grid;
+  save_grids();
+  grid_cells();
+  make_cells(cell_icon_font, cell_circle);
+  ESP_LOGI("grid", "grid %u x %u (%s)", (unsigned) columns, (unsigned) rows, canvas_upright ? "standing up" : "lying down");
+  if (grid_changed) grid_changed();
 }
 inline CardSet *new_card_set() {
   void *memory = kept_allocate(sizeof(CardSet));
@@ -9538,7 +9693,6 @@ inline bool prepare_idle(uint32_t now, uint32_t quiet) {
   auto *input = lv_indev_get_next(nullptr);
   return !(input && lv_indev_get_state(input) == LV_INDEV_STATE_PRESSED);
 }
-inline bool prepared_once = false;  // the first layout since the start was prepared on screen
 inline uint32_t prepare_built_at = 0, last_freshen = 0;
 inline void prepare_done() {
   const bool shown = preparing.foreground;
@@ -9546,7 +9700,7 @@ inline void prepare_done() {
   if (preparing.timer) lv_timer_set_period(preparing.timer, 300);  // from now on: kept pages up to date, when idle
   ESP_LOGI("kept", "pages prepared: %u of %u, PSRAM free %u B", preparing.done, preparing.total, (unsigned) psram_free());
   // The render takes the "Preparing pages" screen away; the header alone, as nothing on the cards changed.
-  if (shown) { prepared_once = true; refresh_header_only(); }
+  if (shown) refresh_header_only();
 }
 inline void prepare_step(lv_timer_t *) {
   if (protocol_problem != ProtocolProblem::none || !transfer.active || !model.ready()) return;
@@ -9577,22 +9731,24 @@ inline void prepare_step(lv_timer_t *) {
   last_freshen = esphome::millis();
   ESP_LOGD("kept", "page %d brought up to date in %u ms", page + 1, (unsigned) (last_freshen - now));
 }
-// A layout was applied: build its other pages, the first time since the start on screen, afterwards in
-// the background; from then on kept pages are brought up to date while the screen is idle. A board that keeps no
-// pages (the CYD) builds each page when it is shown, as before.
+// A layout was applied: build its other pages under the "Preparing pages" screen, which goes the moment they are
+// ready, so the glass shows the loading screen and then the finished layout and nothing in between (every layout;
+// before, only the first since the start was, and a save in the editor flickered). From then on
+// kept pages are brought up to date while the screen is idle. A board that keeps no pages (the CYD) builds each page
+// when it is shown, as before.
 inline void prepare_start() {
   const unsigned pages = page_count();
   if (!room_label || applied_page < 0 || pages < 2 || !kept_capacity()) return;
   preparing.active = true;
-  preparing.foreground = !prepared_once;
+  preparing.foreground = true;
   preparing.done = 0;
   preparing.total = pages - 1;
   prepare_built_at = 0;
   if (!preparing.timer) preparing.timer = lv_timer_create(prepare_step, 10, nullptr);
-  lv_timer_set_period(preparing.timer, preparing.foreground ? 10 : 300);
+  lv_timer_set_period(preparing.timer, 10);
   lv_timer_reset(preparing.timer);
-  ESP_LOGI("kept", "preparing %u pages %s", preparing.total, preparing.foreground ? "before the first page opens" : "in the background");
-  if (preparing.foreground) prepare_status();
+  ESP_LOGI("kept", "preparing %u pages before the first page opens", preparing.total);
+  prepare_status();
 }
 // Another layout is on its way: its pages are built once it is complete (prepare_start).
 inline void prepare_cancel() {
@@ -9637,6 +9793,10 @@ inline uint32_t last_live_second=0;
 inline int last_clock_minute=-2;
 inline bool was_fresh=false;
 inline void tick() {
+#ifndef ESP_SCREEN_HOST
+  // Asked to hang the other way (hang): the answer went out, the preferences are written, the screen starts again.
+  if (turn_restart_at && esphome::millis() - turn_restart_at > 500) { turn_restart_at = 0; esphome::App.safe_reboot(); }
+#endif
   // The network lost or found again changes the whole glass: the Wi-Fi message over everything, or the pages back.
   static bool wifi_shown = false;
   if (const bool shown = wifi_status::problem().shown; shown != wifi_shown) {
@@ -9708,7 +9868,7 @@ inline void tick() {
       std::string now_said;
       for(size_t i=0;i<bar->count;++i){
         const auto kind=bar->items[i].kind;
-        if(kind!=header_bar::Kind::wifi && kind!=header_bar::Kind::battery)continue;
+        if(kind!=header_bar::Kind::wifi && kind!=header_bar::Kind::battery && kind!=header_bar::Kind::plugin)continue;
         const auto now_shown=header_bar::device_item(bar->items[i],device);
         now_said+=std::to_string(now_shown.shown)+':'+std::to_string(now_shown.icon)+':'+now_shown.text+'\x1f';
       }
@@ -9751,6 +9911,8 @@ inline void tick() {
   uint32_t second=esphome::millis()/1000;
   if(second!=last_live_second){
     last_live_second=second;
+    // Every plugin card on the glass counts on its own clock (docs/PLUGINS.md).
+    plugin_host::tick_cards(now_epoch());
     // The media card's bar runs on while the track plays (firmware 0.2.64+). A wait of its face that ran out paints the
     // card again (media_face_follow): a cover that waited for its colour long enough is asked for without it, and an old
     // cover whose next one did not come goes.

@@ -1,5 +1,6 @@
 """Pure validation, firmware generation and bounded display protocol."""
 import base64
+from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
@@ -122,13 +123,50 @@ def channel():
     """'main', 'dev', or None when this app was not added from this repository."""
     return CHANNEL
 
+# A copy of the app installed from a local folder (its slug starts with local_): someone working on Tessera itself.
+LOCAL_APP = False
+
+def set_local(slug):
+    global LOCAL_APP
+    LOCAL_APP = isinstance(slug, str) and slug.startswith('local_')
+
+def plugins_enabled():
+    """Plugins (docs/PLUGINS.md) are on dev while their API is 0.x: for an app added from the `#dev` URL, a local copy of
+    the app, and the editor's development server. The stable app shows nothing of them."""
+    return os.environ.get('SCREEN_EDITOR_ENV') == 'development' or CHANNEL == 'dev' or LOCAL_APP
+
+# The release a screen of the stable app builds from (app 0.4.85): the tag tools/release.py publish makes of this app's
+# own version, so every build of a screen, also one Home Assistant's firmware update or ESPHome Device Builder starts,
+# makes the firmware this app knows. Newer firmware reaches a screen only after the app is updated: the app then
+# points its screens at its new tag, and offers their Update. main moves on with every release; a screen that built
+# from main got the newest firmware on an app that had never heard of it.
+RELEASE_TAG = re.compile(r'^screens-v\d+\.\d+\.\d+$')
+APP_VERSION = None
+
+def set_version(version):
+    """This app's version, from the Supervisor once at the start (server.main); None leaves the stable app on main."""
+    global APP_VERSION
+    APP_VERSION = version if isinstance(version, str) and re.fullmatch(r'\d+\.\d+\.\d+', version) else None
+
+def release_ref():
+    """screens-v<this app's version>, or None when the app does not know its version."""
+    return f'screens-v{APP_VERSION}' if APP_VERSION else None
+
 def ref():
-    """The branch a screen of this app builds from: its channel, else main."""
+    """What a screen of this app builds from: the tag of this app's own release for the stable app, dev for the dev
+    channel, else main."""
+    if CHANNEL == 'main' and release_ref():
+        return release_ref()
     return CHANNEL or REF
+
+def our_ref(value):
+    """A `ref:` the app may move: main, dev or one of its own release tags. A tag, a commit, a branch or a fork the
+    owner chose stays theirs."""
+    return isinstance(value, str) and (value in CHANNELS.values() or bool(RELEASE_TAG.match(value)))
 # The shared firmware of this app release: packages/core.yaml's SCREEN_FIRMWARE_VERSION, what every board builds
 # unless its own board file went ahead with a fix for that board alone (firmware_target, docs/BOARD_RELEASES.md). The
 # middle number is the core: the feature gates below name a shared X.Y.0, so a feature always ships with a new core.
-FIRMWARE_VERSION = '0.52.0'
+FIRMWARE_VERSION = '0.53.0'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -206,6 +244,9 @@ MAP_TILE_MIN_FIRMWARE = (0, 21, 0)
 # power-flow-card-plus draw it, from the Energy settings (energy_flow.py). It is a diagram and nothing else.
 ENERGY_TILE = 'screen.energy'
 ENERGY_MIN_FIRMWARE = (0, 47, 0)
+# How the energy card shows power along a line (catalogue/screen.yaml `energy`): running dots, the default and never
+# stored, or calm lines with an arrow. A firmware that doesn't know the choice keeps the dots.
+ENERGY_FLOWS = tuple(catalogue.of_type('screen')['energy']['flow'])
 MAP_DOMAINS = frozenset(MAP_CARD['with'])
 MAP_MAX_ENTITIES = MAP_CARD['max']
 MAP_OWN = ('map', *MAP_OPTIONS)
@@ -405,6 +446,13 @@ def span_of(size):
 def span_offered(columns, rows, grid):
     """Whether a grid takes this rectangle as a span: smaller than the grid, and more than the names say (2 x 2)."""
     return columns <= grid.columns and rows <= grid.rows and (columns, rows) != (grid.columns, grid.rows) and (columns > 2 or rows > 2)
+
+def sizes_on(grid):
+    """The sizes a screen on this grid takes, as its hello says them (tile_sizes, packages/core.yaml): the names that fit
+    and every span the grid offers. For a screen given another grid with its layout (firmware 0.53.0+), whose hello
+    still names the sizes of the grid it is on."""
+    names = {'single', 'wide', 'full'} | ({'tall'} if grid.rows >= 2 else set()) | ({'square'} if grid.columns >= 2 and grid.rows >= 2 else set())
+    return names | {f'{c}x{r}' for c in range(1, grid.columns + 1) for r in range(1, grid.rows + 1) if span_offered(c, r, grid)}
 
 def is_size(size):
     return size in TILE_SIZES_ON_SCREEN or span_of(size) is not None
@@ -707,11 +755,14 @@ def shape_of(screen):
     # Which way it hangs, in the order of what knows best as well: the canvas the screen reports is one of its
     # board's two, and only when it says nothing does the word from its own profile decide.
     shape = board_shape(board, orientation_shown(board, reported) or screen.get('orientation'))
-    # The rows its own YAML was built with (a Guition with four rows, app 0.4.31), for the grid lying down, which on
-    # square glass is the grid either way.
-    rows = screen.get('grid_rows')
-    if type(rows) is int and rows > 0 and shape.get('width', 0) >= shape.get('height', 0):
-        shape = {**shape, 'rows': rows}
+    # The grid its own YAML was built with (rows since app 0.4.31, columns and rows either way since app 0.4.85), for the
+    # way it hangs: lying down, which on square glass is the grid either way, or standing up.
+    built = screen.get('built_grid') if isinstance(screen.get('built_grid'), dict) else {}
+    standing = shape.get('height', 0) > shape.get('width', 0)
+    for key in ('columns', 'rows'):
+        value = built.get(f'{key}_portrait' if standing else key)
+        if type(value) is int and value > 0:
+            shape = {**shape, key: value}
     if reported:
         shape = {**shape, **reported}
     return shape
@@ -778,6 +829,11 @@ def tile_cost(tile, memory):
     sizes the screen gave in its hello (page_delivery.memory_of). The screen counts the same way (tile_memory::cost), and
     so does the editor (web/src/model/memory.ts): tests/fixtures/memory-conformance.json holds the cases."""
     entity = str(tile.get('entity', ''))
+    if plugin_tile(entity):
+        # A plugin's tile costs what its manifest says (plugin_host::bytes on the screen), and keeps its options and
+        # data as extras.
+        cost = PLUGIN_MEMORY.get(entity, PLUGIN_PLACEHOLDER_BYTES)
+        return cost + (0 if memory['psram'] else memory['tile'] + memory['extra'])
     entry = catalogue.CARD_MEMORY.get(entity) or catalogue.MEMORY.get(entity.split('.', 1)[0], catalogue.DEAREST)
     options = tile.get('options') or {}
     action = options.get('tap') == 'action'
@@ -1018,6 +1074,50 @@ def validate_settings(data):
         raise ValueError(t('addon.errors.settings.dim_above_normal'))
     return clean
 
+# A tile of a plugin (docs/PLUGINS.md): plugin:<plugin>.<tile>. Not an entity: entity_id() stays for Home Assistant's own
+# ids, which commands and events use; a layout takes either.
+PLUGIN_TILE = re.compile(r'^plugin:([a-z][a-z0-9_]{0,31})\.([a-z][a-z0-9_]{0,31})$')
+# What a plugin tile may carry: its size, colour, icon, whether a tap reaches it, and its own options (`plugin`, the
+# manifest's options; checked against the manifest where the screen is known, plugins.check_tile).
+PLUGIN_TILE_OPTIONS = {'size', 'background', 'icon', 'tap', 'plugin', 'plugin_entity'}
+PLUGIN_OPTION_MAX = 12
+PLUGIN_TEXT_MAX = 64
+# What a tile of a plugin the screen does not have costs (plugin_host::PLACEHOLDER_BYTES in the firmware).
+PLUGIN_PLACEHOLDER_BYTES = 64
+# What each plugin tile type the app knows costs, from its manifest's `memory` (plugins.Plugins keeps it up to date).
+PLUGIN_MEMORY = {}
+
+
+def plugin_tile(value):
+    """(plugin, tile) for a plugin tile's entity, else None."""
+    match = PLUGIN_TILE.match(value) if isinstance(value, str) else None
+    return (match.group(1), match.group(2)) if match else None
+
+
+def plugin_entity(value):
+    """An entity a plugin tile belongs to: any Home Assistant entity id, also of a domain Tessera draws no tile for (a
+    calendar); which domains fit is the plugin's manifest's."""
+    return isinstance(value, str) and len(value) <= 120 and re.fullmatch(r'[a-z0-9_]+\.[a-z0-9_]+', value) is not None \
+        and not value.startswith(('screen.', 'plugin'))
+
+
+def plugin_options(value):
+    """A plugin tile's own options in their stored shape: at most 12, each a short text, a number or true/false."""
+    if not isinstance(value, dict) or len(value) > PLUGIN_OPTION_MAX:
+        return False
+    for key, item in value.items():
+        if not isinstance(key, str) or not re.fullmatch(r'[a-z][a-z0-9_]{0,31}', key):
+            return False
+        if isinstance(item, str):
+            if len(item) > PLUGIN_TEXT_MAX:
+                return False
+        elif isinstance(item, bool) or (isinstance(item, (int, float)) and math.isfinite(item)):
+            continue
+        else:
+            return False
+    return True
+
+
 def entity_id(value):
     if not (isinstance(value, str) and len(value) <= 120 and re.fullmatch(r'[a-z0-9_]+\.[a-z0-9_]+', value)):
         return False
@@ -1088,6 +1188,13 @@ def validate_header(data, most=HEADER_MAX_ITEMS):
             contents, shows = (WIFI_CONTENTS, WIFI_SHOWS) if kind == 'wifi' else (BATTERY_CONTENTS, BATTERY_SHOWS)
             if clean['content'] not in contents or clean['show'] not in shows:
                 raise ValueError(t('addon.errors.top_bar.invalid_setting'))
+        elif kind == 'plugin':
+            # A plugin's item (docs/PLUGINS.md): it says itself what it shows, and shows nothing on a screen without it.
+            if set(item) != {'type', 'item'}:
+                raise ValueError(t('addon.errors.top_bar.unknown_setting'))
+            if not plugin_tile(item.get('item')):
+                raise ValueError(t('addon.errors.top_bar.invalid_setting'))
+            clean = {'type': 'plugin', 'item': item['item']}
         elif kind == 'entity':
             if set(item) - {'type', 'entity', 'content', 'icon', 'show'}:
                 raise ValueError(t('addon.errors.top_bar.unknown_setting'))
@@ -1190,7 +1297,9 @@ TILE_EVENT_OPTIONS = {'size': 'size', 'controls': 'controls', 'display': 'displa
                       # A favourite (app 0.4.42): what it plays, as Home Assistant's library names it, and on which speaker.
                       'play': 'play', 'speaker': 'speaker',
                       # Its own shuffle and repeat (app 0.4.84).
-                      'shuffle': 'shuffle', 'repeat': 'repeat'}
+                      'shuffle': 'shuffle', 'repeat': 'repeat',
+                      # How the energy card shows power along a line: dots or lines.
+                      'flow': 'flow'}
 TILE_SIZES = {'full': 'full', 'fullscreen': 'full', 'full screen': 'full', 'full-screen': 'full', 'page': 'full', 'whole page': 'full',
               'wide': 'wide', 'double': 'wide', 'large': 'wide', 'big': 'wide',
               'single': 'single', 'small': 'single', 'normal': 'single', 'tall': 'tall', 'high': 'tall', 'square': 'square'}
@@ -1685,7 +1794,7 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
         raise ValueError(t('addon.errors.layout.tiles_max', n=most))
     clean, seen = [], set()
     for tile in tiles:
-        if not isinstance(tile, dict) or not entity_id(tile.get('entity')):
+        if not isinstance(tile, dict) or not (entity_id(tile.get('entity')) or plugin_tile(tile.get('entity'))):
             raise ValueError(t('addon.errors.layout.unsupported'))
         # A navigation tile goes to a page the screen has: eight, or what its board takes (firmware 0.34.0+).
         if page_target(tile['entity']) > (grid.pages if grid else FIRMWARE_MAX_PAGES):
@@ -1712,9 +1821,31 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
                 item['options'] = dict(tile['options']) if isinstance(tile['options'], dict) else {}
                 clean.append(item)
                 continue
+        if plugin_tile(tile['entity']):
+            # A plugin's tile (docs/PLUGINS.md): its plugin decides what it shows; here only the shape of what it keeps.
+            options = tile.get('options', {})
+            if not isinstance(options, dict) or set(options) - PLUGIN_TILE_OPTIONS or is_key(tile):
+                raise ValueError(t('addon.errors.layout.unknown_settings'))
+            if 'plugin' in options and not plugin_options(options['plugin']):
+                raise ValueError(t('addon.errors.layout.invalid_setting', setting='plugin'))
+            # The entity a plugin tile belongs to (its manifest's `entity`); whether its domain fits is the manifest's.
+            if 'plugin_entity' in options and not plugin_entity(options['plugin_entity']):
+                raise ValueError(t('addon.errors.layout.invalid_setting', setting='plugin_entity'))
+            if 'size' in options and not is_size(options['size']):
+                raise ValueError(t('addon.errors.layout.invalid_setting', setting='size'))
+            if 'tap' in options and options['tap'] not in ('auto', 'none'):
+                raise ValueError(t('addon.errors.layout.invalid_setting', setting='tap'))
+            if 'background' in options and (not isinstance(options['background'], str) or options['background'] not in TILE_BACKGROUNDS):
+                raise ValueError(t('addon.errors.layout.background'))
+            if 'icon' in options and not (options['icon'] == 'auto' or isinstance(options['icon'], str) and options['icon'] in tile_icons.ICONS):
+                raise ValueError(t('addon.errors.choose_icon'))
+            if options:
+                item['options'] = deepcopy(options)
+            clean.append(item)
+            continue
         if 'options' in tile:
             options = tile['options']
-            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon', 'controls', 'action', 'refresh', 'sub', 'fit', 'overlay', 'guard', *MAP_OWN, *FAVORITE_OWN}:
+            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon', 'controls', 'action', 'refresh', 'sub', 'fit', 'overlay', 'guard', 'flow', *MAP_OWN, *FAVORITE_OWN}:
                 raise ValueError(t('addon.errors.layout.unknown_settings'))
             # A navigation tile (screen.page_<n>, firmware 0.2.62+) has a name, an icon, a colour and a width; never the page.
             if page_target(tile['entity']):
@@ -1741,6 +1872,12 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
             # The energy card draws its diagram on every size it takes, with no face, slider or second line of its own.
             if tile['entity'] == ENERGY_TILE:
                 options = {k: v for k, v in options.items() if k not in ('display', 'inline', 'controls', 'history_hours', 'sub')}
+                if 'flow' in options and options['flow'] not in ENERGY_FLOWS:
+                    raise ValueError(t('addon.errors.layout.invalid_setting', setting='flow'))
+                if options.get('flow') == ENERGY_FLOWS[0]:
+                    options = {k: v for k, v in options.items() if k != 'flow'}
+            elif 'flow' in options:
+                options = {k: v for k, v in options.items() if k != 'flow'}
             # Every tile's taps and its type's own (run, an automation's alone: firmware 0.7.0+), from the catalogue.
             taps = tuple(catalogue.taps(domain))
             choices = {'tap': taps, 'display': displays, 'inline': ('none', 'slider')}
@@ -1752,6 +1889,10 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
                     raise ValueError(t('addon.errors.layout.invalid_setting', setting='guard'))
                 if options['guard'] == 'confirm':
                     options = {k: v for k, v in options.items() if k != 'guard'}
+            # A plugin's tap action (docs/PLUGINS.md, plugin:<plugin>.<action>) on any tile: which domains it takes is its
+            # manifest's, and a screen without that plugin does nothing on the tap.
+            if plugin_tile(options.get('tap')):
+                choices.pop('tap')
             for key, allowed in choices.items():
                 if key in options and options[key] not in allowed:
                     raise ValueError(t('addon.errors.layout.invalid_setting', setting=key))
@@ -2778,6 +2919,21 @@ def installation_yaml(data):
     turn = (sides.get(orientation) or {}).get('rotation')
     lying = (sides.get('landscape') or {}).get('rotation')
     rotation_line = f'  LVGL_ROTATION: {quote(str(turn))}\n' if turn is not None and turn != lying else ''
+    # The grid it starts with (app 0.4.85): the board's own unless New screen's Advanced chose another for the way it hangs,
+    # within the range that way takes (boards.json min and max). Only a grid that differs writes lines, the way the
+    # orientation does; the screen's own YAML then wins over the board file's. ESP Screens changes it later without a build.
+    grid_lines = ''
+    grid = data.get('grid')
+    if grid is not None:
+        side = sides.get(orientation) or {}
+        least, most = side.get('min') or [1, 1], side.get('max') or [side.get('columns'), side.get('rows')]
+        if (not isinstance(grid, dict) or set(grid) != {'columns', 'rows'} or not all(type(grid[k]) is int for k in grid)
+                or not least[0] <= grid['columns'] <= most[0] or not least[1] <= grid['rows'] <= most[1]):
+            raise ValueError(t('addon.errors.firmware.grid'))
+        square = side.get('width') == side.get('height')
+        suffix = '_PORTRAIT' if orientation == 'portrait' and not square else ''
+        grid_lines = ''.join(f'  {key}{suffix}: {quote(str(grid[name]))}\n'
+                             for name, key in (('columns', 'GRID_COLS'), ('rows', 'GRID_ROWS')) if grid[name] != side.get(name))
     # The board's other choices (app 0.2.129): a part that differs between boards sold under one name, like the CYD's
     # display controller, offered in boards.yaml with the board file's own value first. That one writes nothing, like
     # lying down; another is a line of the screen's own substitutions, which win over the board file's.
@@ -2812,7 +2968,7 @@ substitutions:
   DEVICE_NAME: {quote(name)}
   DEVICE_FRIENDLY_NAME: {quote(friendly.strip())}
   LANGUAGE: {quote(language)}
-{rotation_line}{choice_lines}{branch_line}
+{rotation_line}{grid_lines}{choice_lines}{branch_line}
 esphome:
   name: {quote(name)}
   friendly_name: {quote(friendly.strip())}

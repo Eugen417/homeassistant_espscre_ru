@@ -13,6 +13,8 @@
 # or its hours over its minutes, with room above, between and below. Roboto's digits are 0.731 of the font size tall and
 # "00:00" is 2.49 of it wide. Where that is not a fifth larger than the display step (a 4-inch Guition, a CYD) the clock
 # takes the display step and its own font stays at its smallest, 8 px, a place holder (runtime_tiles::bedside_digits).
+# A board with 4 MB of flash does the same whatever its glass (BEDSIDE_OWN_DIGITS: 0 in its board file): digits a page
+# tall cost tens of KB there.
 # Both looks include this file, and each states BEDSIDE_WITH_NAMES: 1 when a key has its name under it, 0 when not.
 # A look states a plain value here, never an expression: ESPHome works these out in their order in the merged file.
 # tools/render/run.py renders the clock on every board, and the screen's self test fails one where the digits fit no
@@ -37,4 +39,4 @@ substitutions:
   BEDSIDE_L: ${ [[0.97 * (BEDSIDE_LW | float) / 2.49, (BEDSIDE_LG | float) / 0.731] | min, [0.97 * (BEDSIDE_LW | float) / 1.124, (BEDSIDE_LG | float) / 1.584] | min, [((BEDSIDE_LW | float) - (BEDSIDE_LCOL | float) - 28 * (LOOK_SCALE | float)) / 2.49, ((BEDSIDE_LC | float) - 2 * (TILE_PAD | int)) / 0.731] | min] | max }
   BEDSIDE_P: ${ [[0.97 * (BEDSIDE_PW | float) / 2.49, (BEDSIDE_PG | float) / 0.731] | min, [0.97 * (BEDSIDE_PW | float) / 1.124, (BEDSIDE_PG | float) / 1.584] | min, [((BEDSIDE_PW | float) - (BEDSIDE_PCOL | float) - 28 * (LOOK_SCALE | float)) / 2.49, ((BEDSIDE_PC | float) - 2 * (TILE_PAD | int)) / 0.731] | min] | max }
   BEDSIDE_FIT: ${ [8, [BEDSIDE_L | float, BEDSIDE_P | float] | min] | max | int }
-  FONT_BEDSIDE_SIZE: ${ (BEDSIDE_FIT | int) if (BEDSIDE_FIT | float) >= 1.2 * (FONT_DISPLAY_SIZE | float) else 8 }
+  FONT_BEDSIDE_SIZE: ${ (BEDSIDE_FIT | int) if (BEDSIDE_OWN_DIGITS | int) and (BEDSIDE_FIT | float) >= 1.2 * (FONT_DISPLAY_SIZE | float) else 8 }

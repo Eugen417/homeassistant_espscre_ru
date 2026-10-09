@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <string>
 
+#include "screen_hooks.h"
+
 namespace screen_input {
 // The n-th quoted item of a JSON list such as ["auto","low","high"]; empty when absent.
 inline std::string list_item(const std::string &json, unsigned index) {
@@ -71,9 +73,12 @@ class TouchGuard {
   }
   int distance() const { return distance_; }
   void consume() { accepted_ = true; moved_ = true; }
+  // A tap and a key say so to screen_hooks::touched() (a click of a plugin); a slider's release does not.
   bool accept(uint32_t now, int tile) {
     if (moved_) { reject_ = MOVED; return false; }
-    return accept_within(now, tile, 600);
+    if (!accept_within(now, tile, 600)) return false;
+    screen_hooks::run_touched();
+    return true;
   }
   // For -/+ keys and the page buttons: every clean tap counts, even the third within a second,
   // so a setpoint moves several steps in one go and Next, Next, Next reaches page 4 without
@@ -84,6 +89,7 @@ class TouchGuard {
     if (!long_enough(now, std::min<uint32_t>(min_press_, 40))) return false;
     if (has_previous_ && tile == previous_tile_ && now - previous_ < gap) { reject_ = BOUNCE; return false; }
     remember(now, tile);
+    screen_hooks::run_touched();
     return true;
   }
   // Only for a slider which captured this contact and did not lose the press.

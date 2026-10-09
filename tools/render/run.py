@@ -22,6 +22,7 @@ installed. It exits 1 when a variant does not build, does not start, or fails it
 """
 import argparse
 import asyncio
+import dataclasses
 import http.server
 import io
 import json
@@ -587,6 +588,129 @@ class Run:
         await self.offline_swipe(True, home_page)
         await self.offline_swipe(False, 0)
         self.warnings.append('Offline swipes passed with the API client disconnected; active layout survived malformed updates')
+        return await self.self_test()
+
+    async def plugin_round(self, grid):
+        """The plugin host (docs/PLUGINS.md) on the real firmware, with the host probe plugin built in
+        (tests/fixtures/plugins/host_probe): a layout with a plugin tile on page 1 and on page 2 and a sensor tile whose
+        tap is the plugin's tap action, then every moment the probe logs, in the order the API promises them: the
+        hello names the plugin, create then state then tick, new data, the look, a tap that opens the plugin's card and
+        Back that closes it, the tap action, the plugin's question answered, a page change and back, standby. The self
+        test runs on the layout too. Every count is read from the probe's own log lines."""
+        from core import plugin_tile
+        calls = []
+        self.client.subscribe_service_calls(calls.append)
+        # The probe's own lines carry its tag; nothing else on the log is read as a moment of the plugin.
+        probe = lambda line, text: '[probe:' in line and text in line
+        said = lambda start, text: sum(probe(line, text) for line in self.lines[start:])
+        tiles = [dict(entity='plugin:host_probe.probe', name='Probe', slot=0, options={'plugin': {'word': 'Hello'}}),
+                 dict(entity='sensor.hall', name='Hall', slot=1, options={'tap': 'plugin:host_probe.open'}),
+                 dict(entity='plugin:host_probe.probe', name='Second', slot=grid.slots, options={'plugin': {'word': 'Two'}})]
+        record = send_layout.migrate_legacy(dict(title='Plugins', tiles=tiles), grid)
+        compiled = send_layout.compile_tiles(record['layout'], grid)
+        states = {'sensor.hall': {'state': '21', 'attributes': {'unit_of_measurement': '°C', 'friendly_name': 'Hall'}}}
+        second = next(i for i, tile in enumerate(compiled) if tile['name'] == 'Second')
+        sensor = next(i for i, tile in enumerate(compiled) if tile['entity'] == 'sensor.hall')
+        def values(n):
+            # The state message of a plugin tile as plugins.Plugins.tile_message shapes it: its options and its data.
+            return [{'v': 1, 'op': 'state', 'i': i, 'entity': tile['entity'], 'name': tile['name'], 'state': 'ok', 'a': {},
+                     'o': {'plugin': (tile.get('options') or {}).get('plugin') or {}}, 'x': {'n': n}}
+                    if plugin_tile(tile['entity']) else send_layout.state_message(i, tile, states)
+                    for i, tile in enumerate(compiled)]
+        bars = [[{'k': 'plugin', 't': 'plugin:host_probe.mark'}, {'k': 'clock'}] for _ in record['layout']['pages']]
+        region = dict(keepalive=120, clock_24h=True, numbers='point', group_min=1, percent_space=False)
+        start = len(self.lines)
+        await self.sender.synchronize(self.inbox.object_id, record, region, values(1), bars)
+        # The hello says the firmware takes plugins, names the API, and the plugin with its tile (plugin_host::hello).
+        mine = next((p for p in self.sender.plugins if p['id'] == 'host_probe'), None)
+        assert 'plugins' in self.sender.features and self.sender.plugin_api and mine and mine['tiles'] == ['probe'], \
+            f'the hello says plugin_api={self.sender.plugin_api} plugins={self.sender.plugins}'
+        self.warnings.append(f'hello: plugin API {self.sender.plugin_api}, host_probe {mine["version"]}')
+        await self.call('render_page', page=0)
+        await self.page_done(0)
+        # The life of the tile on page 1: made with its options, fed, ticked, in that order.
+        await self.until(lambda l: probe(l, 'tile=0 create') and 'word=[Hello]' in l, 10, 'tile 0 created', start)
+        await self.until(lambda l: probe(l, 'tile=0 state n=1'), 10, 'tile 0 fed', start)
+        await self.until(lambda l: probe(l, 'tile=0 tick'), 10, 'tile 0 ticked', start)
+        order = [next(k for k, word in enumerate(('create', 'state', 'tick')) if f'tile=0 {word}' in l)
+                 for l in self.lines[start:] if '[probe:' in l and any(f'tile=0 {w}' in l for w in ('create', 'state', 'tick'))][:3]
+        assert order == [0, 1, 2], f'tile 0 moments came as {order}, not create, state, tick'
+        # Boot came before the harness listened: the probe repeats what it heard then with every tile it makes.
+        status = await self.until(lambda l: probe(l, 'status ready='), 10, 'the probe status', start)
+        assert 'ready=1 settings=5 interval=1' in status, f'the moments of boot: {status}'
+        # No update was shown (the plugin round skips the starting steps, whose 'updating' would call ota_status::wake).
+        updates = int(re.search(r'updates=(\d+)', status).group(1))
+        if updates:
+            self.failures.append(f'before_update was heard {updates} times without an update')
+        await self.until(lambda l: probe(l, 'bar read'), 10, 'the bar item was asked', 0)
+        await self.render('plugin-page-1')
+        # New data: on_state again, with the new number, and no new object.
+        start = len(self.lines)
+        await self.sender.synchronize(self.inbox.object_id, record, region, values(2), bars)
+        await self.until(lambda l: probe(l, 'tile=0 state n=2'), 10, 'tile 0 fed again', start)
+        assert said(start, 'tile=0 create') == 0, 'new data made a new tile object'
+        # Light and dark: on_theme, once each way.
+        start = len(self.lines)
+        self.client.switch_command(self.dark_switch.key, True)
+        await self.until(lambda l: probe(l, 'tile=0 theme dark=1'), 10, 'dark', start)
+        await self.render('plugin-page-1-dark')
+        self.client.switch_command(self.dark_switch.key, False)
+        await self.until(lambda l: probe(l, 'tile=0 theme dark=0'), 10, 'light again', start)
+        # The question the first tile asked: the app's answer reaches on_message (the harness stands in for the app).
+        sent = next((c for c in calls if c.service == 'esphome.screen_plugin'), None)
+        assert sent and sent.data.get('plugin') == 'host_probe' and sent.data.get('inbox'), f'no question from the plugin: {calls}'
+        body = json.loads(sent.data['body'])
+        start = len(self.lines)
+        await self.send({'v': 2, 'op': 'plugin', 'p': 'host_probe', 'm': {'re': body['re'], 'ok': True, 'result': {'events': 2}}})
+        await self.until(lambda l: probe(l, f'message re={body["re"]} ok=1') and '"events":2' in l, 10, 'the answer reached on_message', start)
+        # A tap on the plugin tile: through the touch guard to on_tap and on_touch; the plugin opens its card.
+        start = len(self.lines)
+        tile = (await self.navigation_state())['tile']
+        await self.tap(*tile)
+        await self.until(lambda l: probe(l, 'tile=0 tap'), 10, 'on_tap', start)
+        await self.until(lambda l: probe(l, 'touch'), 10, 'on_touch', start)
+        await self.until(lambda l: probe(l, 'card open') and 'tile=0' in l, 10, 'the card opened', start)
+        await self.until(lambda l: probe(l, 'card tick'), 10, 'the card ticked', start)
+        await self.render('plugin-card')
+        start = len(self.lines)
+        await self.call('render_close_cards')
+        await self.until(lambda l: probe(l, 'card destroy'), 10, 'the card closed', start)
+        await self.until(lambda l: probe(l, 'cards_closed'), 10, 'on_cards_closed', start)
+        # The tap action on the sensor tile: a short tap runs the plugin's action with the tile's entity.
+        start = len(self.lines)
+        await self.call('render_tile_center', index=sensor)
+        line = await self.until(lambda l: f'tile_center index={sensor}' in l, 5, 'the sensor tile', start)
+        x, y = (int(v) for v in re.search(r'x=(-?\d+) y=(-?\d+)', line).groups())
+        assert x >= 0 and y >= 0, 'the sensor tile is not on the glass'
+        await self.tap(x, y)
+        await self.until(lambda l: probe(l, 'tap_action entity=[sensor.hall]'), 10, 'the tap action', start)
+        await self.until(lambda l: probe(l, 'card open') and 'entity=[sensor.hall]' in l, 10, 'the action opened the card', start)
+        await self.call('render_close_cards')
+        await self.until(lambda l: probe(l, 'card destroy'), 10, 'the card closed again', start)
+        # Page 2 and back: the tile there lives, and the one on page 1 ticks again afterwards; on a board without
+        # PSRAM the card is made anew, on one with it the kept card simply shows again.
+        start = len(self.lines)
+        await self.call('render_page', page=1)
+        await self.page_done(1)
+        await self.until(lambda l: probe(l, f'tile={second} tick'), 10, 'the tile on page 2 ticked', start)
+        await self.render('plugin-page-2')
+        start = len(self.lines)
+        await self.call('render_page', page=0)
+        await self.page_done(0)
+        await self.until(lambda l: probe(l, 'tile=0 tick'), 10, 'tile 0 ticked after the page came back', start)
+        tiles_said = lambda text: sum(probe(l, text) and 'tile=' in l for l in self.lines)   # the tiles', not the card's
+        creates, destroys = tiles_said('create'), tiles_said('destroy')
+        assert 1 <= creates - destroys <= 2, f'{creates} tile objects made, {destroys} deleted: a leak or a card that went'
+        self.warnings.append(f'tile objects: {creates} made, {destroys} deleted over two page changes')
+        # Standby and back: on_standby both ways.
+        if 'render_standby' in self.services:
+            start = len(self.lines)
+            await self.call('render_standby', enter=1)
+            await self.until(lambda l: probe(l, 'standby dark=1'), 10, 'on_standby(true)', start)
+            await self.call('render_standby', enter=0)
+            await self.until(lambda l: probe(l, 'standby dark=0'), 10, 'on_standby(false)', start)
+        await self.call('render_page', page=0)
+        await self.page_done(0)
         return await self.self_test()
 
     async def rectangular_tiles(self, grid):
@@ -2107,10 +2231,12 @@ class Run:
         if 'render_skip_calibration' in self.services:
             await self.call('render_skip_calibration')
         await self.call('render_time', epoch=int(MOMENT.timestamp()))
-        # The starting screen with its Tessera lockup, before any layout (firmware 0.3.8+).
-        await self.render('starting')
+        # The starting screen with its Tessera lockup, before any layout (firmware 0.3.8+). The plugin round leaves the
+        # starting steps out: they are not its subject, and each takes its 25 s of snapshots (a spinner never settles).
+        if self.only != 'plugin':
+            await self.render('starting')
         # Each step of it as the screen says it (firmware 0.38.0), from Wi-Fi to an update, then back as it was.
-        if 'render_boot' in self.services:
+        if 'render_boot' in self.services and self.only != 'plugin':
             for name, given in BOOT_STATES:
                 await self.call('render_boot', **{**BOOT_DEFAULTS, **given})
                 await self.render(name)
@@ -2148,6 +2274,8 @@ class Run:
             return 1, await self.saver_panel()
         if self.only == 'humidifier':
             return 1, await self.humidifier_panel(grid)
+        if self.only == 'plugin':
+            return 1, await self.plugin_round(grid)
         checks = await self.self_test()
         await self.moments(pages)
         for page in range(pages):
@@ -2236,6 +2364,8 @@ def main():
     parser.add_argument('--work', type=Path, help='where the host builds go (default: .esphome/render/build)')
     parser.add_argument('--camera', default='960x540', help='the camera picture of the camera alert, WxH')
     parser.add_argument('--only', choices=['alarm', 'lock', 'automation', 'remote', 'bedside', 'media', 'saver', 'humidifier'], help='after the demo layout arrives, run only this stage')
+    parser.add_argument('--plugin', type=Path, help='a plugin folder (docs/PLUGINS.md) to build into the variants, then run the plugin '
+                        'round alone: tests/fixtures/plugins/host_probe proves the plugin host on the real firmware')
     parser.add_argument('--port-base', type=int, help='the first API port (default host.PORT_BASE); another worktree may use it')
     args = parser.parse_args()
     # The programs write their pictures from their own folder, so every path they get is absolute.
@@ -2243,6 +2373,9 @@ def main():
     if args.port_base:
         host.PORT_BASE = args.port_base
     items = [host.variant(key) for key in args.variants] or host.variants()
+    if args.plugin:
+        # Its own build folder and port, so a plain render of the same board and a render with a plugin never meet.
+        items = [dataclasses.replace(item, key=f'{item.key}-plugin', port=item.port + 100) for item in items]
     busy = [str(item.port) for item in items if not free(item.port)]
     if busy:
         raise SystemExit(f'ports {", ".join(busy)} are in use; stop what listens there first')
@@ -2252,7 +2385,7 @@ def main():
     results, failed = {}, []
     tree = args.tree.resolve()
     for item in items:
-        build = host.Build(item, tree=tree, work=args.work, esphome=esphome)
+        build = host.Build(item, tree=tree, work=args.work, esphome=esphome, plugin=args.plugin)
         started = time.monotonic()
         ok, output = build.compile()
         if not ok:
@@ -2261,7 +2394,7 @@ def main():
             print(f'{item.key}: BUILD FAILED\n{output[-2000:]}', flush=True)
             continue
         built = time.monotonic()
-        run = Run(build, args.out / item.key, pictures, camera, args.only)
+        run = Run(build, args.out / item.key, pictures, camera, 'plugin' if args.plugin else args.only)
         try:
             summary = asyncio.run(run.run())
         except Exception as error:  # a program that crashed or stopped answering

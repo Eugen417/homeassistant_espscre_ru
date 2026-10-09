@@ -63,15 +63,11 @@ def generate(dpi, look, profile):
     home = copy.deepcopy(next(p for p in lvgl['pages'] if p['id'] == 'home_page'))
     keep = {'lbl_room', 'lbl_time', 'tile_scroll', 'page_prev', 'page_number', 'page_next'}
     home['widgets'] = [w for w in home['widgets'] if next(iter(w.values())).get('id') in keep]
-    # Use ESPHome's first cell verbatim as a prototype. The host creates as many
-    # identical firmware cells as the selected runtime grid requires.
-    cells = profiles.resolve((ROOT / 'packages/cells/6.yaml').read_text(), values)
-    cell = yaml.load(cells, Loader=Loader)['lvgl']['pages'][0]['widgets'][0]['obj']['widgets'][0]
+    # The cards are no YAML widgets: the firmware makes them at boot, one per cell of the runtime grid
+    # (runtime_tiles::make_cells), and the host runs that same boot line below.
     for widget in home['widgets']:
         data = next(iter(widget.values()))
         data.pop('on_click', None)  # host connects the same firmware navigation guard
-        if data['id'] == 'tile_scroll':
-            data['widgets'] = [cell]
     # The core's pictures (the Tessera mark on the start screen and as the home key) through ESPHome's own image
     # conversion, like the fonts.
     images = yaml.load(section(core, 'image'), Loader=Loader)['image']
@@ -139,23 +135,21 @@ def generate(dpi, look, profile):
     end = src.index(';', end) + 1
     setup = src[start:end].replace('home_page->obj', 'root')
     setup = re.sub(r'^\s*#line[^\n]*\n', '\n', setup, flags=re.M)
-    cell_start = setup.index('tile1 = lv_obj_create')
-    cell_end = setup.index('page_prev = lv_obj_create')
-    cell_setup = setup[cell_start:cell_end]
-    setup = setup[:cell_start] + setup[cell_end:]
     objects = re.findall(r'(\w+) = lv_\w+_create\(', setup)
-    cell_objects = re.findall(r'(\w+) = lv_\w+_create\(', cell_setup)
-    if not all(name in objects for name in keep) or len(cell_objects) != 5:
-        raise RuntimeError('ESPHome widget codegen changed: check home/cell boundary')
+    if not all(name in objects for name in keep) or 'tile1' in objects:
+        raise RuntimeError('ESPHome widget codegen changed: check the home page objects')
+    # The boot lines that make the cards, as the shared core runs them: their styles, then one card per cell.
+    cards = re.findall(r'runtime_tiles::card_look = \{[^;]+\};|runtime_tiles::make_cells\([^;]+\);', core)
+    if len(cards) != 2:
+        raise RuntimeError('packages/core.yaml changed how it makes the cards: check card_look and make_cells')
+    cards = [re.sub(r'id\((\w+)\)->get_lv_font\(\)', r'\1', re.sub(r'id\((\w+)\)(?!->)', r'\1', line)) for line in cards]
     # Font assignments in current ESPHome use LVGL's proxy; the host calls LVGL
     # directly, so use the very same Font object's get_lv_font() above.
     output = ['// Generated from the firmware YAML by ESPHome. No host tile renderer.', '#include "fonts.h"',
               *[f'static lv_style_t storage_{n}; static lv_style_t *{n} = &storage_{n};' for n in style_names],
               *[f'static lv_obj_t *{n};' for n in objects],
               'static void setup_firmware_ui(lv_obj_t *root) {', styles, setup, '}',
-              'static void setup_firmware_cell(size_t index) {',
-              *[f'lv_obj_t *{n};' for n in cell_objects], cell_setup,
-              'runtime_tiles::bind(index, tile1, t1_title, t1_value, tile1_icon_circle, tile1_icon_lbl);', '}']
+              'static void setup_firmware_cells() {', *cards, '}']
     # Read the paint mapping and font bindings rather than maintaining a second
     # list: these are the actual on_boot statements from the shared core.
     paints = re.search(r'theme::paints = \[\]\(\) \{(.*?)\n\s*\};', core, re.S)[1]
@@ -182,7 +176,7 @@ if __name__ == '__main__':
     for dpi, look, profile in targets:
         generate(dpi, look, profile)
     lines = ['// Generated firmware profile dispatch.', '#include "font.h"',
-             'struct FirmwareUi { lv_obj_t *room, *time, *prev, *next, *number; void (*bind)(); void (*cell)(size_t); const char *look; };']
+             'struct FirmwareUi { lv_obj_t *room, *time, *prev, *next, *number; void (*bind)(); void (*cells)(); const char *look; };']
     if len({dpi for dpi, _, _ in targets}) != len(targets):
         raise RuntimeError('Multiple looks at the same density: extend the host profile selector before building.')
     for dpi, look, _ in targets:
@@ -192,6 +186,6 @@ if __name__ == '__main__':
     for dpi, look, _ in targets:
         ns = f'{look}_{dpi}'
         lines += [f'if (dpi == {dpi}) {{ using namespace {ns}; setup_firmware_ui(root);',
-                  f'return {{lbl_room, lbl_time, page_prev, page_next, page_number, bind_firmware_ui, setup_firmware_cell, "{look}"}}; }}']
+                  f'return {{lbl_room, lbl_time, page_prev, page_next, page_number, bind_firmware_ui, setup_firmware_cells, "{look}"}}; }}']
     lines += ['return {};', '}']
     (OUT.parent / 'profiles.h').write_text('\n'.join(lines) + '\n')

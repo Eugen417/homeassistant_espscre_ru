@@ -12,7 +12,7 @@ from pathlib import Path
 import tempfile
 
 from core import STORE_MAX_BAR_ITEMS, STORE_MAX_PAGES, STORE_MAX_TILES
-from page_delivery import ceiling_of, memory_of
+from page_delivery import ceiling_of, grids_of, memory_of
 
 LOG = logging.getLogger('screen_manager')
 SIZES = {'single', 'wide', 'full', 'tall', 'square'}
@@ -24,8 +24,18 @@ def known_size(size):
 
 
 def identity(screen):
-    return {key: screen.get(key) for key in ('device_id', 'firmware_known', 'node', 'board', 'shape')
-            if screen.get(key) not in (None, '', 'unknown', 'unavailable')}
+    """What makes a screen the one its capabilities were learned from. Of its shape only the glass counts (its density,
+    its look and its size whichever way it hangs): the grid it runs on and the way it hangs change while it runs
+    (firmware 0.53.0+), and a session must not end because ESP Screens gave it another grid."""
+    marker = {key: screen.get(key) for key in ('device_id', 'firmware_known', 'node', 'board')
+              if screen.get(key) not in (None, '', 'unknown', 'unavailable')}
+    shape = screen.get('shape')
+    if isinstance(shape, dict):
+        glass = {key: shape.get(key) for key in ('dpi', 'look') if shape.get(key) is not None}
+        if isinstance(shape.get('width'), int) and isinstance(shape.get('height'), int):
+            glass['size'] = sorted((shape['width'], shape['height']))
+        if glass: marker['shape'] = glass
+    return marker
 
 
 class CapabilityCache:
@@ -52,6 +62,9 @@ class CapabilityCache:
         sender.last_max_pages = ceiling_of(record.get('pages'), STORE_MAX_PAGES)
         sender.last_max_bar_items = ceiling_of(record.get('bar_items'), STORE_MAX_BAR_ITEMS)
         sender.last_memory = memory_of({'memory': record.get('memory')})
+        # The grids it takes and keeps (firmware 0.53.0+): the editor offers them while it is offline, and the grid a save
+        # gives it then waits for it.
+        sender.last_grids = grids_of({'grids': record.get('grids')})
 
     def remember(self, inbox, screen, sender):
         marker = identity(screen)
@@ -63,6 +76,8 @@ class CapabilityCache:
         # The figures it last measured: not "still measuring" (firmware 0.51.0), which says nothing for an offline screen.
         measured = sender.memory if sender.memory and sender.memory.get('room') is not None else sender.last_memory
         if measured: record['memory'] = {key: value for key, value in measured.items() if key != 'short'}
+        grids = sender.grids or sender.last_grids
+        if grids: record['grids'] = grids
         if self.records.get(inbox) == record: return
         self.records[inbox] = record
         self._save()

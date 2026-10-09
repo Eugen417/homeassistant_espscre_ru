@@ -82,7 +82,7 @@ int preview_init(int w, int h, int display_dpi, int columns, int rows) {
   ui::configure(display_dpi, firmware.look);
   firmware.bind();
   preview_images::bind();
-  for (size_t i = 0; i < runtime_tiles::grid.slots(); ++i) firmware.cell(i);
+  firmware.cells();
   runtime_tiles::room_label = firmware.room;
   runtime_tiles::time_label = firmware.time;
   runtime_tiles::enabled = true;

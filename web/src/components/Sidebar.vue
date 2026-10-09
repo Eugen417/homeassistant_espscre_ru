@@ -1,15 +1,19 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { vTooltip } from "floating-vue";
+import "floating-vue/dist/style.css";
 import { t } from "../i18n";
 import { boardTitle } from "../model/boards";
 import { glyph } from "../model/topbar";
 import {
   copyText, forgetPending, go, goHome, languageOnly, newLanguageText, openIntegrations, refresh, removeScreen, renameScreen, route, screenSubline,
-  select, startUpdate, state, updateProgress, updateState, whatsNew,
+  buildOf, buildingScreens, buildProgress, select, startUpdate, state, updateState, whatsNew,
 } from "../store";
 import type { Screen } from "../types";
 import Icon from "./ui/Icon.vue";
 import TesseraMark from "./TesseraMark.vue";
+import { pluginsEnabled } from "../plugin-state";
+import { SIDE_MAX, SIDE_MIN, dragSidebar, resetSidebar, sideWidth, sidebar, toggleSidebar } from "../sidebar-state";
 
 const hostFor = ref<string | null>(null);
 const host = ref("");
@@ -49,7 +53,8 @@ const isSelected = (screen: Screen) => screen.id === state.selected && route.val
 // So does one that has to be updated here rather than in ESPHome Device Builder (app 0.4.82), while an update waits.
 const explains = (screen: Screen) => ["failed", "blocked"].includes(updateState(screen)?.kind || "")
   || Boolean(screen.update_in_tessera && updateState(screen)?.kind === "available");
-const isOpen = (screen: Screen) => folded.value?.id === screen.id ? folded.value.open : isSelected(screen) && explains(screen);
+// Folded to its icons the sidebar has no room for a screen's details: the row opens them again.
+const isOpen = (screen: Screen) => !sidebar.folded && (folded.value?.id === screen.id ? folded.value.open : isSelected(screen) && explains(screen));
 const chevronShown = (screen: Screen) => isSelected(screen) || isOpen(screen);
 function choose(screen: Screen) {
   if (!isSelected(screen)) folded.value = null;
@@ -87,6 +92,47 @@ function startWithHost(screen: Screen) {
   hostFor.value = null;
   startUpdate(screen, address);
 }
+// Folded to its icons (app 0.4.85) every row says what it is in a tooltip beside it; open, only a row whose name is
+// cut short does, with its whole name. Which names are cut is measured when the width or the list changes.
+const aside = ref<HTMLElement>();
+const cut = ref<Record<string, boolean>>({});
+function measure() {
+  const found: Record<string, boolean> = {};
+  aside.value?.querySelectorAll<HTMLElement>("[data-tip]").forEach((row) => {
+    const text = row.querySelector<HTMLElement>(".name, .txt");
+    found[row.dataset.tip!] = !!text && text.scrollWidth > text.clientWidth + 1;
+  });
+  cut.value = found;
+}
+const remeasure = () => nextTick(measure);
+watch(() => [sidebar.width, sidebar.folded, state.inventory.screens.map((screen) => screen.name).join("\n")], remeasure);
+onMounted(() => { remeasure(); window.addEventListener("resize", remeasure); });
+onBeforeUnmount(() => window.removeEventListener("resize", remeasure));
+const tip = (key: string, text: string | undefined, always = false) =>
+  text && (sidebar.folded || always || cut.value[key]) ? { content: text, placement: "right", distance: 10, delay: { show: 200, hide: 0 } } : null;
+const screenTip = (screen: Screen) => [screen.name, subline(screen)?.text].filter(Boolean).join(" · ");
+// The edge: dragged, by the arrow keys (Shift for bigger steps) or reset with a double click (sidebar-state.ts).
+function startResize(event: PointerEvent) {
+  const handle = event.currentTarget as HTMLElement, left = aside.value?.getBoundingClientRect().left || 0;
+  event.preventDefault();
+  handle.setPointerCapture(event.pointerId);
+  sidebar.resizing = true;
+  const move = (e: PointerEvent) => dragSidebar(e.clientX - left);
+  const stop = () => { sidebar.resizing = false; handle.removeEventListener("pointermove", move); handle.removeEventListener("pointerup", stop); handle.removeEventListener("pointercancel", stop); };
+  handle.addEventListener("pointermove", move);
+  handle.addEventListener("pointerup", stop);
+  handle.addEventListener("pointercancel", stop);
+}
+function resizeKey(event: KeyboardEvent) {
+  const by = event.shiftKey ? 48 : 16;
+  if (event.key === "ArrowLeft") dragSidebar(sideWidth() - by);
+  else if (event.key === "ArrowRight") dragSidebar(sidebar.folded ? SIDE_MIN : sideWidth() + by);
+  else if (event.key === "Home") resetSidebar();
+  else return;
+  event.preventDefault();
+}
+// A plugin build on the way on any screen: the Plugins entry turns.
+const pluginBuilds = () => buildingScreens().some((screen) => buildOf(screen)?.by === "plugins");
 const lastLog = () => {
   const lines = state.firmwareJob?.logs || [];
   return lines.length ? lines[lines.length - 1] : "";
@@ -105,24 +151,37 @@ const pendingText = (p: { installed?: boolean; downloaded?: boolean; file: strin
 </script>
 
 <template>
-  <aside class="side">
-    <button type="button" class="brand" :aria-label="t('editor.sidebar.home')" :title="t('editor.sidebar.home')" :aria-current="!state.selected && route === '' ? 'page' : undefined" @click="goHome">
-      <TesseraMark class="mark" />
-      <span>Tessera</span>
-    </button>
-    <span v-if="!state.reachable || !state.connected" id="connection" class="conn" role="status">
-      {{ !state.reachable ? t("editor.sidebar.connection.unreachable") : t("editor.sidebar.connection.reconnecting") }}
+  <aside ref="aside" class="side">
+    <div class="side-top">
+      <button type="button" class="brand" :aria-label="t('editor.sidebar.home')" :title="sidebar.folded ? undefined : t('editor.sidebar.home')"
+        v-tooltip="tip('brand', t('editor.sidebar.home'))" :aria-current="!state.selected && route === '' ? 'page' : undefined" @click="goHome">
+        <TesseraMark class="mark" />
+        <span class="txt">Tessera</span>
+      </button>
+      <button type="button" id="side-fold" class="icon-btn side-fold" :aria-pressed="sidebar.folded ? 'true' : 'false'"
+        :aria-label="t(sidebar.folded ? 'editor.sidebar.unfold' : 'editor.sidebar.fold')" v-tooltip="tip('fold', t(sidebar.folded ? 'editor.sidebar.unfold' : 'editor.sidebar.fold'), true)"
+        @click="toggleSidebar"><Icon name="dock-left" /></button>
+    </div>
+    <span v-if="!state.reachable || !state.connected" id="connection" class="conn" role="status"
+      v-tooltip="tip('conn', !state.reachable ? t('editor.sidebar.connection.unreachable') : t('editor.sidebar.connection.reconnecting'))">
+      <Icon name="wifi-off" class="conn-icon" /><span class="conn-text">{{ !state.reachable ? t("editor.sidebar.connection.unreachable") : t("editor.sidebar.connection.reconnecting") }}</span>
     </span>
-    <button type="button" class="search-btn" id="open-palette" @click="state.palette = true"><Icon name="magnify" />{{ t("editor.sidebar.search") }}<kbd>⌘K</kbd></button>
+    <button type="button" class="search-btn" id="open-palette" data-tip="search" v-tooltip="tip('search', `${t('editor.sidebar.search')} ⌘K`)" :aria-label="t('editor.sidebar.search')"
+      @click="state.palette = true"><Icon name="magnify" /><span class="txt">{{ t("editor.sidebar.search") }}</span><kbd>⌘K</kbd></button>
     <div class="label label-row">
       <span>{{ t("editor.sidebar.screens") }}</span>
       <button id="refresh" type="button" class="icon-btn" :aria-label="t('editor.sidebar.refresh')" :title="t('editor.sidebar.refresh')" @click="refresh()"><Icon name="refresh" /></button>
-      <button id="new-screen" type="button" class="icon-btn" :aria-current="route === '#new-screen' ? 'true' : 'false'" :aria-label="t('editor.nav.new_screen')" :title="t('editor.nav.new_screen')" @click="go('#new-screen')"><Icon name="plus" /></button>
+      <button id="new-screen" type="button" class="icon-btn" :aria-current="route === '#new-screen' ? 'true' : 'false'" :aria-label="t('editor.nav.new_screen')"
+        :title="sidebar.folded ? undefined : t('editor.nav.new_screen')" v-tooltip="tip('new', t('editor.nav.new_screen'))" @click="go('#new-screen')"><Icon name="plus" /></button>
     </div>
     <div id="screens">
       <div v-for="screen in state.inventory.screens" :key="screen.id" class="screen-item" :class="[{ selected: isSelected(screen), open: isOpen(screen) }, status(screen)]">
-        <button type="button" class="nav-item" :aria-current="isSelected(screen) ? 'true' : 'false'" :title="subline(screen)?.text" @click="choose(screen)">
+        <button type="button" class="nav-item" :data-tip="`screen:${screen.id}`" :aria-current="isSelected(screen) ? 'true' : 'false'"
+          :aria-label="screenTip(screen)" :title="tip(`screen:${screen.id}`, screenTip(screen)) ? undefined : subline(screen)?.text"
+          v-tooltip="tip(`screen:${screen.id}`, screenTip(screen))" @click="choose(screen)">
           <span class="board-icon mdi" aria-hidden="true">{{ boardIcon(screen) }}</span>
+          <!-- Folded, the row keeps its news as a dot on the icon: an update ready, or one that waits. -->
+          <span v-if="sidebar.folded && ['update', 'waiting'].includes(status(screen))" class="fold-badge" :class="status(screen)" aria-hidden="true"></span>
           <span class="name">{{ screen.name }}</span>
           <span v-if="screen.id === state.selected && state.dirty" class="unsaved" role="img" :aria-label="t('editor.common.unsaved')" :title="t('editor.common.unsaved')"></span>
           <span v-if="status(screen) === 'running'" class="spin small" role="img" :aria-label="subline(screen)?.text"></span>
@@ -183,9 +242,9 @@ const pendingText = (p: { installed?: boolean; downloaded?: boolean; file: strin
                 <ul><li v-for="line in notes(screen).slice(0, 5)" :key="line">{{ line }}</li></ul>
               </details>
             </template>
-            <template v-else-if="updateState(screen)!.kind === 'running' && updateProgress(screen)">
-              <div class="progress" role="progressbar" :aria-valuenow="updateProgress(screen)!.percent" aria-valuemin="0" aria-valuemax="100"><i :style="{ width: updateProgress(screen)!.percent + '%' }"></i></div>
-              <div class="progress-text"><span>{{ updateProgress(screen)!.percent }} %</span><span :title="lastLog()">{{ updateProgress(screen)!.text }}</span></div>
+            <template v-else-if="updateState(screen)!.kind === 'running' && buildProgress(screen)">
+              <div class="progress" role="progressbar" :aria-valuenow="buildProgress(screen)!.percent" aria-valuemin="0" aria-valuemax="100"><i :style="{ width: buildProgress(screen)!.percent + '%' }"></i></div>
+              <div class="progress-text"><span>{{ buildProgress(screen)!.percent }} %</span><span :title="lastLog()">{{ buildProgress(screen)!.text }}</span></div>
               <small v-if="lastLog()" :title="lastLog()" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ lastLog() }}</small>
               <button type="button" class="btn link mini" style="justify-self: start" @click="go('#firmware')">{{ t("editor.sidebar.update.full_log") }}</button>
             </template>
@@ -212,7 +271,12 @@ const pendingText = (p: { installed?: boolean; downloaded?: boolean; file: strin
       </div>
     </div>
     <div id="pending">
-      <div v-for="p in state.inventory.pending || []" :key="p.file" class="pending">
+      <!-- Folded, a screen on its way in is its icon; a click opens the sidebar for what can be done with it. -->
+      <button v-for="p in sidebar.folded ? state.inventory.pending || [] : []" :key="`folded:${p.file}`" type="button" class="nav-item pending-folded"
+        :aria-label="`${p.friendly} · ${pendingText(p)}`" v-tooltip="tip('pending', `${p.friendly} · ${pendingText(p)}`)" @click="toggleSidebar">
+        <span v-if="p.seen && p.pairing !== 'failed'" class="spin small"></span><span v-else class="mdi board-icon">{{ glyph("F0ECE") }}</span>
+      </button>
+      <div v-for="p in sidebar.folded ? [] : state.inventory.pending || []" :key="p.file" class="pending">
         <strong>{{ p.friendly }}</strong>
         <small><span v-if="p.seen && p.pairing !== 'failed'" class="spin small"></span>{{ pendingText(p) }}</small>
         <div v-if="removeFor === `pending:${p.file}`" class="screen-remove">
@@ -241,8 +305,13 @@ const pendingText = (p: { installed?: boolean; downloaded?: boolean; file: strin
     <div class="more">
       <!-- The firmware tool (build, USB, OTA, download) is for repairs, not for adding a screen, so it lives in Settings,
            the command palette and a screen's menu rather than here, where it read as the way in (app 0.3.27). -->
-      <button id="open-alerts" type="button" class="nav-item" :aria-current="route === '#alerts' ? 'true' : 'false'" @click="go('#alerts')"><span class="mdi">{{ glyph("F0594") }}</span><span class="txt">{{ t("editor.nav.alerts") }}</span></button>
-      <button id="open-settings" type="button" class="nav-item" :aria-current="route === '#settings' ? 'true' : 'false'" @click="go('#settings')"><span class="mdi">{{ glyph("F0493") }}</span><span class="txt">{{ t("editor.nav.settings") }}</span></button>
+      <button v-if="pluginsEnabled" id="open-plugins" type="button" class="nav-item" data-tip="plugins" v-tooltip="tip('plugins', t('editor.nav.plugins'))" :aria-current="route === '#plugins' ? 'true' : 'false'" @click="go('#plugins')"><Icon name="puzzle-outline"/><span class="txt">{{ t("editor.nav.plugins") }}</span><span v-if="pluginBuilds()" class="spin small" role="img" :aria-label="t('editor.build.plugins')"></span></button>
+      <button id="open-alerts" type="button" class="nav-item" data-tip="alerts" v-tooltip="tip('alerts', t('editor.nav.alerts'))" :aria-current="route === '#alerts' ? 'true' : 'false'" @click="go('#alerts')"><span class="mdi">{{ glyph("F0594") }}</span><span class="txt">{{ t("editor.nav.alerts") }}</span></button>
+      <button id="open-settings" type="button" class="nav-item" data-tip="settings" v-tooltip="tip('settings', t('editor.nav.settings'))" :aria-current="route === '#settings' ? 'true' : 'false'" @click="go('#settings')"><span class="mdi">{{ glyph("F0493") }}</span><span class="txt">{{ t("editor.nav.settings") }}</span></button>
     </div>
+    <!-- The edge (app 0.4.85): drag it wider or narrower, past the narrowest it folds to the icons; a double click resets it. -->
+    <div class="side-resize" role="separator" aria-orientation="vertical" tabindex="0" :aria-label="t('editor.sidebar.resize')"
+      :aria-valuenow="sideWidth()" :aria-valuemin="SIDE_MIN" :aria-valuemax="SIDE_MAX" :title="t('editor.sidebar.resize')"
+      @pointerdown="startResize" @dblclick="resetSidebar" @keydown="resizeKey"></div>
   </aside>
 </template>

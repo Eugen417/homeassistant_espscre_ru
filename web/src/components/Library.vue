@@ -11,6 +11,9 @@ import { t } from "../i18n";
 import { domainInfo, pageTarget } from "../model/layout";
 import { glyph } from "../model/topbar";
 import { tilePalette } from "../model/tile-palette";
+import { isPluginTile } from "../model/plugins";
+import { pluginsEnabled, tilesOn } from "../plugin-state";
+import { currentScreen } from "../store";
 import { addTile, automaticIcon, editorLayout, liveOf, loadLibraryStates, memory, pageTitleShown, phone, pictures, repeatable, state, tileLimit } from "../store";
 import Icon from "./ui/Icon.vue";
 import UiSwitch from "./ui/UiSwitch.vue";
@@ -51,6 +54,9 @@ const onScreen = (id: string) => chosen.value.has(id);
 const placed = (id: string) => onScreen(id) && !repeatable(id);
 const mark = (id: string) => (chosen.value.get(id) || 0) > 1 ? `×${chosen.value.get(id)}` : onScreen(id) ? "✓" : "+";
 const builtin = (id: string) => id.startsWith("screen.");
+// A plugin's tile type (design): listed under Plugins, only for a screen that runs that plugin.
+const pluginEntries = computed<(Entry & { plugin: string })[]>(() => (pluginsEnabled.value ? tilesOn(currentScreen.value) : []));
+const pluginOf = (id: string) => pluginEntries.value.find((e) => e.id === id)?.plugin || "";
 // Go to page tiles for the pages there are and the next one, at least the eight every screen has and at most what this
 // screen takes: a board with 24 pages (firmware 0.34.0+) would otherwise list 24 of them.
 const pagesOffered = computed(() => Math.min(editorLayout.grid.pages, Math.max(8, (state.document?.pages.length || 0) + 1)));
@@ -60,7 +66,8 @@ const query = computed(() => state.search.trim().toLocaleLowerCase());
 const base = computed<Entry[]>(() => {
   const q = query.value;
   // The picker offers what a tile can show; camera and image tiles need a board that draws pictures (app 0.2.66).
-  return [...(state.inventory.builtin || []), ...state.inventory.entities].filter((e) =>
+  // The screen's own cards and plugin tiles first: the list shows the first 80, and these are few.
+  return [...pluginEntries.value, ...(state.inventory.builtin || []), ...state.inventory.entities].filter((e) =>
     e.tile !== false && pageTarget(e.id) <= pagesOffered.value &&
     (pictures.value || (!["camera", "image"].includes(e.id.split(".")[0]) && e.id !== "screen.map")) &&
     (!state.hidePlaced || !onScreen(e.id)) &&
@@ -85,13 +92,13 @@ const groups = computed(() => {
   if (!grouped.value) return [{ key: "", title: "", entities: shownList.value }];
   const byRoom = new Map<string, Entry[]>();
   for (const e of shownList.value) {
-    const key = builtin(e.id) ? "\u0001screen" : e.area || "\u0000none";
+    const key = isPluginTile(e.id) ? "\u0002plugins" : builtin(e.id) ? "\u0001screen" : e.area || "\u0000none";
     byRoom.set(key, [...(byRoom.get(key) || []), e]);
   }
-  const order = (key: string) => key === "\u0001screen" ? 2 : key === "\u0000none" ? 1 : 0;
+  const order = (key: string) => key === "\u0002plugins" ? 3 : key === "\u0001screen" ? 2 : key === "\u0000none" ? 1 : 0;
   return [...byRoom.keys()].sort((a, b) => order(a) - order(b) || a.localeCompare(b)).map((key) => ({
     key, entities: byRoom.get(key)!,
-    title: key === "\u0001screen" ? t("editor.library.filters.screen") : key === "\u0000none" ? t("editor.library.no_room") : key,
+    title: key === "\u0002plugins" ? t("editor.library.plugins") : key === "\u0001screen" ? t("editor.library.filters.screen") : key === "\u0000none" ? t("editor.library.no_room") : key,
   }));
 });
 // The order the arrow keys walk: the groups as they stand.
@@ -135,7 +142,7 @@ const short = (e: Entry) => {
 };
 // Under the name: the device it was shortened by, else what it is, and its room where the list doesn't already stand
 // under it.
-const detail = (e: Entry) => builtin(e.id) ? "" : [short(e) !== e.name ? e.device : domainInfo(e.id)[0], grouped.value ? "" : e.area].filter(Boolean).join(" · ");
+const detail = (e: Entry) => isPluginTile(e.id) ? pluginOf(e.id) : builtin(e.id) ? "" : [short(e) !== e.name ? e.device : domainInfo(e.id)[0], grouped.value ? "" : e.area].filter(Boolean).join(" · ");
 
 // ---- Keyboard: type anywhere to search, arrows to walk, Enter to add ----
 const active = ref(0);

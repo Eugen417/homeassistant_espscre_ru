@@ -110,6 +110,7 @@ enum Role : uint8_t {
   ENERGY_DEVICE_2,
   ENERGY_DEVICE_3,
   ENERGY_DEVICE_4,
+  ENERGY_REST,           // Other and Untracked consumption: Home Assistant's --state-unavailable-color
   ROLE_COUNT
 };
 
@@ -196,6 +197,7 @@ inline constexpr Pair ROLES[ROLE_COUNT] = {
   /* ENERGY_DEVICE_2 */          {0x964CB5, 0x964CB5},
   /* ENERGY_DEVICE_3 */          {0xB54C9D, 0xB54C9D},
   /* ENERGY_DEVICE_4 */          {0x5BD0CC, 0x5BD0CC},
+  /* ENERGY_REST */              {0xBDBDBD, 0x707070},  // dark: #6F6F6F on the panel's grey step
 };
 
 // The look on screen. The board sets it through set_dark() (below) from the Dark mode setting; the table and the

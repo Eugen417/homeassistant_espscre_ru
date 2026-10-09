@@ -8,7 +8,7 @@ sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 from core import (DOMAINS, HEADER_ONLY_DOMAINS, CAMERA_DOMAINS, HEADER_BUILTIN,
                   HEADER_CONTENTS, HEADER_SHOWS, WIFI_CONTENTS, WIFI_SHOWS, BATTERY_CONTENTS, BATTERY_SHOWS, DISPLAYS, WIDE_ONLY, CONTROLS,
                   TILE_BACKGROUNDS, LIVE_REFRESH, PICTURE_OPTIONS, KEY_HOLDERS, KEY_DOMAINS, BUILTIN,
-                  FAVORITE_SHUFFLES, FAVORITE_REPEATS)
+                  FAVORITE_SHUFFLES, FAVORITE_REPEATS, ENERGY_FLOWS)
 from tile_icons import ICONS
 
 
@@ -29,7 +29,9 @@ def rules():
             'builtins': sorted(entity[7:] for entity in BUILTIN if not entity.startswith('screen.page_')),
             'keyHolders': KEY_HOLDERS, 'keyDomains': sorted(KEY_DOMAINS),
             # A favourite's own shuffle and repeat (app 0.4.84).
-            'favoriteShuffles': list(FAVORITE_SHUFFLES), 'favoriteRepeats': list(FAVORITE_REPEATS)}
+            'favoriteShuffles': list(FAVORITE_SHUFFLES), 'favoriteRepeats': list(FAVORITE_REPEATS),
+            # How the energy card shows power along a line, the first the default.
+            'energyFlow': list(ENERGY_FLOWS)}
 
 
 def output():

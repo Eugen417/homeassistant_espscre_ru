@@ -2,7 +2,8 @@
 
 A board says what its panel is (PANEL_W, PANEL_H, the pixels the glass really has), which LVGL angle lays
 that panel out lying down (ROTATION_LANDSCAPE), how a page is divided each way (GRID_COLS x GRID_ROWS lying down,
-GRID_COLS_PORTRAIT x GRID_ROWS_PORTRAIT standing up), its density and its look. The manager needs the same numbers
+GRID_COLS_PORTRAIT x GRID_ROWS_PORTRAIT standing up) and the grids it may be given each way instead (`min` and `max`,
+looks/shared/grid.yaml, firmware 0.53.0+), its density and its look. The manager needs the same numbers
 to draw a screen in the editor before it has ever been flashed, so they are worked out here instead of typed a
 second time; `--check` fails when the file is out of date, which tools/check.sh runs. A screen that is online
 reports its own shape as well (firmware 0.2.80), and that one wins: it knows how it was built and turned.
@@ -31,8 +32,9 @@ def orientations(values):
     """{'landscape': ..., 'portrait': ...}: the canvas, the grid and the LVGL angle of each way a board can hang.
 
     The canvas is the panel turned by that angle, because LVGL turns the picture and the touch together: a quarter
-    turn swaps the sides, a half turn keeps them. Standing up is a quarter further than lying down, which is the
-    one line that differs between the two builds (LVGL_ROTATION in the board file).
+    turn swaps the sides, a half turn keeps them. Standing up is a quarter further than lying down: the one line that
+    differs between the two builds (LVGL_ROTATION in the board file), and the turn a screen makes when the editor
+    stands it up (runtime_tiles::hang, firmware 0.53.0+).
 
     Square glass has no second way to hang, so its portrait entry is its landscape entry, angle included: choosing
     to stand a square screen up then builds exactly the same firmware instead of turning the picture for nothing.
@@ -40,14 +42,18 @@ def orientations(values):
     panel = (int(values['PANEL_W']), int(values['PANEL_H']))
     angle = int(values['ROTATION_LANDSCAPE']) % 360
     wide = (panel[1], panel[0]) if angle in (90, 270) else panel
+    # The grids a screen may be given that way (firmware 0.53.0+, looks/shared/grid.yaml): the least and the most.
+    least = [int(values['GRID_MIN_COLUMNS']), int(values['GRID_MIN_ROWS'])]
     lying = {'width': wide[0], 'height': wide[1],
-             'columns': int(values['GRID_COLS']), 'rows': int(values['GRID_ROWS']), 'rotation': angle}
+             'columns': int(values['GRID_COLS']), 'rows': int(values['GRID_ROWS']), 'rotation': angle,
+             'min': least, 'max': [int(values['GRID_MAX_COLUMNS']), int(values['GRID_MAX_ROWS'])]}
     if wide[0] == wide[1]:
         return {'landscape': lying, 'portrait': dict(lying)}
     return {'landscape': lying,
             'portrait': {'width': wide[1], 'height': wide[0],
                          'columns': int(values['GRID_COLS_PORTRAIT']), 'rows': int(values['GRID_ROWS_PORTRAIT']),
-                         'rotation': (angle + 90) % 360}}
+                         'rotation': (angle + 90) % 360,
+                         'min': list(least), 'max': [int(values['GRID_MAX_COLUMNS_PORTRAIT']), int(values['GRID_MAX_ROWS_PORTRAIT'])]}}
 
 
 def alert_lines(values):

@@ -6,14 +6,15 @@ import { t } from '../i18n';
 import { entriesOf } from '../model/layout';
 import { navigationStep, titleOf, type NavigationIntent } from '../model/pages';
 import { previewShapeOf } from '../model/preview';
-import { currentScreen, drawsPictures, navigationSettings, state } from '../store';
+import { currentScreen, drawsPictures, navigationSettings, screenShape, state } from '../store';
 import DevicePage from './DevicePage.vue';
 import FirmwarePreview from './FirmwarePreview.vue';
 import Icon from './ui/Icon.vue';
 import SwitchRow from './ui/SwitchRow.vue';
 const emit = defineEmits<{ close: [] }>();
 const dialog = ref<HTMLDialogElement>();
-const live = computed(() => currentScreen.value ? previewShapeOf(currentScreen.value, state.documentGrid) : null);
+// The draft's way and grid (app 0.4.85): a screen stood up in the editor shows standing, before it turned.
+const live = computed(() => currentScreen.value ? previewShapeOf({ shape: screenShape.value }, state.documentGrid) : null);
 const failed = ref(false);
 const controls = ref(false);
 // The firmware's own pixels at their own size where the window has room, smaller where it has not.

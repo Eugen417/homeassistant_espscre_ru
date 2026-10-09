@@ -225,6 +225,9 @@
     },
     "navigation": {
       "back": "Back"
+    },
+    "plugin": {
+      "missing": "Plugin missing"
     }
   },
   "editor": {
@@ -249,6 +252,9 @@
           "neighbourhood": "Neighbourhood"
         }
       }
+    },
+    "plugins": {
+      "changes": "What changed"
     }
   },
   "addon": {

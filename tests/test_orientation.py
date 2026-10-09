@@ -209,30 +209,6 @@ class ExistingScreen(unittest.TestCase):
         self.assertEqual((meta['rotation'], meta['package']), (90, 'packages/waveshare43.yaml'))
         self.assertEqual(core.orientation_at(core.SHAPES['waveshare43'], meta['rotation']), 'portrait')
 
-    def test_a_rebuild_can_stand_a_screen_up_and_lay_it_down_again(self):
-        self.write()
-        self.assertTrue(self.firmware.set_orientation('hall.yaml', 'portrait'))
-        self.assertIn('\n  LVGL_ROTATION: "90"\n', (Path(self.tmp.name) / 'hall.yaml').read_text())
-        # Twice is once: the line is written only when it is not already what it should be.
-        self.assertFalse(self.firmware.set_orientation('hall.yaml', 'portrait'))
-        self.assertTrue(self.firmware.set_orientation('hall.yaml', 'landscape'))
-        self.assertIn('\n  LVGL_ROTATION: "0"\n', (Path(self.tmp.name) / 'hall.yaml').read_text())
-        # A profile that never had the line and is asked to lie down needs no line at all.
-        self.write(name='other.yaml')
-        self.assertFalse(self.firmware.set_orientation('other.yaml', 'landscape'))
-        self.assertNotIn('LVGL_ROTATION', (Path(self.tmp.name) / 'other.yaml').read_text())
-        # Square glass, and a word that is not one of the two, change nothing and say so.
-        self.write(name='square.yaml')
-        (Path(self.tmp.name) / 'square.yaml').write_text(
-            core.installation_yaml({'board': 'guition', 'name': 'square', 'friendly_name': 'Square'}))
-        self.assertFalse(self.firmware.set_orientation('square.yaml', 'portrait'))
-        self.assertFalse(self.firmware.set_orientation('hall.yaml', 'sideways'))
-        # And the language still travels in its own line, next to this one.
-        self.assertTrue(self.firmware.set_language('hall.yaml', 'nl'))
-        text = (Path(self.tmp.name) / 'hall.yaml').read_text()
-        self.assertIn('LANGUAGE: "nl"', text)
-        self.assertIn('LVGL_ROTATION: "0"', text)
-
     def test_an_override_is_told_where_the_choice_lives(self):
         self.write()
         with self.assertRaises(ValueError) as refused:

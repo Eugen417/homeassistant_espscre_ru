@@ -7,6 +7,7 @@ import { t } from "../i18n";
  */
 import type { ChildTile, HeaderItem, Layout, Page, PageGrid, PageLayout, PageTarget, PageTile, Tile, TileOptions } from "../types";
 import { BUILTIN_CARDS, type BuiltinName } from "../types";
+import { PLUGIN_TILE, pluginTileId } from "./plugins";
 import { spanOf, spanOffered } from "./sizes";
 
 import { STORE_MAX_BAR_ITEMS, STORE_MAX_PAGES, dimensions, type Size } from "./layout";
@@ -127,46 +128,84 @@ export function footprintSize(tile: PageTile, grid: PageGrid): Size {
   if (spanOffered(columns, rows, grid)) return `${columns}x${rows}` as Size;
   throw new Error(t("addon.errors.pages.footprint"));
 }
-/** An explicit review proposal. It never changes page membership, drops a tile,
- * adds capacity or retargets links. The caller must show it before adoption.
+/** The size a tile takes on a grid where its own rectangle no longer fits: the largest part of it the grid holds, named
+ * the way footprintSize names it (a whole page is "full", 2 x 2 "square", ...). */
+function sizeOn(columns: number, rows: number, grid: PageGrid): Size {
+  const c = Math.min(columns, grid.columns), r = Math.min(rows, grid.rows);
+  if (c === grid.columns && r === grid.rows) return "full";
+  if (c === 1 && r === 1) return "single";
+  if (r === 1 && c === Math.min(2, grid.columns)) return "wide";
+  if (c === 1 && r === 2) return "tall";
+  if (c === 2 && r === 2) return "square";
+  if (spanOffered(c, r, grid)) return `${c}x${r}` as Size;
+  return "single";
+}
+/** The layout on another grid (app 0.4.85: the screen's columns and rows are a choice in the editor). Every tile keeps
+ * its page and, where the new grid still has it free, its place; it keeps its size where the grid takes it, else the
+ * largest part of it the grid holds. What no longer fits on its page moves, in reading order, to a new page right after
+ * it with the same top bar, so nothing is ever dropped and a page's tiles stay together. Page identity, Home and every
+ * link stay as they were. More pages than the screen takes refuses the change. The caller shows the result before it is
+ * saved; going back to the old grid does not merge the added pages again.
  */
 export function adaptGrid(layout: PageLayout, source: PageGrid, target: PageGrid): PageLayout {
   validatePages(layout, source);
-  if (layout.pages.length > pageLimit(target)) throw new Error(t("addon.errors.pages.adapt_pages"));
-  const draft = clone(layout);
+  const draft = clone(layout), out: Page[] = [];
+  const free = () => new Set<string>();
+  const fits = (occupied: Set<string>, tile: PageTile, row: number, column: number) => {
+    const { rows, columns } = tile.placement;
+    if (row + rows > target.rows || column + columns > target.columns) return false;
+    for (let y = row; y < row + rows; y++) for (let x = column; x < column + columns; x++) if (occupied.has(`${y}:${x}`)) return false;
+    return true;
+  };
+  const place = (occupied: Set<string>, tile: PageTile, row: number, column: number) => {
+    Object.assign(tile.placement, { row, column });
+    for (let y = row; y < row + tile.placement.rows; y++) for (let x = column; x < column + tile.placement.columns; x++) occupied.add(`${y}:${x}`);
+  };
+  const first = (occupied: Set<string>, tile: PageTile) => {
+    for (let row = 0; row < target.rows; row++) for (let column = 0; column < target.columns; column++)
+      if (fits(occupied, tile, row, column)) { place(occupied, tile, row, column); return true; }
+    return false;
+  };
   for (const page of draft.pages) {
-    const occupied = new Set<string>(), pending: PageTile[] = [];
-    const fits = (tile: PageTile, row: number, column: number) => {
-      const { rows, columns } = tile.placement;
-      if (row + rows > target.rows || column + columns > target.columns) return false;
-      for (let y = row; y < row + rows; y++) for (let x = column; x < column + columns; x++) if (occupied.has(`${y}:${x}`)) return false;
-      return true;
-    };
-    const place = (tile: PageTile, row: number, column: number) => {
-      Object.assign(tile.placement, { row, column });
-      for (let y = row; y < row + tile.placement.rows; y++) for (let x = column; x < column + tile.placement.columns; x++) occupied.add(`${y}:${x}`);
-    };
-    for (const tile of page.tiles) {
+    const occupied = free(), pending: PageTile[] = [];
+    const reading = [...page.tiles].sort((a, b) => a.placement.row - b.placement.row || a.placement.column - b.placement.column);
+    for (const tile of reading) {
       const presentation = footprintSize(tile, source);
-      tile.appearance.presentation = presentation;
-      Object.assign(tile.placement, dimensions(presentation, target));
-      if (fits(tile, tile.placement.row, tile.placement.column)) place(tile, tile.placement.row, tile.placement.column);
+      let size = dimensions(presentation, target);
+      // A rectangle bigger than the new grid takes the largest part of it the grid holds.
+      const shrunk = size.columns > target.columns || size.rows > target.rows;
+      const next = shrunk ? sizeOn(size.columns, size.rows, target) : presentation;
+      if (shrunk) size = dimensions(next, target);
+      tile.appearance.presentation = next;
+      Object.assign(tile.placement, size);
+      if (fits(occupied, tile, tile.placement.row, tile.placement.column)) place(occupied, tile, tile.placement.row, tile.placement.column);
       else pending.push(tile);
     }
+    page.tiles = reading.filter((tile) => !pending.includes(tile));
+    out.push(page);
+    // What does not fit stays on its page where there is room, and goes on to the next new page where there is none.
+    let current = page, room = occupied;
     for (const tile of pending) {
-      let found = false;
-      for (let row = 0; row < target.rows && !found; row++) for (let column = 0; column < target.columns && !found; column++) {
-        if (fits(tile, row, column)) { place(tile, row, column); found = true; }
-      }
-      if (!found) throw new Error(t("addon.errors.pages.adapt_full"));
+      if (first(room, tile)) { current.tiles.push(tile); continue; }
+      // A page of its own in the row of pages, reached by a swipe or the page keys, even when the page it continues is
+      // one only a link opens: no link leads to the new one.
+      const added = emptyPage(page.topbar);
+      out.push(added);
+      current = added; room = free();
+      first(room, tile);
+      current.tiles.push(tile);
     }
   }
+  if (out.length > pageLimit(target))
+    throw new Error(t("editor.grid.too_many_pages", { grid: `${target.columns} × ${target.rows}`, needed: out.length, most: pageLimit(target) }));
+  draft.pages = out;
   return validatePages(draft, target);
 }
 export function entityOf(layout: PageLayout, tile: PageTile): string {
   const content = tile.content;
   if (content.kind === "entity") return content.entityId;
   if (content.kind === "builtin") return `screen.${content.name}`;
+  if (content.kind === "plugin") return pluginTileId(content.plugin, content.tile);
   const index = layout.pages.findIndex((page) => page.id === destination(layout, content.target));
   if (index < 0) throw new Error(t("addon.errors.pages.page_missing"));
   return `screen.page_${index + 1}`;
@@ -188,7 +227,8 @@ export function childOf(tile: Tile, id: string): ChildTile {
 }
 const appearanceKeys = { display: "display", icon: "icon", background: "background", historyHours: "history_hours", refresh: "refresh", subtitle: "sub", fit: "fit", overlay: "overlay",
   mapEntities: "map", mapFraming: "framing", mapDistance: "distance",
-  mapFollow: "follow", mapMarkers: "markers", mapNames: "names", mapZones: "zones", mapStreets: "streets", mapLook: "look" } as const;
+  mapFollow: "follow", mapMarkers: "markers", mapNames: "names", mapZones: "zones", mapStreets: "streets", mapLook: "look",
+  energyFlow: "flow" } as const;
 
 /** A render view, never a second saved or editable layout. */
 export function projectLayout(layout: PageLayout, grid: PageGrid): Layout {
@@ -204,6 +244,9 @@ export function projectLayout(layout: PageLayout, grid: PageGrid): Layout {
         if (value !== undefined) Object.assign(options, { [wire]: clone(value) });
       }
       if (size !== "single") options.size = size;
+      if (tile.content.kind === "plugin" && tile.content.options) options.plugin = clone(tile.content.options);
+      // A plugin tile that belongs to an entity (its manifest's `entity`): the entity travels beside its options.
+      if (tile.content.kind === "plugin" && tile.content.entityId) options.plugin_entity = tile.content.entityId;
       return { id: tile.id, entity: entityOf(layout, tile), name: tile.appearance.label,
         slot: index * grid.columns * grid.rows + tile.placement.row * grid.columns + tile.placement.column,
         ...(Object.keys(options).length ? { options } : {}) };
@@ -346,6 +389,10 @@ export function arrangeTiles(layout: PageLayout, grid: PageGrid, entries: { tile
           ? clone(old.content) : { kind: "navigation", target: { kind: "page", pageId: page.id } };
       } else if (BUILTIN_CARDS.includes(tile.entity)) {
         content = { kind: "builtin", name: tile.entity.slice(7) as BuiltinName };
+      } else if (PLUGIN_TILE.test(tile.entity)) {
+        const [, plugin, kind] = PLUGIN_TILE.exec(tile.entity)!;
+        content = { kind: "plugin", plugin, tile: kind, ...(options.plugin_entity ? { entityId: options.plugin_entity } : {}),
+          ...(options.plugin ? { options: clone(options.plugin) } : {}) };
       } else content = { kind: "entity", entityId: tile.entity };
       const size = options.size ?? "single";
       if (!isSize(size)) throw new Error(t("addon.errors.pages.size"));

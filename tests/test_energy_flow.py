@@ -140,6 +140,33 @@ class Devices(unittest.TestCase):
         names = [d.name for d in energy_flow.moment(prefs, states).devices]
         self.assertNotIn('Dishwasher Power', names)
 
+    def test_house_devices_as_home_assistant_splits_them(self):
+        # common/sankey.ts buildSankeyDeviceNodes: drawn straight from the house, under a drawn parent, or "Other".
+        def dev(stat, rate=None, inside=None):
+            d = {'stat_consumption': stat}
+            if rate: d['stat_rate'] = rate
+            if inside: d['included_in_stat'] = inside
+            return d
+        prefs = {'device_consumption': [
+            dev('e.kitchen'),                                   # no power sensor: never drawn
+            dev('e.kettle', 's.kettle', 'e.kitchen'),           # so the kettle stands under the house
+            dev('e.panel', 's.panel'),                          # drawn
+            dev('e.heater', 's.heater', 'e.panel'),             # under the drawn panel: part of its value
+            dev('e.clock', 's.clock'),                          # small: Other
+            dev('e.led', 's.led', 'e.clock'),                   # inside a small one: already in it
+            dev('e.lamp', 's.lamp', 'e.panel_gone'),            # its parent is not listed: under the house
+        ]}
+        w = lambda v: {'state': str(v), 'attributes': {'unit_of_measurement': 'W'}}
+        states = {'s.kettle': w(2000), 's.panel': w(1500), 's.heater': w(1000), 's.clock': w(2), 's.led': w(1),
+                  's.lamp': w('unavailable')}
+        top, other = energy_flow._house_devices(prefs, states, 5000)
+        self.assertEqual([d['stat_rate'] for _, d, _ in top], ['s.kettle', 's.panel'])
+        self.assertEqual(other, 2)  # the clock; the lamp has no number and counts 0 W
+        # What the screen works out as untracked is the house less every device and Other, as the sankey's own.
+        x = energy_flow.payload(prefs, states)
+        m = energy_flow.moment(prefs, states)
+        self.assertAlmostEqual(m.home - sum(d['w'] for d in x.get('d', [])) - x.get('o', 0), m.home - 3502, places=1)
+
     def test_related_entities(self):
         prefs, _ = load('full-noon')
         related = energy_flow.related_entities(prefs)
@@ -176,6 +203,19 @@ class Wire(unittest.TestCase):
         self.assertEqual(len(x['u']), 3)
         self.assertEqual(x['u'][1][0], states[x['e'][1]]['state'])
 
+    def test_tiny_devices_are_other_not_untracked(self):
+        # Under 0.1 % of the house a device has no place of its own, but Home Assistant's sankey counts it in "Other"
+        # (common/sankey.ts): it travels in `o`, so what the screen works out as untracked is only what nothing measures.
+        prefs, states = load('full-busy')
+        prefs, states = json.loads(json.dumps(prefs)), json.loads(json.dumps(states))
+        m = energy_flow.moment(prefs, states)
+        tiny = next(d for d in prefs['device_consumption'] if d['stat_rate'] in states and d['stat_rate'] not in {dv.entity_id for dv in m.devices[:1]})
+        states[tiny['stat_rate']]['state'] = str(m.home * 0.0005)
+        states[tiny['stat_rate']]['attributes']['unit_of_measurement'] = 'W'
+        x = energy_flow.payload(prefs, states)
+        self.assertNotIn(tiny['stat_rate'], [d['e'] for d in x['d']])
+        self.assertAlmostEqual(x['o'], round(m.home * 0.0005, 1), places=1)
+
     def test_no_settings(self):
         x = energy_flow.payload({}, {})
         self.assertEqual(x['h'], 0)
@@ -210,6 +250,19 @@ class Layout(unittest.TestCase):
         self.assertEqual(core.min_firmware(layout), core.ENERGY_MIN_FIRMWARE)
         self.assertEqual(layout['tiles'][0]['options'], {'size': 'square'})
         self.assertEqual(core.builtin_name('screen.energy', core.english), 'Energy')
+
+    def test_flow_choice(self):
+        # How the card shows power along a line (catalogue/screen.yaml `energy`): the energy card's own, dots the default
+        # and never stored, so a layout without it means what it always meant.
+        import core
+        self.assertEqual(core.ENERGY_FLOWS, ('dots', 'lines'))
+        tiles = lambda options, entity='screen.energy': core.validate_layout({'title': 'House', 'tiles': [
+            {'entity': entity, 'name': '', 'options': {'size': 'square', **options}}]})['tiles'][0]['options']
+        self.assertEqual(tiles({'flow': 'lines'}), {'size': 'square', 'flow': 'lines'})
+        self.assertEqual(tiles({'flow': 'dots'}), {'size': 'square'})
+        self.assertEqual(tiles({'flow': 'lines'}, 'screen.clock'), {'size': 'square'})
+        with self.assertRaises(ValueError):
+            tiles({'flow': 'sparks'})
 
     def test_message_carries_the_house(self):
         import core

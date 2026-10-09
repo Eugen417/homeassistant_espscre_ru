@@ -7,9 +7,10 @@ The document revision used for saving is separate from this content revision.
 import asyncio
 from copy import deepcopy
 import json
+import re
 
 from core import (ENTITY_REPEAT_MIN_FIRMWARE, FIRMWARE_MAX_BAR_ITEMS, FIRMWARE_MAX_PAGES, FIRMWARE_MAX_TILES, FREE_PAGES_MIN_FIRMWARE,
-                  NIGHTSTAND_MIN_FIRMWARE, STORE_MAX_BAR_ITEMS, STORE_MAX_PAGES, STORE_MAX_TILES, is_key, repeated_entities)
+                  NIGHTSTAND_MIN_FIRMWARE, STORE_MAX_BAR_ITEMS, STORE_MAX_PAGES, STORE_MAX_TILES, is_key, repeated_entities, sizes_on)
 from page_layout import compile_tiles, fingerprint, grid_of_record, new_id
 from i18n import english
 
@@ -143,6 +144,57 @@ def prepare(inbox, record, region, values, bars):
     return begin, initial_tiles, initial_bars, live_values
 
 
+def plugins_of(answer):
+    """The plugin API and plugins of a hello (docs/PLUGINS.md): ("0.4", [{"id", "version", "tiles"}]), or (None, [])."""
+    api = answer.get("plugin_api") if isinstance(answer, dict) else None
+    if not isinstance(api, str) or not re.fullmatch(r"\d+\.\d+", api):
+        return None, []
+    plugins = []
+    for item in answer.get("plugins") or []:
+        if not isinstance(item, dict) or not isinstance(item.get("id"), str) or not re.fullmatch(r"[a-z][a-z0-9_]{0,31}", item["id"]):
+            continue
+        tiles = [tile for tile in item.get("tiles") or [] if isinstance(tile, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,31}", tile)]
+        version = item.get("version") if isinstance(item.get("version"), str) else ""
+        plugins.append({"id": item["id"], "version": version[:16], "tiles": tiles[:8]})
+        if len(plugins) == 16:
+            break
+    return api, plugins
+
+
+GRID_WAYS = ("landscape", "portrait")
+
+
+def grids_of(answer):
+    """The grids a screen takes, each way its glass hangs, the one it keeps for each, and which way it hangs now (firmware
+    0.53.0+): {"upright": bool, "landscape": {"columns", "rows", "min": [c, r], "max": [c, r]}, "portrait": {...}}. None
+    for a screen that says nothing: its grid is the one it was built with, and no other can be sent to it."""
+    grids = answer.get("grids") if isinstance(answer, dict) else None
+    if not isinstance(grids, dict) or type(grids.get("upright")) is not bool:
+        return None
+    digit = lambda n: type(n) is int and 1 <= n <= 9  # noqa: E731 (a size goes as "CxR", one digit each)
+    out = {"upright": grids["upright"]}
+    for way in GRID_WAYS:
+        grid = grids.get(way)
+        if not isinstance(grid, dict):
+            return None
+        least, most = grid.get("min"), grid.get("max")
+        if not all(isinstance(pair, list) and len(pair) == 2 and all(digit(n) for n in pair) for pair in (least, most)):
+            return None
+        if not (digit(grid.get("columns")) and digit(grid.get("rows")) and least[0] <= grid["columns"] <= most[0]
+                and least[1] <= grid["rows"] <= most[1]):
+            return None
+        out[way] = {"columns": grid["columns"], "rows": grid["rows"], "min": list(least), "max": list(most)}
+    return out
+
+
+def grid_takes(grids, way, columns, rows):
+    """Whether a screen's grids (grids_of) take columns x rows the way named ("landscape" or "portrait")."""
+    if not grids or way not in GRID_WAYS:
+        return False
+    least, most = grids[way]["min"], grids[way]["max"]
+    return least[0] <= columns <= most[0] and least[1] <= rows <= most[1]
+
+
 def ceiling_of(value, most):
     """A ceiling from a hello (firmware 0.34.0+): a whole number from 1 to `most`, or None for anything else."""
     return value if type(value) is int and 1 <= value <= most else None
@@ -196,10 +248,16 @@ class Sender:
         self.tile_repeats = False
         self.free_pages = False
         self.features = set()
+        # The plugin API the firmware offers and the plugins built into it (docs/PLUGINS.md): None and [] for a firmware
+        # without plugins, which refuses a plugin's tile.
+        self.plugin_api, self.plugins = None, []
         # This screen's own ceilings and memory (firmware 0.34.0+): None while it has not said, and the last ones it said
         # for editing while it is offline (page_capabilities keeps them across restarts of the app).
         self.max_tiles = self.max_pages = self.max_bar_items = self.memory = None
         self.last_max_tiles = self.last_max_pages = self.last_max_bar_items = self.last_memory = None
+        # The grids it takes and keeps (firmware 0.53.0+, grids_of): None while it has not said, and the last it said for
+        # editing while it is offline (page_capabilities keeps them across restarts of the app).
+        self.grids = self.last_grids = None
         self.structure, self.appearance = None, None
 
     def disconnected(self):
@@ -212,7 +270,9 @@ class Sender:
         self.tile_repeats = False
         self.free_pages = False
         self.features = set()
+        self.plugin_api, self.plugins = None, []
         self.max_tiles = self.max_pages = self.max_bar_items = self.memory = None
+        self.grids = None
         self.structure, self.appearance = None, None
         self.phase = "waiting"
         self.failed_revision = self.failure = None
@@ -248,6 +308,8 @@ class Sender:
             # and none of its own here. climate_range: a thermostat's range on its -/+. The older flags above stay.
             listed = answer.get("features")
             self.features = {name for name in listed if isinstance(name, str)} if isinstance(listed, list) else set()
+            # Plugins (docs/PLUGINS.md): the API it offers ("0.1") and what it runs, [{id, version, tiles}].
+            self.plugin_api, self.plugins = plugins_of(answer)
             # Its own ceilings and the memory its tiles may take (firmware 0.34.0+): 64 tiles over eight pages when it says
             # nothing (core.Grid), and no memory check at all.
             self.max_tiles = ceiling_of(answer.get("max_tiles"), STORE_MAX_TILES)
@@ -264,13 +326,14 @@ class Sender:
         raise DeliveryError("The running screen's protocol could not be verified")
 
     def heard(self, answer):
-        """The memory figures of a hello or a ping, kept as the last ones too. Both come from the running firmware, so an
-        answer without them means a firmware that keeps no budget (a screen flashed back to an older release): the figures
-        of the firmware before it go, as its ceilings do in the hello. While the screen is still measuring (no room yet,
-        firmware 0.51.0) the last figures it measured stay the last ones."""
+        """The memory figures and the grids of a hello or a ping, kept as the last ones too. Both come from the running
+        firmware, so an answer without them means a firmware that keeps no budget or no choice of grid (a screen flashed
+        back to an older release): the figures of the firmware before it go, as its ceilings do in the hello. While the
+        screen is still measuring (no room yet, firmware 0.51.0) the last figures it measured stay the last ones."""
         self.memory = memory_of(answer)
         if self.memory is None or self.memory["room"] is not None:
             self.last_memory = self.memory
+        self.grids = self.last_grids = grids_of(answer)
 
     async def probe(self, empty=False):
         async with self.lock:
@@ -339,12 +402,19 @@ class Sender:
                     self.phase = "applying"
                     if await self._hello() != PROTOCOL:
                         raise Refused(english('editor.pages.update_notice'))
-                    if any(message["o"].get("size", "single") not in self.tile_sizes for message in initial_tiles):
+                    # A screen that takes the layout's grid (firmware 0.53.0+) takes that grid's sizes; its hello names
+                    # those of the grid it is on.
+                    sizes = sizes_on(grid_of_record(record)) if self.grids is not None else self.tile_sizes
+                    if any(message["o"].get("size", "single") not in sizes for message in initial_tiles):
                         raise Refused(english('addon.errors.pages.update_tall'))
                     if not self.tile_keys and any("in" in message for message in initial_tiles):
                         raise Refused(english('addon.errors.layout.firmware_first', version='.'.join(map(str, NIGHTSTAND_MIN_FIRMWARE))))
                     if not self.tile_repeats and repeated_entities(initial_tiles):
                         raise Refused(english('addon.errors.layout.firmware_first', version='.'.join(map(str, ENTITY_REPEAT_MIN_FIRMWARE))))
+                    # A plugin's tile goes only to a screen that offers the plugin API; one without the plugin itself draws
+                    # it as a plain card that says so (plugin_host.h), which is never an error.
+                    if "plugins" not in self.features and any(message.get("entity", "").startswith("plugin:") for message in initial_tiles):
+                        raise Refused(english('addon.errors.plugins.firmware'))
                     if not self.free_pages and begin["pages"] > grid_of_record(record).legacy_pages:
                         raise Refused(english('addon.errors.layout.firmware_first', version='.'.join(map(str, FREE_PAGES_MIN_FIRMWARE))))
                     # Past this screen's own ceilings (64 and eight when it says none): refused here, before a begin the
@@ -358,6 +428,15 @@ class Sender:
                     most_items = self.max_bar_items or FIRMWARE_MAX_BAR_ITEMS
                     if any(len(items) > most_items for items in bars):
                         raise Refused(english('addon.errors.top_bar.full', n=most_items))
+                    # The grid the layout is counted on, to a screen that takes another (firmware 0.53.0+): it changes to it
+                    # under its loading screen before the tiles come. One its glass does not take is the editor's to fix.
+                    if self.grids is not None:
+                        source = record["sourceGrid"]
+                        # The way it is to hang (region "upright", app 0.4.85), else the way it hangs now.
+                        way = "portrait" if region.get("upright", self.grids["upright"]) else "landscape"
+                        if not grid_takes(self.grids, way, source["columns"], source["rows"]):
+                            raise Refused(english('addon.errors.pages.grid_range'))
+                        begin = {**begin, "grid": [source["columns"], source["rows"]]}
                     current()
                     answer = await self._packet(begin, revision)
                     self.revision = revision
@@ -370,6 +449,10 @@ class Sender:
                         current()
                     if not answer.get("applied"):
                         raise DeliveryError("The complete page configuration was not activated")
+                    # What the screen keeps now: the grid it was just given (every answer says its grids; the memory
+                    # figures only a hello's or a ping's, so this is not heard()).
+                    if grids_of(answer) is not None:
+                        self.grids = self.last_grids = grids_of(answer)
                     # A resumed active revision still needs the latest values.
                     self.values, self.bars = [], []
                 for i, message in enumerate(live_values):

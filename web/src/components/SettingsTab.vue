@@ -6,6 +6,7 @@ import { t } from "../i18n";
 import { glyph } from "../model/topbar";
 import FeedbackPanel from "./FeedbackPanel.vue";
 import ScreensaverCard from "./ScreensaverCard.vue";
+import PluginSettings from "./PluginSettings.vue";
 import {
   calibrateTouch, choiceText, currentScreen, pageReachWarning, SETTING_GROUPS, setSetting, settingLabel, settingText, settingValues, settingsView, state, steppedSetting,
   type SettingRow,
@@ -107,6 +108,8 @@ const startCalibration = () => currentScreen.value && calibrateTouch(currentScre
       </template>
       <!-- This screen: the group the screen's own page keeps its actions in. Only what this screen can do shows up,
            so a capacitive panel has no card here at all. -->
+      <!-- The plugins' own settings (docs/PLUGINS.md), after the screen's. -->
+      <PluginSettings />
       <section v-if="view.calibrate" class="set-card" id="settings-this-screen">
         <h4><span class="mdi">{{ glyph("F02FD") }}</span>{{ t("editor.screen_settings.groups.this_screen") }}</h4>
         <div class="s-action">

@@ -231,6 +231,9 @@ function onKey(e: KeyboardEvent, i: number) {
         <small class="help">{{ t("editor.topbar.battery_hint") }}</small>
         <small v-if="!batterySupported" class="help warn">{{ t("editor.topbar.status_firmware", { version: batteryNeeded }) }}</small>
       </template>
+      <template v-else-if="item.type === 'plugin'">
+        <p class="help" id="topbar-plugin">{{ t("editor.topbar.plugin_item") }}</p>
+      </template>
       <template v-else-if="item.type === 'link'">
         <small class="help">{{ t("editor.topbar.link_hint") }}</small>
         <small v-if="!statusSupported" class="help warn">{{ t("editor.topbar.status_firmware", { version: statusNeeded }) }}</small>

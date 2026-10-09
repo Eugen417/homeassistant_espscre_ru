@@ -3,8 +3,6 @@
 # docs/TAB5.md records the evidence and what still needs checking on the glass.
 packages:
   hardware: !include ../hardware/m5stack-tab5.yaml
-  # The cards of this board's grid, one per cell (tools/generate_cells.py writes them; docs/RESPONSIVE.md).
-  cells: !include ../cells/${GRID_CELLS}.yaml
   look: !include ../looks/standard.yaml
   touch: !include ../features/capacitive-touch.yaml
   backlight: !include ../features/backlight.yaml
@@ -29,7 +27,6 @@ substitutions:
   GRID_ROWS: "3"
   GRID_COLS_PORTRAIT: "1"
   GRID_ROWS_PORTRAIT: "5"
-  GRID_CELLS: "${ (GRID_COLS | int) * (GRID_ROWS | int) }"
   LVGL_BUFFER_SIZE: "50%"                       # LVGL's draw buffer as a share of the screen
   TOUCH_CONTROLLER: "ST7121"                    # The ESPHome driver is named st7123; the glass reports ST7121.
   TOUCH_TEST_READY_LOG: "ST7121 touch test ready; no tile actions"

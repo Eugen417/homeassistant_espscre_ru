@@ -1,6 +1,7 @@
 """The grid of a screen's pages (app 0.2.94): every slot, page and tile count follows the screen, not the first boards.
 
-The firmware derives its grid from the board (GRID_COLS x GRID_ROWS, runtime_model.h); the add-on used to count with
+The firmware starts on the board's grid (GRID_COLS x GRID_ROWS, runtime_model.h) and runs on the one a layout gives it
+(firmware 0.53.0+); the add-on used to count with
 six cells and 48 tiles whatever the screen, so on a 3 x 3 panel a wide tile in the second row, a full tile on page 2
 and anything from page 6 on were refused at save. `core.Grid` holds the firmware's rules once; `grid_of(screen)` gives
 the grid of the screen in hand; everything that counts cells takes it.

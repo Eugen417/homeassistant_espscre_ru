@@ -35,7 +35,7 @@ fontTools and jinja2, and stops when one is missing, because a skipped test prov
 - **C++ tests**: every `tests/*.cpp`, compiled with `clang++ -std=c++17 -Wall -Wextra -Werror -I.` and run. They test
   the firmware's logic and layout arithmetic (cards, settings, theme, touch filter, protocol) on this computer.
 - **Generated files are current**: `tools/check_packages.py` (the boards define every name the core uses, and no board
-  file repeats what it would get anyway), and the `--check` of `tools/generate_cells.py`, `generate_board_shapes.py`,
+  file repeats what it would get anyway), and the `--check` of `tools/generate_board_shapes.py`,
   `generate_entries.py`, `generate_issue_templates.py`, `generate_icons.py` and `generate_catalogue.py`.
 - **Firmware numbers** (`tools/affected_boards.py --verify`): a change that reaches a board raises that board's
   number (docs/BOARD_RELEASES.md).
@@ -97,6 +97,27 @@ variant it:
 
 What it cannot show: colours and timing of a real panel, a real finger on real glass, memory and heat, and anything a
 real Home Assistant or camera adds.
+
+### The plugin host
+
+```sh
+ESPHOME=... python3 tools/render/run.py cyd guition --plugin tests/fixtures/plugins/host_probe
+KEPT_PAGES_HOST=1 ESPHOME=... python3 tools/render/run.py guition --plugin tests/fixtures/plugins/host_probe --work .esphome/render/kept
+```
+
+builds the board with the host probe plugin in it (`tests/fixtures/plugins/host_probe`, a complete plugin whose only
+work is a log line at every moment of the plugin API) into a build folder and port of its own (`cyd-plugin`), and runs
+the plugin round alone: a layout with a plugin tile on page 1 and on page 2 and a sensor tile whose tap is the
+plugin's tap action, then every moment in the order the API promises them. The hello names the plugin; create, then
+state, then tick; new data reaches `on_state` without a new object; dark and light reach `on_theme`; the plugin's
+question is answered through the screen's inbox and reaches `on_message`; a finger on the tile reaches `on_tap` and
+`on_touch` and opens the plugin's card, which closes with the cards; the tap action opens the card with the sensor's
+entity; page 2 and back count the tile objects made and deleted; standby reaches `on_standby` both ways. The self test
+runs on the layout too. Run it twice, after any change to `plugin_host.cpp`, `plugin_api.h` or the receiver's plugin
+fields (docs/PLUGINS.md): plain, where every host program makes a card anew when its page comes back, as the CYD does,
+and with `KEPT_PAGES_HOST=1`, the path a board with PSRAM takes (docs/KEPT_PAGES.md), where the kept card shows again
+and the probe counts no new object. A host program never has PSRAM, so a Guition built plain proves the CYD's path at
+the Guition's sizes, not the kept one.
 
 ## 4. One screen on the glass
 

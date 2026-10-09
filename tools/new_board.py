@@ -8,14 +8,14 @@ A board file is small since app 0.2.127: its hardware, the facts of its glass an
 includes (docs/PROFILES.md). Every size comes from the look, which scales it by DISPLAY_DPI so a tile, a letter and a
 key keep their size in millimetres; nothing is copied or scaled here. What this writes:
 
-- packages/boards/NAME.yaml: the template board's `packages:` (its build, hardware, look and features) with the cards
-  of the new grid; the new board's word (BOARD_ID), its panel (the canvas lying down, turned back by --rotation), its
+- packages/boards/NAME.yaml: the template board's `packages:` (its build, hardware, look and features); the new
+  board's word (BOARD_ID), its panel (the canvas lying down, turned back by --rotation), its
   density, and its grid both ways up (the proposal of tools/propose_grid.py, or --cols/--rows); and, like the
   template's hardware sections, the template's own substitutions that are not about its glass (the hardware values an
   override may change, and the code the board hands the shared lambdas), which are the template's until replaced;
 - NAME's entry in boards.yaml (what New screen shows: --title, --model and --status, experimental unless said), then
-  the entry files packages/NAME.yaml and checkout/NAME.yaml (tools/generate_entries.py), the cards of its grid
-  (tools/generate_cells.py) and boards.json (tools/generate_board_shapes.py);
+  the entry files packages/NAME.yaml and checkout/NAME.yaml (tools/generate_entries.py) and boards.json
+  (tools/generate_board_shapes.py);
 - tests/fixtures/overrides/NAME-contract.yaml: an override of the parts every board names the same way, which
   tools/check.sh --firmware has ESPHome read on this board, the way a screen's Override YAML loads it.
 
@@ -24,8 +24,8 @@ template. Nothing is fitted to the glass here: what depends on the canvas (the c
 the firmware works out on the glass itself.
 
 --width and --height are the canvas of the screen lying down and --rotation the LVGL angle that lays the panel out that
-way. A board only tried out is best called lab-<name>: Git ignores those, it gets only its board file and the cards of
-its grid (tools/generate_cells.py --lab), and it stays out of the catalog.
+way. A board only tried out is best called lab-<name>: Git ignores those, it gets only its board file, and it stays out
+of the catalog. The cards of its grid are made at boot, one per cell (runtime_tiles::make_cells).
 """
 import argparse
 import math
@@ -120,11 +120,8 @@ def main():
     # The panel's own pixels: the canvas lying down, turned back by the angle that lays it out that way. The display
     # block drives the panel at this size whichever way the screen hangs; LVGL turns the picture.
     native_w, native_h = (H, W) if a.rotation in (90, 270) else (W, H)
-    # The board brings the cards of the page that holds most: a screen is built one way or the other from one file.
-    cells = max(cols * rows, tall_cols * tall_rows)
 
     packages = re.search(r'^packages:\n(.*?)(?=^[a-z_0-9]+:|\Z)', source, re.M | re.S)[0].rstrip('\n') + '\n'
-    packages = re.sub(r'(cells: !include \.\./cells/)\d+(\.yaml)', rf'\g<1>{cells}\g<2>', packages)
     packages = re.sub(r'(look: !include \.\./looks/)\w+(\.yaml)', rf'\g<1>{look}\g<2>', packages)
     lines = [
         f'# ESP Screens - {a.name}: a {a.inch}-inch {W} x {H} panel. Written by tools/new_board.py from the {a.template}',
@@ -171,10 +168,9 @@ def main():
     dest.write_text('\n'.join(lines) + '\n' + hardware)
 
     print(f'{dest.relative_to(profiles.ROOT)}: panel {native_w} x {native_h}, {dpi:.1f} dpi, the {look} look, grid {cols} x {rows} '
-          f'lying down and {tall_cols} x {tall_rows} standing up ({cells} cards)')
+          f'lying down and {tall_cols} x {tall_rows} standing up')
     run = lambda *tool: subprocess.run([sys.executable, *tool], cwd=profiles.ROOT, check=True)  # noqa: E731
     if lab:
-        run('tools/generate_cells.py', '--lab')
         print('Next: replace the hardware sections and the values copied from the template, then render it '
               '(docs/ADDING_A_BOARD.md). A lab board stays out of the catalog and out of Git.')
         return
@@ -185,7 +181,6 @@ def main():
         f'  model: {a.model or a.name.upper()}', f'  status: {a.status}']) + '\n')
     contract = profiles.ROOT / 'tests' / 'fixtures' / 'overrides' / f'{a.name}-contract.yaml'
     contract.write_text(CONTRACT)
-    run('tools/generate_cells.py')
     run('tools/generate_entries.py')
     run('tools/generate_board_shapes.py')
     print(f'Added to boards.yaml, with packages/{a.name}.yaml, checkout/{a.name}.yaml and {contract.relative_to(profiles.ROOT)}.')

@@ -5,7 +5,7 @@
 // form, what it sends and when, is the one it always was.
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { getJson, send } from "../api";
-import { editorLanguage, languageMarks, numberText, t, te } from "../i18n";
+import { editorLanguage, languageMarks, numberText, t } from "../i18n";
 import { copyText, createVirtualScreen, go, openIntegrations, refresh, state, toast } from "../store";
 import { customPreview, previewProfiles } from "../model/preview";
 import { boardAbilities, boardDetail, boardList, boardTitle } from "../model/boards";
@@ -20,7 +20,7 @@ import { useBrowserFlash } from "../flasher/session";
 // Download: ESP Screens builds, the owner flashes the file from their own computer. ESPHome Web is ESPHome's own
 // browser flasher; this address opens it with its hint for a downloaded project (as ESPHome Device Builder does).
 const ESPHOME_WEB = "https://web.esphome.io/?dashboard_install";
-const form = reactive({ board: "", orientation: "landscape" as Orientation, choices: {} as Record<string, string>, friendly_name: "", name: "", wifi_ssid: "", wifi_password: "", target: "" });
+const form = reactive({ board: "", orientation: "landscape" as Orientation, grid: { columns: 2, rows: 3 }, choices: {} as Record<string, string>, friendly_name: "", name: "", wifi_ssid: "", wifi_password: "", target: "" });
 const mode = ref<"physical" | "virtual">("physical");
 const installer = reactive({
   view: "setup" as "setup" | "progress" | "done", file: null as string | null, friendly: "", calibrate: false, target: "",
@@ -71,10 +71,7 @@ const glassStyle = (board: BoardChoice) => {
 const abilities = computed(() => (chosen.value ? boardAbilities(chosen.value) : []));
 // The choices besides the orientation (a CYD's display controller): each starts at the board file's own value.
 const choices = computed(() => Object.entries(chosen.value?.choices || {}).map(([key, options]) => ({ key, options })));
-// A value says what it is (the display controller's model); a number of rows is said in words, and its first value is
-// the usual size rather than what most boards have (app 0.4.31).
-const optionName = (key: string, option: string) => te(`editor.installer.choice_option.${key}.${option}`) ? t(`editor.installer.choice_option.${key}.${option}`) : option;
-const firstNote = (key: string) => t(te(`editor.installer.choice_first.${key}`) ? `editor.installer.choice_first.${key}` : "editor.installer.choice_usual");
+// A value says what it is (the display controller's model), and its first value is what most boards have.
 // The first board until someone picks one, once the add-on has said which there are.
 watch(boardRows, (rows) => { if (!boards.value[form.board] && rows.length) form.board = rows[0].key; }, { immediate: true });
 // Which way the chosen board may hang, with the canvas and the cells of a page for each. Square glass hangs one way
@@ -88,12 +85,25 @@ const orientations = computed<(BoardOrientation & { key: Orientation })[]>(() =>
     .filter((row) => row.side && row.side.columns > 0 && row.side.rows > 0);
   return sides.length === 2 ? sides.map((row) => ({ key: row.key, ...(row.side as BoardOrientation) })) : [];
 });
+// The grid it starts with (app 0.4.85): the board's own for the way it hangs, the best that board has, unless Advanced
+// chose another within the range that way takes. The editor changes it later beside the pages, without a new build.
+const side = computed(() => chosen.value?.orientations[form.orientation] || chosen.value?.orientations.landscape);
+const gridRange = computed(() => ({ min: side.value?.min || [1, 1], max: side.value?.max || [side.value?.columns || 2, side.value?.rows || 3] }));
+const gridAxes = [["columns", 0], ["rows", 1]] as const;
+const canStep = (axis: "columns" | "rows", index: 0 | 1, by: number) =>
+  form.grid[axis] + by >= gridRange.value.min[index] && form.grid[axis] + by <= gridRange.value.max[index];
+function stepGrid(axis: "columns" | "rows", index: 0 | 1, by: number) { if (canStep(axis, index, by)) form.grid[axis] += by; }
+const bestGrid = () => { form.grid = { columns: side.value?.columns || 2, rows: side.value?.rows || 3 }; };
+const gridChosen = computed(() => form.grid.columns !== side.value?.columns || form.grid.rows !== side.value?.rows);
 // A board that hangs one way only is always built lying down; a board that was asked about keeps whatever was
 // chosen. Resetting it on every board change would throw away an answer the person just gave.
 watch(() => form.board, () => {
   if (!orientations.value.length) form.orientation = "landscape";
   form.choices = Object.fromEntries(choices.value.map((choice) => [choice.key, choice.options[0]]));
-});
+  bestGrid();
+}, { immediate: true });
+// Another way of hanging starts at that way's own grid.
+watch(() => form.orientation, bestGrid);
 const nodePreview = computed(() => form.name || "…");
 // Names the screens this app knows already carry (app 0.2.123): their ESPHome device names and the starts Home
 // Assistant gave their entity ids. The server refuses a clash, and saying it here means nothing is built first.
@@ -247,6 +257,7 @@ async function submit(event: Event) {
     // Only a choice that differs from the board file's own goes along: the add-on writes nothing for that one anyway.
     const picked = Object.fromEntries(choices.value.filter((choice) => form.choices[choice.key] !== choice.options[0]).map((choice) => [choice.key, form.choices[choice.key]]));
     if (Object.keys(picked).length) payload.choices = picked;
+    if (gridChosen.value) payload.grid = { ...form.grid };
     if (askWifi.value) { if (wifiMissing.value.includes("wifi_ssid")) payload.wifi_ssid = form.wifi_ssid; if (wifiMissing.value.includes("wifi_password")) payload.wifi_password = form.wifi_password; }
     if (wifiOther.value) await saveWifi();
     const result = await send("firmware/profiles", "POST", payload);
@@ -289,6 +300,7 @@ function reset() {
   flash.cancel();
   Object.assign(installer, { view: "setup", file: null, apiKey: null, nodeEdited: false, jobState: null, target: "", picked: false, action: null, browser: false, chip: null });
   Object.assign(form, { board: boardRows.value[0]?.key || "", orientation: "landscape", choices: {}, friendly_name: "", name: "", wifi_ssid: "", wifi_password: "", target: "" });
+  bestGrid();
   step.value = 1; query.value = ""; size.value = ""; wifiOther.value = false; doneAt.value = 0;
   job.value = null; logs.value = []; status.value = ""; note.value = ""; logOpen.value = false;
   installerRefresh();
@@ -310,11 +322,10 @@ const shownBoards = computed(() => {
   return boardRows.value.filter((board) => (!size.value || sizeOf(board.inch) === size.value) && words.every((word) =>
     `${boardTitle(board)} ${board.name} ${board.model} ${board.inch} ${board.touch} ${board.chip || ""} ${board.key}`.toLocaleLowerCase().includes(word.replace(/inch$/, ""))));
 });
-// One card per screen someone would recognise (app 0.4.32): the boards of one brand and size are the same screen in
-// other models (a CYD with another display controller, a V2 or V3 of a Guition), chosen in the next step by what is
-// printed on it. The list keeps growing; this keeps the gallery one card per screen.
+// Keep variants together only when brand, glass size, chip and resolution match. A board with a different chip or
+// resolution gets its own card and specifications; display-controller variants and board revisions stay in Model.
 type Row = (typeof boardRows.value)[number];
-const familyKey = (board: { name: string; inch: number }) => `${board.name}|${board.inch}`;
+const familyKey = (board: BoardChoice) => JSON.stringify([board.name, board.inch, board.chip || "", board.width, board.height]);
 const families = computed(() => {
   const found = new Map<string, Row[]>();
   for (const board of shownBoards.value) found.set(familyKey(board), [...(found.get(familyKey(board)) || []), board]);
@@ -349,11 +360,9 @@ function realScreen() { mode.value = "physical"; step.value = 1; }
 const art = computed(() => {
   const board = chosen.value;
   if (mode.value === "virtual") return { width: previewForm.width, height: previewForm.height, columns: previewForm.columns, rows: previewForm.rows };
-  const side = board?.orientations[form.orientation] || board?.orientations.landscape;
-  // A board choice that sets the grid (the 4-inch Guition's number of rows, app 0.4.31) draws the grid it gives.
-  const chosenNumber = (key: string) => Number(form.choices[key]) || 0;
-  return { width: side?.width || board?.width || 480, height: side?.height || board?.height || 480,
-    columns: chosenNumber("GRID_COLS") || side?.columns || 2, rows: chosenNumber("GRID_ROWS") || side?.rows || 3 };
+  const way = side.value;
+  return { width: way?.width || board?.width || 480, height: way?.height || board?.height || 480,
+    columns: form.grid.columns, rows: form.grid.rows };
 });
 const boardArt = (board: BoardChoice) => {
   const side = board.orientations.landscape;
@@ -509,33 +518,13 @@ onBeforeUnmount(() => { clearInterval(poll); clearInterval(clock); clearInterval
             </div>
             <small>{{ t("editor.installer.model_hint") }}</small>
           </fieldset>
-          <!-- Which way the screen hangs: the cells of a page differ per way, so each option draws the grid it gives.
-               Only glass that is not square is asked about, and only once the add-on has said what the board can do. -->
-          <fieldset v-if="orientations.length" id="orientation-fields">
-            <legend class="f-label">{{ t("editor.installer.orientation") }}</legend>
-            <div class="orients">
-              <label v-for="side in orientations" :key="side.key" class="orient">
-                <input type="radio" name="orientation" :value="side.key" v-model="form.orientation" />
-                <span class="orient-glass" aria-hidden="true"
-                      :style="{ '--glass-aspect': `${side.width} / ${side.height}`, '--glass-columns': side.columns, '--glass-rows': side.rows }">
-                  <span class="orient-bar"></span>
-                  <span class="orient-cells"><i v-for="cell in side.columns * side.rows" :key="cell"></i></span>
-                </span>
-                <span class="orient-words">
-                  <b>{{ t(`editor.installer.orientation_${side.key}`) }}</b>
-                  <small>{{ t("editor.installer.orientation_tiles", side.columns * side.rows) }}</small>
-                </span>
-              </label>
-            </div>
-            <small id="orientation-hint">{{ t("editor.installer.orientation_hint") }}</small>
-          </fieldset>
           <!-- The board's other choices, one per part that differs between boards sold under its name. -->
           <fieldset v-for="choice in choices" :key="choice.key" class="choice-fields" :id="`choice-${choice.key}`">
             <legend class="f-label">{{ t(`editor.installer.choice.${choice.key}`) }}</legend>
             <div class="choice-options">
               <label v-for="(option, index) in choice.options" :key="option" class="choice">
                 <input type="radio" :name="`choice-${choice.key}`" :value="option" v-model="form.choices[choice.key]" />
-                <span><b>{{ optionName(choice.key, option) }}</b><small v-if="index === 0">{{ firstNote(choice.key) }}</small></span>
+                <span><b>{{ option }}</b><small v-if="index === 0">{{ t("editor.installer.choice_usual") }}</small></span>
               </label>
             </div>
             <small>{{ t(`editor.installer.choice_hint.${choice.key}`) }}</small>
@@ -567,6 +556,34 @@ onBeforeUnmount(() => { clearInterval(poll); clearInterval(clock); clearInterval
               <input id="node-name" name="name" v-model="form.name" pattern="[a-z][a-z0-9\-]{0,29}" maxlength="30" autocomplete="off" @input="installer.nodeEdited = true" />
               <small>{{ t("editor.installer.device_name_hint") }} <code id="node-preview">{{ nodePreview }}</code></small>
             </div>
+            <!-- The grid it starts with, and which way it hangs (app 0.4.85): the board's best unless chosen here; the editor
+                 changes either later beside the pages, without a new build. Only glass that is not square has two ways. -->
+            <fieldset id="grid-fields" class="choice-fields">
+              <legend class="f-label">{{ t("editor.installer.grid") }}</legend>
+              <div v-if="orientations.length" class="orients" id="orientation-fields">
+                <label v-for="way in orientations" :key="way.key" class="orient">
+                  <input type="radio" name="orientation" :value="way.key" v-model="form.orientation" />
+                  <span class="orient-glass" aria-hidden="true"
+                        :style="{ '--glass-aspect': `${way.width} / ${way.height}`, '--glass-columns': way.columns, '--glass-rows': way.rows }">
+                    <span class="orient-bar"></span>
+                    <span class="orient-cells"><i v-for="cell in way.columns * way.rows" :key="cell"></i></span>
+                  </span>
+                  <span class="orient-words"><b>{{ t(`editor.installer.orientation_${way.key}`) }}</b></span>
+                </label>
+              </div>
+              <div class="grid-steps">
+                <div v-for="[axis, index] in gridAxes" :key="axis" class="grid-step">
+                  <span>{{ t(`editor.grid.${axis}`) }}</span>
+                  <button type="button" class="icon-btn" :id="`install-${axis}-less`" :disabled="!canStep(axis, index, -1)"
+                    :aria-label="t(`editor.grid.${axis}_less`)" @click="stepGrid(axis, index, -1)"><Icon name="minus" /></button>
+                  <b>{{ form.grid[axis] }}</b>
+                  <button type="button" class="icon-btn" :id="`install-${axis}-more`" :disabled="!canStep(axis, index, 1)"
+                    :aria-label="t(`editor.grid.${axis}_more`)" @click="stepGrid(axis, index, 1)"><Icon name="plus" /></button>
+                </div>
+                <button v-if="gridChosen" type="button" class="btn link mini" id="install-grid-best" @click="bestGrid">{{ t("editor.installer.grid_best") }}</button>
+              </div>
+              <small>{{ t("editor.installer.grid_hint") }}</small>
+            </fieldset>
             <ul v-if="abilities.length" class="abilities" id="board-abilities">
               <li v-for="ability in abilities" :key="ability.key" :class="{ off: !ability.on }">{{ ability.text }}</li>
             </ul>
@@ -708,7 +725,7 @@ onBeforeUnmount(() => { clearInterval(poll); clearInterval(clock); clearInterval
         </details>
       </div>
       <details v-if="installer.view !== 'done'" id="install-log-wrap" class="follow-log" :open="logOpen" @toggle="logOpen = ($event.target as HTMLDetailsElement).open">
-        <summary><Icon name="code-braces" />{{ t(logOpen ? "editor.installer.hide_log" : "editor.installer.show_log") }}<button v-if="logOpen" type="button" class="btn quiet mini" @click.prevent="copyText(logs.join('\n'))">{{ t("editor.common.copy") }}</button></summary>
+        <summary><Icon name="code-braces" />{{ t(logOpen ? "editor.installer.hide_log" : "editor.installer.show_log") }}<button v-if="logOpen" type="button" class="btn quiet mini" @click.prevent="copyText(logs.join('\n'), null, 'log')">{{ t("editor.common.copy") }}</button></summary>
         <pre id="install-log" ref="logBox" class="log">{{ logs.join("\n") }}</pre>
       </details>
       <footer class="setup-foot">

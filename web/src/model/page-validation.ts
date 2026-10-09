@@ -4,6 +4,7 @@
 import { t } from '../i18n';
 import { isWideSize } from './sizes';
 import { TILE, ofType, taps as catalogueTaps } from './catalogue';
+import { PLUGIN_TILE } from './plugins';
 import rules from './page-rules.json';
 import type { PageLayout, PageTile } from '../types';
 
@@ -14,6 +15,8 @@ export function fields(value: any, allowed: string[], required = allowed) {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(k => !allowed.includes(k)) ||
       required.some(k => !(k in value))) fail();
 }
+// Plugin tiles are an experiment: the add-on accepts them only once it serves plugins (docs: the plugins proposal).
+export const pluginTiles = { enabled: false };
 const entity = (value: any, domains: string[]) => typeof value === 'string' && value.length <= 120 &&
   matches(/^[a-z0-9_]+\.[a-z0-9_]+$/, value) && domains.includes(value.split('.')[0]);
 const icon = (value: any, none = false) => value === 'auto' || (none && value === 'none') || rules.icons.includes(value);
@@ -36,9 +39,14 @@ export function validatePageShape(layout: PageLayout) {
     for (const control of bar.leading) fields(control, ['id', 'kind']);
     const seen = new Set<string>();
     for (const item of bar.trailing) {
-      fields(item, ['id', 'type', 'entity', 'content', 'icon', 'show'], ['id', 'type']);
+      fields(item, ['id', 'type', 'entity', 'content', 'icon', 'show', 'item'], ['id', 'type']);
       let key: string;
-      if (rules.headerBuiltin.includes(item.type) || item.type === rules.headerLink) {
+      if (item.type === 'plugin' && pluginTiles.enabled) {
+        // A plugin's item (docs/PLUGINS.md): it says itself what it shows.
+        fields(item, ['id', 'type', 'item'], ['id', 'type', 'item']);
+        if (!/^plugin:[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/.test(String(item.item))) fail();
+        key = JSON.stringify(['plugin', item.item]);
+      } else if (rules.headerBuiltin.includes(item.type) || item.type === rules.headerLink) {
         fields(item, ['id', 'type']); key = item.type;
       } else if (item.type === rules.headerWifi || item.type === rules.headerBattery) {
         // The screen's own Wi-Fi item (firmware 0.38.0) and its battery (firmware 0.41.0): what each shows beside its
@@ -61,10 +69,10 @@ export function validatePageShape(layout: PageLayout) {
       fields(tile, ['id', 'content', 'placement', 'appearance', 'interaction', 'children'], ['id', 'content', 'placement', 'appearance', 'interaction']);
       fields(tile.placement, ['row', 'column', 'columns', 'rows']);
       fields(tile.appearance, ['label', 'presentation', 'display', 'icon', 'background', 'historyHours', 'refresh', 'subtitle', 'fit', 'overlay',
-        'mapEntities', 'mapFraming', 'mapDistance', 'mapFollow', 'mapMarkers', 'mapNames', 'mapZones', 'mapStreets', 'mapLook'], ['label']);
+        'mapEntities', 'mapFraming', 'mapDistance', 'mapFollow', 'mapMarkers', 'mapNames', 'mapZones', 'mapStreets', 'mapLook', 'energyFlow'], ['label']);
       fields(tile.interaction, ['tap', 'inline', 'controls', 'action', 'guard', 'play', 'speaker', 'shuffle', 'repeat'], []);
       const content = tile.content;
-      fields(content, ['kind', 'entityId', 'name', 'target'], ['kind']);
+      fields(content, ['kind', 'entityId', 'name', 'target', 'plugin', 'tile', 'options'], ['kind']);
       if (content.kind === 'entity') {
         fields(content, ['kind', 'entityId']);
         if (!entity(content.entityId, rules.domains)) throw new Error(t('addon.errors.layout.unsupported'));
@@ -75,6 +83,13 @@ export function validatePageShape(layout: PageLayout) {
         fields(content, ['kind', 'target']);
         fields(content.target, content.target?.kind === 'home' ? ['kind'] : ['kind', 'pageId']);
         if (!['home', 'page'].includes(content.target.kind)) fail();
+      } else if (content.kind === 'plugin' && pluginTiles.enabled) {
+        // A plugin's tile type (design): a known plugin and tile, and options of plain values the manifest checks.
+        fields(content, ['kind', 'plugin', 'tile', 'entityId', 'options'], ['kind', 'plugin', 'tile']);
+        if (!/^[a-z0-9_]+$/.test(String(content.plugin)) || !/^[a-z0-9_]+$/.test(String(content.tile))) fail();
+        if (content.entityId !== undefined && !/^[a-z0-9_]+\.[a-z0-9_]+$/.test(String(content.entityId))) fail();
+        if (content.options !== undefined && (typeof content.options !== 'object' || content.options === null ||
+          Object.values(content.options).some((value) => !['string', 'number', 'boolean'].includes(typeof value)))) fail();
       } else fail();
       // A bedside clock's keys (app 0.4.12): tiles without a place, at most three, only under the bedside clock.
       if (tile.children !== undefined) {
@@ -104,7 +119,9 @@ export function validateCardOptions(tile: PageTile, entityId: string, size: stri
   const controls = ['none', ...((rules.controls as Record<string, string[]>)[domain] || [])];
   // Every choice from the tile catalogue (model/catalogue.ts): a type's taps, its guards, the hours a graph shows.
   for (const [value, choices] of [[a.display, displays], [a.background, rules.backgrounds], [a.historyHours, TILE.history_hours],
-    [i.tap, catalogueTaps(domain)], [i.inline, ['none', 'slider']], [i.controls, controls],
+    // A plugin's tap action (plugin:<plugin>.<action>, docs/PLUGINS.md) goes on any tile, as the add-on takes it
+    // (core.validate_layout): which tiles it suits is its manifest's, and a screen without the plugin does nothing.
+    [PLUGIN_TILE.test(String(i.tap ?? '')) ? undefined : i.tap, catalogueTaps(domain)], [i.inline, ['none', 'slider']], [i.controls, controls],
     [i.guard, ofType(domain)?.guards ?? []]] as [any, any[]][])
     if (value !== undefined && !choices.includes(value)) fail();
   if (a.icon !== undefined && !icon(a.icon)) fail();
@@ -123,6 +140,8 @@ export function validateCardOptions(tile: PageTile, entityId: string, size: stri
     [a.mapMarkers, map?.markers ?? []], [a.mapNames, map?.names ?? []], [a.mapZones, map?.zones ?? []], [a.mapStreets, map?.streets ?? []],
     [a.mapLook, map?.look ?? []]] as [string | undefined, string[]][])
     if (value !== undefined && (a.display !== 'map' || !choices.includes(value) || value === choices[0])) fail('normalization');
+  // How the energy card shows power along a line: the energy card's own, the default (dots) never stored.
+  if (a.energyFlow !== undefined && (entityId !== 'screen.energy' || !rules.energyFlow.includes(a.energyFlow) || a.energyFlow === rules.energyFlow[0])) fail('normalization');
   // A favourite (app 0.4.42): what it plays and its speaker, and its own shuffle and repeat (app 0.4.84), with the
   // favourite alone.
   if ((i.play !== undefined || i.speaker !== undefined || i.shuffle !== undefined || i.repeat !== undefined) && a.display !== 'favorite') fail('normalization');

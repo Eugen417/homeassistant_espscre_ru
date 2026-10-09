@@ -53,6 +53,7 @@ export function wifiView(item: HeaderItem, rssi: number, percent: (n: number) =>
 export const itemKey = (item: HeaderItem) => item.type === "entity"
   ? JSON.stringify(["entity", item.entity, item.content ?? "state", item.icon ?? "auto", item.show ?? "always"])
   : item.type === "wifi" || item.type === "battery" ? JSON.stringify([item.type, item.content ?? "icon", item.show ?? "always"])
+  : item.type === "plugin" ? JSON.stringify(["plugin", item.item])
   : JSON.stringify([item.type]);
 // A new entity item as the top bar adds one: its state with the automatic icon, always shown.
 export const entityItem = (entity: string): HeaderItem => ({ type: "entity", entity, content: "state", icon: "auto", show: "always" });

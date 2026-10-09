@@ -2,8 +2,8 @@
 
 A screen is an entry (`checkout/cyd.yaml` or `packages/cyd.yaml` for a CYD, `checkout/guition.yaml` or
 `packages/guition.yaml` for a Guition, ...) that includes `packages/core.yaml`, which every board shares, and the
-board's own file under `packages/boards/`. The board file includes packages of its own in turn: the cards of its grid
-(`packages/cells/`), its look (`packages/looks/`) and its features (`packages/features/`). docs/PROFILES.md says how.
+board's own file under `packages/boards/`. The board file includes packages of its own in turn: its look
+(`packages/looks/`) and its features (`packages/features/`). docs/PROFILES.md says how.
 
 `files(name)` is that whole chain, `text(name)` all of it one file after the other, so a check that looks for a line
 finds it wherever it lives. `substitutions(name)` is every `${NAME}` the chain defines, with the precedence ESPHome
@@ -60,8 +60,8 @@ def packages_of(path):
         return []
     includes = re.findall(r'!include (\S+)', block[1])
     if any('${' in include for include in includes):
-        # A path worked out from the file's own substitutions, as ESPHome does it (the Guition's cards follow its
-        # rows, GRID_CELLS): the board file's own values, which a screen's YAML may change when it is built.
+        # A path worked out from the file's own substitutions, as ESPHome does it: the board file's own values, which
+        # a screen's YAML may change when it is built.
         values = evaluate(substitutions_of(path))
         includes = [_render(include, values, strict=False) for include in includes]
     return [(Path(path).parent / include).resolve() for include in includes]
@@ -114,13 +114,8 @@ def battery(board):
     return any(re.search(r'^\s+device_class: battery\s*$', path.read_text(), re.M) for path in chain(BOARDS[board]))
 
 
-def cells_of(board_file):
-    """The cells package a board file brings: the cards of its grid (packages/cells/<number>.yaml)."""
-    return [path for path in packages_of(board_file) if path.parent.name == 'cells']
-
-
 def files(name):
-    """The entry, the core, and the board file's chain (its cells, its look, its features, itself), in that order."""
+    """The entry, the core, and the board file's chain (its look, its features, itself), in that order."""
     board = BOARDS[board_of(name)]
     return [ROOT / name, CORE, *chain(board)]
 
@@ -148,8 +143,7 @@ def raw_substitutions(path):
     """Every substitution a file and its packages define, as written, with the one that wins: the file's own over its
     packages', a later package's over an earlier one's (ESPHome's packages component, "higher-priority sources win")."""
     values = dict(substitutions_of(path))
-    # A package that is not there yet (the cards of a new board's grid before tools/generate_cells.py ran) adds nothing;
-    # tools/check_packages.py is what says it is missing.
+    # A package that is not there yet adds nothing; tools/check_packages.py is what says it is missing.
     for package in reversed([p for p in packages_of(path) if p.exists()]):
         for key, value in raw_substitutions(package).items():
             values.setdefault(key, value)

@@ -17,8 +17,6 @@ packages:
   build: !include ../hardware/esp-idf.yaml
   # Wide update slots for 4 MB of flash, and the way a screen that is out there gets them.
   flash: !include ../hardware/flash-4mb.yaml
-  # The cards of this board's grid, one per cell (tools/generate_cells.py writes them; docs/RESPONSIVE.md).
-  cells: !include ../cells/6.yaml
   # Every size of the compact look, scaled to DISPLAY_DPI below. This glass is where that look was drawn.
   look: !include ../looks/compact.yaml
   touch: !include ../features/resistive-touch.yaml
@@ -32,6 +30,9 @@ substitutions:
   BOARD_ID: "cyd"
   DEVICE_NAME: "cyd-new"
   DEVICE_FRIENDLY_NAME: "My CYD"
+  # The bedside clock draws with the display step this board has anyway: its own digits, a page tall, cost about 40 KB of
+  # a 4 MB board's slot, which is close to full (looks/shared/digits.yaml).
+  BEDSIDE_OWN_DIGITS: "0"
 
   # The glass: the panel's own pixels, which the display block below always drives; LVGL turns the picture and the
   # touch together, so nothing else on this board knows which way the glass hangs. The compact look takes 143 dpi

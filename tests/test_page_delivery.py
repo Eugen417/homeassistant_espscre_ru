@@ -7,7 +7,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "screen_manager/app"))
 from core import Grid
 from layout_migrations import migrate_legacy
-from page_delivery import Sender, DeliveryError, Refused, Superseded, configuration, bar_value_messages
+from page_delivery import Sender, DeliveryError, Refused, Superseded, configuration, bar_value_messages, grids_of
 
 
 class Screen:
@@ -263,6 +263,89 @@ class DeliveryTests(unittest.IsolatedAsyncioTestCase):
 
     async def sync(self, alive=lambda: True):
         return await self.sender.synchronize("text.test_inbox", self.record, self.region, self.values, self.bars, alive)
+
+    GRIDS = {'upright': False, 'landscape': {'columns': 2, 'rows': 3, 'min': [1, 1], 'max': [3, 5]},
+             'portrait': {'columns': 1, 'rows': 4, 'min': [1, 1], 'max': [2, 6]}}
+
+    async def test_a_screen_that_takes_another_grid_gets_the_layouts_grid_with_begin(self):
+        # Firmware 0.53.0+: the grid the layout is counted on goes with begin, so the screen changes to it before the
+        # tiles come; a grid the way its glass hangs does not take is refused before anything but the hello.
+        async def newer(message):
+            answer = await self.screen.send(message)
+            answer['grids'] = deepcopy(self.GRIDS)
+            return answer
+        self.sender = Sender(newer)
+        await self.sync()
+        self.assertEqual(self.screen.begin['grid'], [2, 3])
+        self.assertEqual(self.sender.grids, self.GRIDS)
+        self.assertEqual(self.sender.last_grids, self.GRIDS)
+        self.screen.messages.clear()
+        self.record = {**deepcopy(self.record), 'sourceGrid': {'columns': 4, 'rows': 3}}
+        with self.assertRaises(Refused):
+            await self.sync()
+        self.assertEqual([message['op'] for message in self.screen.messages], ['hello'])
+
+    async def test_a_screen_stood_up_gets_the_way_and_the_grid_of_that_way(self):
+        # App 0.4.85: the way a screen is to hang goes in begin (region "upright") and its grid is held to that way's
+        # range; the screen answers that it starts again, which is no applied layout yet.
+        async def turning(message):
+            answer = await self.screen.send(message)
+            answer['grids'] = deepcopy(self.GRIDS)
+            if message['op'] == 'begin' and message.get('upright'):
+                answer['status'] = 'Restarting'
+            return answer
+        self.sender = Sender(turning)
+        self.record = {**deepcopy(self.record), 'sourceGrid': {'columns': 2, 'rows': 6}}
+        self.region = {**self.region, 'upright': True}
+        with self.assertRaisesRegex(DeliveryError, 'Restarting'):
+            await self.sync()
+        self.assertEqual(self.screen.begin['upright'], True)
+        self.assertEqual(self.screen.begin['grid'], [2, 6])
+        self.assertNotIn('commit', [message['op'] for message in self.screen.messages])
+        # Two columns of six lying down are past that way's range: refused before begin.
+        self.screen.messages.clear()
+        self.region = {**self.region, 'upright': False}
+        with self.assertRaises(Refused):
+            await self.sync()
+        self.assertEqual([message['op'] for message in self.screen.messages], ['hello'])
+
+    async def test_a_screen_given_another_grid_takes_the_sizes_of_that_grid(self):
+        # Its hello names the sizes of the grid it is on (two columns of three: no 3x1); the layout's grid of three
+        # columns of two takes a tile three columns wide, and the screen takes it with that grid (firmware 0.53.0+).
+        self.record = {**deepcopy(self.record), 'sourceGrid': {'columns': 3, 'rows': 2}}
+        tile = self.record['layout']['pages'][0]['tiles'][0]
+        tile['placement']['columns'] = 3
+        tile['appearance']['presentation'] = '3x1'
+        self.values[0]['o']['size'] = '3x1'
+        on_two_by_three = ['single', 'wide', 'full', 'tall', 'square', '1x3']
+
+        def screen(grids):
+            async def answer(message):
+                reply = await self.screen.send(message)
+                if grids: reply['grids'] = deepcopy(self.GRIDS)
+                if message['op'] == 'hello': reply['tile_sizes'] = list(on_two_by_three)
+                return reply
+            return answer
+        self.sender = Sender(screen(grids=False))
+        with self.assertRaisesRegex(Refused, 'these tile sizes'):
+            await self.sync()
+        self.sender = Sender(screen(grids=True))
+        await self.sync()
+        self.assertEqual(self.screen.begin['grid'], [3, 2])
+        self.assertEqual(self.screen.initial[0]['o']['size'], '3x1')
+
+    async def test_a_screen_that_keeps_its_grid_gets_no_grid(self):
+        await self.sync()
+        self.assertNotIn('grid', self.screen.begin)
+        self.assertIsNone(self.sender.grids)
+
+    def test_only_a_whole_and_sane_grids_answer_counts(self):
+        self.assertEqual(grids_of({'grids': self.GRIDS}), self.GRIDS)
+        for broken in (None, [], {'upright': 1}, {**self.GRIDS, 'portrait': None},
+                       {**self.GRIDS, 'landscape': {**self.GRIDS['landscape'], 'max': [10, 5]}},
+                       {**self.GRIDS, 'landscape': {**self.GRIDS['landscape'], 'columns': 4}},
+                       {**self.GRIDS, 'landscape': {**self.GRIDS['landscape'], 'min': [1]}}):
+            self.assertIsNone(grids_of({'grids': broken}), broken)
 
     async def test_complete_configuration_precedes_activation(self):
         await self.sync()

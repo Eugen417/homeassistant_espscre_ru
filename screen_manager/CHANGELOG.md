@@ -1,3 +1,70 @@
+## 0.4.85 (firmware 0.53.0)
+
+- **Your screens build the firmware of the Tessera you have.** A screen now always gets the firmware that belongs to
+  the Tessera app you installed, also when its update starts from Home Assistant's firmware update or from ESPHome
+  Device Builder. Before, every build took the newest firmware on GitHub, so a screen could run firmware that an older
+  app did not know. New firmware now comes with an update of the app: update Tessera first, then it offers each screen
+  its Update. When it starts, Tessera writes its release into every screen's YAML in the ESPHome folder (the `ref:` of
+  the display package and `GITHUB_REF`). A `ref:` other than main, dev or a Tessera release, one you chose yourself,
+  stays as it is.
+- **Choose a screen's columns and rows in the editor.** Beside the pages, the grid button shows the screen's columns and
+  rows and changes them, from one by one up to as many as its glass holds, without a new build. The layout follows at
+  once: tiles that no longer fit on a page move on to a new page right after it, and none is ever dropped. The screen
+  gets its new grid with the next save, under its loading screen, and keeps it. A change made while the screen is offline
+  waits for it. Needs this firmware on the screen; an Override YAML can widen the range (`GRID_MAX_ROWS` and more).
+- **Stand a screen up or lay it down in the editor.** On a screen whose glass is not square, the grid button also offers
+  Landscape and Portrait. The layout goes on that way's grid at once, and with the next save the screen turns, starts
+  again once and comes back the other way round, without a new build.
+- **New screen starts on the best grid.** A new screen gets the grid that suits its glass best, lying down. Under
+  Advanced you can choose other columns and rows, and on glass that is not square standing up; the editor changes both
+  later. The separate rows question on the 4-inch Guition, the Tab5 and the 10.1-inch Guition is gone.
+- **A sidebar you can fold and resize.** Drag the sidebar's edge to make it wider or narrower (double-click resets it),
+  or fold it to its icons with the button beside the logo; drag it very narrow and it folds by itself. Folded, every
+  screen and button says what it is when you point at it, and a screen name that is cut short shows in full the same
+  way. The editor remembers the width in this browser.
+- **A save shows a loading screen, then the new layout.** When you save in the editor, the screen now covers itself
+  with the loading screen while the new tiles arrive and its pages are prepared, and then shows the finished layout in
+  one step. Before, the new tiles appeared one by one over the loading text and the page flickered.
+- **Every build shows, wherever you look.** Whatever is building a screen, an update or an install from Firmware &
+  USB, now turns in the list of screens and shows its progress in Settings, Updates, with the build log one
+  click away. A build that failed keeps its log until the next one, so you can read why. Copying the installer's log
+  no longer says an API key was copied.
+- **Plugins, in the dev app only.** The dev app (the repository URL with `#dev`) now has a Plugins page: a plugin adds a
+  tile or a feature to the screens you choose, and each screen builds once with it. The first ones are Public transport
+  (NL) and a waste collection calendar, marked as examples, and the speaker and microphone of the Waveshare P4 86 panel,
+  in beta. Plugins live in github.com/MaxGramser/tessera-plugins, with a template and docs to make your own. The stable
+  app shows nothing of them while the plugin API is 0.x (docs/PLUGINS.md).
+- **Bus and train icons** for any tile.
+- **A screen that waits for its tiles to be adapted to a new grid says so.** The editor showed "Error: invalid
+  message" for it, because its screensaver was sent before the screen had a layout; now the status keeps saying that
+  the grid changed and the positions need a look.
+- **Waveshare ESP32-P4-86-Panel-ETH-2RO (experimental).** The 4-inch 720 × 720 wall panel on an ESP32-P4, with GT911
+  touch, a dimmable backlight and Wi-Fi through its ESP32-C6, as a new board in New screen. Its relays, Ethernet and
+  audio are not configured. New screen now gives a board with another chip or resolution its own card, so this one
+  stands apart from the Waveshare 4B. Thanks to @woozer, who made it work on the panel
+  ([#142](https://github.com/MaxGramser/homeassistant_espscreen/pull/142)).
+- **Room on the 4 MB boards.** The bedside clock on a Hosyond 4-inch draws its time with the large digits the screen
+  already has, a little smaller than before, which frees about 40 KB of its nearly full flash. The CYD already did so.
+- **The energy card adds up, and always shows the battery's charge.** What no device measures now has a grey circle
+  of its own, Untracked, after the devices and Other, as Home Assistant's live power view shows it, so the
+  devices add up to the house. A device that uses very little now counts in Other instead of disappearing. The battery's
+  charge stands beside its icon, as in Home Assistant's own card, on every size of the card; before, only large cards
+  showed it. The names stand centred under their circles, also at the sides of the card. Needs this firmware on the
+  screen.
+- **A calmer energy card, if you like.** The energy card's new Flow choice in the editor keeps the moving dots, or shows
+  lines and arrows instead: a line grows thicker as more power flows and an arrow in its middle shows which way it
+  goes, with nothing moving. Needs this firmware on the screen; until then the screen keeps the dots.
+- **Going back.** A layout that uses the energy card's new Flow choice can't be read by an older app, so after this
+  update go back to 0.4.84 only with a backup taken before it.
+- Checked with every Python, C++, editor, translation and WASM preview check, and rendered from the real firmware on
+  the CYD, the 4-inch Guition and the 10.1-inch Guition. Firmware builds of every board on ESPHome 2026.9.0 and, where
+  the board allows it, 2026.6.2: the CYD uses 91.8 % of its slot (93.6 % on 2026.6.2), the Hosyond 4-inch 92.5 %
+  (94.4 %). The upgrade from 0.4.84 was tested on a CYD, a 4-inch Guition built with four rows and a Waveshare 4.3-inch:
+  the new app with the old firmware, then each screen's own Update, and on the CYD the other order (the old app
+  installing the new firmware). Every layout came through unchanged, edits saved in between reached the screens, the
+  four-row Guition kept its four rows, and pages, taps, cards and standby were checked on the glass. A build from a
+  screen YAML pinned to a release tag made exactly that release's firmware.
+
 ## 0.4.84 (firmware 0.52.0)
 
 - **Zoom and move a map full screen.** A map opened full screen has round + and - keys at the bottom right, like the

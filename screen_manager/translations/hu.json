@@ -186,7 +186,8 @@
       "hours": "{n} óra",
       "hours_minutes": "{h} ó {m}",
       "wifi": "Wi-Fi",
-      "tessera": "Tessera"
+      "tessera": "Tessera",
+      "plugins": "Bővítmények"
     },
     "tile": {
       "tap_to_open": "Megnyitás",
@@ -547,7 +548,11 @@
       "battery": "Akkumulátor",
       "home": "Otthon",
       "other": "Egyéb",
+      "untracked": "Méretlen",
       "no_power": "Nincs teljesítményérzékelő a Home Assistant energiabeállításaiban"
+    },
+    "plugin": {
+      "missing": "Hiányzó bővítmény"
     }
   },
   "addon": {
@@ -708,7 +713,7 @@
         "substitutions_managed": "Ezeket a substitutions értékeket továbbra is a Tessera kezeli: {names}.",
         "substitutions_in_profile": "{names} a kijelző saját YAML-jében van beállítva (az Új kijelző alatt választva), ami erősebb a felülírásnál. Inkább ott módosítsd.",
         "orientation": "Válaszd ki, hogy a kijelző fekvő vagy álló helyzetben lesz.",
-        "orientation_managed": "A kijelző tájolását az Új kijelző alatt, építéskor választod ki, ezért az LVGL_ROTATION-t a Tessera kezeli.",
+        "orientation_managed": "A kijelző tájolását a szerkesztőben, az oldalak melletti Rács alatt, vagy építéskor az Új kijelző alatt választod ki, ezért az LVGL_ROTATION-t a Tessera kezeli.",
         "usb_port": "Válaszd ki a csatlakoztatott USB-portot a listából.",
         "busy_wait": "Már fut egy fordítás vagy telepítés. Várd meg, amíg befejeződik.",
         "busy": "Már fut egy fordítás vagy telepítés.",
@@ -716,7 +721,8 @@
         "still_building": "A firmware fordítása még tart. Töltsd le, ha elkészült.",
         "build_first": "Előbb fordítsd le a firmware-t; a letöltés a fordítás végeztével jelenik meg.",
         "unknown_action": "Ismeretlen firmware-művelet.",
-        "host": "Add meg a kívánt kijelző IP-címét vagy hosztnevét."
+        "host": "Add meg a kívánt kijelző IP-címét vagy hosztnevét.",
+        "grid": "Válassz olyan rácsot, amelyet ez a kijelző elfogad."
       },
       "updates": {
         "automatic": "Kapcsold be vagy ki az automatikus frissítéseket.",
@@ -777,7 +783,8 @@
         "save_first": "A dokumentumbeállítások mentése előtt mentsd az oldaldokumentumot",
         "destination_exists": "A célkijelzőnek már van mentett elrendezése",
         "update_tall": "Ezekhez a csempeméretekhez frissítsd a kijelzőt",
-        "memory": "A kijelzőn nincs elég szabad memória ehhez az elrendezéshez. Csökkentsd a csempék számát."
+        "memory": "A kijelzőn nincs elég szabad memória ehhez az elrendezéshez. Csökkentsd a csempék számát.",
+        "grid_range": "Ez a kijelző nem fogad el ekkora rácsot. Válassz másik rácsot az előnézet mellett."
       },
       "feedback": {
         "invalid": "Ez a válasz nem osztható meg. Válaszd az igent vagy a nem egészent, és csak a felsorolt problémákat.",
@@ -796,6 +803,24 @@
         "not_allowed": "A Home Assistant nem engedi, hogy ez az alkalmazás módosítsa az integrációit. Tedd meg magában a Home Assistantban: Beállítások → Eszközök és szolgáltatások.",
         "no_entry": "A Home Assistantban ez a kijelző nem ESPHome-eszközként szerepel.",
         "failed": "A Home Assistant nem fogadta el. A Home Assistantban nyisd meg: Beállítások → Eszközök és szolgáltatások → ESPHome, válaszd ki ezt a kijelzőt, majd Konfigurálás, és kapcsold be „Az eszköz Home Assistant-műveleteket hajthat végre” opciót."
+      },
+      "plugins": {
+        "request": "Ez a bővítménykérés hiányos.",
+        "unknown": "Nincs {id} nevű bővítmény.",
+        "misfit_api": "A(z) {name} más bővítmény-API-hoz készült, mint ennek az alkalmazásnak az API-ja.",
+        "misfit_board": "A(z) {name} más lapokhoz készült.",
+        "misfit_psram": "A(z) {name} PSRAM-mal rendelkező lapot igényel.",
+        "misfit_blocked": "A(z) {name} le van tiltva: ez a verzió ártalmas vagy hibás.",
+        "requires": "A(z) {name} először a(z) {other} bővítményt igényli ezen a kijelzőn.",
+        "firmware": "Ennek a kijelzőnek a firmware-e még nem ismeri a bővítményeket. Frissítsd, és megjelennek a bővítmény csempéi.",
+        "file": "A bővítményfájl érvénytelen.",
+        "other_include": "Ennek a kijelzőnek a YAML-jében már van egy másik tessera_plugins include.",
+        "link_invalid": "Ez nem egy GitHub-tárolóra mutató hivatkozás (https://github.com/tulajdonos/tarolo).",
+        "link_not_found": "Ott nem található bővítmény: nincs kiadás, vagy nincs tessera-plugin.yaml abban a mappában.",
+        "link_rate": "A GitHub most nem válaszol (túl sok kérés egy órán belül). Próbáld újra később.",
+        "folder": "A tessera-plugins {folder} mappája még nem bővítmény: {why}",
+        "manifest": "A bővítmény leírása érvénytelen: {why}",
+        "consent": "{name} más jogokat kér, mint korábban. Nézd meg, mit tehet most, fogadd el, majd frissíts."
       }
     },
     "status": {
@@ -1191,6 +1216,8 @@
         "briefcase": "Munka",
         "car": "Autó",
         "bike": "Kerékpár",
+        "bus": "Busz",
+        "train": "Vonat",
         "airplane": "Szabadság",
         "map_marker": "Hely",
         "power": "Be/ki",
@@ -1310,6 +1337,7 @@
       "copy": "Másolás"
     },
     "nav": {
+      "plugins": "Bővítmények",
       "new_screen": "Új kijelző",
       "firmware": "Firmware és USB",
       "alerts": "Figyelmeztetések",
@@ -1351,6 +1379,10 @@
       "screen_name": {
         "copied": "Kijelzőnév kimásolva.",
         "selected": "A kijelzőnév ki van jelölve. Másold Ctrl+C-vel vagy Command+C-vel."
+      },
+      "log": {
+        "copied": "Napló kimásolva.",
+        "selected": "A napló ki van jelölve. Másold Ctrl+C vagy Command+C billentyűkkel."
       }
     },
     "sidebar": {
@@ -1359,6 +1391,9 @@
         "reconnecting": "Újracsatlakozás a Home Assistanthoz…"
       },
       "search": "Keresés",
+      "fold": "Oldalsáv összecsukása",
+      "unfold": "Oldalsáv kinyitása",
+      "resize": "Az oldalsáv szélessége: húzd, vagy használd a nyílbillentyűket; dupla kattintással visszaáll",
       "screens": "Kijelzők",
       "refresh": "Frissítés",
       "update": {
@@ -1464,6 +1499,7 @@
       "identified": "{name} néhány másodpercig villog, és egy kártyát mutat.",
       "offline": "Offline · a módosítások mentve",
       "tabs": {
+        "plugins": "Bővítmények",
         "layout": "Elrendezés",
         "settings": "Kijelzőbeállítások"
       },
@@ -1536,6 +1572,7 @@
       }
     },
     "library": {
+      "plugins": "Bővítmények",
       "title": "Könyvtár",
       "entities": "{n} entitás | {n} entitás",
       "search": "Keresés név, eszköz vagy helyiség szerint…",
@@ -1578,6 +1615,216 @@
       "resize": "Húzd a könyvtár átméretezéséhez",
       "filter_label": "Szűrés típus szerint",
       "no_room": "Helyiség nélkül"
+    },
+    "plugins": {
+      "title": "Bővítmények",
+      "intro": "Extrák a kijelzőidhez: hardver a lapkán, vagy valami, amivel egy kijelző többet tud. A bővítmény a kijelző firmware-ébe kerül, ezért kijelzőnként választod ki, melyiket kapja meg.",
+      "search": "Keresés név, készítő vagy funkció szerint",
+      "filter": "Mutat",
+      "filters": {
+        "all": "Összes",
+        "tessera": "A Tesserától",
+        "community": "Közösség",
+        "in_use": "Használatban"
+      },
+      "from_tessera": "A Tesserától",
+      "by": "Készítő: {maker}",
+      "label": {
+        "tessera": "A Tesserától",
+        "community": "Közösség",
+        "test": "Teszt"
+      },
+      "state": {
+        "building": "Fordítás…",
+        "installed": "Telepítve",
+        "update": "Frissítés: {version}",
+        "test_on": "Teszt ezen: {name}",
+        "updates": "Frissítés {n} kijelzőn | Frissítés {n} kijelzőn",
+        "on_screens": "{n} kijelzőn | {n} kijelzőn",
+        "fits_none": "Egyik kijelződre sem jó",
+        "failed": "A fordítás nem sikerült",
+        "queued": "Sorára vár"
+      },
+      "source": {
+        "link": "Hivatkozásból",
+        "branch": "Teszt egy branchből",
+        "folder": "Teszt egy mappából"
+      },
+      "misfit_short": {
+        "board": "Nem ehhez a lapkához",
+        "psram": "PSRAM kell hozzá",
+        "firmware": "Újabb firmware kell hozzá",
+        "flash": "Túl nagy ehhez a kijelzőhöz",
+        "blocked": "Letiltva"
+      },
+      "misfit": {
+        "board": "Ez a bővítmény más lapkákhoz készült, mint ami a(z) {screen} kijelzőben van.",
+        "psram": "Ehhez a bővítményhez PSRAM-os lapka kell, a(z) {screen} kijelzőben pedig nincs.",
+        "firmware": "A(z) {screen} kijelzőnek előbb firmware-frissítés kell, csak utána kaphatja meg ezt a bővítményt.",
+        "flash": "A(z) {screen} kijelzőn még kb. {kb} KB hely van, ez a bővítmény pedig nagyobb.",
+        "blocked": "A bővítmény ezen verziója le van tiltva: ismerten ártalmas vagy hibás."
+      },
+      "none_installed": "Ezen a kijelzőn még nincs bővítmény.",
+      "none_found": "Egy bővítmény sem felel meg ennek: „{query}”.",
+      "make": "Saját bővítményt készítesz?",
+      "template": "Kezdd a sablonnal",
+      "version": "{version} verzió",
+      "kind": {
+        "hardware": "Hardver",
+        "behaviour": "Funkció"
+      },
+      "stage": {
+        "beta": "Béta",
+        "example": "Példa"
+      },
+      "stage_hint": {
+        "beta": "Béta: működik, de még csiszolják. Írd meg a készítőnek, hogy megy.",
+        "example": "Egy példa: azt mutatja meg, mire képes egy bővítmény. Próbáld ki, és olvasd el a kódját, hogy elkészítsd a sajátodat."
+      },
+      "attribute": {
+        "cloud": "Felhőszolgáltatást használ",
+        "commercial": "Kereskedelmi",
+        "ai-developed": "MI-vel készült"
+      },
+      "test_note": "Teszt: minden fordítás a legújabb verziót veszi, és a Tessera nem kínál hozzá frissítést.",
+      "remove": "Eltávolítás innen: {screen}",
+      "building": "A(z) {screen} firmware-ének fordítása…",
+      "installed_on": "Ezen: {screen}, {version} verzió",
+      "update": "Frissítés erre: {version}",
+      "trust": {
+        "title": "Megbízom ebben a készítőben",
+        "text": "A Tessera nem ellenőrizte ezt a bővítményt. A kijelződön fut, és bármit megtehet, amit a kijelző a Home Assistantban megtehet."
+      },
+      "install": "Hozzáadás ehhez: {screen}",
+      "adds": {
+        "title": "Mit ad hozzá",
+        "tile": "„{name}” csempe",
+        "tile_sizes": "{min} és {max} között egy oldalon",
+        "tap": "„{name}” koppintási művelet",
+        "tap_on": "Csempéken: {domains}",
+        "card": "„{name}”, saját nézet a kijelzőn",
+        "bar": "„{name}” elem a felső sávban",
+        "settings": "Beállítások",
+        "settings_where": "A kijelző beállításoldalán és a Kijelzőbeállítások alatt"
+      },
+      "may": {
+        "title": "Mit tehet",
+        "ha": "Ezeket a Home Assistant-parancsokat használja",
+        "ha_none": "Nem futtat Home Assistant-műveleteket",
+        "network": "Csatlakozik ide: {hosts}",
+        "network_none": "A Home Assistanton kívül semmihez nem csatlakozik",
+        "read": "Ezeket az entitásokat olvassa a Home Assistantból"
+      },
+      "warning": "A bővítmény teljes hozzáféréssel fut a kijelződön, beleértve a Wi-Fi-t és azokat a műveleteket, amelyeket a kijelző a Home Assistantban végrehajthat. Csak megbízható készítőktől adj hozzá bővítményt, vagy előbb olvasd el a kódot.",
+      "room": {
+        "title": "Hely ezen: {screen}",
+        "small": "{kb} KB-tal több: a firmware foglaltsága {before} helyett {after} lesz.",
+        "large": "{kb} KB, bőven belefér a kijelző helyébe.",
+        "title_all": "Hely",
+        "per_screen": "{kb} KB minden kijelzőn, amelyre felkerül. Egy 4 MB-os lapkánál itt látszik, van-e hely."
+      },
+      "works": {
+        "title": "Működik:",
+        "any": "minden lapkán",
+        "any_psram": "minden PSRAM-os lapkán"
+      },
+      "source_code": "Forráskód",
+      "issues": "Hiba bejelentése",
+      "removed": "{name} eltávolítva innen: {screens}. A kijelző a következő fordításkor veszíti el.",
+      "add_link": "Hozzáadás hivatkozással",
+      "link": {
+        "title": "Hozzáadás hivatkozással",
+        "intro": "Egy bővítmény, amely nincs a listában, vagy amelyet te készítesz. A Tessera először elolvassa a leírását, és megmondja, hogy megfelel-e, mielőtt bármit lefordítana.",
+        "sources": {
+          "link": "Kiadás",
+          "branch": "Branch tesztelése",
+          "folder": "Mappa tesztelése"
+        },
+        "url": "GitHub-hivatkozás",
+        "branch": "Branch",
+        "folder": "Mappa ezen a gépen",
+        "hints": {
+          "link": "A Tessera a legújabb kiadást veszi, és azon tartja a kijelzőt. Az új kiadás frissítésként jelenik meg.",
+          "branch": "Minden fordítás ennek a branchnek a legújabb commitját veszi. Kipróbálásra, nem mindennapi használatra.",
+          "folder": "Saját készítésű bővítményhez: mentsd, és a következő fordítás már tartalmazza. A mappa a Home Assistant konfigurációjában van."
+        },
+        "fetch": "Bővítmény beolvasása",
+        "test": "Hozzáadás tesztként ehhez: {screen}",
+        "not_found": "Ezen a hivatkozáson nincs bővítményleírás.",
+        "on_screen": "Kijelzőn"
+      },
+      "none_in_use": "Még egyik kijelződön sincs bővítmény.",
+      "screen_update": "{from} verzió, frissítés erre: {to}",
+      "screen_version": "{version} verzió",
+      "on_screens": "Melyik kijelzőkön",
+      "apply": {
+        "add": "Hozzáadás {n} kijelzőhöz | Hozzáadás {n} kijelzőhöz",
+        "remove": "Eltávolítás {n} kijelzőről | Eltávolítás {n} kijelzőről",
+        "both": "Alkalmazás {n} kijelzőre | Alkalmazás {n} kijelzőre",
+        "none": "Alkalmazás"
+      },
+      "update_all": "{n} kijelző frissítése erre: {version} | {n} kijelző frissítése erre: {version}",
+      "tab": {
+        "intro": "A(z) {screen} bővítményei, és amit még kaphat. Minden módosítás új firmware-t fordít ehhez a kijelzőhöz.",
+        "all": "Összes bővítmény",
+        "here": "Ezen a kijelzőn",
+        "add": "Hozzáadás",
+        "misfits": "Nem jó ehhez a kijelzőhöz ({n}) | Nem jók ehhez a kijelzőhöz ({n})",
+        "updates": "Frissítés {n} bővítményhez | Frissítések {n} bővítményhez",
+        "updates_note": "{screen}: egyetlen fordítás ({names}).",
+        "updates_rights": "{names} más jogosultságot kér, mint korábban. | {names} más jogosultságot kérnek, mint korábban.",
+        "update_all": "Minden frissítése ezen a kijelzőn"
+      },
+      "pending": {
+        "add": "Alkalmazáskor kerül fel",
+        "remove": "Alkalmazáskor kerül le"
+      },
+      "setup": {
+        "on_screen": "{label} ezen: {screen}",
+        "choose_pin": "Válassz lábat",
+        "part_kb": "{kb} KB-tal több",
+        "secret_set": "Beállítva. Írj be újat a cseréjéhez."
+      },
+      "readme": {
+        "title": "Olvass el"
+      },
+      "english_only": "Csak angolul",
+      "build_note": "ESPHome Device Builderrel vagy másik gépen fordítasz? A bővítmény a kijelző YAML-jében van; fordítsd ott, ahogy mindig.",
+      "attach": {
+        "row": "Egyszeri csatolás, a kijelző lapján",
+        "text": "A(z) {screen} a saját YAML-jéből fordul. Add hozzá egyszer ezt a sort; ezután a Tessera külön fájlban tartja a bővítményeit, és az ESPHome Device Builder ugyanúgy lefordítja őket, frissítés után is.",
+        "copy": "Sor másolása",
+        "done": "Hozzáadtam",
+        "file": "Amit a Tessera ide ír: {file}"
+      },
+      "folder_note": "Bővítményt készítesz? Tedd a mappáját ide: {path}, és itt tesztként jelenik meg.",
+      "folder_error": "A(z) {folder} mappa még nem bővítmény: {why}",
+      "rebuild": "Újrafordítás",
+      "failed": "A(z) {screen} firmware-e nem fordult le ezzel a bővítménnyel. A naplót a Firmware és USB alatt találod.",
+      "retry": "Próbáld újra",
+      "privacy": "Adatvédelem",
+      "consent": {
+        "title": "Ez a frissítés más jogokat kér",
+        "agree": "Elfogadom, amit most tehet"
+      },
+      "settings_missing": "Még nincs ezen a képernyőn: a bővítmény következő fordításával érkezik.",
+      "changes": "Mi változott"
+    },
+    "plugin_tile": {
+      "from": "A(z) {plugin} bővítmény csempéje",
+      "details": "A bővítmény részletei",
+      "options": "Opciók",
+      "choose": "Válassz…",
+      "less": "Kevesebb",
+      "more": "Több",
+      "from_fetch": "A választható elemek a bővítmény saját adatforrásából érkeznek, a Tesserán keresztül.",
+      "on_screen": "A kijelzőn",
+      "sizes": "{min} és {max} között; a méret módosításához húzd a csempe egyik szélét.",
+      "placeholder": "A szerkesztő helyőrzőt mutat: amit a bővítmény rajzol, az magán a kijelzőn jelenik meg.",
+      "now": "most",
+      "minutes": "{n} perc",
+      "live": "A szerkesztő a bővítmény saját adataiból rajzolja meg; a képernyő maga rajzolja, és a saját órája szerint számol vissza.",
+      "entity": "Entitás"
     },
     "memory": {
       "label": "Memória a csempéknek",
@@ -1873,7 +2120,13 @@
       },
       "energy": {
         "hint": "A ház teljesítménye most, úgy rajzolva, ahogy a Home Assistant saját Energia nézete rajzolja: nap, hálózat, akkumulátor és az eszközeid, a Home Assistant Energia beállításaiból. Egy kör megérintése megnyitja annak az érzékelőnek az előzményeit.",
-        "needs_firmware": "Az energiakártyához 0.47.0 vagy újabb firmware kell: mentés után nyomd meg a Frissítés gombot a kijelzőnél."
+        "needs_firmware": "Az energiakártyához 0.47.0 vagy újabb firmware kell: mentés után nyomd meg a Frissítés gombot a kijelzőnél.",
+        "flow": {
+          "label": "Áramlás",
+          "hint": "Pontok futnak végig minden vonalon, annál gyorsabban, minél több teljesítmény áramlik. A vonalak és nyilak nyugodtabb: a vonal a teljesítménnyel vastagodik, és egy nyíl mutatja az irányt. A régebbi firmware-rel futó kijelző megtartja a pontokat.",
+          "dots": "Mozgó pontok",
+          "lines": "Vonalak és nyilak"
+        }
       }
     },
     "tile_card": {
@@ -1980,7 +2233,8 @@
         "entity": "Egy entitás",
         "search": "Keresés név, helyiség vagy entitás szerint, pl. hőmérséklet vagy ajtó",
         "search_label": "Entitás keresése a felső sávhoz",
-        "none_found": "Nincs találat."
+        "none_found": "Nincs találat.",
+        "plugins": "Bővítményekből"
       },
       "left": "Bal oldal",
       "left_hint": "Cím és kezdőlap gomb: az oldal beállításaiban",
@@ -1992,7 +2246,8 @@
       "link_hint": "Csak akkor jelenik meg, amikor a Home Assistant vagy a Tessera nem elérhető, így egy pillantással látod, miért hiányoznak értékek.",
       "battery_hint": "A kijelző maga olvassa az akkumulátorát, így ez az elem a sávon marad, amikor a Home Assistant nem elérhető. Az ikon úgy követi a töltöttséget, ahogy a Home Assistant rajzolja, töltés közben villámmal.",
       "battery_show_hint": "A Csak ha alacsony üresen hagyja a sávot, amíg az akkumulátor 20 % vagy kevesebb nem lesz.",
-      "status_firmware": "Ez az elem a(z) {version} firmware-től jelenik meg. A frissítésig a kijelző kihagyja."
+      "status_firmware": "Ez az elem a(z) {version} firmware-től jelenik meg. A frissítésig a kijelző kihagyja.",
+      "plugin_item": "Azt mutatja, amit a bővítménye mond, csak amíg van mit mondania. Egy képernyőn e bővítmény nélkül nem jelenik meg."
     },
     "screen_settings": {
       "groups": {
@@ -2226,19 +2481,14 @@
         "calibration": "Érintéskalibrálás az első indításkor"
       },
       "choice": {
-        "DISPLAY_MODEL": "Kijelzővezérlő",
-        "GRID_ROWS": "Csempék egy oldalon"
+        "DISPLAY_MODEL": "Kijelzővezérlő"
       },
       "choice_hint": {
-        "DISPLAY_MODEL": "A legtöbb ilyen panelen az első van. Ha a kijelző zajos vagy torz képet mutat, válaszd a másikat.",
-        "GRID_ROWS": "Több sor több csempét jelenít meg egy oldalon; kevesebb sor nagyobb és könnyebben olvasható csempéket hagy."
+        "DISPLAY_MODEL": "A legtöbb ilyen panelen az első van. Ha a kijelző zajos vagy torz képet mutat, válaszd a másikat."
       },
       "choice_usual": "a legtöbb panel",
-      "orientation": "Hogyan lesz felszerelve?",
       "orientation_landscape": "Fekvő",
       "orientation_portrait": "Álló",
-      "orientation_tiles": "{n} csempe oldalanként | {n} csempe oldalanként",
-      "orientation_hint": "Ezt a kijelző fordításakor választod ki. Ha később másként szerelnéd fel, fordítsd le újra.",
       "name": "Név",
       "name_placeholder": "Nappali kijelző",
       "device_name": "Eszköznév",
@@ -2370,15 +2620,6 @@
         "change": "Wi-Fi módosítása és újratelepítés",
         "failed": "A Tessera nem tudja magától hozzáadni ezt a Home Assistanthez: {name}. Add hozzá magad lent."
       },
-      "choice_option": {
-        "GRID_ROWS": {
-          "3": "3 sor",
-          "4": "4 sor, kisebb csempék"
-        }
-      },
-      "choice_first": {
-        "GRID_ROWS": "a szokásos méret"
-      },
       "memory": {
         "low_title": "Kevés a szabad memória a Home Assistant gépen",
         "low": "{free} memória szabad, ezért a firmware kevesebb fordítóval készül egyszerre ({jobs} a {cores} helyett). Ez tovább tart, de így elfér.",
@@ -2391,7 +2632,10 @@
         "limit_title": "Nincs elég memória a firmware fordításához",
         "limit": "Elfogyott a memória, egy fordítóval is. Állíts le néhány kiegészítőt egy időre, vagy adj több memóriát a gépnek, majd próbáld újra."
       },
-      "pair_yourself": "Add hozzá magad a Home Assistanthez"
+      "pair_yourself": "Add hozzá magad a Home Assistanthez",
+      "grid": "Rács",
+      "grid_hint": "A javasolt rács a legjobb ehhez a kijelzőhöz. Később a szerkesztőben, az oldalak mellett, újrafordítás nélkül módosíthatod, a tájolással együtt.",
+      "grid_best": "Vissza a legjobbhoz"
     },
     "alerts": {
       "eyebrow": "Figyelmeztetések · puska",
@@ -2661,7 +2905,7 @@
       "history_empty": "Nincsenek rögzített előzmények",
       "grid_changed": "A kijelző rácsa megváltozott. Mentés vagy küldés előtt nézd át a csempék pozícióit.",
       "grid_review": "Rácsigazítás áttekintése",
-      "grid_review_hint": "Hasonlítsd össze a bal oldali mentett pozíciókat a jobb oldali javasolt pozíciókkal. Minden csempe az eredeti oldalán marad. Mentésig semmi sem lesz elküldve.",
+      "grid_review_hint": "Hasonlítsd össze a bal oldali mentett pozíciókat a jobb oldali javasolt pozíciókkal. A már nem férő csempék egy új oldalra kerülnek közvetlenül a saját oldaluk után. Mentésig semmi sem lesz elküldve.",
       "grid_accept": "Ezek a pozíciók legyenek",
       "selected_full": "Ez az oldal megtelt. Jelölj ki egy üres cellát egy másik oldalon.",
       "choose_page": "Oldal",
@@ -2848,6 +3092,29 @@
       "later": "Talán később",
       "donated": "Már adományoztam",
       "thanks": "Köszönöm! Ez az üzenet többé nem jelenik meg."
+    },
+    "build": {
+      "plugins": "Fordítás a bővítményeivel",
+      "install": "Telepítés",
+      "failed": "{screen} legutóbbi fordítása nem sikerült. A napló megmondja, miért."
+    },
+    "grid": {
+      "title": "Rács",
+      "columns": "Oszlopok",
+      "rows": "Sorok",
+      "columns_less": "Kevesebb oszlop",
+      "columns_more": "Több oszlop",
+      "rows_less": "Kevesebb sor",
+      "rows_more": "Több sor",
+      "hint": "Az oldalra már nem férő csempék egy új oldalra kerülnek közvetlenül utána. A kijelző mentéskor kapja meg az új rácsot.",
+      "update_first": "Frissítsd ezt a kijelzőt, hogy itt választhasd ki a rácsát.",
+      "pages_added": "1 oldal hozzáadva a már nem férő csempéknek | {n} oldal hozzáadva a már nem férő csempéknek",
+      "new_page": "Új oldal annak, ami már nem fért el",
+      "too_many_pages": "{grid} rácson ezekhez a csempékhez {needed} oldal kell, ez a kijelző pedig {most} oldalt fogad el. Távolíts el csempéket vagy válassz másik rácsot; semmi sem változott.",
+      "way": "Tájolás",
+      "landscape": "Fekvő",
+      "portrait": "Álló",
+      "turn_hint": "Elforgatáskor a kijelző egyszer újraindul, hogy felmérje az új képét."
     }
   }
 }

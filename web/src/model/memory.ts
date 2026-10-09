@@ -4,6 +4,7 @@
 // price a tile the same way: tests/fixtures/memory-conformance.json holds the cases all three answer alike.
 import { TILE, TYPES, type TypeMemory } from "./catalogue";
 import type { ScreenMemory } from "../types";
+import { pluginTileOf } from "./plugins";
 
 /** A tile as its price counts it: its entity and the choices that keep something of their own. */
 export type PricedTile = { entity: string; options?: { tap?: string; sub?: string } | Record<string, unknown> };
@@ -13,7 +14,8 @@ const DEAREST: TypeMemory = Object.values(TYPES).reduce<TypeMemory>((most, type)
 /** What one tile costs on that screen, in bytes: its type's price, what its own action and second line add, and on a
  * board without PSRAM the tile itself and, where it keeps one, its block of extras. */
 export function tileCost(tile: PricedTile, memory: Pick<ScreenMemory, "psram" | "tile" | "extra">) {
-  const type = TYPES.screen?.cards?.[tile.entity] ?? TYPES[tile.entity.split(".", 1)[0]]?.memory ?? DEAREST;
+  const plugin = pluginTileOf(tile.entity);
+  const type = plugin ? { bytes: plugin.tile.memory, extras: false } : TYPES.screen?.cards?.[tile.entity] ?? TYPES[tile.entity.split(".", 1)[0]]?.memory ?? DEAREST;
   const options = (tile.options || {}) as { tap?: string; sub?: string };
   const action = options.tap === "action", line = typeof options.sub === "string" && options.sub.startsWith("attr:");
   let bytes = type.bytes + (action ? TILE.memory.action : 0) + (line ? TILE.memory.line : 0);

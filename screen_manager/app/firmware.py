@@ -16,7 +16,7 @@ import yaml
 import zipfile
 import build_cache
 import build_memory
-from core import BOARD_KEYS, CHANNELS, ORIENTATIONS, REF, REPO, SHAPES, channel, hotspot_name, installation_yaml, old_hotspot_name, ref
+from core import BOARD_KEYS, REF, REPO, SHAPES, channel, hotspot_name, installation_yaml, old_hotspot_name, our_ref, ref
 from i18n import t
 
 LOG = logging.getLogger('screen_manager')
@@ -58,13 +58,17 @@ def profile_meta(text):
     # writes it as ${SOMETHING} is left to the board file as well, because only the build can resolve that.
     rotation = substitutions.get('LVGL_ROTATION')
     rotation = int(rotation) if isinstance(rotation, (int, str)) and str(rotation).strip().lstrip('-').isdigit() else None
-    # The rows it was built with (app 0.4.31): only a screen built with another grid than its board file's carries the
-    # line, a Guition with four rows, so nothing here means the board's own grid.
-    rows = substitutions.get('GRID_ROWS')
-    rows = int(rows) if isinstance(rows, (int, str)) and str(rows).strip().isdigit() and int(rows) > 0 else None
+    # The grid it was built with (rows since app 0.4.31, columns and rows either way since app 0.4.85): only a screen built
+    # with another grid than its board file's carries the lines, so nothing here means the board's own grid. The grid it
+    # starts with: a screen that takes another (firmware 0.53.0+) says the one it runs on itself.
+    def count(key):
+        value = substitutions.get(key)
+        return int(value) if isinstance(value, (int, str)) and str(value).strip().isdigit() and int(value) > 0 else None
+    built = {name: count(key) for name, key in (('columns', 'GRID_COLS'), ('rows', 'GRID_ROWS'),
+                                               ('columns_portrait', 'GRID_COLS_PORTRAIT'), ('rows_portrait', 'GRID_ROWS_PORTRAIT'))}
     return {'node': resolve(block.get('name')), 'friendly': resolve(block.get('friendly_name')),
             'screen': ours, 'api_key': key if isinstance(key, str) else None, 'package': package,
-            'rotation': rotation, 'grid_rows': rows}
+            'rotation': rotation, 'built_grid': {name: value for name, value in built.items() if value}}
 
 # What New screen offers, board by board in the catalog's order (boards.yaml, written into boards.json with what each
 # board's files say): what it is called and printed on it, how far it has been tried, its glass (canvas, density,
@@ -106,10 +110,11 @@ class Firmware:
                                          'external_components', 'captive_portal'})
     # LANGUAGE follows Settings -> Language & region (app 0.2.90), which writes it into the profile itself.
     # LVGL_ROTATION follows the orientation chosen when the screen is made (app 0.2.107), written into the profile
-    # the same way. A profile's own substitutions beat a package's, so an override that set it would quietly lose
-    # against a screen built standing up and quietly win on one built lying down. That is worse than being told, so
-    # it is refused here with its own sentence rather than the general "these stay managed" one: people were told to
-    # override display settings (GitHub #12 and #15), and the sentence has to say where the choice lives now.
+    # the same way, and the editor turns a screen later without a build (app 0.4.85, firmware 0.53.0+). A profile's own
+    # substitutions beat a package's, so an override that set it would quietly lose against a screen built standing up
+    # and quietly win on one built lying down. That is worse than being told, so it is refused here with its own
+    # sentence rather than the general "these stay managed" one: people were told to override display settings (GitHub
+    # #12 and #15), and the sentence has to say where the choice lives now.
     PROTECTED_SUBSTITUTIONS = frozenset({'DEVICE_NAME', 'DEVICE_FRIENDLY_NAME', 'SCREEN_FIRMWARE_VERSION', 'LANGUAGE',
                                          'LVGL_ROTATION'})
     # ESPHome's "Factory format" (bootloader, partition table and app from address 0), the file ESPHome Web
@@ -123,9 +128,15 @@ class Firmware:
     # 2,031,616 bytes, and a firmware larger than this goes to a screen with the old table over a bridge
     # (docs/FLASH_LAYOUT.md).
     NARROW_SLOT = 0x1C0000
+    WIDE_SLOT = 2031616
     # The bridge of a screen: the smallest firmware that takes the wide table (`bridge`), written beside the screen's
     # own YAML while its flash is widened and removed after. No screen has a dot in its name, so no profile is hidden.
     BRIDGE_SUFFIX = '.bridge.yaml'
+    # The plugins of a screen (docs/PLUGINS.md): one file only this app writes, beside its YAML and attached once under
+    # `packages:` as `tessera_plugins: !include <name>.plugins.yaml`, the way Override YAML is attached. ESPHome Device
+    # Builder, another computer that shares the folder, and this app's own updates all build the same plugins from it.
+    PLUGINS_SUFFIX = '.plugins.yaml'
+    PLUGINS_LIMIT = 16 * 1024
     # The compiler cache's limit (app 0.2.89+); past it ccache drops the oldest entries. Some seventeen full builds of
     # both boards took 0.6 GB on a Mac.
     CCACHE_SIZE = '1G'
@@ -151,7 +162,7 @@ class Firmware:
     def profiles(self):
         if not self.root.exists(): return []
         return [{'file': p.name} for p in sorted(self.root.glob('*.yaml'))
-                if p.name != 'secrets.yaml' and not p.name.endswith((self.OVERRIDE_SUFFIX, self.BRIDGE_SUFFIX))
+                if p.name != 'secrets.yaml' and not p.name.endswith((self.OVERRIDE_SUFFIX, self.BRIDGE_SUFFIX, self.PLUGINS_SUFFIX))
                 and p.is_file() and not p.is_symlink()]
 
     def profile_names(self):
@@ -311,21 +322,6 @@ class Firmware:
         left alone, as is an English one without the line (English is the packages' own default). True when it changed."""
         return self._set_substitution(name, 'LANGUAGE', language, default='en', what='language')
 
-    def set_orientation(self, name, orientation):
-        """Let the screen's next build hang the way `orientation` says (app 0.2.107): the LVGL_ROTATION line of the
-        profile's substitutions, written the way the language is, so a screen can be stood up or laid down by
-        rebuilding it. The angle is the board's, from boards.json, so this app never invents one; lying down is the
-        board file's own default and needs no line. False, and nothing written, when the profile builds from a board
-        this app doesn't know or `orientation` is not one of the two words. True when it changed."""
-        if orientation not in ORIENTATIONS:
-            return False
-        meta = self.profile_names().get(self.profile(name).name) or {}
-        sides = (SHAPES.get(meta.get('package') or '', {}).get('orientations') or {})
-        if not sides.get(orientation) or not sides.get('landscape'):
-            return False
-        return self._set_substitution(name, 'LVGL_ROTATION', str(sides[orientation]['rotation']),
-                                      default=str(sides['landscape']['rotation']), what='orientation')
-
     def _set_substitution(self, name, key, value, default=None, what='setting'):
         """One substitution of an existing profile, changed or added without reformatting the user's YAML.
 
@@ -384,14 +380,30 @@ class Firmware:
         self._names.pop(profile.name, None)
         return True
 
+    def follow_release(self):
+        """Every screen's YAML on what the app's channel builds from (core.ref), at the start of the app: its own release
+        tag for the stable app, dev for the dev channel. A build Home Assistant's firmware update or ESPHome Device
+        Builder starts then makes the firmware this app knows too. An app with no channel changes nothing. The names
+        of the profiles that changed."""
+        if not channel():
+            return []
+        moved = []
+        for entry in self.profiles():
+            try:
+                if self.set_branch(entry['file'], ref()):
+                    moved.append(entry['file'])
+            except (OSError, ValueError, yaml.YAMLError) as error:
+                LOG.warning('Could not write the branch into %s (%s)', entry['file'], error)
+        return moved
+
     def set_branch(self, name, branch):
-        """Let the screen's next build come from `branch`, main or dev: the app's channel (core.channel, docs/RELEASING.md
-        "Testing dev"). The `ref:` of the package from this repository, and GITHUB_REF of the substitutions, which the
-        package fetches its components and fonts with. Only a `ref:` that says main or dev is changed, on its own line;
-        a tag, a commit, another branch or a fork is the owner's own choice and stays, and so does the rest of the
-        file. The result is read back and written only when that line is the one thing that changed. True when the
-        profile changed."""
-        if branch not in CHANNELS.values():
+        """Let the screen's next build come from `branch`: core.ref(), the stable app's own release tag, or dev for the
+        dev channel (docs/RELEASING.md, "Testing dev"). The `ref:` of the package from this repository, and GITHUB_REF of
+        the substitutions, which the package fetches its components and fonts with. Only a `ref:` the app may move
+        (core.our_ref: main, dev or one of its release tags) is changed, on its own line; another tag, a commit, another
+        branch or a fork is the owner's own choice and stays, and so does the rest of the file. The result is read back
+        and written only when that line is the one thing that changed. True when the profile changed."""
+        if not our_ref(branch):
             return False
         profile = self.profile(name)
         raw = profile.read_bytes().decode('utf-8')
@@ -401,10 +413,10 @@ class Firmware:
         packages = before.get('packages') if isinstance(before, dict) else None
         ours = [key for key, entry in packages.items() if isinstance(entry, dict) and REPO in str(entry.get('url', ''))] \
             if isinstance(packages, dict) else []
-        if not ours or any(packages[key].get('ref') not in CHANNELS.values() for key in ours):
+        if not ours or any(not our_ref(packages[key].get('ref')) for key in ours):
             return False
         changed = False
-        line = re.compile(r'(?m)^([ \t]+ref:[ \t]*)(["\']?)(main|dev)\2([ \t]*(?:#.*)?)$')
+        line = re.compile(r'(?m)^([ \t]+ref:[ \t]*)(["\']?)(main|dev|screens-v\d+\.\d+\.\d+)\2([ \t]*(?:#.*)?)$')
         for key in ours:
             if packages[key]['ref'] == branch:
                 continue
@@ -558,6 +570,15 @@ class Firmware:
                  if path.is_file() and not path.is_symlink()]
         return max(found, key=lambda path: path.stat().st_mtime_ns).stat().st_size if found else None
 
+    def image_room(self, name, word=None):
+        """{size, slot} of a 4 MB board's last build against the slot its screen has (`word`, the screen's Screen
+        flash), for the editor's room for a plugin (web/src/model/plugins.ts headroomKb); None for a board with more
+        flash, where a plugin fits without a thought, or before a build."""
+        if not self.wide_slots(name):
+            return None
+        size = self.image_size(name)
+        return {'size': size, 'slot': self.WIDE_SLOT if word in (None, 'wide') else self.NARROW_SLOT} if size else None
+
     def ota_port(self, name):
         """The port a profile's screen takes updates on: its own `ota:` item's, or ESPHome's 3232."""
         try:
@@ -654,12 +675,15 @@ packages:
 
     def _ensure_override_include(self, profile):
         """Attach an existing profile to its sidecar without reformatting user YAML."""
-        filename = profile.stem + self.OVERRIDE_SUFFIX
+        return self._ensure_include(profile, 'local_overrides', profile.stem + self.OVERRIDE_SUFFIX)
+
+    def _ensure_include(self, profile, key, filename):
+        """`key: !include filename` at the end of the profile's top-level `packages:`, written once."""
         text = profile.read_text()
-        if re.search(rf'(?m)^\s*local_overrides:\s*!include\s+{re.escape(filename)}\s*$', text):
+        if re.search(rf'(?m)^\s*{key}:\s*!include\s+{re.escape(filename)}\s*$', text):
             return False
-        if re.search(r'(?m)^\s*local_overrides\s*:', text):
-            raise ValueError(t('addon.errors.firmware.other_include'))
+        if re.search(rf'(?m)^\s*{key}\s*:', text):
+            raise ValueError(t('addon.errors.plugins.other_include' if key == 'tessera_plugins' else 'addon.errors.firmware.other_include'))
         try:
             parsed = yaml.load(text, Loader=LenientLoader)
         except yaml.YAMLError as error:
@@ -674,7 +698,10 @@ packages:
         if not next_top and not text.endswith('\n'):
             text += '\n'
         end = match.end() + next_top.start() if next_top else len(text)
-        addition = f'  local_overrides: !include {filename}\n'
+        # Right under the block's last line, before the blank lines that close it.
+        while end > match.end() and text[:end].endswith('\n\n'):
+            end -= 1
+        addition = f'  {key}: !include {filename}\n'
         self._atomic_write(profile, text[:end] + addition + text[end:])
         self._names.pop(profile.name, None)
         return True
@@ -718,6 +745,8 @@ packages:
         profile, override = self._override_path(name)
         text = profile.read_text()
         local = override.read_text() if override.exists() else '{}\n'
+        plugins = self.root / (profile.stem + self.PLUGINS_SUFFIX)
+        extra = [(plugins.name, plugins.read_text())] if plugins.is_file() and not plugins.is_symlink() else []
         wanted = sorted(set(re.findall(r'!secret\s+([A-Za-z0-9_]+)', text + '\n' + local)))
         secrets = {}
         path = self.root / 'secrets.yaml'
@@ -730,7 +759,7 @@ packages:
                 secrets = {key: values[key] for key in wanted if key in values}
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as bundle:
-            for file, content in ((profile.name, text), (override.name, local),
+            for file, content in ((profile.name, text), (override.name, local), *extra,
                                   ('secrets.yaml', yaml.safe_dump(secrets, width=4096, allow_unicode=True) if secrets else '{}\n')):
                 entry = zipfile.ZipInfo(f'{profile.stem}/{file}', date_time=time.localtime()[:6])
                 entry.compress_type = zipfile.ZIP_DEFLATED
@@ -760,6 +789,36 @@ packages:
         self._atomic_write(path, content)
         self._ensure_override_include(profile)
         return self.override(profile.name)
+
+    def _plugins_path(self, name):
+        profile = self.profile(name)
+        path = self.root / (profile.stem + self.PLUGINS_SUFFIX)
+        if path.is_symlink():
+            raise ValueError(t('addon.errors.firmware.override_symlink'))
+        return profile, path
+
+    def plugins_file(self, name):
+        """The plugins file of a screen and whether its YAML attaches it (docs/PLUGINS.md)."""
+        profile, path = self._plugins_path(name)
+        attached = bool(re.search(rf'(?m)^\s*tessera_plugins:\s*!include\s+{re.escape(path.name)}\s*$',
+                                  profile.read_text()))
+        return {'file': profile.name, 'plugins_file': path.name, 'attached': attached, 'exists': path.exists(),
+                'content': path.read_text() if path.exists() else ''}
+
+    def save_plugins(self, name, content):
+        """Write the screen's plugins file (plugins.sidecar), then attach it: never an include of a missing file."""
+        profile, path = self._plugins_path(name)
+        if not isinstance(content, str) or len(content.encode()) > self.PLUGINS_LIMIT:
+            raise ValueError(t('addon.errors.plugins.file'))
+        try:
+            parsed = yaml.load(content, Loader=LenientLoader)
+        except yaml.YAMLError as error:
+            raise ValueError(t('addon.errors.plugins.file')) from error
+        if not isinstance(parsed, dict) or set(parsed) - {'packages', 'external_components'}:
+            raise ValueError(t('addon.errors.plugins.file'))
+        self._atomic_write(path, content)
+        self._ensure_include(profile, 'tessera_plugins', path.name)
+        return self.plugins_file(profile.name)
 
     def install(self, data):
         """Profile plus, when a USB port is chosen, the build and flash in one go. With the target
@@ -792,11 +851,13 @@ packages:
             raise ValueError(t('addon.errors.firmware.busy_wait'))
         profile = self.profile(name)
         override = self.root / (profile.stem + self.OVERRIDE_SUFFIX)
+        plugins = self.root / (profile.stem + self.PLUGINS_SUFFIX)
         removed = [profile.name]
         profile.unlink()
-        if override.is_file() and not override.is_symlink():
-            override.unlink()
-            removed.append(override.name)
+        for sidecar in (override, plugins):
+            if sidecar.is_file() and not sidecar.is_symlink():
+                sidecar.unlink()
+                removed.append(sidecar.name)
         # The build folder is this app's own (/data/build/<profile>, build_env), so nothing in the ESPHome
         # folder depends on it; a big one is removed off the loop, which keeps the screens going.
         build = self.data / 'build' / profile.stem
@@ -866,11 +927,11 @@ packages:
                 self.set_language(profile.name, self.language())
             except (OSError, ValueError, yaml.YAMLError) as error:
                 LOG.warning('Could not write the language into %s (%s)', profile.name, error)
-        # The branch of the app's channel (docs/RELEASING.md, "Testing dev"): dev for an app added from the `#dev` URL,
-        # main again once the screen is with the app from the plain URL. An app with no channel leaves it as it is.
+        # What the app's channel builds from (core.ref): the stable app's own release tag, dev for an app added from the
+        # `#dev` URL. An app with no channel (a local copy, a fork) leaves it as it is.
         if managed and channel():
             try:
-                self.set_branch(profile.name, channel())
+                self.set_branch(profile.name, ref())
             except (OSError, ValueError, yaml.YAMLError) as error:
                 LOG.warning('Could not write the branch into %s (%s)', profile.name, error)
         # A board without room for the Wi-Fi fallback hotspot builds without it, also a screen made before (app 0.4.5).

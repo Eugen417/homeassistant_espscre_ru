@@ -45,19 +45,60 @@ a:hover { text-decoration: underline; }
 [hidden] { display: none !important; }
 
 /* ---- Shell ---- */
-.app { display: grid; grid-template-columns: 248px minmax(0, 1fr); height: 100%; min-height: 100vh; }
+/* The sidebar's width is the page's (sidebar-state.ts, app 0.4.85): dragged by its edge, or folded to its icons. */
+.app { display: grid; grid-template-columns: var(--side-w, 248px) minmax(0, 1fr); height: 100%; min-height: 100vh; transition: grid-template-columns 0.16s ease; }
+.app.side-resizing { transition: none; cursor: col-resize; user-select: none; -webkit-user-select: none; }
 .app.dragging { user-select: none; -webkit-user-select: none; cursor: grabbing; }
 .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 
 /* Sidebar */
-.side { background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 14px 10px; gap: 4px; min-height: 0; overflow: auto; position: sticky; top: 0; height: 100vh; }
+.side { background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 14px 10px; gap: 4px; min-height: 0; overflow: auto; position: sticky; top: 0; height: 100vh; z-index: 25; }
+/* A layer of its own above the page, so its edge (.side-resize, inside it) is above the canvas beside it too. */
 /* The logo is the way home (app 0.4.0): the overview of every screen, the page shown with nothing selected. */
 .brand { display: flex; align-items: center; gap: 9px; height: 34px; padding: 0 8px; font-weight: 600; font-size: 13px; text-align: left; border-radius: 10px; }
 .brand:hover { background: var(--surface-2); }
 .brand .mark { width: 22px; height: 22px; flex: none; }
+.brand .txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The logo and, beside it, the button that folds the sidebar to its icons: quiet until the sidebar is pointed at. */
+.side-top { display: flex; align-items: center; gap: 2px; }
+.side-top .brand { flex: 1; min-width: 0; }
+.side-fold { flex: none; width: 28px; height: 28px; border-radius: 7px; font-size: 17px; color: var(--muted); opacity: 0; transition: opacity 0.12s; }
+.side:hover .side-fold, .side-fold:focus-visible, .side-fold[aria-pressed="true"] { opacity: 1; }
+.side-fold:hover { background: var(--surface-2); color: var(--ink); }
+/* The edge: a strip as wide as a finger's aim, a line in the accent while it is pointed at or dragged. */
+.side-resize { position: fixed; top: 0; bottom: 0; left: calc(var(--side-w, 248px) - 4px); width: 8px; cursor: col-resize; z-index: 30; touch-action: none; }
+.side-resize::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; background: transparent; transition: background 0.12s; }
+.side-resize:hover::after, .side-resize:focus-visible::after, .app.side-resizing .side-resize::after { background: var(--accent); }
+.side-resize:focus-visible { outline: none; }
+.side .search-btn .txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side .more .nav-item .txt { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Folded (app 0.4.85): one column of icons, every row's words in its tooltip. Only on a wide page; a narrow one keeps
+   its row of screens. */
+@media (min-width: 961px) {
+  .side-folded .side { padding: 14px 8px; align-items: stretch; overflow-x: hidden; }
+  .side-folded .side-top { flex-direction: column; gap: 4px; }
+  .side-folded .brand { justify-content: center; padding: 0; flex: none; width: 100%; }
+  .side-folded .brand .txt, .side-folded .conn-text, .side-folded .search-btn .txt, .side-folded .search-btn kbd,
+  .side-folded .label-row > span, .side-folded .label-row #refresh, .side-folded .screen-item .name, .side-folded .screen-item .sub,
+  .side-folded .screen-item .unsaved, .side-folded .row-end, .side-folded .side .more .nav-item .txt { display: none; }
+  .side-folded .side-fold { width: 100%; }
+  .side-folded .conn { justify-content: center; padding: 4px 0; }
+  .side-folded .search-btn, .side-folded .nav-item { justify-content: center; padding: 0; gap: 0; }
+  .side-folded .label-row { justify-content: center; padding: 10px 0 4px; }
+  .side-folded .screen-item .nav-item, .side-folded .screen-item.update .nav-item { padding: 0; position: relative; }
+  .side-folded .screen-item .spin, .side-folded .screen-item .sub-icon { position: absolute; top: 3px; right: 6px; }
+  .side-folded .screen-item .sub-icon { font-size: 12px; }
+  .side-folded .screen-item .spin.small { width: 9px; height: 9px; }
+  .side-folded .fold-badge { position: absolute; top: 5px; right: 9px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--surface); }
+  .side-folded .fold-badge.waiting { background: var(--warn); }
+  /* The unsaved dot of the open screen, on its icon. */
+  .side-folded .screen-item.selected .nav-item:has(.unsaved)::after { content: ""; position: absolute; bottom: 5px; right: 9px; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 0 2px var(--surface); }
+  .side-folded .pending-folded { color: var(--muted); }
+}
 /* Only while something is wrong: unreachable, or reconnecting. Connected says nothing. */
-.conn { display: block; padding: 0 8px 8px; font-size: 11px; color: var(--warn); }
-.conn::before { content: "●"; margin-right: 6px; }
+.conn { display: flex; align-items: center; gap: 6px; padding: 0 8px 8px; font-size: 11px; color: var(--warn); min-width: 0; }
+.conn .conn-icon { flex: none; font-size: 14px; }
+.conn .conn-text { min-width: 0; }
 /* A section's name in sentence case, as Notion and the Finder name theirs; its own buttons sit at its right. */
 .side .label { font-size: 11.5px; font-weight: 600; color: var(--muted); padding: 14px 8px 4px; }
 .side .label-row { display: flex; align-items: center; gap: 2px; padding-right: 4px; }
@@ -808,6 +849,7 @@ td code { white-space: nowrap; }
   .app { grid-template-columns: 1fr; min-height: 100vh; }
   .side { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; border-right: 0; border-bottom: 1px solid var(--line); padding: 10px; gap: 4px 6px; }
   .side .label, .side .spacer, .conn { display: none; }
+  .side-fold, .side-resize { display: none; }
   /* On a narrow page the sidebar is a row: New screen and Refresh stay, as buttons among the screens (app 0.4.32). */
   .side .label.label-row { display: flex; order: 99; padding: 0; }
   .side .label-row > span { display: none; }
@@ -1110,6 +1152,10 @@ td code { white-space: nowrap; }
 .setup .orient, .setup .choice { position: relative; }
 .setup .orient:has(input:focus-visible), .setup .choice:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
 .setup .orient .orient-glass { height: 56px; }
+.setup .grid-steps { display: grid; gap: 8px; max-width: 320px; margin-top: 10px; }
+.setup .grid-step { display: grid; grid-template-columns: 1fr auto 26px auto; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); }
+.setup .grid-step b { text-align: center; font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; }
+.setup .grid-steps .btn.link { justify-self: start; }
 /* The models of one screen, side by side with what is printed on each (app 0.4.32). */
 .model-options { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
 .setup .choice.model { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); cursor: pointer; }
@@ -1179,6 +1225,7 @@ section.advanced code { font-size: 11.5px; }
    under the screen's menu. Every rule here hangs on that class or on an element only a phone draws, so a wider page
    keeps every pixel it had. Text fields stay at 16px: a smaller one makes iOS zoom the page on focus. */
 .app.phone { grid-template-columns: minmax(0, 1fr); height: auto; min-height: 100vh; background: var(--ground); }
+.app.phone .side-fold, .app.phone .side-resize { display: none; }
 .app.phone input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), .app.phone textarea, .app.phone select { font-size: 16px; }
 .app.phone .main-head { position: static; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "back more" "title title"; gap: 2px 8px; min-height: 0;
   padding: 6px 12px 6px 8px; border-bottom: 0; background: transparent; }
@@ -1313,3 +1360,217 @@ section.advanced code { font-size: 11.5px; }
 .app.phone .home-head h1 { font-size: 27px; font-weight: 700; letter-spacing: -0.02em; }
 .app.phone .home-more { position: absolute; top: 0; right: 0; width: 34px; height: 34px; border-radius: 50%; background: var(--seg); color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { .app.phone .library, .phone-sheet, .app.phone .drawer-enter-active, .app.phone .drawer-leave-active { transition: none; animation: none; } }
+
+/* ---- Plugins (design for the plugins proposal): New screen's gallery for what a screen can get beyond the core ----
+   The same quiet bar and search; one card per plugin with its icon, its maker and one line of state; its details in a
+   column on the right that glides open like the inspector, with the one button for the chosen screen at the top.
+   Tessera's own plugins carry the accent, a community plugin the warm neutral of a label, never a warning colour:
+   it is not wrong, only someone else's. */
+.plugins-head-actions { justify-self: end; display: flex; align-items: center; gap: 8px; }
+.plugins-head-actions .btn[aria-pressed="true"] { background: var(--seg); color: var(--ink); }
+.plugins-frame { flex: 1 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); }
+.plugins.with-detail .plugins-frame { grid-template-columns: minmax(0, 1fr) auto; }
+.plugins-list { width: 100%; max-width: 1040px; margin: 0 auto; padding: 40px 32px 48px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-content: start; min-width: 0; }
+.plugins-example { display: flex; align-items: center; gap: 8px; justify-self: start; padding: 6px 12px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 500; }
+.plugins-example .ui-icon { font-size: 15px; }
+.plugin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.plugins.with-detail .plugin-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.plugin-card { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto 1fr auto; column-gap: 12px; row-gap: 10px; align-items: start; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); text-align: left; transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s, opacity 0.15s; }
+.plugin-card:hover { border-color: var(--line-strong); box-shadow: 0 6px 20px rgba(20, 24, 40, 0.07); transform: translateY(-1px); }
+.plugin-card.chosen { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+/* A plugin that does not fit the chosen screen stays readable, a step back from the ones that do. */
+.plugin-card.misfit:not(.chosen) { background: var(--surface-2); border-color: transparent; }
+.plugin-card.misfit:not(.chosen) .plugin-icon { opacity: 0.6; }
+.plugin-icon { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; background: var(--seg); color: var(--ink-2); font-size: 22px; flex: none; }
+.plugin-icon.tessera { background: var(--accent-soft); color: var(--accent); }
+.plugin-icon.large { width: 52px; height: 52px; border-radius: 14px; font-size: 28px; }
+.plugin-icon .ui-icon { font-size: inherit; }
+.plugin-words { display: grid; gap: 1px; min-width: 0; align-self: center; }
+.plugin-words b { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plugin-words small { font-size: 12px; }
+.plugin-summary { grid-column: 1 / -1; color: var(--ink-2); font-size: 12.5px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.plugin-foot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-height: 22px; }
+.plugin-chip { font-style: normal; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--seg); color: var(--ink-2); white-space: nowrap; }
+.plugin-chip.tessera { background: var(--accent-soft); color: var(--accent); }
+.plugin-chip.community { background: var(--seg); color: var(--ink-2); }
+.plugin-chip.test { background: var(--warn-soft); color: var(--warn); }
+.plugin-chip.beta { background: var(--warn-soft); color: var(--warn); }
+.plugin-chip.example { background: var(--good-soft); color: var(--good); }
+.plugin-chip.attribute { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.plugin-state { margin-left: auto; min-width: 0; overflow: hidden; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; color: var(--muted); white-space: nowrap; }
+.plugin-state .ui-icon { font-size: 15px; }
+.plugin-state.installed { color: var(--good); }
+.plugin-state.update { color: var(--accent); }
+.plugin-state.building { color: var(--ink-2); }
+.plugin-state.test { color: var(--warn); }
+.plugin-state.misfit { font-weight: 400; }
+.plugins-make { color: var(--muted); font-size: 12.5px; }
+.plugins-make a { font-weight: 500; }
+
+/* The details: a column of their own, as tall as the view, scrolling on their own. */
+.plugin-detail { position: sticky; top: 56px; align-self: start; height: calc(100vh - 56px); width: 400px; max-width: 100vw; border-left: 1px solid var(--line); background: var(--surface); overflow: hidden; display: flex; }
+.plugin-detail.drawer-enter-from, .plugin-detail.drawer-leave-to { width: 0; opacity: 0; }
+.plugin-detail-inner { width: 400px; max-width: 100vw; flex: none; overflow-y: auto; padding: 22px 24px 32px; display: flex; flex-direction: column; gap: 20px; }
+.pd-top { display: flex; align-items: flex-start; justify-content: space-between; }
+.pd-title { display: grid; gap: 6px; margin-top: -6px; }
+.pd-title h2 { font-size: 20px; font-weight: 650; letter-spacing: -0.02em; }
+.pd-by { color: var(--muted); font-size: 12.5px; overflow-wrap: anywhere; }
+.pd-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pd-description { color: var(--ink-2); font-size: 13.5px; line-height: 1.55; }
+.pd-stage { color: var(--muted); font-size: 12.5px; line-height: 1.5; margin-top: -4px; }
+.pd-action { display: grid; gap: 12px; padding: 14px; border-radius: 12px; background: var(--surface-2); }
+.pd-action .btn { height: 36px; font-size: 13px; }
+.pd-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.pd-note { display: flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: 12.5px; line-height: 1.45; }
+.pd-note .ui-icon { font-size: 17px; color: var(--good); }
+.pd-misfit { display: flex; align-items: flex-start; gap: 8px; color: var(--ink-2); font-size: 12.5px; line-height: 1.45; }
+.pd-misfit .ui-icon { font-size: 17px; color: var(--muted); margin-top: 1px; }
+.pd-trust { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); cursor: pointer; }
+.pd-trust input { margin-top: 3px; }
+.pd-trust b { display: block; color: var(--ink); font-weight: 600; margin-bottom: 2px; }
+.pd-section { display: grid; gap: 10px; }
+.pd-section h3 { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.pd-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.pd-list li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: start; }
+.pd-list li > .ui-icon { font-size: 17px; color: var(--ink-2); margin-top: 1px; }
+.pd-list b { display: block; font-weight: 500; font-size: 13px; }
+.pd-list small { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; font-size: 12px; }
+.pd-warning { padding: 10px 12px; border-radius: 10px; background: var(--warn-soft); color: var(--ink-2); font-size: 12px; line-height: 1.5; }
+.pd-meter { position: relative; height: 8px; border-radius: 999px; background: var(--seg); overflow: hidden; }
+.pd-meter i { position: absolute; top: 0; bottom: 0; }
+.pd-meter .before { left: 0; background: color-mix(in srgb, var(--ink-2) 55%, var(--seg)); }
+.pd-meter .added { background: var(--accent); }
+.pd-meter.tight .added { background: var(--warn); }
+.pd-room { color: var(--ink-2); font-size: 12.5px; line-height: 1.5; }
+.pd-works { color: var(--muted); }
+.pd-links { display: flex; gap: 16px; font-size: 12.5px; font-weight: 500; }
+.pd-link { display: grid; gap: 14px; }
+.pd-link .field { display: grid; gap: 6px; }
+.pd-link input { height: 38px; font-size: 13.5px; }
+.pd-link .btn { justify-self: start; height: 36px; font-size: 13px; }
+
+@media (max-width: 860px) {
+  .plugins-list { padding: 24px 16px 40px; }
+  .plugins .setup-steps-spacer { display: none; }
+  .plugins .pick-search { min-width: 0; flex-basis: 100%; }
+  .plugins .pick-tools .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .plugins.with-detail .plugins-frame { grid-template-columns: minmax(0, 1fr); }
+  .plugin-detail { position: fixed; inset: 0 0 0 auto; top: 0; height: 100%; width: 100%; z-index: 30; box-shadow: var(--shadow); }
+  .plugin-detail-inner { width: 100%; }
+  .plugin-detail.drawer-enter-from, .plugin-detail.drawer-leave-to { width: 100%; opacity: 1; transform: translateX(100%); }
+  .plugin-detail.drawer-enter-active, .plugin-detail.drawer-leave-active { transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1); }
+}
+
+/* The Plugins page's details: a box per screen. What does not fit stays in the list, a step back, with its reason. */
+.pd-label { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.pd-screens { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.pd-screens li { display: flex; align-items: center; gap: 8px; border-radius: 9px; }
+.pd-screens label { flex: 1; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; padding: 7px 8px; border-radius: 9px; cursor: pointer; }
+.pd-screens li:not(.off) label:hover { background: var(--surface); }
+.pd-screens input { margin: 0; }
+.pd-screen-words { display: grid; min-width: 0; }
+.pd-screen-words b { font-weight: 550; font-size: 13px; }
+.pd-screen-words small { font-size: 11.5px; }
+.pd-screen-words small.pd-pending { color: var(--accent); font-weight: 500; }
+.pd-screens li.off label { cursor: default; }
+.pd-screens li.off b { color: var(--muted); font-weight: 500; }
+.pd-screens .spin { margin-right: 8px; }
+
+/* A screen's Plugins tab: the same cards in three groups, the details on the right as on the Plugins page. */
+.screen-plugins { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); overflow: hidden; }
+.screen-plugins.with-detail { grid-template-columns: minmax(0, 1fr) auto; }
+.sp-list { min-height: 0; overflow: auto; padding: 22px; display: grid; gap: 22px; align-content: start; grid-template-columns: minmax(0, 1fr); }
+.sp-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.sp-intro { color: var(--ink-2); font-size: 13px; max-width: 620px; }
+.sp-actions { display: flex; align-items: center; gap: 14px; }
+.sp-actions .btn.link .ui-icon { margin: 0 0 0 2px; }
+.sp-group { display: grid; gap: 10px; }
+/* A screen's build wherever it shows (BuildLog): its progress, a line when it waits or failed, its log folded away. */
+.build-log { display: grid; gap: 6px; padding: 12px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
+.build-note { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-2); }
+.build-note.failed { color: var(--danger); }
+.build-note .ui-icon { font-size: 16px; }
+.plugin-builds { display: grid; gap: 8px; }
+.updates .build-log { padding: 0; border: 0; background: none; }
+/* Update all on this screen: one build for every update, above the screen's own plugins. */
+.sp-updates { display: grid; gap: 10px; justify-items: start; padding: 12px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
+.sp-updates p { font-size: 12.5px; line-height: 1.45; color: var(--ink-2); }
+.sp-updates p b { display: block; color: var(--ink); font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+.sp-group h3, .sp-misfits summary { font-size: 12px; font-weight: 600; color: var(--muted); }
+.sp-misfits summary { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; list-style: none; width: fit-content; }
+.sp-misfits summary::-webkit-details-marker { display: none; }
+.sp-misfits summary .ui-icon { font-size: 16px; transition: transform 0.15s; }
+.sp-misfits[open] summary .ui-icon { transform: rotate(90deg); }
+.sp-misfits[open] summary { margin-bottom: 10px; }
+/* On the grey of a screen's tabs a card that does not fit keeps its outline, only quieter. */
+.screen-plugins .plugin-card.misfit:not(.chosen) { background: color-mix(in srgb, var(--surface) 50%, transparent); border-color: var(--line); }
+.sp-empty { color: var(--muted); font-size: 12.5px; padding: 4px 0; }
+.screen-plugins .plugin-detail { position: relative; top: 0; height: 100%; }
+@media (max-width: 860px) {
+  .sp-list { padding: 16px; }
+  .screen-plugins.with-detail { grid-template-columns: minmax(0, 1fr); }
+  .screen-plugins .plugin-detail { position: fixed; inset: 0 0 0 auto; height: 100%; }
+}
+
+/* What a plugin asks for before it goes on: a key, a pin, a name, its optional parts. */
+.pd-setup { display: grid; gap: 12px; }
+.pd-setup .field { display: grid; gap: 5px; }
+.pd-setup .f-label { font-size: 12px; font-weight: 550; color: var(--ink-2); }
+.pd-setup input[type="text"], .pd-setup input[type="password"], .pd-setup select { height: 36px; font-size: 13px; }
+.pd-setup small { font-size: 11.5px; }
+.pd-part { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; cursor: pointer; font-size: 13px; }
+.pd-part input { margin-top: 3px; }
+.pd-part b { display: block; font-weight: 550; }
+.pd-part small { font-size: 11.5px; }
+.pd-build-note { color: var(--muted); font-size: 11.5px; line-height: 1.45; }
+.pd-note .ui-icon[class] { flex: none; }
+/* A screen with its own YAML: the lines to paste, in the code face, scrolling sideways on their own. */
+.pd-yaml { font-size: 11.5px; line-height: 1.5; white-space: pre; overflow-x: auto; overflow-wrap: normal; background: var(--surface); }
+/* A plugin's README: markdown's own elements only, in the column's rhythm. */
+.pd-readme { display: grid; gap: 10px; font-size: 13px; line-height: 1.55; color: var(--ink-2); min-width: 0; }
+.pd-readme > * { margin: 0; }
+.pd-readme h1, .pd-readme h2, .pd-readme h3 { font-size: 13px; font-weight: 600; color: var(--ink); margin-top: 4px; }
+.pd-readme ol, .pd-readme ul { padding-left: 20px; display: grid; gap: 4px; }
+.pd-readme strong { color: var(--ink); font-weight: 600; }
+.pd-readme code { font-size: 11.5px; }
+.pd-readme pre { font-size: 11.5px; }
+.pd-readme img { max-width: 100%; border-radius: 8px; border: 1px solid var(--line); }
+.pd-package { justify-self: start; }
+.pd-attach-note { align-items: flex-start; }
+.pd-attach-note .ui-icon { margin-top: 1px; color: var(--ink-2); }
+.pd-file summary { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; list-style: none; font-size: 12px; color: var(--muted); font-weight: 500; }
+.pd-file summary::-webkit-details-marker { display: none; }
+.pd-file summary .ui-icon { font-size: 15px; transition: transform 0.15s; }
+.pd-file[open] summary .ui-icon { transform: rotate(90deg); }
+.pd-file[open] summary { margin-bottom: 8px; }
+/* Code in the action box scrolls inside it; the box keeps the column's width. */
+.pd-action { grid-template-columns: minmax(0, 1fr); }
+.pd-action > *, .pd-file { min-width: 0; }
+.pd-yaml { max-width: 100%; }
+
+/* A plugin's tile on a page (design): a placeholder in the tile's own frame, its icon, name and one example line, and
+   the plugin it comes from at the bottom. The real drawing is the plugin's own, on the glass. */
+.plugin-face { position: absolute; inset: 0; display: grid; grid-template-rows: auto 1fr auto; gap: 6px; padding: 10px 12px;
+  background: repeating-linear-gradient(135deg, transparent 0 8px, color-mix(in srgb, var(--accent) 5%, transparent) 8px 16px); border-radius: inherit; }
+.plugin-face-icon { font-size: 22px; color: var(--accent); line-height: 1; }
+.plugin-face-words { display: grid; gap: 2px; align-content: end; min-width: 0; }
+.plugin-face-words b { font-size: 13px; font-weight: 600; color: #1b1b1b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plugin-face-words small { font-size: 11px; color: #505155; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plugin-face-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; color: var(--accent); }
+.plugin-face-tag .mdi { font-size: 12px; }
+.plugin-face.compact { gap: 2px; padding: 8px 10px; }
+.plugin-face.compact .plugin-face-tag { display: none; }
+.plugin-live { position: absolute; inset: 0; display: grid; grid-template-rows: auto 1fr; padding: 10px 12px; min-width: 0; }
+.plugin-live-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.plugin-live-badge { flex: none; min-width: 22px; padding: 1px 7px; border-radius: 8px; background: var(--accent); color: #fff;
+  font-size: 13px; font-weight: 700; text-align: center; line-height: 20px; }
+.plugin-live-title { min-width: 0; font-size: 12px; color: #505155; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plugin-live-value { align-self: center; font-size: 30px; font-weight: 500; color: #1b1b1b; line-height: 1.1; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.plugin-live.compact { padding: 8px 10px; }
+.plugin-live.compact .plugin-live-value { font-size: 24px; }
+/* A plugin tile's inspector (design). */
+.plugin-tile-from { margin: 12px 16px 4px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--muted); }
+.plugin-tile-from .mdi { color: var(--accent); font-size: 14px; }
+.plugin-stepper { display: inline-flex; align-items: center; gap: 10px; }
+.plugin-stepper b { min-width: 52px; text-align: center; font-weight: 600; }

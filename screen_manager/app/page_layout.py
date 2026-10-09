@@ -12,7 +12,7 @@ import re
 import secrets
 
 from i18n import t
-from core import (FIRMWARE_MAX_PAGES, FIRMWARE_MAX_TILES, HEADER_MAX_ITEMS, KEY_HOLDERS, STORE_MAX_BAR_ITEMS, STORE_MAX_PAGES,
+from core import (entity_id, plugin_entity, plugin_tile, FIRMWARE_MAX_PAGES, FIRMWARE_MAX_TILES, HEADER_MAX_ITEMS, KEY_HOLDERS, STORE_MAX_BAR_ITEMS, STORE_MAX_PAGES,
                   STORE_MAX_TILES, Grid, is_key, span_of,
                   span_offered, placed, header_items, page_target, tile_size, validate_header, validate_layout)
 
@@ -27,6 +27,8 @@ APPEARANCE = {
     # How a map looks and, on the map tile, whom it follows (app 0.4.36).
     "mapFollow": "follow", "mapMarkers": "markers", "mapNames": "names", "mapZones": "zones", "mapStreets": "streets",
     "mapLook": "look",
+    # How the energy card shows power along a line: running dots or calm lines (catalogue/screen.yaml `energy`).
+    "energyFlow": "flow",
 }
 # A favourite (app 0.4.42) keeps what it plays (`play`, Home Assistant's own ids) and on which speaker (`speaker`), and
 # since app 0.4.84 its own shuffle and repeat.
@@ -185,7 +187,16 @@ def screen_grid_of_record(record):
 
 
 def _entity(content, page_indexes, home):
-    _object(content, {"kind", "entityId", "name", "target"}, {"kind"})
+    _object(content, {"kind", "entityId", "name", "target", "plugin", "tile", "options"}, {"kind"})
+    if content["kind"] == "plugin":
+        # A plugin's tile (docs/PLUGINS.md): its plugin, its type and its own options, plugin:<plugin>.<tile> flat.
+        _object(content, {"kind", "plugin", "tile", "entityId", "options"}, {"kind", "plugin", "tile"})
+        if "entityId" in content and not plugin_entity(content["entityId"]):
+            raise LayoutError(t('addon.errors.layout.unsupported'))
+        entity = f'plugin:{content["plugin"]}.{content["tile"]}' if isinstance(content["plugin"], str) and isinstance(content["tile"], str) else ""
+        if not plugin_tile(entity):
+            raise LayoutError(t('addon.errors.layout.unsupported'))
+        return entity
     if content["kind"] == "entity":
         _object(content, {"kind", "entityId"}, {"kind", "entityId"})
         entity = content["entityId"]
@@ -340,6 +351,11 @@ def _tile(tile, page_index, grid, page_indexes, home, seen):
     if size != "single":
         options["size"] = size
     entity = _entity(tile["content"], page_indexes, home)
+    if tile["content"]["kind"] == "plugin" and "options" in tile["content"]:
+        options["plugin"] = deepcopy(tile["content"]["options"])
+    # A plugin tile that belongs to an entity (docs/PLUGINS.md): the entity travels beside its options.
+    if tile["content"]["kind"] == "plugin" and "entityId" in tile["content"]:
+        options["plugin_entity"] = tile["content"]["entityId"]
     return {
         "entity": entity,
         "name": appearance["label"],
@@ -362,6 +378,11 @@ def tile_from_fields(tile, grid, page_ids, id_factory=new_id):
         content = {"kind": "navigation", "target": {"kind": "page", "pageId": page_ids[target - 1]}}
     elif entity.startswith("screen."):
         content = {"kind": "builtin", "name": entity.split(".", 1)[1]}
+    elif plugin_tile(entity):
+        plugin, kind = plugin_tile(entity)
+        content = {"kind": "plugin", "plugin": plugin, "tile": kind,
+                   **({"entityId": options["plugin_entity"]} if "plugin_entity" in options else {}),
+                   **({"options": deepcopy(options["plugin"])} if "plugin" in options else {})}
     else:
         content = {"kind": "entity", "entityId": entity}
     local, size = tile["slot"] % grid.slots, tile_size(tile)

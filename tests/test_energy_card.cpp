@@ -55,7 +55,7 @@ static Measure measure(const Board &b) {
 // The card's words as the screen gives them (screen.energy.* in English).
 static Words W() {
   Words w;
-  w.solar = "Solar"; w.grid = "Grid"; w.battery = "Battery"; w.home = "Home"; w.other = "Other";
+  w.solar = "Solar"; w.grid = "Grid"; w.battery = "Battery"; w.home = "Home"; w.other = "Other"; w.untracked = "Untracked";
   return w;
 }
 
@@ -193,6 +193,10 @@ int main() {
             const Scene sc = build(data, m, w, h, W());
             check(sc.ok, "an offered size fits", b, "sweep");
             audit(sc, m, b, "sweep", w, h);
+            // The battery's charge shows on every card offered, as Home Assistant's own card always shows it.
+            bool charge = false;
+            for (auto &t : sc.texts) charge |= t.s == std::to_string(data.soc) + " %";
+            check(charge, "the battery's charge shows", b, "sweep");
           }
     }
   }
@@ -237,6 +241,67 @@ int main() {
     assert(sc.devices == 4);
     assert((names == std::vector<std::string>{"EV", "Oven Power", "Dishwasher Power", "Other"}));
   }
+  // What no device measures is Untracked consumption, the last place and grey as in Home Assistant's sankey: the
+  // devices, Other and it add up to the house. A house without a measured device, or whose devices report more than
+  // the house, has none.
+  {
+    const Board &p4 = BOARDS[5];
+    const Measure m = measure(p4);
+    ui::configure(p4.dpi, "standard");
+    const Choice ch = choose(noon(), m, 1230, 687, W());
+    assert(!ch.shown.empty() && ch.shown.back().name == "Untracked" && ch.shown.back().rest && ch.shown.back().entity.empty());
+    float sum = 0;
+    for (auto &dv : ch.shown) sum += dv.w;
+    assert(std::fabs(sum - noon().home) < 0.5f && std::fabs(ch.shown.back().w - 435) < 0.5f);
+    const Scene sc = build(noon(), m, 1230, 687, W());
+    assert(sc.circles.back().paint == Paint::REST && sc.circles.back().entity.empty());
+    Data none = noon();
+    none.devices.clear();
+    assert(choose(none, m, 1230, 687, W()).shown.empty());
+    for (auto &dv : choose(busy(), m, 1230, 687, W()).shown) assert(dv.name != "Untracked");
+    // Two places for seven devices: the biggest and Other, no Untracked consumption that would leave the rest out.
+    Data many = noon();
+    many.devices = busy().devices;
+    many.home = 12045;
+    for (int w = 300; w < 1230; w += 10) {
+      const Choice c = choose(many, m, w, 687, W());
+      if (c.shown.size() != 2) continue;
+      assert(c.shown[1].name == "Other");
+    }
+    // Fewer places than devices: the biggest keep theirs, Other the rest, Untracked consumption the last.
+    const Choice night = choose(night_car(), m, 1230, 687, W());
+    assert(night.shown.size() == 3 && night.shown[0].name == "EV" && night.shown[2].name == "Untracked");
+  }
+  // Drawn calm (the tile's "flow": "lines"): the same diagram without a dot, an arrow halfway along each line that
+  // carries power, pointing the way it goes, and lines that grow with their power on the pixel grid of the rest.
+  for (const Board &b : BOARDS) {
+    const Measure m = measure(b);
+    for (const auto &size : b.sizes) {
+      if (!size.name || !size.fits) continue;
+      for (const Data &data : {noon(), night_car(), busy()}) {
+        ui::configure(b.dpi, b.standard ? "standard" : "compact");
+        const Scene dots = build(data, m, size.w, size.h, W());
+        const Scene calm = build(data, m, size.w, size.h, W(), "", nullptr, Style::LINES);
+        check(calm.ok && calm.flows.empty(), "no dots on a calm card", b, size.name);
+        check(calm.arrows.size() == dots.flows.size(), "an arrow on every line that carries power", b, size.name);
+        check(calm.circles.size() == dots.circles.size() && calm.texts.size() == dots.texts.size(), "the same diagram", b, size.name);
+        for (size_t i = 0; i < calm.arrows.size(); ++i) {
+          const Arrow &a = calm.arrows[i];
+          const P mid = along(dots.flows[i].path, 0.5f), ahead = along(dots.flows[i].path, 0.6f);
+          // The tip points the way the dot runs.
+          check((a.tip.x - mid.x) * (ahead.x - mid.x) + (a.tip.y - mid.y) * (ahead.y - mid.y) > 0, "the arrow points the way", b, size.name);
+          for (const P &q : {a.tip, a.left, a.right}) {
+            check(q.x >= 0 && q.x <= size.w && q.y >= 0 && q.y <= size.h, "the arrow inside the card", b, size.name);
+            for (auto &c : calm.circles) check(std::hypot(q.x - c.c.x, q.y - c.c.y) > c.d / 2.f, "the arrow clear of the circles", b, size.name);
+          }
+        }
+        for (auto &l : calm.lines) check(l.width % 2 == calm.lw % 2 && l.width >= calm.lw, "a line on the pixel grid", b, size.name);
+      }
+    }
+  }
+  check(flow_width(0, 1, 20) == 1 && flow_width(100, 1, 20) == 1 && flow_width(1000, 1, 20) == 3 && flow_width(5000, 1, 20) == 5,
+        "a line grows with its power", BOARDS[0], "widths");
+  check(flow_width(5000, 2, 20) == 6 && flow_width(5000, 1, 4) == 1, "even widths, and never past its room", BOARDS[0], "widths");
   // A tap finds the circle and its sensor; the house has none.
   {
     const Board &g = BOARDS[2];

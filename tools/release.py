@@ -462,16 +462,20 @@ def publish(args):
     if problems:
         raise Refusal('Not published:\n- ' + '\n- '.join(problems))
     name = title(found[0])
-    plan = [f'push {head[:12]} to main (a fast-forward from {git("rev-parse", "--short", f"origin/{RELEASES}")})',
-            f'tag {tag} on it and push the tag',
+    plan = [f'tag {tag} on {head[:12]} and push it with main (a fast-forward from {git("rev-parse", "--short", f"origin/{RELEASES}")}) in one atomic push',
             f'GitHub release "{name}" with the notes in {notes}',
             f'remove {CANDIDATE}']
     if not args.yes:
         print('Would:\n- ' + '\n- '.join(plan) + '\nNothing done: run again with --yes.')
         return 0
-    git('push', '--quiet', 'origin', f'{head}:refs/heads/{RELEASES}')
+    # main and the tag together or neither (app 0.4.85): a stable app builds its screens from the tag of its own version
+    # (core.ref), so main with a newer app but without its tag would leave every build of that app without firmware.
     git('tag', tag, head)
-    git('push', '--quiet', 'origin', f'refs/tags/{tag}')
+    try:
+        git('push', '--quiet', '--atomic', 'origin', f'{head}:refs/heads/{RELEASES}', f'refs/tags/{tag}')
+    except BaseException:
+        git('tag', '-d', tag)  # so the next try is not refused for a tag that only exists here
+        raise
     gh('release', 'create', tag, '--repo', REPOSITORY, '--title', name, '--notes-file', str(notes), '--verify-tag')
     if git('ls-remote', '--heads', 'origin', CANDIDATE):
         git('push', '--quiet', 'origin', '--delete', CANDIDATE)
