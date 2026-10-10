@@ -1,5 +1,7 @@
 # Adding a board
 
+To request a board, search [New boards on the wishlist](https://tessera-maxgramser.on-forge.com/wishlist?category=board) and upvote an existing request or add one. This guide is for implementing board support. Link that wish in your pull request to `dev`.
+
 The recipe, in the order the work actually goes: the hardware is looked up, the layout is computed, and only the
 grid is a choice. `docs/RESPONSIVE.md` says why the layout works the way it does.
 
@@ -50,6 +52,12 @@ buffer lives in the memory inside the chip, next to Wi-Fi, the API and the panel
 800 × 480 is 192 KB of it. The Waveshare 4.3 ran on 15 KB free that way and hung under a large layout; at 12 % it
 boots with 112 KB. Read `sensor.<screen>_heap_free` after the first boot with a full layout: under 40 KB is too
 little.
+
+ESPHome rounds the share to a whole fraction of the screen: an eighth below 19 %, a quarter up to 37.5 %, a half up to
+75 % and the whole screen above that. An eighth or a quarter goes inside the chip when a block that size is free there,
+and into PSRAM when it is not; a half or more always goes into PSRAM. So 8 % and 12 % are the same eighth, which is
+96 KB on 800 × 480 but 154 KB on 1024 × 600. On glass that large, a quarter (307 KB) never fits inside the chip and
+always lands in PSRAM, which keeps the inside free for the rest (the Waveshare 7B).
 
 ## 4. The layout: two grids, and sizes the look works out
 
