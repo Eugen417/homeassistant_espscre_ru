@@ -415,8 +415,8 @@
         "heat_off": "Normal",
         "light_on": "Licht erkannt",
         "light_off": "Kein Licht",
-        "lock_on": "Aufgeschlossen",
-        "lock_off": "Abgeschlossen",
+        "lock_on": "Entriegelt",
+        "lock_off": "Verriegelt",
         "moisture_on": "Nass",
         "moisture_off": "Trocken",
         "motion_on": "Erkannt",
@@ -506,17 +506,17 @@
         "enter_code": "Code eingeben"
       },
       "lock": {
-        "locked": "Abgeschlossen",
-        "unlocked": "Aufgeschlossen",
-        "locking": "Wird abgeschlossen",
-        "unlocking": "Wird aufgeschlossen",
+        "locked": "Verriegelt",
+        "unlocked": "Entriegelt",
+        "locking": "Wird verriegelt",
+        "unlocking": "Wird entriegelt",
         "open": "Geöffnet",
         "opening": "Wird geöffnet",
         "jammed": "Verklemmt"
       },
       "lock_action": {
-        "lock": "Abschließen",
-        "unlock": "Aufschließen",
+        "lock": "Verriegeln",
+        "unlock": "Entriegeln",
         "open": "Öffnen",
         "open_door": "Tür öffnen",
         "open_door_confirm": "Wirklich öffnen?"

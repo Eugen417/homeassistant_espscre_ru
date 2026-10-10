@@ -338,7 +338,7 @@
         "cool": "Frío",
         "heat_cool": "Calor/Frío",
         "auto": "Auto",
-        "dry": "Seco",
+        "dry": "Deshumidificar",
         "fan_only": "Solo ventilador"
       },
       "hvac_action": {
@@ -417,7 +417,7 @@
         "light_off": "Sin luz",
         "lock_on": "Desbloqueado",
         "lock_off": "Bloqueado",
-        "moisture_on": "Húmedo",
+        "moisture_on": "Mojado",
         "moisture_off": "Seco",
         "motion_on": "Detectado",
         "motion_off": "No detectado",

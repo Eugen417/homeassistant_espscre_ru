@@ -337,7 +337,7 @@
         "heat": "grzanie",
         "cool": "chłodzenie",
         "heat_cool": "grzanie/chłodzenie",
-        "auto": "Auto",
+        "auto": "auto",
         "dry": "osuszanie",
         "fan_only": "tylko wentylator"
       },
@@ -458,10 +458,10 @@
         "press": "Naciśnij"
       },
       "climate_fan": {
-        "auto": "Auto",
-        "low": "Low",
-        "medium": "Medium",
-        "high": "High",
+        "auto": "auto",
+        "low": "niski",
+        "medium": "średni",
+        "high": "wysoki",
         "middle": "pośredni",
         "focus": "skupiony nawiew",
         "diffuse": "rozproszony nawiew",
