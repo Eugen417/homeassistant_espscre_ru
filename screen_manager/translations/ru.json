@@ -239,7 +239,11 @@
     "cover": {
       "position": "Положение",
       "tilt": "Наклон",
-      "tilt_value": "Наклон {n}%"
+      "tilt_value": "Наклон {n}%",
+      "open": "Открыто",
+      "closed": "Закрыто",
+      "opening": "Открывается",
+      "closing": "Закрывается"
     },
     "weather": {
       "feels_like": "Ощущается как {n}°",
