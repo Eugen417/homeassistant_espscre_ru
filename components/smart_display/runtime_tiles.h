@@ -1340,6 +1340,12 @@ inline std::string detail_state(const Tile &t){
   if(t.domain()=="timer")return timer_text(t);
   if(t.domain()=="script"||t.domain()=="scene"||t.domain()=="button"||t.domain()=="input_button")return t.state=="on"?tr(txt::script_running):last_run_text(t.last_run);
   if(t.domain()=="binary_sensor"&&(t.state=="on"||t.state=="off"))return tile_controls::binary_state_text(t.device_class,t.state=="on");
+  if(t.domain()=="cover"){
+    if(t.state=="open")return tr(txt::ha_cover_open);
+    if(t.state=="closed")return tr(txt::ha_cover_closed);
+    if(t.state=="opening")return tr(txt::ha_cover_opening);
+    if(t.state=="closing")return tr(txt::ha_cover_closing);
+  }
   if(t.state=="on")return tr(txt::ha_on);
   if(t.state=="off")return tr(txt::ha_off);
   if(t.state=="docked")return tr(txt::ha_vacuum_docked);
@@ -7900,6 +7906,19 @@ inline void render_slot(size_t slot) {
   else if (d == "binary_sensor" && (value == "on" || value == "off")) value = tile_controls::binary_state_text(t.device_class, value == "on");
   else if (d == "alarm_control_panel") value = alarm_status(t, false);
   else if (d == "lock") value = lock_status(t, false);
+   else if (d == "binary_sensor" && (value == "on" || value == "off")) value = tile_controls::binary_state_text(t.device_class, value == "on");
+   else if (d == "alarm_control_panel") value = alarm_status(t, false);
+   else if (d == "lock") value = lock_status(t, false);
+   else if (d == "cover"){
+     if(value == "open") value = tr(txt::ha_cover_open);
+     else if(value == "closed") value = tr(txt::ha_cover_closed);
+     else if(value == "opening") value = tr(txt::ha_cover_opening);
+     else if(value == "closing") value = tr(txt::ha_cover_closing);
+   }
+   else if (value == "on") value = tr(txt::ha_on);
+   else if (value == "off") value = tr(txt::ha_off);
+   else if (value == "cleaning") value = tr(txt::ha_vacuum_cleaning);
+   else if (value == "docked") value = tr(txt::ha_vacuum_docked);
   else if (value == "on") value = tr(txt::ha_on);
   else if (value == "off") value = tr(txt::ha_off);
   else if (value == "cleaning") value = tr(txt::ha_vacuum_cleaning);
