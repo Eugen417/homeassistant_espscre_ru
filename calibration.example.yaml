@@ -1,0 +1,13 @@
+# Identity: starting point for a NEW panel, not a measured calibration.
+# tools/calibrate.py writes a measured version of this file.
+substitutions:
+  TOUCH_CAL_X_MIN: "280"
+  TOUCH_CAL_X_MAX: "3860"
+  TOUCH_CAL_Y_MIN: "340"
+  TOUCH_CAL_Y_MAX: "3860"
+  TOUCH_AFFINE_XX: "1.000000000"
+  TOUCH_AFFINE_XY: "0.000000000"
+  TOUCH_AFFINE_XC: "0.000000000"
+  TOUCH_AFFINE_YX: "0.000000000"
+  TOUCH_AFFINE_YY: "1.000000000"
+  TOUCH_AFFINE_YC: "0.000000000"

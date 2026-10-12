@@ -1,0 +1,175 @@
+# The boards ESP Screens ships, in the order New screen offers them (docs/ADDING_A_BOARD.md).
+#
+# One entry per board, keyed by the word ESP Screens knows it by (the BOARD_ID its firmware reports, and the name of
+# packages/<key>.yaml, the entry a screen installed from ESP Screens builds from over GitHub, and of checkout/<key>.yaml,
+# the one a build from a clone of this repository uses). An entry says only what
+# the hardware files cannot: what the board is called, what is printed on it, how far it has been tried, the
+# choices someone makes when a screen of it is built, and its own settings (`settings`, docs/SETTINGS.md, "A board's own
+# settings"). Everything else ESP Screens shows about a board is worked out
+# from its file under packages/boards/ by tools/generate_board_shapes.py, into screen_manager/app/boards.json: the
+# glass and its size in inches, the grid lying down and standing up, the touch controller, and what it can do
+# (camera pictures, dimming, standby, a touch calibration on the first start).
+#
+#   file      the board file under packages/boards/
+#   name      what people call the board; New screen shows it with its size in inches
+#   model     what is printed on the board or its box, to tell it from its neighbours
+#   status    stable (tried on the glass by the project), new (tried, few screens out there yet) or experimental
+#             (built and rendered, not yet tried on the hardware)
+#   choices   optional: a substitution the board file offers for a part that differs between boards sold under the same
+#             name, with the values someone may pick when the screen is built. The first is the board file's own
+#             default and writes nothing; another is written into the screen's own YAML. Only values that people with
+#             that board confirmed work belong here. The grid is no choice of the board's: every screen takes the
+#             grids its glass holds (packages/looks/shared/grid.yaml), New screen offers them under Advanced and the
+#             editor changes them later without a build.
+
+cyd:
+  file: cyd-2432s028.yaml
+  name: CYD
+  model: ESP32-2432S028
+  status: stable
+  choices:
+    # Some of these boards carry an ST7789V display controller instead of the ILI9341 (GitHub #6).
+    DISPLAY_MODEL: [ILI9341, ST7789V]
+
+cyd9342:
+  file: cyd-2432s028-ili9342.yaml
+  name: CYD
+  model: ESP32-2432S028 ILI9342
+  status: experimental
+  # The same board with an ILI9342 display controller (GitHub #50): the CYD's own file with only the display changed.
+
+guition:
+  file: guition-4848s040.yaml
+  name: Guition
+  model: ESP32-S3-4848S040
+  status: stable
+
+waveshare43:
+  file: waveshare-esp32s3-43.yaml
+  name: Waveshare
+  model: ESP32-S3-Touch-LCD-4.3
+  status: stable
+
+jc8012p4a1:
+  file: guition-jc8012p4a1.yaml
+  name: Guition
+  model: JC8012P4A1
+  status: new
+
+jc8012p4a1v3:
+  file: guition-jc8012p4a1-v3.yaml
+  name: Guition
+  model: JC8012P4A1 V3
+  status: experimental
+
+waveshare7:
+  file: waveshare-esp32s3-7.yaml
+  name: Waveshare
+  model: ESP32-S3-Touch-LCD-7
+  status: experimental
+
+waveshare4b:
+  file: waveshare-esp32s3-4b.yaml
+  name: Waveshare
+  model: ESP32-S3-Touch-LCD-4B
+  status: experimental
+
+waveshare35:
+  file: waveshare-esp32s3-35.yaml
+  name: Waveshare
+  model: ESP32-S3-Touch-LCD-3.5
+  status: new
+
+jc1060p470:
+  file: guition-jc1060p470.yaml
+  name: Guition
+  model: JC1060P470
+  status: experimental
+
+jc1060p470v2:
+  file: guition-jc1060p470-v2.yaml
+  name: Guition
+  model: JC1060P470 V2
+  status: experimental
+
+hosyond40:
+  file: hosyond40.yaml
+  name: Hosyond
+  model: ESP32-32E E32R40T
+  status: experimental
+
+jc3248w535:
+  file: guition-jc3248w535.yaml
+  name: Guition
+  model: JC3248W535
+  status: new
+
+waveshare7b:
+  file: waveshare-esp32s3-7b.yaml
+  name: Waveshare
+  model: ESP32-S3-Touch-LCD-7B
+  status: experimental
+
+sunton8048s070:
+  file: sunton-8048s070.yaml
+  name: Sunton
+  model: ESP32-8048S070
+  status: experimental
+
+jc8012p4a1v2:
+  file: guition-jc8012p4a1-v2.yaml
+  name: Guition
+  model: JC8012P4A1 V2
+  status: experimental
+
+tab5:
+  file: tab5.yaml
+  name: M5Stack Tab5
+  model: Tab5 ST7121
+  status: new
+  # Its extras under Screen settings, in this order (docs/SETTINGS.md, "A board's own settings").
+  settings: [media_player, microphone]
+
+waveshare5:
+  file: waveshare-esp32s3-5.yaml
+  name: Waveshare
+  model: ESP32-S3-Touch-LCD-5
+  status: new
+
+jc8048w550ci:
+  file: guition-jc8048w550c-i.yaml
+  name: Guition
+  model: JC8048W550C_I
+  status: experimental
+
+wavesharep4:
+  file: wavesharep4.yaml
+  name: Waveshare
+  model: ESP32-P4-86-Panel-ETH-2RO
+  status: experimental
+  # Its extras under Screen settings, in this order (docs/SETTINGS.md, "A board's own settings").
+  settings: [media_player, microphone]
+
+reterminald1001:
+  file: reterminald1001.yaml
+  name: reTerminal D1001
+  model: reTerminal D1001
+  status: experimental
+  # Its extras under Screen settings, in this order (docs/SETTINGS.md, "A board's own settings").
+  settings: [media_player, microphone, wake_when_moved]
+
+jc4880p443:
+  file: guition-jc4880p443.yaml
+  name: Guition
+  model: JC4880P443
+  status: experimental
+
+crowpanel101:
+  file: crowpanel101.yaml
+  name: CrowPanel
+  model: Advanced 10.1 ESP32-P4
+  status: experimental
+  # Elecrow's CrowPanel Advanced 10.1-inch (DHE04310D), from Elecrow's ESPHome example and a V1.2 board a community
+  # member ran it on (GitHub #116).
+  # Its extras under Screen settings, in this order (docs/SETTINGS.md, "A board's own settings").
+  settings: [media_player, microphone]

@@ -1,0 +1,436 @@
+"""Which boards a change reaches, and what its release is (app 0.3.21; docs/BOARD_RELEASES.md is the recipe).
+
+A screen's firmware is built from packages/core.yaml plus its board file's chain (tools/profiles.py), the components
+under components/, the fonts, and the `screen` section of screen_manager/translations. This compares the working tree
+(committed, staged, unstaged and new files) with a base, by default where HEAD left origin/main, and sorts every
+changed path:
+
+- a file in one board's chain only (its board file, its entry files, a feature or hardware file no other board
+  includes) reaches that board;
+- a component under components/ that only some boards load as a platform (the CYD's xpt2046) reaches the boards
+  whose entry files name it (tools/generate_entries.py);
+- the core, the rest of components/, fonts/, a translation's `screen` texts, or a package several boards include
+  reaches all of them;
+- anything else (the add-on, the editor, docs, tests, tools) is no firmware at all.
+
+A board whose board file is not in the base yet is new: no screen runs it, so it needs no firmware number of its own and
+its release is one of the app (the catalog grows); only the boards that already exist decide the firmware release.
+
+    tools/affected_boards.py              what changed, which boards it reaches, and the release that follows
+    tools/affected_boards.py --keys       only the board keys it reaches, space separated, empty for none
+    tools/affected_boards.py --build-keys the boards a build needs: --keys, or every board when the build's own tools,
+                                          entries, fixtures or ESPHome changed (tools/check.sh --affected, CI)
+    tools/affected_boards.py --older-sample  what a change that reaches every board builds on the min_version ESPHome:
+                                          the CYD, plus a board for each changed file the CYD does not build
+    tools/affected_boards.py --verify     whether every board it reaches builds a higher firmware number
+    tools/affected_boards.py --base REF   compare with REF instead
+
+Any error exits non-zero with nothing on stdout, so a caller never reads a crash as "no boards".
+
+Standard library and PyYAML only.
+"""
+import argparse
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+import yaml
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import firmware_count  # noqa: E402
+import generate_entries  # noqa: E402
+import profiles  # noqa: E402
+
+ROOT = profiles.ROOT
+# Everything a build of every board reads, whichever board file names it.
+SHARED_TREES = ('components/', 'fonts/')
+TRANSLATIONS = 'screen_manager/translations/'
+
+
+def git(*args):
+    return subprocess.run(['git', *args], cwd=ROOT, capture_output=True, text=True, check=True).stdout
+
+
+def default_base():
+    try:
+        return git('merge-base', 'HEAD', 'origin/main').strip()
+    except subprocess.CalledProcessError:
+        return 'HEAD'
+
+
+def changed_paths(base):
+    """Every path that differs from `base` in the working tree, new untracked files included. A moved file counts at
+    both ends (--no-renames): git names only the new path of a rename, and a file moved out of components/ would read
+    as no firmware."""
+    paths = set(git('diff', '--name-only', '--no-renames', base).split())
+    paths |= set(git('ls-files', '--others', '--exclude-standard').split())
+    return sorted(paths)
+
+
+def chains():
+    """{board: the repository paths a build of that board reads from packages/ and its entry files}."""
+    found = {}
+    for board in profiles.BOARDS:
+        paths = set()
+        for entry in (f'checkout/{board}.yaml', f'packages/{board}.yaml'):
+            paths |= {str(p.resolve().relative_to(ROOT)) for p in profiles.files(entry)}
+        found[board] = paths
+    return found
+
+
+def screen_texts(text):
+    try:
+        return json.loads(text).get('screen')
+    except (ValueError, AttributeError):
+        return object()  # unreadable reads as changed
+
+
+def translation_reaches_screens(path, base):
+    """Whether a translation file's `screen` section, the part the firmware compiles in, differs from the base. A new
+    language reaches no screen: none speaks it yet, and one that is set to it is offered its update because it speaks
+    another language than Language & region says (updates.language_due), not by a firmware number."""
+    try:
+        before = git('show', f'{base}:{path}')
+    except subprocess.CalledProcessError:
+        return False
+    now = (ROOT / path).read_text() if (ROOT / path).exists() else '{}'
+    return screen_texts(before) != screen_texts(now)
+
+
+def new_boards(base):
+    """The boards whose board file the base does not have: added by this change, with no screen that runs them yet."""
+    try:
+        known = set(git('ls-tree', '-r', '--name-only', base, 'packages/boards/').split())
+    except subprocess.CalledProcessError:
+        return set()
+    return {board for board, path in profiles.BOARDS.items() if str(path.relative_to(ROOT)) not in known}
+
+
+def yaml_tokens(text):
+    """What ESPHome reads of a YAML file: its tokens, without the comments YAML itself drops. A lambda's lines stay as
+    they are, `#ifdef` included, because inside a block scalar they are its text; a scalar keeps how it was quoted,
+    because `yes` is a bool and `"yes"` a string. None when it doesn't scan."""
+    try:
+        return [(type(token).__name__, getattr(token, 'value', None), getattr(token, 'plain', None),
+                 getattr(token, 'style', None)) for token in yaml.scan(text)]
+    except yaml.YAMLError:
+        return None
+
+
+def only_comments(path, base):
+    """Whether a YAML file changed in comments or layout alone since the base, so the firmware is the same (a board
+    file whose explanation got better is no update for its screens)."""
+    try:
+        before = git('show', f'{base}:{path}')
+    except subprocess.CalledProcessError:
+        return False
+    now = read_now(path)
+    tokens = yaml_tokens(before)
+    return now is not None and tokens is not None and tokens == yaml_tokens(now)
+
+
+def loaders():
+    """{component: boards whose entry files load it} for the components under components/ that some boards load as a
+    platform and others don't (generate_entries.components); smart_display, which every board loads, is not one."""
+    found = {}
+    for board in profiles.BOARDS:
+        for name in generate_entries.components(board):
+            if name != 'smart_display':
+                found.setdefault(name, set()).add(board)
+    return found
+
+
+def sort(paths, base):
+    """{path: set of boards it reaches}; an empty set for a path that is no firmware."""
+    every, table, reach, loaded = set(profiles.BOARDS), chains(), {}, loaders()
+    for path in paths:
+        parts = path.split('/')
+        if path.endswith('.yaml') and path.startswith(('packages/', 'checkout/')) and only_comments(path, base):
+            reach[path] = set()
+        elif len(parts) > 2 and parts[0] == 'components' and parts[1] in loaded:
+            # A component no board loads any more (a removed one) is not in `loaded`: it counts as shared below, and the
+            # entry files that stopped loading it name their boards on their own.
+            reach[path] = set(loaded[parts[1]])
+        elif path.startswith(SHARED_TREES) or path == str(profiles.CORE.relative_to(ROOT)):
+            reach[path] = set(every)
+        elif path.startswith(TRANSLATIONS) and path.endswith('.json'):
+            reach[path] = set(every) if translation_reaches_screens(path, base) else set()
+        elif path.startswith('packages/') and path.endswith('.yaml'):
+            boards = {board for board, files in table.items() if path in files}
+            # A package no board includes yet (a new feature file) reaches none; a deleted one reached some before,
+            # which the board files that stopped including it show on their own.
+            reach[path] = boards
+        elif path.startswith('checkout/') and path.endswith('.yaml') and Path(path).stem in every:
+            reach[path] = {Path(path).stem}
+        else:
+            reach[path] = set()
+    return reach
+
+
+dotted = firmware_count.dotted
+
+
+def read_now(path):
+    """A file's text in the working tree, or None."""
+    return (ROOT / path).read_text() if (ROOT / path).exists() else None
+
+
+def read_at(base):
+    """A reader of files as they are in `base`: None for a file the base does not have."""
+    def read(path):
+        try:
+            return git('show', f'{base}:{path}')
+        except subprocess.CalledProcessError:
+            return None
+    return read
+
+
+class NoVersion(Exception):
+    """The base has no SCREEN_FIRMWARE_VERSION to count on from."""
+
+
+def next_numbers(boards=(), read=read_now):
+    """(the next shared number, the next number for `boards`) after the firmware `read` shows, which is the base the
+    change starts from (docs/BOARD_RELEASES.md "Core and board in one number"): the middle number counts the core and
+    the last one a board's revisions on top of it. A shared release raises the core and starts at .0; a board release
+    keeps the core and takes a revision above what each of those boards builds (several boards share one number, so it
+    is above the highest of them)."""
+    core = version_in(read(str(profiles.CORE.relative_to(ROOT))))
+    if not core:
+        raise NoVersion('the base has no SCREEN_FIRMWARE_VERSION X.Y.Z in packages/core.yaml to count on from; '
+                        'compare with another commit (--base)')
+    built = built_versions(read)
+    return firmware_count.next_shared(core), firmware_count.next_board(core, [built.get(board) for board in boards])
+
+
+def oldest(args):
+    """The same firmware check on the oldest ESPHome the packages promise (packages/core.yaml min_version), as CI's
+    min_version leg runs it. A throwaway uv environment, not a second venv; a board whose own min_version is newer is
+    skipped there, which is what that board should do (GitHub #50: an ILI9342 CYD passed on the add-on's ESPHome and
+    failed on 2026.6.2)."""
+    version = re.search(r'(?m)^  min_version: (\S+)', profiles.CORE.read_text()).group(1)
+    return [f'- And on the oldest ESPHome the packages promise ({version}), as CI does (a change that reaches every '
+            f'board builds the CYD there, tools/profiles.py MIN_VERSION_SAMPLE):',
+            f'  ESPHOME="uv run -q --no-project --with esphome=={version} esphome" tools/check.sh {args}']
+
+
+def release_of(reach, new=frozenset(), read_base=read_now):
+    """The release that follows from what each path reaches, as data, counted from the base (`read_base`); `new` are
+    boards no screen runs yet (new_boards). What plan() prints and tools/release.py writes:
+    {'kind': 'app', 'firmware': the shared number the working tree builds, 'boards': []} when no board a screen runs
+    changed; {'kind': 'shared', 'firmware': the next shared number, 'boards': every board} when all of them did; else
+    {'kind': 'boards', 'firmware': the next revision on the core, 'boards': the ones it reaches, in key order}."""
+    reached = set().union(*reach.values()) if reach else set()
+    # The boards that decide the release: those with screens. A new board builds the shared firmware and takes no part.
+    existing = set(profiles.BOARDS) - set(new)
+    boards = reached & existing
+    if not boards:
+        core = version_in(read_now(str(profiles.CORE.relative_to(ROOT))))
+        return {'kind': 'app', 'firmware': dotted(core) if core else None, 'boards': []}
+    shared, for_boards = next_numbers(sorted(boards) if boards != existing else (), read_base)
+    if boards == existing:
+        return {'kind': 'shared', 'firmware': dotted(shared), 'boards': sorted(existing)}
+    return {'kind': 'boards', 'firmware': dotted(for_boards), 'boards': sorted(boards)}
+
+
+def plan(reach, new=frozenset(), read_base=read_now):
+    """The release that follows from what each path reaches, counted from the base (`read_base`); `new` are boards no
+    screen runs yet (new_boards). Once the working tree builds the numbers it asks for, it says so."""
+    reached = set().union(*reach.values()) if reach else set()
+    existing = set(profiles.BOARDS) - set(new)
+    release = release_of(reach, new, read_base)
+    boards = set(release['boards'])
+    shared_next = board_next = release['firmware']
+    shared, for_boards = firmware_count.parse(shared_next), firmware_count.parse(board_next)
+    built_now = built_versions(read_now)
+    every = set(profiles.BOARDS)
+    ahead = {key: profiles.substitutions_of(path).get('SCREEN_FIRMWARE_VERSION', '')
+             for key, path in profiles.BOARDS.items()}
+    ahead = {key: version for key, version in ahead.items() if version}
+    lines = ['Changed:']
+    for path, these in reach.items():
+        if these:
+            lines.append(f'  {path}: {"every board" if these == every else ", ".join(sorted(these))}')
+    others = sum(1 for these in reach.values() if not these)
+    if others:
+        lines.append(f'  {others} other file{"s" if others != 1 else ""}: no firmware')
+    lines.append('')
+    if reached & set(new):
+        added = sorted(reached & set(new))
+        lines += [f'New board: {", ".join(added)}. No screen runs it yet, so it takes no firmware number of its own and',
+                  'nothing else updates: it builds the shared firmware from main (docs/BOARD_RELEASES.md, "A new board").',
+                  f'- Build and render it: tools/check.sh --firmware --board {" --board ".join(added)}, and',
+                  '  tools/render/run.py <board> (with <board>-portrait for glass that is not square).']
+        lines += oldest(f'--firmware --board {" --board ".join(added)}') + ['']
+    if release['kind'] == 'app':
+        lines += ['No firmware change for a screen that exists: an app release (or a docs push, docs/RELEASING.md).',
+                  '- Bump screen_manager/config.yaml and write the CHANGELOG entry with the shared firmware it ships with:',
+                  f'  "## <app> (firmware {profiles.substitutions_of(profiles.CORE)["SCREEN_FIRMWARE_VERSION"].strip(chr(34))})".',
+                  '- Run tools/check.sh (no --firmware: no screen gets anything new).']
+    elif release['kind'] == 'shared':
+        done = all(built_now[key] == shared for key in existing)
+        lines += [f'Shared firmware: every board. The core goes up, so the number is {shared_next}'
+                  + (f' (set: every board builds it).' if done else '.'),
+                  f'- packages/core.yaml SCREEN_FIRMWARE_VERSION and screen_manager/app/core.py FIRMWARE_VERSION: "{shared_next}".']
+        if ahead:
+            lines.append('- Remove SCREEN_FIRMWARE_VERSION from the board files that went ahead, the shared release overtakes '
+                         'them: ' + ', '.join(f'{key} ({version})' for key, version in sorted(ahead.items())) + '.')
+        lines += ['- tools/generate_board_shapes.py, then bump screen_manager/config.yaml with the CHANGELOG entry',
+                  f'  "## <app> (firmware {shared_next})".',
+                  '- Run tools/check.sh and tools/check.sh --firmware --sample (the four boards of tools/profiles.py SAMPLE,',
+                  '  the CYD flash budget); --firmware --all builds every board when a change needs that.']
+        lines += oldest('--firmware --affected')
+    else:
+        done = all(built_now[key] == for_boards for key in boards)
+        lines += [f'Firmware for {", ".join(sorted(boards))} alone: every other screen is left alone. The core stays, '
+                  f'the board revision goes up: {board_next}' + (' (set: those boards build it).' if done else '.')]
+        for key in sorted(boards):
+            path = profiles.BOARDS[key].relative_to(ROOT)
+            was = f' (now "{ahead[key]}")' if key in ahead else ''
+            lines.append(f'- {path}: SCREEN_FIRMWARE_VERSION: "{board_next}"{was}, under BOARD_ID.')
+        lines += ['- Leave packages/core.yaml and core.FIRMWARE_VERSION as they are.',
+                  '- tools/generate_board_shapes.py, then bump screen_manager/config.yaml with the CHANGELOG entry',
+                  f'  "## <app> (firmware {board_next} for {", ".join(sorted(boards))})".',
+                  f'- Run tools/check.sh and tools/check.sh --firmware --board {" --board ".join(sorted(boards))}'
+                  f' (or --affected).']
+        lines += oldest(f'--firmware --board {" --board ".join(sorted(boards))}')
+    return '\n'.join(lines)
+
+
+def version_in(text):
+    """The SCREEN_FIRMWARE_VERSION a file's text sets, as (X, Y, Z), or None: read the way the package check and
+    boards.json read it (profiles.substitutions_in), so a quote of either kind means the same everywhere."""
+    return firmware_count.parse(profiles.substitutions_in(text or '').get('SCREEN_FIRMWARE_VERSION'))
+
+
+def built_versions(read):
+    """{board: the firmware it builds}, from `read(path)` giving a file's text (or None when it has none): the board
+    file's own SCREEN_FIRMWARE_VERSION, else the core's."""
+    core = version_in(read(str(profiles.CORE.relative_to(ROOT))))
+    return {board: version_in(read(str(path.relative_to(ROOT)))) or core for board, path in profiles.BOARDS.items()}
+
+
+def unraised(reach, base, new=frozenset()):
+    """The existing boards a change reaches whose firmware number did not go up: their screens would never be offered
+    the change. Empty when every reached board builds a higher number than in the base."""
+    before, after = built_versions(read_at(base)), built_versions(read_now)
+    reached = set().union(*reach.values()) if reach else set()
+    return sorted(board for board in reached - set(new)
+                  if before.get(board) is not None and not (after.get(board) and after[board] > before[board]))
+
+
+APP_VERSION = re.compile(r'(?m)^version:\s*["\']?([^"\'\s]+)')
+
+
+def releasing(base):
+    """Whether this change is a release: screen_manager/config.yaml names another app version than the base. That is
+    the moment a firmware change without its number would reach Home Assistant."""
+    config = 'screen_manager/config.yaml'
+    before, now = (APP_VERSION.search(read_at(base)(config) or ''), APP_VERSION.search(read_now(config) or ''))
+    return bool(now) and (not before or before.group(1) != now.group(1))
+
+
+def known(base):
+    try:
+        git('rev-parse', '--verify', '--quiet', f'{base}^{{commit}}')
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+
+# What a firmware build reads besides the firmware itself (app 0.3.28, for CI): how check.sh builds and measures, which
+# boards and entries there are, the owners' overrides it builds against, the ESPHome it builds with, and this selector.
+# A change to one is no update for any screen (--keys leaves it out) but can break the build of any board.
+BUILD_INPUTS = ('tools/check.sh', 'tools/profiles.py', 'tools/affected_boards.py', 'tools/firmware_count.py',
+                'boards.yaml', 'checkout/', 'tests/fixtures/overrides/', '.github/workflows/ci.yml',
+                'screen_manager/Dockerfile')
+
+
+def build_keys(reach, paths):
+    """The boards a build of the change needs: the ones it reaches (new boards included), or every board when one of
+    the BUILD_INPUTS changed."""
+    if any(path == item or (item.endswith('/') and path.startswith(item)) for path in paths for item in BUILD_INPUTS):
+        return list(profiles.BOARDS)
+    reached = set().union(*reach.values()) if reach else set()
+    return [board for board in profiles.BOARDS if board in reached]
+
+
+def older_sample(reach):
+    """The boards a change that reaches every board builds on the packages' min_version ESPHome (app 0.4.41):
+    profiles.MIN_VERSION_SAMPLE, plus for every changed file none of those builds one board that does, the first of
+    profiles.SAMPLE that includes it, else the first in boards.yaml."""
+    picked = list(profiles.MIN_VERSION_SAMPLE)
+    order = list(profiles.SAMPLE) + [board for board in profiles.BOARDS if board not in profiles.SAMPLE]
+    for path in sorted(reach):
+        boards = reach[path]
+        if boards and not boards & set(picked):
+            picked.append(next(board for board in order if board in boards))
+    return picked
+
+
+def main(argv=None):
+    try:
+        return run(argv)
+    except NoVersion as error:
+        print(f'affected_boards: {error}', file=sys.stderr)
+        return 2
+
+
+def run(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
+    parser.add_argument('--base', help='compare with this ref (default: where HEAD left origin/main)')
+    parser.add_argument('--keys', action='store_true', help='print only the board keys a change reaches')
+    parser.add_argument('--build-keys', action='store_true',
+                        help='print the board keys a build of the change needs: --keys, and every board when the '
+                             "build's own tools, entries, fixtures or ESPHome changed (tools/check.sh --affected, CI)")
+    parser.add_argument('--older-sample', action='store_true',
+                        help='print the board keys a change that reaches every board builds on the min_version ESPHome: '
+                             'the CYD, and a board for each changed file it does not build (tools/check.sh --affected)')
+    parser.add_argument('--verify', action='store_true',
+                        help='exit 1 when a board the change reaches builds no higher firmware number than the base and '
+                             'this is a release (or --strict); exit 3 when it is not a release yet, a warning')
+    parser.add_argument('--strict', action='store_true', help='with --verify: fail whether or not it is a release (CI)')
+    args = parser.parse_args(argv)
+    base = args.base or default_base()
+    if not known(base):
+        # A push that starts a branch has no commit before it; there is nothing to compare with.
+        if args.older_sample:
+            print(' '.join(profiles.MIN_VERSION_SAMPLE))
+            return 0
+        if args.keys or args.build_keys:
+            # Nothing to compare with: build every board rather than none.
+            print(' '.join(profiles.BOARDS))
+            return 0
+        print(f'No base to compare with ({base[:12] or "none"}): nothing checked')
+        return 0
+    paths = changed_paths(base)
+    reach = sort(paths, base)
+    new = new_boards(base)
+    if args.build_keys:
+        print(' '.join(build_keys(reach, paths)))
+        return 0
+    if args.older_sample:
+        print(' '.join(older_sample(reach)))
+        return 0
+    if args.verify:
+        missing = unraised(reach, base, new)
+        if missing:
+            print(f'Firmware changed for {", ".join(missing)} without a higher firmware number, so screens that run it '
+                  f'are never offered the change. tools/affected_boards.py says which number to set.')
+            return 1 if args.strict or releasing(base) else 3
+        print('Every board the change reaches builds a higher firmware number' if set().union(*reach.values()) - new
+              else 'No firmware change for a screen that exists')
+        return 0
+    if args.keys:
+        boards = set().union(*reach.values()) if reach else set()
+        print(' '.join(board for board in profiles.BOARDS if board in boards))
+    else:
+        print(f'Against {base[:12]}\n')
+        print(plan(reach, new, read_at(base)))
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

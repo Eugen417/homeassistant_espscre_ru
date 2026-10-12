@@ -1,0 +1,6 @@
+# The backlight fix of GitHub #5 on the Waveshare 4B, which drives its backlight from a PWM pin as well.
+output:
+  - id: !extend gpio_backlight_pwm
+    frequency: 150Hz
+    min_power: 0.03
+    zero_means_zero: true

@@ -1,0 +1,66 @@
+# ESP Screens - Waveshare ESP32-S3-Touch-LCD-7 (800 x 480), EXPERIMENTAL.
+# ESP32-S3, 8/16 MB flash, 8 MB octal PSRAM, RGB display, GT911 touch and CH422G expander.
+# Hardware reference: https://docs.waveshare.com/ESP32-S3-Touch-LCD-7
+# Not the 7B or 7C. No physical acceptance yet: see docs/WAVESHARE7.md.
+# The standard look at 133 dpi: 4 x 4 landscape, 2 x 7 portrait. The backlight stays on, with no dimming or standby.
+#
+# A board file is the board's hardware, the facts the shared tree takes from it (its glass and its grid), and the
+# features it has; docs/PROFILES.md says how the files of a screen fit together.
+packages:
+  # The chip, the CH422G expander, the GT911 and the backlight line this board shares with the other Waveshare.
+  hardware: !include ../hardware/waveshare-ch422g.yaml
+  look: !include ../looks/standard.yaml
+  touch: !include ../features/capacitive-touch.yaml
+  backlight: !include ../features/backlight.yaml
+  # Experimental: standby and night stay unavailable until physical wake tests pass. Brownouts on the 4.3-inch
+  # board do not prove a fault on this panel.
+  backlight_always_on: !include ../features/backlight-always-on.yaml
+  camera: !include ../features/camera.yaml
+  self_test: !include ../features/self-test.yaml
+
+substitutions:
+  # The key of this board file; the firmware reports it so ESP Screens knows what board a screen is.
+  BOARD_ID: "waveshare7"
+  DEVICE_NAME: "waveshare7-new"
+  DEVICE_FRIENDLY_NAME: "My Waveshare 7"
+
+  # The glass: the panel's own pixels, which the display block below always drives, and its density: 933 diagonal
+  # pixels over 7 inches. The look scales its sizes by the exact density, the firmware by the nearest whole number.
+  PANEL_W: "800"
+  PANEL_H: "480"
+  DISPLAY_DPI: "133.27890045360687"
+  # The tile grid: columns and rows of cells. The shared tree places every cell from these
+  # (runtime_tiles::place_page), so a board with more room states more columns or rows.
+  GRID_COLS: "4"
+  GRID_ROWS: "4"
+  # The cells of a page when this screen stands up (firmware 0.2.92+).
+  # Two columns of seven keep the standard physical tile size when standing up.
+  GRID_COLS_PORTRAIT: "2"
+  GRID_ROWS_PORTRAIT: "7"
+  # More tiles and pages than the 64 and eight of a board without PSRAM (firmware 0.34.0+): the tile list, the cards and the
+  # extras live in PSRAM here, and the memory budget (tile_memory.h) says how many of them a layout really takes.
+  SCREEN_MAX_TILES: "128"
+  SCREEN_MAX_PAGES: "24"
+  SCREEN_MAX_BAR_ITEMS: "12"                   # a wider top bar where the glass has the width for it
+  LVGL_BUFFER_SIZE: "12%"                       # LVGL's draw buffer as a share of the screen
+
+  # Set by hand when the home key came (firmware 0.2.100); the look would give 27
+  FONT_ICON_HOME_SIZE: "26"
+
+# ============================================================
+# No need to edit below this line.
+# ============================================================
+
+esp32:
+  # An 8 MB partition layout also fits the 16 MB variant.
+  flash_size: 8MB
+
+display:
+  # ESPHome's exact 7-inch model supplies the RGB pins and panel timings. EXIO6 enables the separate panel supply.
+  - id: !extend my_display
+    model: ESP32-S3-TOUCH-LCD-7-800X480
+    enable_pin:
+      - ch422g: expander
+        number: 6
+        mode:
+          output: true
