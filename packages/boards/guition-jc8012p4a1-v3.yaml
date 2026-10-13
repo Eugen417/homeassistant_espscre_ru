@@ -68,6 +68,7 @@ substitutions:
   AUDIO_MIC_BUS: ts_speaker_bus
   AUDIO_SAMPLE_RATE: "16000"
   AUDIO_DOUT_PIN: GPIO9
+  AUDIO_DIN_PIN: GPIO11
   AUDIO_DAC_DB_AT_0: "-95.5"
   AUDIO_DAC_DB_AT_1: "32"
   AUDIO_AMPLIFIER: board_speaker_amp
@@ -113,10 +114,3 @@ switch:
     internal: true
     pin: GPIO20
     restore_mode: ALWAYS_OFF
-
-# Dummy microphone configuration to satisfy ESPHome dependencies from features/audio.yaml
-# because this board lacks a physical microphone chip but inherits the shared audio config.
-audio_adc:
-  - platform: adc
-    id: ts_audio_adc
-    pin: GPIO11

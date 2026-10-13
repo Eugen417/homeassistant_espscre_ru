@@ -1,10 +1,19 @@
-# ESP Screens - ES8311 audio codec on the I2S bus, for ESP32-P4 boards.
+# ESP Screens - ES7210 and ES8311 audio codecs on the same I2S bus, for ESP32-P4 boards.
 
 i2s_audio:
   - id: ts_speaker_bus
     i2s_mclk_pin: GPIO13
     i2s_bclk_pin: GPIO12
     i2s_lrclk_pin: GPIO10
+
+audio_adc:
+  - platform: es7210
+    id: ts_audio_adc
+    i2c_id: touch_bus
+    address: 0x40
+    sample_rate: 16000
+    bits_per_sample: 16bit
+    mic_gain: 30db
 
 audio_dac:
   - platform: es8311
