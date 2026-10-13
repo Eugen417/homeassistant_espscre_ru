@@ -265,6 +265,30 @@ class Plugins:
     def _take_index(self, index, etag=None, at=None):
         if not isinstance(index, dict) or index.get('format') != INDEX_FORMAT:
             self.index_state['error'] = 'format'
+                # --- RU Translation Hack for Voice Assistant ---
+                if item['manifest']['id'] == 'voice_assistant':
+                    tr = item.setdefault('translations', {})
+                    ru_app = tr.setdefault('ru', {}).setdefault('app', {})
+                    ru_screen = tr.setdefault('ru', {}).setdefault('screen', {})
+                    ru_app.update({
+                        "wake_word": "Активация голосом",
+                        "wake_word_2": "Активация голосом",
+                        "wake_phrase": "Фраза активации",
+                        "wake_sound": "Звук при активации",
+                        "thinking_sound": "Звук размышления",
+                        "ask": "Спросить сейчас",
+                        "assistant": "Голосовой помощник",
+                        "assistant_2": "Голосовой помощник",
+                        "finished_speaking_detection": "Определение конца речи"
+                    })
+                    ru_screen.update({
+                        "listening": "Слушаю...",
+                        "thinking": "Думаю...",
+                        "replying": "Отвечаю...",
+                        "say": "Скажите что-нибудь...",
+                        "ask": "Спросить",
+                    })
+                # ---------------------------------------------
             return
         entries = {}
         for item in index.get('plugins') or []:
