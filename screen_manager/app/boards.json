@@ -1224,7 +1224,7 @@
    "line": 21,
    "title_line": 28
   },
-  "battery": true,
+  "battery": false,
   "board": "jc8012p4a1v3",
   "camera": {
    "full": [
@@ -3853,7 +3853,7 @@
    "line": 21,
    "title_line": 28
   },
-  "battery": true,
+  "battery": false,
   "board": "jc8012p4a1v3",
   "camera": {
    "full": [
@@ -5315,7 +5315,7 @@
    "line": 21,
    "title_line": 28
   },
-  "battery": true,
+  "battery": false,
   "board": "jc8012p4a1v3",
   "camera": {
    "full": [
