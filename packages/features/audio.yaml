@@ -57,6 +57,7 @@ microphone:
     i2s_audio_id: ${AUDIO_MIC_BUS}
     i2s_din_pin: ${AUDIO_DIN_PIN}
     i2s_mode: ${AUDIO_MIC_MODE}
+    use_apll: false
     adc_type: external
     sample_rate: 16000
     bits_per_sample: 16bit
