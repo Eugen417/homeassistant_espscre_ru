@@ -62,7 +62,7 @@ substitutions:
   LVGL_BUFFER_SIZE: "50%"                       # LVGL's draw buffer as a share of the screen
 
 
-  AUDIO_HALF_DUPLEX: "false"
+  AUDIO_HALF_DUPLEX: "true"
   AUDIO_MIC_BUS: ts_speaker_bus
   AUDIO_SAMPLE_RATE: "16000"
   AUDIO_DOUT_PIN: GPIO9
