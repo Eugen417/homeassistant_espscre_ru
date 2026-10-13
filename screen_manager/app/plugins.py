@@ -265,6 +265,11 @@ class Plugins:
     def _take_index(self, index, etag=None, at=None):
         if not isinstance(index, dict) or index.get('format') != INDEX_FORMAT:
             self.index_state['error'] = 'format'
+            return
+        entries = {}
+        for item in index.get('plugins') or []:
+            try:
+                repo = str(item.get('repo') or '')
                 # --- RU Translation Hack for Voice Assistant ---
                 if item['manifest']['id'] == 'voice_assistant':
                     tr = item.setdefault('translations', {})
@@ -289,11 +294,6 @@ class Plugins:
                         "ask": "Спросить",
                     })
                 # ---------------------------------------------
-            return
-        entries = {}
-        for item in index.get('plugins') or []:
-            try:
-                repo = str(item.get('repo') or '')
                 label = 'tessera' if item.get('label') == 'tessera' and repo.lower().startswith(TESSERA_OWNER.lower()) else 'community'
                 release = item.get('release') or {}
                 entry = Entry(item['manifest'], item.get('translations') or {}, item.get('readme') or {}, 'index', label,
