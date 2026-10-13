@@ -26,7 +26,6 @@ packages:
   snapshot: !include ../features/snapshot.yaml
   audio: !include ../features/audio.yaml
   audio_amplifier: !include ../features/audio-amplifier.yaml
-  audio_half_duplex: !include ../features/audio-half-duplex.yaml
   audio_p4: !include ../hardware/audio-p4.yaml
 
 substitutions:
@@ -64,7 +63,7 @@ substitutions:
   LVGL_BUFFER_SIZE: "50%"                       # LVGL's draw buffer as a share of the screen
 
 
-  AUDIO_HALF_DUPLEX: "true"
+  AUDIO_HALF_DUPLEX: "false"
   AUDIO_MIC_BUS: ts_speaker_bus
   AUDIO_SAMPLE_RATE: "16000"
   AUDIO_DOUT_PIN: GPIO9

@@ -14,4 +14,4 @@ audio_dac:
     sample_rate: 16000
     bits_per_sample: 16bit
     use_mclk: true
-    use_microphone: true
+    use_microphone: false
