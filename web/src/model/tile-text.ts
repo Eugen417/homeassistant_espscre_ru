@@ -161,7 +161,7 @@ export function subLine(sub: string, live: Live | null | undefined, status: stri
 /** The big value of a Big number card; its unit stands beside it in small letters. */
 export function bigValue(domain: string, live: Live | null | undefined, words: ScreenWords) {
   if (!live || isGone(live)) return "—";
-  return live.a?.unit_of_measurement || NUMERIC.includes(domain) ? numberOf(live.state, words) : live.state;
+  return live.a?.unit_of_measurement || NUMERIC.includes(domain) ? numberOf(live.state, words) : (live.word || haWord(domain, live, words) || capital(live.state));
 }
 /** What a bedside clock's key shows in its circle: its value where that is what it is for (a temperature), else nothing
  * (its icon). */
