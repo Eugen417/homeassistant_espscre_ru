@@ -23,6 +23,8 @@ substitutions:
   AUDIO_SAMPLE_RATE: "48000"
   AUDIO_HALF_DUPLEX: "false"
   AUDIO_MIC_BUS: ts_mic_bus
+  AUDIO_MIC_MODE: primary
+  AUDIO_SPEAKER_MODE: primary
   # The volume as ears hear it: Home Assistant's 0 to 100 % runs evenly in decibels, from AUDIO_VOLUME_DB_LOW (5 % is
   # just audible beside the screen) to AUDIO_VOLUME_DB_HIGH (the DAC's full scale, without a digital gain that clips);
   # 0 % mutes. The media player maps its volume onto that part of the DAC's range (volume_min and volume_max below).
@@ -54,6 +56,7 @@ microphone:
     id: ts_microphone
     i2s_audio_id: ${AUDIO_MIC_BUS}
     i2s_din_pin: ${AUDIO_DIN_PIN}
+    i2s_mode: ${AUDIO_MIC_MODE}
     adc_type: external
     sample_rate: 16000
     bits_per_sample: 16bit
@@ -80,6 +83,7 @@ speaker:
     id: ts_speaker_out
     i2s_audio_id: ts_speaker_bus
     i2s_dout_pin: ${AUDIO_DOUT_PIN}
+    i2s_mode: ${AUDIO_SPEAKER_MODE}
     dac_type: external
     audio_dac: ts_audio_dac
     sample_rate: ${AUDIO_SAMPLE_RATE}

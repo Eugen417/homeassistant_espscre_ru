@@ -25,7 +25,6 @@ packages:
   # (features/audio-amplifier.yaml): its hardware below.
   audio: !include ../features/audio.yaml
   audio_amplifier: !include ../features/audio-amplifier.yaml
-  audio_half_duplex: !include ../features/audio-half-duplex.yaml
   audio_p4: !include ../hardware/audio-p4.yaml
 
 substitutions:
@@ -54,8 +53,9 @@ substitutions:
   # The audio (features/audio.yaml): an ES8311 for the speaker and an ES7210 for the microphones on one I2S bus, which
   # ESPHome lets them take in turns, at one rate for both. The ES8311 turns ESPHome's volume into its DAC register from
   # 0 (-95.5 dB) to 255 (+32 dB), half a decibel a step.
-  AUDIO_HALF_DUPLEX: "true"
-  AUDIO_MIC_BUS: ts_speaker_bus
+  AUDIO_HALF_DUPLEX: "false"
+  AUDIO_MIC_BUS: ts_mic_bus
+  AUDIO_SPEAKER_MODE: secondary
   AUDIO_SAMPLE_RATE: "16000"
   AUDIO_DOUT_PIN: GPIO9
   AUDIO_DIN_PIN: GPIO11
