@@ -24,6 +24,12 @@ packages:
   camera: !include ../features/camera.yaml
   self_test: !include ../features/self-test.yaml
   snapshot: !include ../features/snapshot.yaml
+  audio: !include ../features/audio.yaml
+  audio_amplifier: !include ../features/audio-amplifier.yaml
+  audio_half_duplex: !include ../features/audio-half-duplex.yaml
+  battery_voltage: !include ../features/battery-voltage.yaml
+  battery_adc: !include ../features/battery-adc.yaml
+  audio_p4: !include ../hardware/audio-p4.yaml
 
 substitutions:
   # The key of this board file; the firmware reports it so ESP Screens knows what board a screen is.
@@ -59,6 +65,18 @@ substitutions:
   # sooner than lying down.
   LVGL_BUFFER_SIZE: "50%"                       # LVGL's draw buffer as a share of the screen
 
+  BATTERY_PIN: GPIO52
+  BATTERY_DIVIDER: "1.68"
+
+  AUDIO_HALF_DUPLEX: "true"
+  AUDIO_MIC_BUS: ts_speaker_bus
+  AUDIO_SAMPLE_RATE: "16000"
+  AUDIO_DOUT_PIN: GPIO9
+  AUDIO_DIN_PIN: GPIO11
+  AUDIO_DAC_DB_AT_0: "-95.5"
+  AUDIO_DAC_DB_AT_1: "32"
+  AUDIO_AMPLIFIER: board_speaker_amp
+
 # ============================================================
 # No need to edit below this line.
 # ============================================================
@@ -93,3 +111,10 @@ display:
     lanes: 2
     update_interval: never
     auto_clear_enabled: false
+
+switch:
+  - platform: gpio
+    id: board_speaker_amp
+    internal: true
+    pin: GPIO20
+    restore_mode: ALWAYS_OFF

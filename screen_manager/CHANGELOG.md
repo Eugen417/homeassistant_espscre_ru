@@ -1793,9 +1793,7 @@ Automations on every screen (GitHub #62, thanks @Crazyraf87).
   on the Guition, the CYD and the Waveshare 4.3 (lying down and standing up). On a Guition 4 inch with a Home
   Assistant 2026.9: tap switches, hold runs, a run button runs also while the automation is off, holding it switches,
   and "Running..." shows for as long as the actions run.
->>>>>>> ac5c271 (Release 0.4.10 (firmware 0.7.0): automations on every screen (GitHub #62))
 
-<<<<<<< HEAD
 ## 0.4.10 (firmware 0.6.1 for waveshare4b)
 
 The Waveshare ESP32-S3-Touch-LCD-4B draws after a cold start.

@@ -46,12 +46,9 @@ class PackageTests(unittest.TestCase):
             package = (ROOT / 'packages' / f'{board}.yaml').read_text()
             self.assertNotIn('!secret', package)
             self.assertNotIn('type: local', package)
-<<<<<<< HEAD
-            self.assertIn('url: https://github.com/Eugen417/homeassistant_espscre_ru.git', package)
-            self.assertIn('FONT_DIR: "https://raw.githubusercontent.com/Eugen417/homeassistant_espscre_ru/main/fonts"', package)
-=======
             self.assertIn('url: https://github.com/Eugen417/homeassistant_espscre_ru.git', package)
             # From main, unless the screen's own YAML names another branch (GITHUB_REF, the app's dev channel).
+            self.assertIn('FONT_DIR: "https://raw.githubusercontent.com/Eugen417/homeassistant_espscre_ru/${GITHUB_REF}/fonts"', package)
             self.assertIn('GITHUB_REF: "main"', package)
             self.assertIn('FONT_DIR: "https://raw.githubusercontent.com/Eugen417/homeassistant_espscre_ru/${GITHUB_REF}/fonts"', package)
 >>>>>>> upstream/main
