@@ -271,27 +271,40 @@ class Plugins:
             try:
                 repo = str(item.get('repo') or '')
                 # --- RU Translation Hack for Voice Assistant ---
-                if item['manifest']['id'] == 'voice_assistant':
+                if item['manifest']['id'] == 'voice_assist':
                     tr = item.setdefault('translations', {})
                     ru_app = tr.setdefault('ru', {}).setdefault('app', {})
                     ru_screen = tr.setdefault('ru', {}).setdefault('screen', {})
                     ru_app.update({
-                        "wake_word": "Активация голосом",
-                        "wake_word_2": "Активация голосом",
-                        "wake_phrase": "Фраза активации",
-                        "wake_sound": "Звук при активации",
-                        "thinking_sound": "Звук размышления",
-                        "ask": "Спросить сейчас",
-                        "assistant": "Голосовой помощник",
-                        "assistant_2": "Голосовой помощник",
-                        "finished_speaking_detection": "Определение конца речи"
+                        "name": "Голосовой помощник",
+                        "summary": "Общайтесь с Assist от Home Assistant: активация голосом на самом экране, а ответ - через динамик.",
+                        "tile_name": "Ассистент",
+                        "tile_example": "Скажите “Okay Nabu”",
+                        "bar_busy": "Ассистент",
+                        "bar_example": "Слушаю…",
+                        "setting_wake_word": "Активация голосом",
+                        "setting_wake_word_hint": "Будет ли экран слушать фразу активации. Если выключено, можно нажать на плитку, чтобы спросить.",
+                        "setting_wake_phrase": "Фраза активации",
+                        "setting_wake_phrase_hint": "Что сказать для начала вопроса. Экран распознает её сам, до этого звук никуда не отправляется.",
+                        "setting_wake_sound": "Звук при активации",
+                        "setting_wake_sound_hint": "Короткий звук, когда экран начинает слушать (после фразы или нажатия).",
+                        "setting_thinking_sound": "Звук размышления",
+                        "setting_thinking_sound_hint": "Мягкий звук, повторяющийся, пока Home Assistant обдумывает ответ."
                     })
                     ru_screen.update({
+                        "name": "Голосовой помощник",
                         "listening": "Слушаю...",
                         "thinking": "Думаю...",
-                        "replying": "Отвечаю...",
-                        "say": "Скажите что-нибудь...",
-                        "ask": "Спросить",
+                        "answering": "Отвечаю...",
+                        "failed": "Что-то пошло не так",
+                        "away": "Home Assistant не отвечает",
+                        "say_phrase": "Скажите “{phrase}”",
+                        "tap_to_ask": "Нажмите, чтобы спросить",
+                        "wake_word": "Активация голосом",
+                        "wake_phrase": "Фраза активации",
+                        "ask": "Спросить сейчас",
+                        "wake_sound": "Звук при активации",
+                        "thinking_sound": "Звук размышления"
                     })
                 # ---------------------------------------------
                 label = 'tessera' if item.get('label') == 'tessera' and repo.lower().startswith(TESSERA_OWNER.lower()) else 'community'
