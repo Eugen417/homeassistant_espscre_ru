@@ -25,7 +25,6 @@ packages:
   self_test: !include ../features/self-test.yaml
   snapshot: !include ../features/snapshot.yaml
   audio: !include ../features/audio.yaml
-  audio_amplifier: !include ../features/audio-amplifier.yaml
   audio_p4: !include ../hardware/audio-p4.yaml
 
 substitutions:
@@ -112,4 +111,4 @@ switch:
     id: board_speaker_amp
     internal: true
     pin: GPIO20
-    restore_mode: ALWAYS_OFF
+    restore_mode: ALWAYS_ON
