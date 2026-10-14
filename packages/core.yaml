@@ -1,0 +1,2688 @@
+############################################################
+# ESP Screens - the shared core: what every board's screen is made of.
+#
+# The LVGL tree the runtime fills (tiles, cards, overlays, the touch test page),
+# the scripts, the API actions, the entities, the fonts and the globals. It carries
+# no number that depends on the board: every size and font size is a ${NAME} from
+# the board's look (packages/looks/), every board-only line of C++ a ${NAME} from a
+# feature the board includes (packages/features/) or from the board file itself
+# (packages/boards/), next to the board's hardware. An entry file includes this file
+# and the board's: packages/<board>.yaml for a screen that builds over GitHub,
+# <profile>.yaml in the repository root for a checkout. docs/PROFILES.md says how
+# the files fit together and how a board is added.
+#
+# A screen gets its tiles from the ESP Screen Manager add-on while it runs, so no
+# Home Assistant entity lives in here. The Material Design Icons font comes from
+# fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
+############################################################
+substitutions:
+  SCREEN_FIRMWARE_VERSION: "0.56.0"
+  DASHBOARD_INBOX_INTERNAL: "false"
+  CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
+  ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
+  # The language of every text on the screen (app 0.2.90): a file in screen_manager/translations, English for any
+  # text it lacks. ESP Screens writes it into the screen's own YAML, from Home Assistant's language or its Settings.
+  LANGUAGE: "en"
+
+  ## DIM settings
+  AUTO_DIM: "true"                                 # true = enable auto dimming
+  AUTO_DIM_TIMEOUT: "600"                           # seconds after last touch
+  MAX_BRIGHTNESS: "100"                            # backlight brightness in percent
+  DIM_BRIGHTNESS: "20"                             # dimmed backlight brightness in percent
+  NIGHT_MODE: "true"                               # true = use separate dim level at night
+  NIGHT_START_HOUR: "22"                           # 0-23
+  NIGHT_END_HOUR: "7"                              # 0-23
+  NIGHT_DIM_BRIGHTNESS: "10"                       # backlight brightness in percent at night
+
+  # What a board file, a feature or a screen's own YAML may state instead: the value here holds when none of them
+  # does. A board states its hardware and what differs (docs/PROFILES.md, "Defaults").
+  ROTATION_LANDSCAPE: "0"                          # the LVGL angle that lays the panel out lying down
+  LVGL_ROTATION: "${ROTATION_LANDSCAPE}"           # which way it is built to hang (New screen writes it for one standing
+                                                   # up); the editor turns it later without a build (runtime_tiles::hang)
+  TOUCH_SWAP_XY: "false"                           # the touch panel's axes against the display's own pixels
+  TOUCH_MIRROR_X: "false"
+  TOUCH_MIRROR_Y: "false"
+  # The most tiles and pages one screen holds (firmware 0.34.0+), over all its pages whatever its grid. A board with
+  # PSRAM states more; the memory the tiles need decides how many of them a layout really takes (tile_memory.h).
+  SCREEN_MAX_TILES: "64"
+  SCREEN_MAX_PAGES: "8"
+  # The most items one page's top bar holds (firmware 0.34.0+); the glass's width decides how many of them show.
+  SCREEN_MAX_BAR_ITEMS: "6"
+  BACKLIGHT_DIMMABLE: "true"                       # false: the backlight is lit or dark, a switch instead of a percentage
+  CAN_STANDBY: "true"                              # false: the screen never goes dark (features/backlight-always-on.yaml)
+  # 0: the bedside clock takes the display step, never digits of its own (hardware/flash-4mb.yaml, looks/shared/digits.yaml).
+  BEDSIDE_OWN_DIGITS: "1"
+  # The touch test page (CALIBRATION_ON_BOOT); its sizes are the look's.
+  TOUCH_TEST_PAGE_PAINT: "paint_page_soft"         # the page
+  TOUCH_TEST_TITLE: "calibration_touch_check"      # the words at the top
+  TOUCH_TEST_PAINT: "paint_ink"                    # the crosses
+  # Code the shared lambdas below take from a feature or a board, at the place named ${...}; empty when nothing
+  # adds anything there. BOOT_TOUCH, BOOT_PAGE_GESTURE, APPLY_BACKLIGHT and OTA_BACKLIGHT have no default: every screen
+  # reads a touch panel and lights a backlight, so the board says how (features/capacitive-touch.yaml, features/backlight.yaml).
+  CAMERA_PAINT_FILL: ""                            # the paint styles a feature brings (theme::paints)
+  CALIBRATION_PAINT_FILL: ""
+  BOOT_CAMERA_HOOKS: ""                            # after the gesture: the camera images (features/camera.yaml)
+  BOOT_CARDS_TAIL: ""                              # after the cards' hooks, before the settings page's
+  # A board's extras on the settings page (docs/SETTINGS.md, "A board's own settings"): rows a feature or the board file
+  # puts in settings_screen::board_rows. A screen without any has no Extras page.
+  BOOT_AUDIO: ""                                   # features/audio.yaml: the speaker's bus, the microphone
+  BOOT_BOARD_SETTINGS: ""                          # the board file's own
+  # The screen's moments (every 250 ms, the cards closing, the settings page opening, away from page 1, an alert) are
+  # lists, not substitutions (screen_hooks.h): a feature adds to them at boot, a plugin through the plugin API.
+  # one more line of the ui_state diagnostics
+  UI_STATE_HOOK: "ESP_LOGI(\"ui_diag\", \"rotation=%u actual=%u\", (unsigned)runtime_tiles::rotation, (unsigned)id(screen_lvgl).get_rotation());"
+
+# ============================================================
+# No need to edit below this line for a screen of your own: the sizes are the
+# board file's, the credentials the entry file's (secrets.yaml, see secrets.yaml.example).
+# ============================================================
+esphome:
+  # The oldest ESPHome these packages build with, not the one the add-on ships (2026.9.0, screen_manager/Dockerfile): an
+  # add-on or ESPHome Device Builder that isn't updated yet keeps building every screen (firmware 0.2.75+). Raise it in a
+  # release of its own, with the camera images' `image:` form (before ESPHome 2027.1) and OTA with the api key for new
+  # screens; docs/RELEASING.md, "ESPHome versions".
+  min_version: 2026.6.2
+  project:
+    name: maxgramser.esp_screen
+    version: "${SCREEN_FIRMWARE_VERSION}"
+  # Still under platformio_options, although ESPHome 2026.9 calls that deprecated and offers `esphome: build_flags`:
+  # its LVGL only reads these flags when it writes lv_conf.h, and writes `LV_USE_SWITCH 0` over the other form.
+  platformio_options:
+    build_flags:
+      - -DLV_USE_SWITCH=1
+      # The sliders are all made in C++ now (a tile's strip, the blind's, the light and fan card's): ESPHome
+      # writes lv_conf.h from the widgets the YAML names, and since the brightness overlay left it there is no
+      # `slider:` left to name one (firmware 0.2.80).
+      - -DLV_USE_BAR=1
+      - -DLV_USE_SLIDER=1
+      # The band of a heat/cool range in the thermostat card (firmware 0.25.0) is LVGL's scale; the YAML names none.
+      - -DLV_USE_SCALE=1
+      - -DGRID_COLS=${GRID_COLS}
+      - -DGRID_ROWS=${GRID_ROWS}
+      # The cells of a page when this screen stands up (firmware 0.2.92+). A board states both grids and the
+      # screen picks one at boot from its canvas, so one firmware serves a board either way round.
+      - -DGRID_COLS_PORTRAIT=${GRID_COLS_PORTRAIT}
+      - -DGRID_ROWS_PORTRAIT=${GRID_ROWS_PORTRAIT}
+      # The grids ESP Screens may give the screen (firmware 0.53.0+, looks/shared/grid.yaml): the tables are sized for the most.
+      - -DGRID_MIN_COLUMNS=${GRID_MIN_COLUMNS}
+      - -DGRID_MIN_ROWS=${GRID_MIN_ROWS}
+      - -DGRID_MAX_COLUMNS=${GRID_MAX_COLUMNS}
+      - -DGRID_MAX_ROWS=${GRID_MAX_ROWS}
+      - -DGRID_MAX_COLUMNS_PORTRAIT=${GRID_MAX_COLUMNS_PORTRAIT}
+      - -DGRID_MAX_ROWS_PORTRAIT=${GRID_MAX_ROWS_PORTRAIT}
+      # The ceilings of one screen (firmware 0.34.0+): page_protocol.h sizes every per-tile and per-page table from them.
+      - -DSCREEN_MAX_TILES=${SCREEN_MAX_TILES}
+      - -DSCREEN_MAX_PAGES=${SCREEN_MAX_PAGES}
+      - -DSCREEN_MAX_BAR_ITEMS=${SCREEN_MAX_BAR_ITEMS}
+  includes:
+    - <esphome/components/smart_display/screen_input.h>
+    - <esphome/components/smart_display/light_controls.h>
+    - <esphome/components/smart_display/alert_overlay.h>
+    - <esphome/components/smart_display/settings_screen.h>
+    - <esphome/components/smart_display/screen_power.h>
+  name: ${DEVICE_NAME}
+  friendly_name: ${DEVICE_FRIENDLY_NAME}
+  on_boot:
+    priority: -100
+    then:
+      - lambda: |-
+          // Which way the glass hangs (firmware 0.53.0+): as it was built, or as ESP Screens stood it up or laid it down
+          // since. Before anything else measures the canvas: the touch filter, the grid, the top bar, the alert card.
+          runtime_tiles::hang_at_boot(${ROTATION_LANDSCAPE}, ${LVGL_ROTATION}, ${PANEL_W} == ${PANEL_H});
+          const auto hung = static_cast<esphome::display::DisplayRotation>(runtime_tiles::base_turn);
+          if (id(screen_lvgl).get_rotation() != hung) id(screen_lvgl).set_rotation(hung);
+      - lambda: |-
+          ${BOOT_TOUCH}
+      - lambda: |-
+          auto &settings = screen_settings::current;
+          settings.standby_enabled = std::string("${AUTO_DIM}") == "true";
+          settings.standby_seconds = atoi("${AUTO_DIM_TIMEOUT}");
+          settings.brightness = atoi("${MAX_BRIGHTNESS}");
+          settings.standby_brightness = atoi("${DIM_BRIGHTNESS}");
+          settings.night_enabled = std::string("${NIGHT_MODE}") == "true";
+          settings.night_start = atoi("${NIGHT_START_HOUR}") * 60;
+          settings.night_end = atoi("${NIGHT_END_HOUR}") * 60;
+          settings.night_brightness = atoi("${NIGHT_DIM_BRIGHTNESS}");
+          runtime_tiles::watch_font = id(headline)->get_lv_font();
+          runtime_tiles::watch_value_font = id(watch_value)->get_lv_font();
+          runtime_tiles::watch_icon_font = id(watch_icon)->get_lv_font();
+          runtime_tiles::clock_font = id(clock_digits)->get_lv_font();
+          runtime_tiles::bedside_font = id(bedside_digits)->get_lv_font();
+          runtime_tiles::display_font = id(display_digits)->get_lv_font();
+          runtime_tiles::brand_font = id(brand_wordmark)->get_lv_font();
+          runtime_tiles::brand_mark = id(tessera_mark)->get_lv_image_dsc();
+          runtime_tiles::firmware_version = "${SCREEN_FIRMWARE_VERSION}";
+          runtime_tiles::now_time = []() { return id(homeassistant_time).now(); };
+          runtime_tiles::screen_awake = []() { return !id(display_dimmed); };
+          // The screensaver (firmware 0.29.0+): a new word from ESP Screens in standby sets the level and the glass again.
+          runtime_tiles::saver_changed = []() { id(apply_screen_settings).execute(); };
+          runtime_tiles::mini_icon_font = id(materialdesign_icons_mini)->get_lv_font();
+          // The top bar of every page a tap opens (detail_bar.h): its keys' glyphs and the page's name.
+          detail_bar::icon_font = id(materialdesign_icons_mini)->get_lv_font();
+          detail_bar::title_font = id(headline)->get_lv_font();
+          // The pager every page shares (page_bar.h): the tile pages' chevrons, and the row font for "3 / 12".
+          page_bar::icon_font = id(materialdesign_icons_mini)->get_lv_font();
+          page_bar::words_font = id(sublabel_big)->get_lv_font();
+          runtime_tiles::big_icon_font = id(materialdesign_icons_big)->get_lv_font();
+          runtime_tiles::control_font = id(sublabel_big)->get_lv_font();
+          runtime_tiles::small_font = id(sublabel)->get_lv_font();
+          runtime_tiles::label_font = id(label)->get_lv_font();
+          // A plain card's name where it has room, in the compact look (runtime_tiles::name_font, firmware 0.6.0+).
+          runtime_tiles::wide_name_font = id(${WIDE_NAME_FONT})->get_lv_font();
+          // Top bar (0.2.32+): values in the text font, icons in the small icon font; the clock
+          // label lends its margin and drawing order and stays hidden in runtime mode.
+          runtime_tiles::header_text_font = id(sublabel_big)->get_lv_font();
+          runtime_tiles::header_icon_font = id(materialdesign_icons_mini)->get_lv_font();
+          runtime_tiles::header_home_mark = id(tessera_mark_bar)->get_lv_image_dsc();
+          runtime_tiles::header_back_font = id(materialdesign_icons_back)->get_lv_font();
+          runtime_tiles::header_status_font = id(materialdesign_icons_status)->get_lv_font();
+          // The battery the top bar can show (firmware 0.41.0, docs/BATTERY.md): the screen's own sensor of Home
+          // Assistant's battery class, and its battery_charging binary sensor, whatever the board measures them with.
+          runtime_tiles::find_battery();
+          runtime_tiles::time_label = id(lbl_time);
+          runtime_tiles::enabled = true;
+          // Turning (firmware 0.2.80 on every board): a half turn keeps the canvas and the grid, so every screen
+          // offers it; a quarter turn only a square one, whose canvas is the same either way. On other glass a quarter
+          // turn is another canvas and another grid, which the layout must be laid out on again: ESP Screens gives it
+          // with the layout (begin's "upright", runtime_tiles::hang, firmware 0.53.0+), never this page.
+          settings_screen::quarter_turns = ${PANEL_W} == ${PANEL_H};
+          // Whether this board's backlight takes levels (firmware 0.2.90+): a board whose backlight is one line
+          // shows a switch where the others show a percentage. ESP Screens reads the same fact from boards.json.
+          settings_screen::dimmable = ${BACKLIGHT_DIMMABLE};
+          // Whether this board's screen can go dark at all (firmware 0.2.91+): the Waveshare's backlight boost pulls
+          // the 3.3 V rail under the brownout level when it switches on from a dark screen, so that board has no
+          // standby and no night. The rows, the entities and the add-on's Settings follow the same fact.
+          settings_screen::can_standby = ${CAN_STANDBY};
+          runtime_tiles::load_settings();
+          // Colours (firmware 0.2.54+): the styles of this profile take their colours from theme.h. The list runs now,
+          // in the look the screen saved, before anything is drawn, and again after every change of look.
+          theme::paints = []() {
+            using theme::Paint;
+            for (auto *style : {id(style_room), id(style_time), id(style_title), id(style_value_big), id(paint_ink)}) theme::fill(style, Paint::ink);
+            theme::fill(id(style_page), Paint::page);
+            theme::fill(id(style_tile), Paint::card);
+            theme::fill(id(style_icon_circle), Paint::accent_tint);
+            theme::fill(id(style_value), Paint::muted);
+            theme::fill(id(paint_page_soft), Paint::page_soft);
+            theme::fill(id(paint_raised), Paint::raised);
+            theme::fill(id(paint_key), Paint::key);
+            theme::fill(id(paint_key_pressed), Paint::key_pressed);
+            theme::fill(id(paint_ink_soft), Paint::ink_soft);
+            theme::fill(id(paint_scrim), Paint::scrim);
+            theme::fill(id(paint_button_dark), Paint::button_dark);
+            theme::fill(id(paint_button_dark_pressed), Paint::button_dark_pressed);
+            ${CAMERA_PAINT_FILL}
+            ${CALIBRATION_PAINT_FILL}
+          };
+          theme::paints();
+          theme::set_dark(settings_screen::dark_mode != 0);
+          runtime_tiles::settings_changed = []() { id(apply_screen_settings).execute(); };
+          runtime_tiles::dismiss = []() {
+            effects_page::close();
+            group_page::close();
+            runtime_tiles::hide_detail();
+            screen_hooks::run_cards_closed();
+          };
+          runtime_tiles::layout_changed = []() { id(show_tile_page).execute(); };
+          ${BOOT_PAGE_GESTURE}
+          ${BOOT_CAMERA_HOOKS}
+          runtime_tiles::refresh = []() { if (!id(ui_refresh).is_running()) id(ui_refresh).execute(); };
+          // What a finger on the glass does lives in the shared tree (runtime_tiles::touch_input); a board's
+          // three touchscreen triggers are one line each. These four are what only the YAML can answer.
+          runtime_tiles::touch_input::contact = [](bool down) {
+            id(last_touch_ms) = millis();
+            id(last_use_ms) = millis();
+            id(touch_down) = down;
+          };
+          runtime_tiles::touch_input::to_screen = [](int &x, int &y) {
+            int32_t px = x, py = y;
+            id(screen_lvgl).rotate_coordinates(px, py);
+            x = px; y = py;
+          };
+          // A dimmed screen only wakes, a calibration and an alert own the glass: no edge swipe does anything then.
+          runtime_tiles::touch_input::swipe_blocked = []() -> const char * {
+            if (id(display_dimmed)) return "screen dimmed";
+            if (id(calibration_active)) return "calibration";
+            if (id(alert_active)) return "alert showing";
+            return nullptr;
+          };
+          runtime_tiles::touch_input::card_open = runtime_tiles::colour_shown;
+          // The way home for the house in the top bar and for a swipe up from the bottom edge (firmware 0.2.100+, from
+          // over any card or the settings page 0.28.0+): the same script the Back to page 1 timeout and Home Assistant
+          // use, so there is one way home, and it closes everything on the way.
+          runtime_tiles::back_home = []() { id(go_home).execute(); };
+          // An alarm panel that someone comes in on, or that goes off, wakes the screen as a touch does and opens its
+          // card (firmware 0.3.3+): Back to page 1 counts from now.
+          runtime_tiles::alarm_wake = []() { id(last_use_ms) = millis(); id(wake_display).execute(); };
+          // Saving power while the glass is dark (screen_power.h): LVGL pauses, and Wi-Fi dozes.
+          screen_power::freeze = [](bool on) { id(screen_lvgl).set_paused(on, false); ESP_LOGI("power", on ? "dark: saving" : "awake"); };
+          screen_power::later = [](uint32_t ms) { id(screen_power_wait).execute(ms); };
+          screen_power::dark = []() { return id(display_dimmed) && runtime_tiles::standby_level() == 0; };
+          screen_power::wake = []() { id(wake_display).execute(); };
+          {
+            // A touch on the dark glass resumes drawing before LVGL reads it, so the wake overlay gets the tap.
+            struct WakeListener : public esphome::touchscreen::TouchListener {
+              void update(const esphome::touchscreen::TouchPoints_t &points) override { if (!points.empty()) screen_power::touched(esphome::millis()); }
+              void release() override { screen_power::released(esphome::millis()); }
+            };
+            id(ts_touch).register_listener(new WakeListener());
+          }
+          runtime_tiles::touch_input::turn_page = [](int target) {
+            id(tile_page) = target;
+            id(show_tile_page).execute();
+          };
+          // The board states its density with the decimals it has (DISPLAY_DPI); the firmware scales by the nearest
+          // whole number, the look took the exact one for its sizes.
+          ui::configure(atoi("${ (DISPLAY_DPI | float) | round | int }"), "${LOOK}");
+          runtime_tiles::grid_bind(id(tile_scroll), atoi("${GRID_MARGIN}"), atoi("${PAGE_BAR_H}"));
+          // The alert card, laid out on the glass it landed on (firmware 0.2.103+): screen_alert::layout works every
+          // size out from the canvas, the look and the fonts, lying down or standing up, and runtime_tiles::alert_place
+          // puts the parts; an alert with a camera image lays it out again with room for the picture.
+          runtime_tiles::alert_parts = {id(alert_card), id(alert_icon), id(alert_title), id(alert_subtitle), id(alert_ok),
+                                        id(alert_ok_label), id(alert_button2), id(alert_button2_label)};
+          runtime_tiles::alert_place(false);
+          runtime_tiles::setpoint_font = id(setpoint_digits)->get_lv_font();
+          // The cards of the grid, one per cell, in the styles below (firmware 0.53.0+: made in C++, so the grid is
+          // no longer fixed by a file of cards per board); runtime_tiles::make_card builds more of them for the kept
+          // pages of a board with PSRAM (firmware 0.3.2+).
+          runtime_tiles::card_look = {id(style_tile), id(style_icon_circle), id(style_title), id(style_value)};
+          runtime_tiles::make_cells(id(materialdesign_icons)->get_lv_font(), ${TILE_ICON_SIZE});
+          // Another grid from ESP Screens (firmware 0.53.0+) shows in the Screen layout sensor at once, not a minute later.
+          runtime_tiles::grid_changed = []() { id(screen_layout).update(); };
+      - lambda: |-
+          // The colour card (runtime_tiles::colour_open) and the pages behind its keys, a light's effects (firmware
+          // 0.2.70+) and a group's lamps (0.3.9+): their fonts and the board's touch limit here, the rest in C++
+          // (runtime_tiles::bind_pages), which the browser preview runs too.
+          effects_page::title_font = id(headline)->get_lv_font();
+          effects_page::row_font = id(${EFFECTS_ROW_FONT})->get_lv_font();
+          effects_page::roller_font = id(sublabel_big)->get_lv_font();
+          effects_page::icon_font = id(materialdesign_icons_mini)->get_lv_font();
+          effects_page::tap_limit = ${TOUCH_MOVE_LIMIT_PX};
+          runtime_tiles::bind_pages();
+          ${BOOT_CARDS_TAIL}
+          ${BOOT_AUDIO}
+          ${BOOT_BOARD_SETTINGS}
+          plugin_host::ready();
+      # The settings page the screen opens on its own (0.2.44+): the same values ESP Screen Manager
+      # writes, reachable by holding the top bar. Fonts and hooks only; the page itself is built
+      # when it opens and thrown away when it closes, so it costs nothing while it is closed.
+      - lambda: |-
+          if (!runtime_tiles::enabled) return;
+          settings_screen::title_font = id(headline)->get_lv_font();
+          settings_screen::row_font = id(sublabel_big)->get_lv_font();
+          settings_screen::icon_font = id(materialdesign_icons_mini)->get_lv_font();
+          settings_screen::store = []() { runtime_tiles::persist_settings(); };
+          settings_screen::apply = []() { id(apply_screen_settings).execute(); };
+          settings_screen::report = [](const char *key, int32_t value) { runtime_tiles::setting_event(key, value); };
+          settings_screen::name_text = []() { return std::string("${DEVICE_FRIENDLY_NAME}"); };
+          settings_screen::address_text = []() { return id(wifi_ip).state.empty() ? std::string(screen_text::tr(screen_text::txt::status_no_network)) : id(wifi_ip).state; };
+          settings_screen::firmware_text = []() { return std::string("${SCREEN_FIRMWARE_VERSION}"); };
+          settings_screen::link_text = []() {
+            return std::string(screen_text::tr(esphome::api_is_connected() ? screen_text::txt::settings_connected : screen_text::txt::settings_not_connected));
+          };
+          settings_screen::wifi_text = []() {
+            const auto link = wifi_status::link();
+            if (!link.connected) return std::string(screen_text::tr(screen_text::txt::status_no_network));
+            return link.ssid + " \u00B7 " + std::to_string(link.rssi) + " dBm";
+          };
+          // The screen's own explanation on the alert card (runtime_tiles::hint_alert): no icon colour, no blinks, until OK.
+          runtime_tiles::hint_alert = [](const std::string &title, const std::string &text) {
+            runtime_tiles::own_alert_next = true;
+            id(alert_show).execute(title, text, std::string("alert-circle-outline"), std::string(), std::string(), std::string(),
+                                   std::string(), std::string(), 0, false);
+          };
+          // An update wakes the screen before it says how far it is (ota_status.h): lit, out of standby, no screensaver.
+          ota_status::wake = []() {
+            id(screen_power_wait).stop();
+            screen_power::leave();
+            // Sleep stays asked for: the screen restarts after the update, and a failed one dims again on its own time.
+            id(display_dimmed) = false;
+            id(last_touch_ms) = millis();
+            plugin_host::before_update();
+            runtime_tiles::saver_wake();
+            lv_obj_add_flag(id(dim_wake_overlay), LV_OBJ_FLAG_HIDDEN);
+            ${OTA_BACKLIGHT}
+          };
+          runtime_tiles::open_this_screen = []() {
+            if (!settings_screen::may_open || !settings_screen::may_open()) return;
+            id(last_use_ms) = millis();
+            settings_screen::open(4);
+          };
+          settings_screen::tessera_text = []() {
+            return std::string(screen_text::tr(runtime_tiles::feed_alive() ? screen_text::txt::settings_connected : screen_text::txt::settings_not_connected));
+          };
+          settings_screen::restart_device = []() { ESP_LOGI("settings", "restart from the screen"); App.safe_reboot(); };
+          // A dimmed screen, a calibration or an alert owns the glass; the page waits.
+          settings_screen::may_open = []() {
+            return runtime_tiles::enabled && !id(display_dimmed) && !id(calibration_active) && !id(alert_active) && !screen_hooks::settings_kept_closed();
+          };
+          settings_screen::drift = []() { return screen_input::touch_guard.distance(); };
+          settings_screen::before_open = []() { id(close_cards).execute(); };
+          settings_screen::hold_limit = ${SETTINGS_HOLD_DRIFT_PX};
+          settings_screen::tap_limit = ${TOUCH_MOVE_LIMIT_PX};
+          // What a change of look draws again, now that everything is bound: the tiles, the top bar and an open card,
+          // the colour card, the settings page and an alert.
+          theme::redraw = []() {
+            runtime_tiles::restyle();
+            runtime_tiles::colour_restyle();
+            effects_page::restyle();
+            group_page::restyle();
+            settings_screen::restyle();
+            if (id(alert_active)) lv_obj_set_style_bg_color(id(alert_card), lv_color_hex(theme::surface(id(alert_card_color))), LV_PART_MAIN);
+          };
+          // Under the cards: the colour card is the first of them on the page, so the back button and
+          // the action at the top right of a card keep their taps.
+          settings_screen::attach_hold(id(home_page)->obj, ${SETTINGS_HOLD_X}, 0,
+            overlay_card::screen_width() - ${SETTINGS_HOLD_X} * 2, ${SCROLL_Y});
+      - light.turn_on:
+          id: back_light
+          brightness: !lambda "return screen_settings::current.brightness / 100.0f;"
+      - script.execute: show_tile_page
+      - lambda: 'if (!id(ui_refresh).is_running()) id(ui_refresh).execute();'
+      - if:
+          condition:
+            lambda: 'return std::string("${CALIBRATION_ON_BOOT}") == "true";'
+          then:
+            - lambda: 'id(calibration_active) = true;'
+            - lvgl.page.show: touch_cal_page
+            - lambda: |-
+                lv_obj_invalidate(id(touch_cal_page)->obj);
+                lv_refr_now(nullptr);
+                ESP_LOGI("ui_diag", "${TOUCH_TEST_READY_LOG}");
+
+
+logger:
+  # INFO (firmware 0.2.75+): the lines below INFO, ESPHome's configuration dump and its per-state debug lines, are left
+  # out of the firmware, 9 KB on the CYD. For a diagnosis, give one screen `logger: level: DEBUG` in its Override YAML.
+  level: INFO
+  logs:
+    sensor: WARN
+    text_sensor: WARN
+    xpt2046: WARN
+    homeassistant.sensor: WARN
+    homeassistant.text_sensor: WARN
+
+# A lit screen's Wi-Fi never dozes (firmware 0.2.74+). With ESPHome's default for the ESP32,
+# `light`, every message from Home Assistant waits at the router for the next beacon: 76-117 ms on the bench screens
+# against about 20 ms, and an image download held a loop up to 0.1 s now and then (measured with firmware 0.2.73). The
+# network and its password stay in the screen's own YAML, and a `power_save_mode` there wins over this one. A dark
+# screen lets the radio doze and gives it back its own mode when it wakes (screen_power.h).
+wifi:
+  power_save_mode: none
+
+
+# Credentials are loaded from secrets.yaml — copy secrets.yaml.example to secrets.yaml and fill in your values.
+api:
+  # Who connects (firmware 0.38.0): a client that left before it named itself had a key that is not this screen's, and
+  # the starting screen says so (runtime_tiles::client_left); one that gets in clears that.
+  on_client_connected:
+    - lambda: 'runtime_tiles::client_came();'
+  on_client_disconnected:
+    - lambda: 'runtime_tiles::client_left(client_info, client_address);'
+  actions:
+    - action: touch_diagnostics
+      then:
+        - lambda: 'id(calibration_active) = true;'
+        - script.execute: wake_display
+        - lvgl.page.show: touch_cal_page
+        - lambda: |-
+            lv_obj_invalidate(id(touch_cal_page)->obj);
+            lv_refr_now(nullptr);
+            ESP_LOGI("ui_diag", "calibration page active=%d", lv_screen_active() == id(touch_cal_page)->obj);
+    - action: end_touch_diagnostics
+      then:
+        - lambda: 'id(calibration_active) = false;'
+        - lvgl.page.show: home_page
+    - action: ui_state
+      then:
+        - lambda: |-
+            const auto &cfg = screen_settings::current;
+            // The settings are int32_t, and on this toolchain int32_t is `long int`, not `int`: %d then warns on
+            // every one of them (eleven warnings a build, which is how a real one goes unnoticed). Both are 32 bits
+            // on an ESP32, so the numbers were right; the cast says so to the compiler as well.
+            ESP_LOGI("ui_diag", "settings standby=%d timeout=%d brightness=%d dim=%d night=%d start=%d end=%d night_dim=%d clock=%d clock24=%d home=%d idle_ms=%u use_idle_ms=%u dimmed=%d",
+              (int) cfg.standby_enabled, (int) cfg.standby_seconds, (int) cfg.brightness, (int) cfg.standby_brightness,
+              (int) cfg.night_enabled, (int) cfg.night_start, (int) cfg.night_end, (int) cfg.night_brightness,
+              (int) cfg.show_clock, (int) cfg.clock_24h, (int) cfg.home_on_standby,
+              (unsigned)(millis() - id(last_touch_ms)), (unsigned)(millis() - id(last_use_ms)), id(display_dimmed));
+            ESP_LOGI("ui_diag", "navigation page=%d runtime_detail=%d", id(tile_page),
+              runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root, LV_OBJ_FLAG_HIDDEN));
+            ${UI_STATE_HOOK}
+            lv_area_t nav, grid;
+            lv_obj_update_layout(id(home_page)->obj);
+            lv_obj_get_coords(id(page_next), &nav);
+            lv_obj_get_coords(id(tile_scroll), &grid);
+            ESP_LOGI("ui_diag", "home=%d calibration=%d grid=%d,%d,%d,%d next=%d,%d,%d,%d",
+                lv_screen_active() == id(home_page)->obj, lv_screen_active() == id(touch_cal_page)->obj,
+                (int) grid.x1, (int) grid.y1, (int) grid.x2, (int) grid.y2,
+                (int) nav.x1, (int) nav.y1, (int) nav.x2, (int) nav.y2);
+    - action: preview_runtime_card
+      variables:
+        index: int
+      then:
+        - lambda: |-
+            if (index < 0) { runtime_tiles::hide_detail(); if (runtime_tiles::dismiss) runtime_tiles::dismiss(); return; }
+            // Whatever a hold on the tile itself opens (runtime_tiles::hold_card): the runtime card for almost everything,
+            // the colour card for a light with a colour.
+            if (index >= 0) runtime_tiles::hold_card(index);
+    # The settings page from Home Assistant: `page` 0 is its menu, 1-4 open a group straight away
+    # (Brightness, Night, Screen, This screen) and a negative page closes it and goes back to page 1.
+    # Handy for support ("look at Screen -> Rotation") and for the render tests.
+    - action: open_settings
+      variables:
+        page: int
+      then:
+        - lambda: |-
+            if (page < 0) { id(go_home).execute(); return; }
+            // Opened for someone to look at: Back to page 1 counts from now, as after a touch.
+            id(last_use_ms) = millis();
+            id(wake_display).execute();
+            settings_screen::open((uint8_t) page);
+            ESP_LOGI("settings", "page %d open from Home Assistant", (int) page);
+
+    # Home Assistant automations: esphome.<device>_show_page puts a page of tiles on the screen (README,
+    # "Open a page from an automation"), the way a Go to page tile does: a player that starts an album can
+    # bring up the page with its full-page player. The screen wakes, a card or the settings page closes,
+    # and Back to page 1 counts from now, as after a touch. `page` is the number the editor shows, 1 up;
+    # a number past the last page opens the last page. An alert that is showing stays in front of it.
+    - action: show_page
+      variables:
+        page: int
+      then:
+        - lambda: |-
+            if (!runtime_tiles::navigation_ready()) {
+              ESP_LOGI("navigation", "show page ignored: configuration not ready");
+              return;
+            }
+            id(last_use_ms) = millis();
+            id(wake_display).execute();
+            settings_screen::close();
+            const int pages = runtime_tiles::enabled ? std::max(1, (int) runtime_tiles::page_count())
+                                                     : (runtime_tiles::model.count > 6 ? 2 : 1);
+            runtime_tiles::go_to_page(std::clamp((int) page, 1, pages) - 1, false);
+            ESP_LOGI("navigation", "page %d of %d open from Home Assistant", id(tile_page) + 1, pages);
+
+    # Diagnostics: the busy sheet of a tile, without touching the glass or Home Assistant.
+    - action: preview_busy
+      variables:
+        index: int
+      then:
+        - lambda: |-
+            if (runtime_tiles::enabled && index >= 0 && index < (int)runtime_tiles::model.count) {
+              runtime_tiles::model.tiles[index].begin(millis());
+              if (runtime_tiles::refresh) runtime_tiles::refresh();
+            }
+    - action: light_controls_preview
+      then:
+        - script.execute: light_controls_preview
+    - action: ui_self_test
+      then:
+        - script.execute: ui_self_test
+    # Home Assistant automations: esphome.<device>_show_alert puts a card over the whole
+    # screen (README, "Alert from an automation"); dismiss_alert removes it again.
+    - action: show_alert
+      variables:
+        title: string
+        subtitle: string
+        icon: string
+        color: string
+        button_text: string
+        timeout: int
+        flash: bool
+      then:
+        - script.execute:
+            id: alert_show
+            title: !lambda 'return title;'
+            subtitle: !lambda 'return subtitle;'
+            icon: !lambda 'return icon;'
+            color: !lambda 'return color;'
+            button_text: !lambda 'return button_text;'
+            button_color: ""
+            button2_text: ""
+            button2_color: ""
+            timeout: !lambda 'return timeout;'
+            flash: !lambda 'return flash;'
+    # The same card with a second button on the left of the first (firmware 0.3.3+), for a choice such as Decline and
+    # Accept, and a colour of its own for either button (red, green, blue, ...: the names of `color`). Its own action, as
+    # Home Assistant makes every field of an action required: show_alert keeps its seven, so no automation that calls it
+    # breaks. The second button ends the alert as esphome.screen_alert with action button2.
+    - action: show_alert_choice
+      variables:
+        title: string
+        subtitle: string
+        icon: string
+        color: string
+        button_text: string
+        button_color: string
+        button2_text: string
+        button2_color: string
+        timeout: int
+        flash: bool
+      then:
+        - script.execute:
+            id: alert_show
+            title: !lambda 'return title;'
+            subtitle: !lambda 'return subtitle;'
+            icon: !lambda 'return icon;'
+            color: !lambda 'return color;'
+            button_text: !lambda 'return button_text;'
+            button_color: !lambda 'return button_color;'
+            button2_text: !lambda 'return button2_text;'
+            button2_color: !lambda 'return button2_color;'
+            timeout: !lambda 'return timeout;'
+            flash: !lambda 'return flash;'
+    - action: dismiss_alert
+      then:
+        - script.execute:
+            id: alert_dismiss
+            reason: "remote"
+    # ESP Screen Manager 0.2.39+ hands a whole tile message over in one call instead of
+    # base64 chunks in the text inbox; the inbox keeps showing the result.
+    # Firmware 0.2.49+ also answers a caller that asks for it (app 0.2.57+ does for its pings): the same
+    # status as the inbox, plus the revision of the layout on the screen. A call without a call id
+    # (older apps) gets no answer, so ESPHome has nothing to warn about.
+    - action: screen_message
+      supports_response: optional
+      variables:
+        message: string
+      then:
+        - lambda: 'id(dashboard_inbox).publish_state(runtime_tiles::receive(message));'
+        - if:
+            condition:
+              lambda: 'return call_id != 0;'
+            then:
+              - api.respond:
+                  data: !lambda |-
+                    root["status"] = id(dashboard_inbox).state;
+                    root["rev"] = runtime_tiles::layout_rev;
+                    root["protocol"] = page_protocol::VERSION;
+                    root["bar_values"] = 1;
+                    root["appearance_updates"] = 1;
+                    // A light group's lamps in its state message (firmware 0.3.9+, app 0.3.16+).
+                    root["group_lamps"] = 1;
+                    // Tiles without a place of their own, the keys of a bedside clock (firmware 0.8.0+, app 0.4.12+).
+                    root["tile_keys"] = 1;
+                    // One entity on several tiles (firmware 0.16.0+, app 0.4.26+).
+                    root["tile_repeats"] = 1;
+                    // Every page on every grid, whatever its cells (firmware 0.18.0+, app 0.4.30+): at most 64 tiles over
+                    // eight pages then, or what this board states (below).
+                    root["free_pages"] = 1;
+                    // This screen's own ceilings (firmware 0.34.0+, app 0.4.57+): the most tiles and pages its board takes
+                    // (page_protocol.h). An app that knows nothing of them keeps to 64 and eight. The tiles are the board's,
+                    // not those of the grid in use (firmware 0.53.0+): ESP Screens may give it another grid, and counts
+                    // the pages times the cells of that one itself (core.Grid.max_tiles).
+                    root["max_tiles"] = runtime_tiles::TILES_MAX;
+                    root["max_pages"] = runtime_tiles::grid.pages();
+                    root["max_bar_items"] = header_bar::MAX_ITEMS;
+                    // The grids this screen takes, each way its glass hangs, the one it keeps for each, and which way it
+                    // hangs now (firmware 0.53.0+): ESP Screens may send another grid with a layout ("grid" in begin).
+                    {
+                      auto grids = root["grids"].to<JsonObject>();
+                      grids["upright"] = runtime_tiles::canvas_upright;
+                      for (int i = 0; i < 2; ++i) {
+                        auto way = grids[i ? "portrait" : "landscape"].to<JsonObject>();
+                        const auto &range = runtime_tiles::GRID_RANGES[i];
+                        way["columns"] = runtime_tiles::chosen_grids[i].columns;
+                        way["rows"] = runtime_tiles::chosen_grids[i].rows;
+                        auto least = way["min"].to<JsonArray>();
+                        least.add(range.min_columns);
+                        least.add(range.min_rows);
+                        auto most = way["max"].to<JsonArray>();
+                        most.add(range.max_columns);
+                        most.add(range.max_rows);
+                      }
+                    }
+                    // The memory its tiles may take, what they take now, and what the tile catalogue's prices need from
+                    // this board to price a tile (tile_memory.h): whether it has PSRAM, the size of a tile and of its block
+                    // of extras. In the reply to a hello or a ping: the app shows how full the screen is and refuses a
+                    // layout that would not fit.
+                    // The room only once it is known (firmware 0.51.0): a layout has to settle first, and an app reads an
+                    // answer without it as a screen that is still measuring. A screen that had to turn a layout down
+                    // says the room it has this moment.
+                    if (runtime_tiles::reply_memory) {
+                      const uint32_t now = esphome::millis();
+                      const auto board = runtime_tiles::memory_board();
+                      auto memory = root["memory"].to<JsonObject>();
+                      if (runtime_tiles::memory_known(now)) memory["room"] = runtime_tiles::memory_room(now);
+                      else if (runtime_tiles::memory_short(now)) memory["room"] = runtime_tiles::memory_room_now();
+                      memory["used"] = runtime_tiles::layout_cost();
+                      memory["psram"] = board.psram;
+                      memory["tile"] = board.tile_bytes;
+                      memory["extra"] = board.extra_bytes;
+                      memory["page"] = board.page_bytes;
+                      if (runtime_tiles::memory_short(now)) memory["short"] = 1;
+                    }
+                    // What this firmware takes beyond the flags above, as a list (firmware 0.19.0+, app 0.4.32+): a newer
+                    // option adds its name here. climate_range: a thermostat's range on its -/+, with the chip for its end.
+                    auto features = root["features"].to<JsonArray>();
+                    features.add("climate_range");
+                    // media_library (firmware 0.24.0+, app 0.4.42+): a player's speaker menu, shuffle, repeat, seek, its
+                    // cover's colours as the card's ground, and its library with covers and a tap that plays.
+                    features.add("media_library");
+                    // screensaver (firmware 0.29.0+, app 0.4.48): the op "saver", what to show in standby instead of the dimmed tiles.
+                    features.add("screensaver");
+                    // saver_keys (firmware 0.33.0+, app 0.4.55): a player's screensaver has keys, so the app also names
+                    // a paused player and sends its state and what it can do.
+                    features.add("saver_keys");
+                    // saver_items (firmware 0.50.0+, app 0.4.81): the clock's row of entities, `wi` of the op "saver".
+                    features.add("saver_items");
+                    // speaker_groups (firmware 0.26.0+, app speakers.py): a player's speakers with a key to join or leave
+                    // the group and each one's volume, its inputs behind a key of their own, and the speaker it follows.
+                    features.add("speaker_groups");
+                    // bar_status (firmware 0.38.0, app 0.4.63): the top bar's own items, Wi-Fi ("wifi") and the link to
+                    // Home Assistant and Tessera ("link"), which the screen reads itself.
+                    features.add("bar_status");
+                    // battery (firmware 0.41.0): this screen has a battery sensor (runtime_tiles::find_battery), so the
+                    // top bar can show it; a screen without one never says so, and ESP Screens does not offer the item.
+                    if (battery_status::level) features.add("battery");
+                    // plugins (docs/PLUGINS.md): this firmware takes plugin tiles and a plugin's item in the top bar.
+                    // plugin_api and plugins say which API it offers and which plugins are built in, with their tile
+                    // types (plugin_host::hello).
+                    features.add("plugins");
+                    plugin_host::hello(root);
+                    // weather_week: the weather card draws the week (weather_chart.h), so ESP Screens sends seven days
+                    // with their weekday, the next 48 hours with their hour, and the wind's bearing, the air pressure,
+                    // the visibility and the rain's unit.
+                    features.add("weather_week");
+                    // live: a P4 that streams (live_view.h): a camera tile set to Live gets pace 0 and streams on the
+                    // glass, and ESP Screens makes Live the default for camera tiles here.
+                    if (live_view::available()) features.add("live");
+                    // bar_cards (firmware 0.56.0): an entity's item in the top bar opens its tile's card (hold_card), so ESP
+                    // Screens names that tile in the item (`d`) and sends a tile without a cell for an entity on no tile.
+                    features.add("bar_cards");
+                    auto sizes = root["tile_sizes"].to<JsonArray>();
+                    for (const auto &size : page_protocol::TILE_SIZES)
+                      if (size.fits(runtime_tiles::grid.columns, runtime_tiles::grid.rows)) sizes.add(size.name);
+                    // Every other rectangle smaller than the grid, as "CxR" (firmware 0.19.0, app 0.4.32+).
+                    for (unsigned c = 1; c <= runtime_tiles::grid.columns; ++c)
+                      for (unsigned r = 1; r <= runtime_tiles::grid.rows; ++r)
+                        if (page_protocol::span_offered(c, r, runtime_tiles::grid.columns, runtime_tiles::grid.rows)) {
+                          const char span[4] = {static_cast<char>('0' + c), 'x', static_cast<char>('0' + r), 0};
+                          sizes.add(std::string(span));  // copied: the array is gone after this line
+                        }
+                    root["request"] = runtime_tiles::protocol_key(runtime_tiles::transfer.hello_id);
+                    root["session"] = runtime_tiles::protocol_key(runtime_tiles::transfer.lease);
+                    root["seq"] = runtime_tiles::transfer.sequence;
+                    root["applied"] = runtime_tiles::transfer.active && runtime_tiles::model.ready();
+                    // Read-only navigation diagnostics, no additional stored state.
+                    root["page"] = runtime_tiles::shown_page ? *runtime_tiles::shown_page + 1 : 0;
+                    root["home"] = runtime_tiles::model.page_data.home + 1;
+                    root["pagination_count"] = runtime_tiles::model.page_data.count();
+
+interval:
+  - interval: 250ms
+    then:
+      - lambda: |-
+          runtime_tiles::tick();
+          plugin_host::tick(millis(), id(display_dimmed));
+          screen_hooks::run_tick(millis());
+  - interval: 1s
+    then:
+      - if:
+          condition:
+            lambda: |-
+              if (!screen_settings::current.standby_enabled) return false;
+              if (id(display_dimmed) || id(touch_down) || id(calibration_active) || id(alert_active)) return false;
+              return (millis() - id(last_touch_ms)) > (screen_settings::current.standby_seconds * 1000UL);
+          then:
+            - script.execute: dim_display
+      - script.execute: back_to_page_1_when_due
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+    # Refresh immediately on time sync; do not wait for an HA entity update.
+    update_interval: 60s
+    on_time_sync:
+      then:
+        - script.execute: apply_screen_settings
+        # Only the time moved on: a kept page draws its cards once it is back (firmware 0.3.2+).
+        - lambda: 'runtime_tiles::mark_time(); if (!id(ui_refresh).is_running()) id(ui_refresh).execute();'
+    on_time:
+      - seconds: 0
+        minutes: /1
+        then:
+          - script.execute: apply_screen_settings
+          - lambda: 'runtime_tiles::mark_time(); if (!id(ui_refresh).is_running()) id(ui_refresh).execute();'
+
+globals:
+  # Alert overlay (HA action show_alert): standby waits while one is up.
+  - id: alert_active
+    type: bool
+    initial_value: 'false'
+  - id: alert_title_text
+    type: std::string
+  # The alert's colour as the automation named it (a swatch's light value, 0 for the normal card).
+  - id: alert_card_color
+    type: uint32_t
+    initial_value: '0'
+  - id: alert_timeout_seconds
+    type: int
+    initial_value: '0'
+  - id: alert_flash_requested
+    type: bool
+    initial_value: 'false'
+  - id: rendered_frames
+    type: uint32_t
+    initial_value: '0'
+  - id: calibration_active
+    type: bool
+    initial_value: 'false'
+  - id: tile_page
+    type: int
+    initial_value: '0'
+  - id: touch_down
+    type: bool
+    initial_value: 'false'
+
+
+
+  # Two clocks. last_touch_ms is the standby time: a touch, Wake, an alert ending and Auto standby on restart it.
+  # last_use_ms is Back to page 1 (firmware 0.2.56+): only a touch, or Home Assistant opening the settings page.
+  - id: last_touch_ms
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+
+  - id: last_use_ms
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+
+  # Debounce for do_tile_action: this resistive XPT2046 panel sometimes gives
+  # multiple separate press/release cycles for one physical touch (noise in
+  # the resistive layer), causing the same HA action to fire multiple times
+  # within a few hundred ms (observed: script.ambient_morning 6x in 8s).
+  - id: last_action_entity
+    type: std::string
+    restore_value: no
+
+  - id: last_action_ms
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+
+  - id: display_dimmed
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+  # Sleep from Home Assistant (0.2.45+): standby that also holds with Auto standby off,
+  # until a tap, Wake or an alert wakes the screen.
+  - id: sleep_requested
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+
+
+
+
+
+
+
+
+# The Tessera mark on the starting screen (firmware 0.3.8+), fonts/tessera-mark.png rendered from the website's
+# tessera-mark.svg; ESPHome scales it to the look's size when it builds. The top-level form that ESPHome 2026.6.2
+# (min_version) knows; 2026.7+ reads it as `platform: file`.
+image:
+  - id: tessera_mark
+    file: "${FONT_DIR}/tessera-mark.png"
+    type: RGB565
+    transparency: alpha_channel
+    resize: ${BRAND_MARK_SIZE}x${BRAND_MARK_SIZE}
+  # The home key at the far left of the top bar (firmware 0.10.0+): the same mark as tall as the house that stood there
+  # before, a house of Material Design Icons at FONT_ICON_HOME_SIZE (17 of its 24 units), about a kilobyte per board.
+  - id: tessera_mark_bar
+    file: "${FONT_DIR}/tessera-mark.png"
+    type: RGB565
+    transparency: alpha_channel
+    resize: ${ ((FONT_ICON_HOME_SIZE | int) * 17 / 24) | round | int }x${ ((FONT_ICON_HOME_SIZE | int) * 17 / 24) | round | int }
+
+font:
+  # The five text fonts (headline, watch_value, label, sublabel, sublabel_big) carry the same characters, the ones
+  # header_bar.GLYPHS in the add-on sends: every printable ASCII character (firmware 0.36.0+, "bbno$" in GitHub #147)
+  # and the letters European languages write with. Roboto has no heart, so ♡, ♥ and ❤ come from
+  # NotoSansSymbols2-hearts.ttf (OFL): Noto Sans Symbols 2 cut to those three with fontTools' pyftsubset, its U+2764 given
+  # the U+2665 heart, as Noto's own is a squat one lying on its side. tools/profiles.py glyphs() reads both lists.
+  - file: "${FONT_DIR}/Roboto-500.ttf"
+    id: headline
+    size: ${FONT_HEADLINE_SIZE}
+    bpp: 4
+    glyphs: ['<','>','—','&','@','!',',','.','?','"','%','(',')','+','-','_',':','°','0','1','2','3','4','5',
+             '6','7','8','9','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T',
+             'U','V','W','X','Y','Z',' ','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q',
+             'r','s','t','u','v','w','x','y','z','/','·',"'",';','…',
+             '#','$','*','=','^','~','|','`','[',']','{','}',"\\",
+             'À','Á','Â','Ã','Ä','Å','Æ','Ç','È','É','Ê','Ë','Ì','Í','Î','Ï','Ð','Ñ','Ò','Ó','Ô','Õ','Ö','Ø',
+             'Ù','Ú','Û','Ü','Ý','Þ','ß','à','á','â','ã','ä','å','æ','ç','è','é','ê','ë','ì','í','î','ï','ð',
+             'ñ','ò','ó','ô','õ','ö','ø','ù','ú','û','ü','ý','þ','ÿ','Ą','ą','Ć','ć','Ę','ę','Ł','ł','Ń','ń',
+             'Ś','ś','Ź','ź','Ż','ż','Č','č','Ď','ď','Ě','ě','Ň','ň','Ř','ř','Š','š','Ť','ť','Ů','ů','Ž','ž',
+             'Ĺ','ĺ','Ľ','ľ','Ŕ','ŕ','Ő','ő','Ű','ű','Ă','ă','Ș','ș','Ț','ț','Đ','đ','Ā','ā','Ē','ē','Ģ','ģ',
+             'Ī','ī','Ķ','ķ','Ļ','ļ','Ņ','ņ','Ū','ū','Ė','ė','Į','į','Ų','ų','Ğ','ğ','İ','ı','Ş','ş','Ċ','ċ',
+             'Ġ','ġ','Ħ','ħ','Ŵ','ŵ','Ŷ','ŷ','Ŀ','ŀ','Œ','œ','Ÿ','„','“','”','‘','’','«','»','‹','›','¿','¡',
+             '€','£','²','³','µ','–','×','©','®','™','¢','¥','§']
+    extras:
+      - file: "${FONT_DIR}/NotoSansSymbols2-hearts.ttf"
+        glyphs: ['♡','♥','❤']
+
+  - file: "${FONT_DIR}/Roboto-500.ttf"
+    id: watch_value
+    size: ${FONT_WATCH_VALUE_SIZE}
+    bpp: 4
+    glyphs: ['<','>','—','&','@','!',',','.','?','"','%','(',')','+','-','_',':','°','0','1','2','3','4','5',
+             '6','7','8','9','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T',
+             'U','V','W','X','Y','Z',' ','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q',
+             'r','s','t','u','v','w','x','y','z','/','·',"'",';','…',
+             '#','$','*','=','^','~','|','`','[',']','{','}',"\\",
+             'À','Á','Â','Ã','Ä','Å','Æ','Ç','È','É','Ê','Ë','Ì','Í','Î','Ï','Ð','Ñ','Ò','Ó','Ô','Õ','Ö','Ø',
+             'Ù','Ú','Û','Ü','Ý','Þ','ß','à','á','â','ã','ä','å','æ','ç','è','é','ê','ë','ì','í','î','ï','ð',
+             'ñ','ò','ó','ô','õ','ö','ø','ù','ú','û','ü','ý','þ','ÿ','Ą','ą','Ć','ć','Ę','ę','Ł','ł','Ń','ń',
+             'Ś','ś','Ź','ź','Ż','ż','Č','č','Ď','ď','Ě','ě','Ň','ň','Ř','ř','Š','š','Ť','ť','Ů','ů','Ž','ž',
+             'Ĺ','ĺ','Ľ','ľ','Ŕ','ŕ','Ő','ő','Ű','ű','Ă','ă','Ș','ș','Ț','ț','Đ','đ','Ā','ā','Ē','ē','Ģ','ģ',
+             'Ī','ī','Ķ','ķ','Ļ','ļ','Ņ','ņ','Ū','ū','Ė','ė','Į','į','Ų','ų','Ğ','ğ','İ','ı','Ş','ş','Ċ','ċ',
+             'Ġ','ġ','Ħ','ħ','Ŵ','ŵ','Ŷ','ŷ','Ŀ','ŀ','Œ','œ','Ÿ','„','“','”','‘','’','«','»','‹','›','¿','¡',
+             '€','£','²','³','µ','–','×','©','®','™','¢','¥','§']
+    extras:
+      - file: "${FONT_DIR}/NotoSansSymbols2-hearts.ttf"
+        glyphs: ['♡','♥','❤']
+
+  # Clock card digits only; the date line reuses the tile title font.
+  - file: "${FONT_DIR}/Roboto-500.ttf"
+    id: clock_digits
+    size: ${FONT_CLOCK_DIGITS_SIZE}
+    bpp: 4
+    glyphs: [':','-','0','1','2','3','4','5','6','7','8','9']
+
+  # The display step (firmware 0.17.0+): half a page's width, the flip clock's blocks and the bedside clock
+  # (FONT_DISPLAY_SIZE, packages/looks/shared/digits.yaml); only the digits and the colon.
+  - file: "${FONT_DIR}/Roboto-400.ttf"
+    id: display_digits
+    size: ${FONT_DISPLAY_SIZE}
+    bpp: 4
+    glyphs: [':','0','1','2','3','4','5','6','7','8','9']
+
+  # The bedside clock's own step (firmware 0.8.0+), only where the whole page takes a fifth larger digits than the display
+  # step; elsewhere it stays at 8 px and the clock takes the display step (packages/looks/shared/digits.yaml).
+  - file: "${FONT_DIR}/Roboto-400.ttf"
+    id: bedside_digits
+    size: ${FONT_BEDSIDE_SIZE}
+    bpp: 4
+    glyphs: [':','0','1','2','3','4','5','6','7','8','9']
+
+  # The climate card's setpoint, large enough to read across the room; a humidifier's in percent (firmware 0.42.0+).
+  - file: "${FONT_DIR}/Roboto-400.ttf"
+    id: setpoint_digits
+    size: ${FONT_SETPOINT_SIZE}
+    bpp: 4
+    glyphs: ['-','.',',','°','%','0','1','2','3','4','5','6','7','8','9']
+
+  - file: "${FONT_DIR}/Roboto-700.ttf"
+    id: label
+    size: ${FONT_LABEL_SIZE}
+    bpp: 4
+    glyphs: ['<','>','—','&','@','!',',','.','?','"','%','(',')','+','-','_',':','°','0','1','2','3','4','5',
+             '6','7','8','9','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T',
+             'U','V','W','X','Y','Z',' ','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q',
+             'r','s','t','u','v','w','x','y','z','/','·',"'",';','…',
+             '#','$','*','=','^','~','|','`','[',']','{','}',"\\",
+             'À','Á','Â','Ã','Ä','Å','Æ','Ç','È','É','Ê','Ë','Ì','Í','Î','Ï','Ð','Ñ','Ò','Ó','Ô','Õ','Ö','Ø',
+             'Ù','Ú','Û','Ü','Ý','Þ','ß','à','á','â','ã','ä','å','æ','ç','è','é','ê','ë','ì','í','î','ï','ð',
+             'ñ','ò','ó','ô','õ','ö','ø','ù','ú','û','ü','ý','þ','ÿ','Ą','ą','Ć','ć','Ę','ę','Ł','ł','Ń','ń',
+             'Ś','ś','Ź','ź','Ż','ż','Č','č','Ď','ď','Ě','ě','Ň','ň','Ř','ř','Š','š','Ť','ť','Ů','ů','Ž','ž',
+             'Ĺ','ĺ','Ľ','ľ','Ŕ','ŕ','Ő','ő','Ű','ű','Ă','ă','Ș','ș','Ț','ț','Đ','đ','Ā','ā','Ē','ē','Ģ','ģ',
+             'Ī','ī','Ķ','ķ','Ļ','ļ','Ņ','ņ','Ū','ū','Ė','ė','Į','į','Ų','ų','Ğ','ğ','İ','ı','Ş','ş','Ċ','ċ',
+             'Ġ','ġ','Ħ','ħ','Ŵ','ŵ','Ŷ','ŷ','Ŀ','ŀ','Œ','œ','Ÿ','„','“','”','‘','’','«','»','‹','›','¿','¡',
+             '€','£','²','³','µ','–','×','©','®','™','¢','¥','§']
+    extras:
+      - file: "${FONT_DIR}/NotoSansSymbols2-hearts.ttf"
+        glyphs: ['♡','♥','❤']
+
+  - file: "${FONT_DIR}/Roboto-400.ttf"
+    id: sublabel
+    size: ${FONT_SUBLABEL_SIZE}
+    bpp: 4
+    glyphs: ['<','>','—','&','@','!',',','.','?','"','%','(',')','+','-','_',':','°','0','1','2','3','4','5',
+             '6','7','8','9','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T',
+             'U','V','W','X','Y','Z',' ','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q',
+             'r','s','t','u','v','w','x','y','z','/','·',"'",';','…',
+             '#','$','*','=','^','~','|','`','[',']','{','}',"\\",
+             'À','Á','Â','Ã','Ä','Å','Æ','Ç','È','É','Ê','Ë','Ì','Í','Î','Ï','Ð','Ñ','Ò','Ó','Ô','Õ','Ö','Ø',
+             'Ù','Ú','Û','Ü','Ý','Þ','ß','à','á','â','ã','ä','å','æ','ç','è','é','ê','ë','ì','í','î','ï','ð',
+             'ñ','ò','ó','ô','õ','ö','ø','ù','ú','û','ü','ý','þ','ÿ','Ą','ą','Ć','ć','Ę','ę','Ł','ł','Ń','ń',
+             'Ś','ś','Ź','ź','Ż','ż','Č','č','Ď','ď','Ě','ě','Ň','ň','Ř','ř','Š','š','Ť','ť','Ů','ů','Ž','ž',
+             'Ĺ','ĺ','Ľ','ľ','Ŕ','ŕ','Ő','ő','Ű','ű','Ă','ă','Ș','ș','Ț','ț','Đ','đ','Ā','ā','Ē','ē','Ģ','ģ',
+             'Ī','ī','Ķ','ķ','Ļ','ļ','Ņ','ņ','Ū','ū','Ė','ė','Į','į','Ų','ų','Ğ','ğ','İ','ı','Ş','ş','Ċ','ċ',
+             'Ġ','ġ','Ħ','ħ','Ŵ','ŵ','Ŷ','ŷ','Ŀ','ŀ','Œ','œ','Ÿ','„','“','”','‘','’','«','»','‹','›','¿','¡',
+             '€','£','²','³','µ','–','×','©','®','™','¢','¥','§']
+    extras:
+      - file: "${FONT_DIR}/NotoSansSymbols2-hearts.ttf"
+        glyphs: ['♡','♥','❤']
+
+  - file: "${FONT_DIR}/Roboto-400.ttf"
+    id: sublabel_big
+    size: ${FONT_SUBLABEL_BIG_SIZE}
+    bpp: 4
+    glyphs: ['<','>','—','&','@','!',',','.','?','"','%','(',')','+','-','_',':','°','0','1','2','3','4','5',
+             '6','7','8','9','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T',
+             'U','V','W','X','Y','Z',' ','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q',
+             'r','s','t','u','v','w','x','y','z','/','·',"'",';','…',
+             '#','$','*','=','^','~','|','`','[',']','{','}',"\\",
+             'À','Á','Â','Ã','Ä','Å','Æ','Ç','È','É','Ê','Ë','Ì','Í','Î','Ï','Ð','Ñ','Ò','Ó','Ô','Õ','Ö','Ø',
+             'Ù','Ú','Û','Ü','Ý','Þ','ß','à','á','â','ã','ä','å','æ','ç','è','é','ê','ë','ì','í','î','ï','ð',
+             'ñ','ò','ó','ô','õ','ö','ø','ù','ú','û','ü','ý','þ','ÿ','Ą','ą','Ć','ć','Ę','ę','Ł','ł','Ń','ń',
+             'Ś','ś','Ź','ź','Ż','ż','Č','č','Ď','ď','Ě','ě','Ň','ň','Ř','ř','Š','š','Ť','ť','Ů','ů','Ž','ž',
+             'Ĺ','ĺ','Ľ','ľ','Ŕ','ŕ','Ő','ő','Ű','ű','Ă','ă','Ș','ș','Ț','ț','Đ','đ','Ā','ā','Ē','ē','Ģ','ģ',
+             'Ī','ī','Ķ','ķ','Ļ','ļ','Ņ','ņ','Ū','ū','Ė','ė','Į','į','Ų','ų','Ğ','ğ','İ','ı','Ş','ş','Ċ','ċ',
+             'Ġ','ġ','Ħ','ħ','Ŵ','ŵ','Ŷ','ŷ','Ŀ','ŀ','Œ','œ','Ÿ','„','“','”','‘','’','«','»','‹','›','¿','¡',
+             '€','£','²','³','µ','–','×','©','®','™','¢','¥','§']
+    extras:
+      - file: "${FONT_DIR}/NotoSansSymbols2-hearts.ttf"
+        glyphs: ['♡','♥','❤']
+
+  # The name in the starting screen's Tessera lockup (firmware 0.3.8+): only its own letters, a few hundred bytes.
+  - file: "${FONT_DIR}/Roboto-700.ttf"
+    id: brand_wordmark
+    size: ${FONT_BRAND_SIZE}
+    bpp: 4
+    glyphs: ['t','e','s','r','a']
+
+  # Material Design Icons (MDI) — included at fonts/materialdesignicons-webfont.ttf (Apache 2.0)
+  # Source: https://github.com/Templarian/MaterialDesign-Webfont
+  - file: "${FONT_DIR}/materialdesignicons-webfont.ttf"
+    id: materialdesign_icons
+    size: ${FONT_ICON_SIZE}
+    bpp: ${FONT_ICON_BPP}
+    glyphs: &tile_icons  # GENERATED by tools/generate_icons.py from screen_manager/app/tile_icons.py
+      - "\U000F0335" # lightbulb
+      - "\U000F1253" # lightbulb-group
+      - "\U000F0769" # ceiling-light
+      - "\U000F1793" # chandelier
+      - "\U000F06B5" # lamp
+      - "\U000F08DD" # floor-lamp
+      - "\U000F095F" # desk-lamp
+      - "\U000F091D" # wall-sconce-flat
+      - "\U000F179B" # light-recessed
+      - "\U000F04C9" # spotlight-beam
+      - "\U000F1051" # led-strip-variant
+      - "\U000F1054" # outdoor-lamp
+      - "\U000F02DC" # home
+      - "\U000F04B9" # sofa
+      - "\U000F02E3" # bed
+      - "\U000F0A70" # silverware-fork-knife
+      - "\U000F0B7C" # chef-hat
+      - "\U000F09A0" # shower
+      - "\U000F1818" # bathtub
+      - "\U000F09AB" # toilet
+      - "\U000F1239" # desk
+      - "\U000F06D9" # garage
+      - "\U000F0E2E" # fireplace
+      - "\U000F050F" # thermometer
+      - "\U000F0393" # thermostat
+      - "\U000F001B" # air-conditioner
+      - "\U000F0438" # radiator
+      - "\U000F1A43" # heat-pump
+      - "\U000F0238" # fire
+      - "\U000F0717" # snowflake
+      - "\U000F058E" # water-percent
+      - "\U000F0210" # fan
+      - "\U000F1797" # ceiling-fan
+      - "\U000F0D44" # air-purifier
+      - "\U000F07E4" # molecule-co2
+      - "\U000F0599" # weather-sunny
+      - "\U000F0595" # weather-partly-cloudy
+      - "\U000F0590" # weather-cloudy
+      - "\U000F0597" # weather-rainy
+      - "\U000F0598" # weather-snowy
+      - "\U000F059D" # weather-windy
+      - "\U000F0594" # weather-night
+      - "\U000F059C" # weather-sunset-up
+      - "\U000F0387" # music-note
+      - "\U000F075A" # music
+      - "\U000F0CB8" # playlist-music
+      - "\U000F0025" # album
+      - "\U000F099A" # record-player
+      - "\U000F04C7" # spotify
+      - "\U000F0439" # radio
+      - "\U000F0994" # podcast
+      - "\U000F04C3" # speaker
+      - "\U000F0D38" # speaker-multiple
+      - "\U000F17DB" # soundbar
+      - "\U000F02CB" # headphones
+      - "\U000F036C" # microphone
+      - "\U000F067D" # piano
+      - "\U000F0771" # guitar-acoustic
+      - "\U000F0502" # television
+      - "\U000F042E" # projector
+      - "\U000F0FCE" # movie-open
+      - "\U000F0118" # cast
+      - "\U000F0297" # gamepad-variant
+      - "\U000F0EC5" # remote-tv
+      - "\U000F033E" # lock
+      - "\U000F0FC6" # lock-open-variant
+      - "\U000F068A" # shield-home
+      - "\U000F078F" # alarm-light
+      - "\U000F009A" # bell
+      - "\U000F12E6" # doorbell
+      - "\U000F07AE" # cctv
+      - "\U000F0D91" # motion-sensor
+      - "\U000F081B" # door-closed
+      - "\U000F081C" # door-open
+      - "\U000F11DB" # window-closed-variant
+      - "\U000F0392" # smoke-detector
+      - "\U000F1502" # water-alert
+      - "\U000F072A" # washing-machine
+      - "\U000F0917" # tumble-dryer
+      - "\U000F0AAC" # dishwasher
+      - "\U000F0290" # fridge
+      - "\U000F04DE" # stove
+      - "\U000F0C99" # microwave
+      - "\U000F0CD3" # toaster-oven
+      - "\U000F109F" # coffee-maker
+      - "\U000F05FA" # kettle
+      - "\U000F070D" # robot-vacuum
+      - "\U000F11F7" # robot-mower
+      - "\U000F042B" # printer-3d
+      - "\U000F06A5" # power-plug
+      - "\U000F07E7" # power-socket-eu
+      - "\U000F0322" # laptop
+      - "\U000F0469" # router-wireless
+      - "\U000F0241" # flash
+      - "\U000F0A72" # solar-power
+      - "\U000F0D9B" # solar-panel
+      - "\U000F1901" # home-battery
+      - "\U000F12A3" # battery-high
+      - "\U000F05F1" # ev-station
+      - "\U000F0B6C" # car-electric
+      - "\U000F1A57" # meter-electric
+      - "\U000F1A59" # meter-gas
+      - "\U000F058C" # water
+      - "\U000F0F92" # water-boiler
+      - "\U000F029A" # gauge
+      - "\U000F111C" # window-shutter
+      - "\U000F111E" # window-shutter-open
+      - "\U000F00AC" # blinds
+      - "\U000F1011" # blinds-open
+      - "\U000F1A6C" # roller-shade-closed
+      - "\U000F1846" # curtains
+      - "\U000F1847" # curtains-closed
+      - "\U000F1B88" # awning-outline
+      - "\U000F024A" # flower
+      - "\U000F0531" # tree
+      - "\U000F0E66" # sprout
+      - "\U000F1510" # grass
+      - "\U000F105F" # sprinkler
+      - "\U000F0606" # pool
+      - "\U000F0E45" # grill
+      - "\U000F06EE" # mailbox
+      - "\U000F0A79" # trash-can
+      - "\U000F044C" # recycle
+      - "\U000F0A43" # dog
+      - "\U000F011B" # cat
+      - "\U000F0004" # account
+      - "\U000F0849" # account-group
+      - "\U000F0A89" # account-child
+      - "\U000F0826" # home-account
+      - "\U000F04B2" # sleep
+      - "\U000F070E" # run
+      - "\U000F00D6" # briefcase
+      - "\U000F010B" # car
+      - "\U000F00A3" # bike
+      - "\U000F00E7" # bus
+      - "\U000F052C" # train
+      - "\U000F001D" # airplane
+      - "\U000F034E" # map-marker
+      - "\U000F0425" # power
+      - "\U000F0521" # toggle-switch
+      - "\U000F12A8" # gesture-tap-button
+      - "\U000F040A" # play
+      - "\U000F0BC2" # script-text
+      - "\U000F03D8" # palette
+      - "\U000F0020" # alarm
+      - "\U000F0150" # clock-outline
+      - "\U000F051B" # timer-outline
+      - "\U000F00ED" # calendar
+      - "\U000F009E" # bell-ring
+      - "\U000F02D1" # heart
+      - "\U000F002A" # alert-outline
+      - "\U000F0493" # cog
+      - "\U000F00E2" # broom
+      - "\U000F1126" # diabetes
+      - "\U000F05D6" # alert-circle-outline
+      - "\U000F0A66" # puzzle-outline
+      - "\U000F0143" # chevron-up
+      - "\U000F0140" # chevron-down
+      - "\U000F17B3" # arrow-u-left-top
+      - "\U000F040E" # play-pause
+      - "\U000F075D" # volume-plus
+      - "\U000F075E" # volume-minus
+      - "\U000F075F" # volume-mute
+      - "\U000F012C" # check
+      - "\U000F03E4" # pause
+      - "\U000F04DB" # stop
+      - "\U000F04AD" # skip-next
+      - "\U000F04AE" # skip-previous
+      - "\U000F057E" # volume-high
+      - "\U000F0581" # volume-off
+      - "\U000F005D" # arrow-up
+      - "\U000F0045" # arrow-down
+      - "\U000F084E" # arrow-expand-horizontal
+      - "\U000F084C" # arrow-collapse-horizontal
+      - "\U000F05F8" # home-map-marker
+      - "\U000F0415" # plus
+      - "\U000F0374" # minus
+      - "\U000F0206" # exit-to-app
+      - "\U000F0906" # power-standby
+      - "\U000F0141" # chevron-left
+      - "\U000F0142" # chevron-right
+      - "\U000F0156" # close
+      - "\U000F035D" # menu-down
+      - "\U000F07D9" # map-marker-outline
+      - "\U000F004D" # arrow-left
+      - "\U000F1A79" # sun-snowflake-variant
+      - "\U000F1B17" # thermostat-auto
+      - "\U000F0591" # weather-fog
+      - "\U000F0592" # weather-hail
+      - "\U000F0593" # weather-lightning
+      - "\U000F067E" # weather-lightning-rainy
+      - "\U000F0596" # weather-pouring
+      - "\U000F067F" # weather-snowy-rainy
+      - "\U000F059B" # weather-sunset-down
+      - "\U000F01D8" # dots-horizontal
+      - "\U000F1C91" # arrow-oscillating
+      - "\U000F0379" # monitor
+      - "\U000F02FD" # information-outline
+      - "\U000F0709" # restart
+      - "\U000F01A3" # crosshairs
+      - "\U000F0E4F" # lightbulb-off
+      - "\U000F049F" # shuffle-variant
+      - "\U000F0456" # repeat
+      - "\U000F0458" # repeat-once
+      - "\U000F0803" # account-music
+      - "\U000F024B" # folder
+      - "\U000F00EE" # calendar-blank
+      - "\U000F00EF" # calendar-check
+      - "\U000F0B53" # account-arrow-right
+      - "\U000F0D43" # air-filter
+      - "\U000F1099" # air-humidifier
+      - "\U000F1466" # air-humidifier-off
+      - "\U000F0028" # alert-circle
+      - "\U000F0937" # angle-acute
+      - "\U000F0042" # arrow-bottom-left
+      - "\U000F0043" # arrow-bottom-right
+      - "\U000F06C0" # arrow-down-box
+      - "\U000F0E73" # arrow-left-right
+      - "\U000F0054" # arrow-right
+      - "\U000F093C" # arrow-split-vertical
+      - "\U000F005B" # arrow-top-left
+      - "\U000F005C" # arrow-top-right
+      - "\U000F06C3" # arrow-up-box
+      - "\U000F093D" # audio-video
+      - "\U000F11B6" # audio-video-off
+      - "\U000F0079" # battery
+      - "\U000F007A" # battery-10
+      - "\U000F007B" # battery-20
+      - "\U000F007C" # battery-30
+      - "\U000F007D" # battery-40
+      - "\U000F007E" # battery-50
+      - "\U000F007F" # battery-60
+      - "\U000F0080" # battery-70
+      - "\U000F0081" # battery-80
+      - "\U000F0082" # battery-90
+      - "\U000F0083" # battery-alert
+      - "\U000F0084" # battery-charging
+      - "\U000F008E" # battery-outline
+      - "\U000F0091" # battery-unknown
+      - "\U000F1A2B" # blinds-horizontal
+      - "\U000F1A2C" # blinds-horizontal-closed
+      - "\U000F00AF" # bluetooth
+      - "\U000F00B1" # bluetooth-connect
+      - "\U000F00DE" # brightness-5
+      - "\U000F00E0" # brightness-7
+      - "\U000F1B50" # button-pointer
+      - "\U000F010C" # car-battery
+      - "\U000F1019" # car-coolant-level
+      - "\U000F0114" # cash
+      - "\U000F0119" # cast-connected
+      - "\U000F078A" # cast-off
+      - "\U000F05E0" # check-circle
+      - "\U000F05E1" # check-circle-outline
+      - "\U000F0C54" # check-network-outline
+      - "\U000F0133" # checkbox-marked-circle
+      - "\U000F0AA5" # circle-slice-8
+      - "\U000F0954" # clock
+      - "\U000F0155" # clock-start
+      - "\U000F015A" # close-circle-outline
+      - "\U000F0C5F" # close-network-outline
+      - "\U000F1382" # compass-rose
+      - "\U000F01A1" # crop-portrait
+      - "\U000F1136" # crosshairs-question
+      - "\U000F1480" # current-ac
+      - "\U000F01BC" # database
+      - "\U000F07C5" # ear-hearing
+      - "\U000F0208" # eye
+      - "\U000F0D04" # eye-check
+      - "\U000F081D" # fan-off
+      - "\U000F0279" # format-list-bulleted
+      - "\U000F06DA" # garage-open
+      - "\U000F0299" # gate
+      - "\U000F116A" # gate-open
+      - "\U000F06A1" # home-outline
+      - "\U000F0318" # lan-connect
+      - "\U000F0319" # lan-disconnect
+      - "\U000F140B" # lightning-bolt
+      - "\U000F08EE" # lock-alert
+      - "\U000F097F" # lock-clock
+      - "\U000F033F" # lock-open
+      - "\U000F0BAC" # molecule
+      - "\U000F12FE" # molecule-co
+      - "\U000F1435" # motion-sensor-off
+      - "\U000F038A" # music-note-off
+      - "\U000F03C3" # octagon
+      - "\U000F03D3" # package
+      - "\U000F03D5" # package-up
+      - "\U000F17C5" # ph
+      - "\U000F184D" # pipe-valve
+      - "\U000F06A6" # power-plug-off
+      - "\U000F0996" # progress-clock
+      - "\U000F1A23" # projector-off
+      - "\U000F043C" # radioactive
+      - "\U000F0445" # ray-vertex
+      - "\U000F1A6B" # roller-shade
+      - "\U000F06A9" # robot
+      - "\U000F169F" # robot-confused
+      - "\U000F16A7" # robot-off
+      - "\U000F0454" # remote
+      - "\U000F0EC4" # remote-off
+      - "\U000F1727" # script-text-play
+      - "\U000F0483" # security
+      - "\U000F0498" # shield
+      - "\U000F06BB" # shield-airplane
+      - "\U000F099D" # shield-lock
+      - "\U000F1828" # shield-moon
+      - "\U000F099E" # shield-off
+      - "\U000F0499" # shield-outline
+      - "\U000F095B" # sine-wave
+      - "\U000F192E" # smoke-detector-alert
+      - "\U000F180B" # smoke-detector-variant
+      - "\U000F1930" # smoke-detector-variant-alert
+      - "\U000F04C4" # speaker-off
+      - "\U000F1B73" # speaker-pause
+      - "\U000F1B72" # speaker-play
+      - "\U000F04C5" # speedometer
+      - "\U000F0674" # creation
+      - "\U000F0E0C" # palette-outline
+      - "\U000F0411" # playlist-play
+      - "\U000F08FF" # play-speed
+      - "\U000F00DF" # brightness-6
+      - "\U000F1429" # spoon-sugar
+      - "\U000F0E67" # sprout-outline
+      - "\U000F0764" # square
+      - "\U000F0763" # square-outline
+      - "\U000F1A75" # storage-tank
+      - "\U000F17FE" # sun-wireless
+      - "\U000F083B" # television-off
+      - "\U000F0F89" # television-pause
+      - "\U000F0ECF" # television-play
+      - "\U000F0FE6" # texture-box
+      - "\U000F0510" # thermometer-lines
+      - "\U000F1A25" # toggle-switch-variant
+      - "\U000F1A26" # toggle-switch-variant-off
+      - "\U000F0D3E" # transmission-tower
+      - "\U000F0566" # vibrate
+      - "\U000F11B4" # water-boiler-off
+      - "\U000F058D" # water-off
+      - "\U000F1855" # water-opacity
+      - "\U000F05A1" # weight
+      - "\U000F05A9" # wifi
+      - "\U000F05AE" # window-closed
+      - "\U000F05B1" # window-open
+      - "\U000F068F" # baby-carriage
+      - "\U000F09DE" # circle-medium
+      - "\U000F032A" # leaf
+      - "\U000F0904" # power-sleep
+      - "\U000F18F2" # refresh-auto
+      - "\U000F14DE" # rocket-launch
+
+  - file: "${FONT_DIR}/materialdesignicons-webfont.ttf"
+    id: materialdesign_icons_mini
+    size: ${FONT_ICON_MINI_SIZE}
+    bpp: ${FONT_ICON_BPP}
+    glyphs: *tile_icons
+
+  # Back in the home key's place, as tall as the Tessera mark (tessera_mark_bar): chevron-left is 12 of the font's 24
+  # units tall, so a font of twice the mark's side draws it at the mark's height, without a runtime image-scaling buffer.
+  - file: "${FONT_DIR}/materialdesignicons-webfont.ttf"
+    id: materialdesign_icons_back
+    size: ${ (((FONT_ICON_HOME_SIZE | int) * 17 / 24) | round | int) * 2 }
+    bpp: ${FONT_ICON_BPP}
+    glyphs: ["\U000F0141"]
+
+  # The top bar's Wi-Fi item (firmware 0.38.0): four bars down to one and struck through, at the size of the bar's icons.
+  # A font of their own, so the three fonts of the tile icons carry none of them. And the battery item's icons that the
+  # tile icons lack (firmware 0.41.0, battery_status::icon): the charging ones per ten percent, the charging outline and
+  # the alert outline. Its level icons, battery-unknown and the full charging one are tile icons already.
+  - file: "${FONT_DIR}/materialdesignicons-webfont.ttf"
+    id: materialdesign_icons_status
+    size: ${FONT_ICON_MINI_SIZE}
+    bpp: ${FONT_ICON_BPP}
+    glyphs: ["\U000F092E", "\U000F091F", "\U000F0922", "\U000F0925", "\U000F0928",
+             "\U000F089C", "\U000F0086", "\U000F0087", "\U000F0088", "\U000F089D",
+             "\U000F0089", "\U000F089E", "\U000F008A", "\U000F008B", "\U000F089F", "\U000F10CD"]
+
+  # The large icon of a card that takes the whole page (firmware 0.2.62+): the domain icons only,
+  # so the flash stays free for other things; a chosen icon outside this set keeps its usual size.
+  - file: "${FONT_DIR}/materialdesignicons-webfont.ttf"
+    id: materialdesign_icons_big
+    size: ${FONT_ICON_BIG_SIZE}
+    bpp: ${FONT_ICON_BPP}
+    glyphs: &tile_icons_big  # GENERATED by tools/generate_icons.py from screen_manager/app/tile_icons.py
+      - "\U000F0335" # lightbulb
+      - "\U000F001B" # air-conditioner
+      - "\U000F1099" # air-humidifier
+      - "\U000F070D" # robot-vacuum
+      - "\U000F0210" # fan
+      - "\U000F111C" # window-shutter
+      - "\U000F04B9" # sofa
+      - "\U000F06A9" # robot
+      - "\U000F0454" # remote
+      - "\U000F029A" # gauge
+      - "\U000F051B" # timer-outline
+      - "\U000F0004" # account
+      - "\U000F07AE" # cctv
+      - "\U000F0150" # clock-outline
+      - "\U000F0493" # cog
+      - "\U000F034E" # map-marker
+      - "\U000F0054" # arrow-right
+      - "\U000F0E4F" # lightbulb-off
+      - "\U000F16A7" # robot-off
+      - "\U000F0EC4" # remote-off
+      - "\U000F1466" # air-humidifier-off
+      - "\U000F00EF" # calendar-check
+      - "\U000F00EE" # calendar-blank
+      - "\U000F0425" # power
+      - "\U000F0599" # weather-sunny
+      - "\U000F0594" # weather-night
+      - "\U000F0590" # weather-cloudy
+      - "\U000F0595" # weather-partly-cloudy
+      - "\U000F0597" # weather-rainy
+      - "\U000F0596" # weather-pouring
+      - "\U000F0598" # weather-snowy
+      - "\U000F067F" # weather-snowy-rainy
+      - "\U000F0591" # weather-fog
+      - "\U000F0592" # weather-hail
+      - "\U000F0593" # weather-lightning
+      - "\U000F067E" # weather-lightning-rainy
+      - "\U000F059D" # weather-windy
+      - "\U000F05D6" # alert-circle-outline
+      - "\U000F059C" # weather-sunset-up
+      - "\U000F059B" # weather-sunset-down
+
+
+  - file: "${FONT_DIR}/materialdesignicons-webfont.ttf"
+    id: watch_icon
+    size: ${FONT_WATCH_ICON_SIZE}
+    bpp: ${FONT_ICON_BPP}
+    glyphs: *tile_icons
+
+# Make memory visible: this board has no PSRAM, so the free heap determines
+# how much UI still fits. Also shows up as an entity in Home Assistant.
+debug:
+  # Heap figures every five minutes: enough to spot a leak, few recorder rows.
+  update_interval: 300s
+
+sensor:
+  - platform: debug
+    free:
+      name: "Heap Free"
+      id: heap_free
+      on_value:
+        - lambda: |-
+            ESP_LOGI("health", "free_heap=%.0f", x);
+            #ifdef USE_ESP32
+            // The part of it a byte-wise malloc can use (firmware 0.34.0+): on the classic ESP32 the figure above also
+            // counts IRAM that takes 32-bit words only. The tile budget and LVGL's own buffers live on this one.
+            // `room=measuring` until a layout has settled (firmware 0.51.0).
+            if (runtime_tiles::memory_known(esphome::millis()))
+              ESP_LOGI("health", "free_8bit=%u room=%u", (unsigned) heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                       (unsigned) runtime_tiles::memory_room(esphome::millis()));
+            else
+              ESP_LOGI("health", "free_8bit=%u room=measuring", (unsigned) heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+            // The least stack the loop task (LVGL, the tiles, the API) ever had left since boot: a layout replacement
+            // runs deepest. loop_task_stack_size in hardware/esp-idf.yaml is sized from this line (firmware 0.3.1+).
+            ESP_LOGI("health", "loop_stack_min_free=%u", (unsigned) uxTaskGetStackHighWaterMark(nullptr));
+            // Pages kept whole and pictures kept (firmware 0.3.2+): what they hold, and the PSRAM left beside them.
+            ESP_LOGI("health", "kept_pages=%u pictures=%u B psram_free=%u", runtime_tiles::kept_count(),
+                     (unsigned) runtime_tiles::pictures.size(), (unsigned) heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+            #endif
+    fragmentation:
+      name: "Heap Fragmentation"
+    block:
+      name: "Heap Largest Block"
+      on_value:
+        - lambda: 'ESP_LOGI("health", "largest_block=%.0f", x);'
+    # The lowest free heap since boot: what the busiest moment (boot sync, a swipe) left over.
+    min_free:
+      name: "Heap Minimum Free"
+      on_value:
+        - lambda: 'ESP_LOGI("health", "min_free=%.0f", x);'
+  # The other half of the memory (firmware 0.2.83+). The four figures above are ESPHome's debug platform, and on
+  # an ESP32 all four read MALLOC_CAP_INTERNAL: the memory inside the chip, which is what the Wi-Fi link, the API
+  # and LVGL live on. A picture is allocated with ESPHome's RAMAllocator, which prefers that same memory and only
+  # falls back to PSRAM when the block does not fit, so a board's picture sizes follow from both halves and not
+  # from how much PSRAM it has. These two say what the other half holds; a board without PSRAM reports zero.
+  - platform: template
+    name: "Psram Free"
+    id: psram_free
+    unit_of_measurement: B
+    accuracy_decimals: 0
+    entity_category: diagnostic
+    update_interval: 300s
+    lambda: |-
+      #ifdef USE_ESP32
+        return heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+      #else
+        return 0;
+      #endif
+  # A picture needs one block, not a total: 2 MB free in ten pieces holds no 2 MB picture.
+  # Read only while the glass is dark (firmware 0.3.2+): finding the largest block walks the whole PSRAM heap with its
+  # lock held and this core's interrupts off, 1.7 to 2.3 ms on the 4-inch Guition, and an RGB panel refills its bounce
+  # buffer from an interrupt every 0.34 ms. Once every five minutes a lit screen showed a shifted frame; a dark one
+  # shows nothing, so the figure waits for standby at level 0 or Sleep and keeps its last value until then.
+  - platform: template
+    name: "Psram Largest Block"
+    id: psram_largest
+    unit_of_measurement: B
+    accuracy_decimals: 0
+    entity_category: diagnostic
+    update_interval: 300s
+    lambda: |-
+      #ifdef USE_ESP32
+        if (!heap_caps_get_total_size(MALLOC_CAP_SPIRAM)) return 0;
+        if (!id(display_dimmed) || runtime_tiles::standby_level() != 0) return {};
+        return heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM);
+      #else
+        return 0;
+      #endif
+  - platform: wifi_signal
+    name: "Wifi Signal"
+    update_interval: 600s
+
+  # When the screen booted, as a timestamp: one value per boot instead of a new recorder
+  # row every 15 s. A new entity on purpose: Home Assistant keeps the old Uptime's unit
+  # "s" in its registry and would refuse a timestamp under that name.
+  - platform: uptime
+    type: timestamp
+    name: "Last boot"
+    id: boot_time
+
+
+binary_sensor:
+  - platform: status
+    name: "Node Status"
+    id: system_status
+
+# ----------------------------------------------------------
+# Text sensors
+#
+# smartdisplay_action:
+# - Main touch event channel exported to Home Assistant
+# - On short tap, publishes one of:
+#     tile1_press / tile2_press / tile3_press / tile4_press / tile5_press / tile6_press
+# - The value is reset shortly after publishing
+#
+# tile*_preset:
+# - Mirrors the Home Assistant preset_mode attribute for each tile entity
+# - Used by the UI to display fan presets when applicable
+# ----------------------------------------------------------
+text_sensor:
+  - platform: template
+    name: "Screen firmware"
+    entity_category: diagnostic
+    lambda: 'return {"${SCREEN_FIRMWARE_VERSION}"};'
+    update_interval: 60s
+  # The shape of this screen (firmware 0.2.80+): the canvas LVGL draws on, the grid of cells a page holds, the
+  # pixel density and the look ("800x480 3x3 217dpi standard"), so ESP Screens knows what a screen looks like
+  # instead of guessing from the board it was built for (core.parse_shape reads it). The canvas follows the
+  # rotation, which is why it is read from the display and not from the board file.
+  - platform: template
+    id: screen_layout
+    name: "Screen layout"
+    entity_category: diagnostic
+    lambda: |-
+      char text[48];
+      auto *display = lv_display_get_default();
+      snprintf(text, sizeof(text), "%dx%d %dx%d %ddpi %s", (int) lv_display_get_horizontal_resolution(display),
+               (int) lv_display_get_vertical_resolution(display), (int) runtime_tiles::grid.columns, (int) runtime_tiles::grid.rows,
+               ui::dpi, ui::large() ? "standard" : "compact");
+      return {std::string(text)};
+    update_interval: 60s
+  # Which board this is (firmware 0.2.80): the key of its file in packages/boards, so ESP Screens knows what a
+  # screen can do without a sensor per board. It used to read a "Guition screen type" sensor that only the
+  # Guition had, so every other board was "unknown" and camera tiles were refused on all of them.
+  - platform: template
+    name: "Screen board"
+    entity_category: diagnostic
+    lambda: 'return {"${BOARD_ID}"};'
+    update_interval: 60s
+  # What this screen is able to do (firmware 0.2.99+): the words of settings_screen::features(), which is where the
+  # list of abilities lives. ESP Screens used to read these facts from a table it keeps per board (boards.json),
+  # which is right until a board is changed: a Waveshare whose backlight was rewired to a PWM pin
+  # (docs/WAVESHARE7.md) really does dim, and the table would keep saying it cannot. So the screen says it itself,
+  # and the app falls back to the table only for firmware from before this sensor and for a screen that is offline.
+  # docs/ADDING_A_BOARD.md says how an ability is added.
+  - platform: template
+    name: "Screen features"
+    entity_category: diagnostic
+    lambda: 'return {settings_screen::features()};'
+    update_interval: 60s
+  # The language this firmware was built in (0.2.90+): ESP Screens offers an update when it differs from the chosen one.
+  - platform: template
+    name: "Screen language"
+    entity_category: diagnostic
+    lambda: 'return {screen_text::LANGUAGE};'
+    update_interval: 60s
+  # ESP Screen Manager matches the screen to its YAML profile and OTA address.
+  - platform: template
+    name: "Device name"
+    entity_category: diagnostic
+    lambda: 'return {"${DEVICE_NAME}"};'
+    update_interval: 60s
+  - platform: wifi_info
+    ip_address:
+      # `id` so the settings page on the screen can show the same address (0.2.44+).
+      id: wifi_ip
+      name: "IP address"
+      entity_category: diagnostic
+
+# Turning the screen as a Home Assistant choice (firmware 0.2.80+). Every screen offers the half turn, which keeps
+# its canvas and its grid; square glass the quarter turns as well, whose canvas is the same either way
+# (settings_screen::quarter_turns in on_boot). The screen applies the angle on top of the way it hangs
+# (runtime_tiles::base_turn: LVGL_ROTATION, or the way ESP Screens stood it up or laid it down).
+select:
+  - platform: template
+    id: setting_rotation
+    name: "Rotation"
+    icon: "mdi:screen-rotation"
+    entity_category: config
+    options: ${ ["0°", "90°", "180°", "270°"] if PANEL_W == PANEL_H else ["0°", "180°"] }
+    update_interval: never
+    lambda: 'return std::to_string(settings_screen::rotation) + "°";'
+    set_action:
+      - lambda: |-
+          const std::string option(x.c_str(), x.size());
+          settings_screen::set("rotation", atoi(option.c_str()));
+
+# The touch panel the board names (`id: ts_touch`) turns with the display, through LVGL; these say how the
+# panel's own axes lie against the display's pixels.
+touchscreen:
+  - id: !extend ts_touch
+    transform:
+      swap_xy: ${TOUCH_SWAP_XY}
+      mirror_x: ${TOUCH_MIRROR_X}
+      mirror_y: ${TOUCH_MIRROR_Y}
+
+switch:
+  - platform: restart
+    name: "Restart"
+  # The screen settings as Home Assistant entities (firmware 0.2.49+, Auto standby since 0.2.41). The screen
+  # owns them: the settings page, these entities and ESP Screens all change them through
+  # settings_screen::set(), which saves, applies and reports a real change only. The saved values keep
+  # their preference records. A template switch reads its lambda every loop and publishes a change itself;
+  # the numbers and times are published by apply_screen_settings. Auto standby off wakes a screen the
+  # standby time dimmed (a Sleep holds until a tap, Wake or an alert); on counts the standby time from that
+  # moment. Nothing runs at boot: every switch follows the saved setting.
+  - platform: template
+    id: setting_auto_standby
+    name: "Auto standby"
+    icon: "mdi:sleep"
+    entity_category: config
+    restore_mode: DISABLED
+    lambda: return screen_settings::current.standby_enabled;
+    turn_on_action:
+      - lambda: |-
+          id(last_touch_ms) = millis();
+          settings_screen::set("standby_enabled", 1);
+    turn_off_action:
+      - lambda: 'settings_screen::set("standby_enabled", 0);'
+  - platform: template
+    id: setting_night_mode
+    name: "Night mode"
+    icon: "mdi:weather-night"
+    entity_category: config
+    restore_mode: DISABLED
+    lambda: return screen_settings::current.night_enabled;
+    turn_on_action:
+      - lambda: 'settings_screen::set("night_enabled", 1);'
+    turn_off_action:
+      - lambda: 'settings_screen::set("night_enabled", 0);'
+  # The dark look for a screen beside a bed (firmware 0.2.54+): black page, graphite cards, soft white text.
+  - platform: template
+    id: setting_dark_mode
+    name: "Dark mode"
+    icon: "mdi:theme-light-dark"
+    entity_category: config
+    restore_mode: DISABLED
+    lambda: return settings_screen::dark_mode != 0;
+    turn_on_action:
+      - lambda: 'settings_screen::set("dark_mode", 1);'
+    turn_off_action:
+      - lambda: 'settings_screen::set("dark_mode", 0);'
+  - platform: template
+    id: setting_auto_home
+    name: "Back to page 1"
+    icon: "mdi:home-import-outline"
+    entity_category: config
+    restore_mode: DISABLED
+    lambda: return settings_screen::auto_home != 0;
+    turn_on_action:
+      - lambda: 'settings_screen::set("auto_home", 1);'
+    turn_off_action:
+      - lambda: 'settings_screen::set("auto_home", 0);'
+  - platform: template
+    id: setting_home_on_standby
+    name: "Back to page 1 on standby"
+    icon: "mdi:home-import-outline"
+    entity_category: config
+    restore_mode: DISABLED
+    lambda: return screen_settings::current.home_on_standby;
+    turn_on_action:
+      - lambda: 'settings_screen::set("home_on_standby", 1);'
+    turn_off_action:
+      - lambda: 'settings_screen::set("home_on_standby", 0);'
+  - platform: template
+    id: setting_swipe_pages
+    name: "Swipe between pages"
+    icon: "mdi:gesture-swipe-horizontal"
+    entity_category: config
+    restore_mode: DISABLED
+    lambda: return settings_screen::swipe_pages != 0;
+    turn_on_action:
+      - lambda: 'settings_screen::set("swipe_pages", 1);'
+    turn_off_action:
+      - lambda: 'settings_screen::set("swipe_pages", 0);'
+  # Off, the Previous and Next bar under the tiles goes and the tiles take its room (firmware 0.2.69+).
+  - platform: template
+    id: setting_page_buttons
+    name: "Page buttons"
+    icon: "mdi:page-next-outline"
+    entity_category: config
+    restore_mode: DISABLED
+    lambda: return settings_screen::page_buttons != 0;
+    turn_on_action:
+      - lambda: 'settings_screen::set("page_buttons", 1);'
+    turn_off_action:
+      - lambda: 'settings_screen::set("page_buttons", 0);'
+  # The house at the far left returns to the configured Home page (firmware 0.3.0+).
+  # A detail page with hidden bottom navigation uses this position for Back, even when Home is disabled.
+  - platform: template
+    id: setting_home_button
+    name: "Show home button"
+    icon: "mdi:home"
+    entity_category: config
+    restore_mode: DISABLED
+    lambda: return settings_screen::home_button != 0;
+    turn_on_action:
+      - lambda: 'settings_screen::set("home_button", 1);'
+    turn_off_action:
+      - lambda: 'settings_screen::set("home_button", 0);'
+
+# Night hours as Home Assistant times (firmware 0.2.49+); the screen keeps minutes since midnight.
+datetime:
+  - platform: template
+    type: time
+    id: setting_night_start
+    name: "Night starts"
+    icon: "mdi:weather-sunset-down"
+    entity_category: config
+    update_interval: never
+    lambda: |-
+      ESPTime time{};
+      time.hour = screen_settings::current.night_start / 60;
+      time.minute = screen_settings::current.night_start % 60;
+      return time;
+    set_action:
+      - lambda: 'settings_screen::set("night_start", x.hour * 60 + x.minute);'
+  - platform: template
+    type: time
+    id: setting_night_end
+    name: "Night ends"
+    icon: "mdi:weather-sunset-up"
+    entity_category: config
+    update_interval: never
+    lambda: |-
+      ESPTime time{};
+      time.hour = screen_settings::current.night_end / 60;
+      time.minute = screen_settings::current.night_end % 60;
+      return time;
+    set_action:
+      - lambda: 'settings_screen::set("night_end", x.hour * 60 + x.minute);'
+
+lvgl:
+  id: screen_lvgl
+  # LVGL's own warnings stay out of the firmware (firmware 0.3.1): about 6 KB on the CYD, whose flash is the tightest.
+  # Errors are still logged, and the firmware's own lines (health, ui_test, touch) are ESPHome's logger, not LVGL's.
+  log_level: ERROR
+  # The theme's font for text without a font of its own. Every label names its font, so this only keeps
+  # ESPHome from building LVGL's Montserrat 14 for nothing (firmware 0.2.65+).
+  default_font: ${LVGL_DEFAULT_FONT}
+  on_draw_start:
+    - lambda: 'id(rendered_frames)++;'
+  displays:
+    - my_display
+  touchscreens:
+    - touchscreen_id: ts_touch
+
+  buffer_size: ${LVGL_BUFFER_SIZE}
+
+  # Direct local feedback on the WHOLE UI. A theme sets the style per widget type, so this covers all
+  # buttons, tabs, sliders and the thermostat ring in one go. Non-clickable widgets never enter the
+  # pressed state, so those stay untouched. The cards have a press of their own since firmware 0.2.95
+  # (runtime_tiles::press_feedback): a darker shade of the card the moment the finger lands, fading
+  # back over 200 ms when it lifts, LVGL's own style transition on the card alone.
+  theme:
+    obj:
+      pressed:
+        # bg_opa and not opa: opa would also fade the icon and text. Styles that
+        # make LVGL draw into a buffer of its own (opa_layered, rotation/scale,
+        # clip_corner, a slider fill rounded less than its track) cost KB's per
+        # redraw that the CYD's heap can't spare; tests/test_layer_free.py.
+        bg_opa: 45%
+    slider:
+      knob:
+        pressed:
+          bg_opa: 65%
+    arc:
+      knob:
+        pressed:
+          bg_opa: 65%
+
+  # LVGL owns the rotation (display + touch) since ESPHome 2026.4.
+  rotation: ${LVGL_ROTATION}
+
+  style_definitions:
+    # The page behind the tiles and the cards: one colour from the theme (theme.h PAGE), no wallpaper and no
+    # gradient, so a redraw is a plain fill.
+    - id: style_page
+      bg_opa: COVER
+      border_width: 0
+      radius: 0
+
+    - id: style_tile
+      bg_opa: COVER
+      radius: ${TILE_RADIUS}
+      border_width: 1
+      border_opa: COVER
+      pad_left: ${TILE_PAD}
+      pad_right: ${TILE_PAD}
+      pad_top: ${TILE_PAD}
+      pad_bottom: ${TILE_PAD}
+      shadow_width: 0
+      shadow_opa: 40%
+
+    - id: style_icon_circle
+      bg_opa: COVER
+      radius: 999
+      border_width: 0
+
+    - id: style_room
+      text_font: headline
+      text_opa: 100%
+
+    - id: style_time
+      # The top bar's clock anchor is never shown (page_header.h draws the bar); it keeps the headline's letters.
+      text_font: headline
+      text_opa: 100%
+
+    - id: style_title
+      text_font: label
+      text_opa: 100%
+
+    - id: style_value
+      text_font: sublabel
+      text_opa: 100%
+
+    - id: style_value_big
+      text_font: sublabel_big
+      text_opa: 80%
+
+    # Paints: shared styles without a colour of their own. theme.h fills them (the list in on_boot, theme::paints)
+    # and fills them again when Dark mode changes, so a widget names a paint where it used to write a colour.
+    - id: paint_page_soft
+    - id: paint_raised
+    - id: paint_key
+    - id: paint_key_pressed
+    - id: paint_ink
+    - id: paint_ink_soft
+    - id: paint_scrim
+    - id: paint_button_dark
+    - id: paint_button_dark_pressed
+
+  # ---------- ALERT OVERLAY (HA action show_alert) ----------
+  # LVGL's top layer sits above every page, card and the dim overlay; the card
+  # is filled by the alert_show script. Fixed positions, no layout engine.
+  top_layer:
+    widgets:
+      - obj:
+          id: alert_overlay
+          x: 0
+          y: 0
+          # The glass it is on, whichever way that hangs (firmware 0.2.92+).
+          width: 100%
+          height: 100%
+          hidden: true
+          styles: paint_scrim
+          bg_opa: 60%
+          radius: 0
+          border_width: 0
+          pad_all: 0
+          clickable: true
+          scrollable: false
+          scrollbar_mode: 'OFF'
+          # Same look when pressed: a tap next to the card must not repaint the screen.
+          pressed:
+            bg_opa: 60%
+          widgets:
+            # Every size and place of the card and its parts is worked out on this screen's glass at boot
+            # (screen_alert::layout, runtime_tiles::alert_place): none is written here.
+            - obj:
+                id: alert_card
+                align: CENTER
+                styles: paint_raised
+                bg_opa: COVER
+                radius: 18
+                border_width: 1
+                border_opa: COVER
+                shadow_width: 0
+                pad_all: 0
+                clickable: false
+                scrollable: false
+                scrollbar_mode: 'OFF'
+                widgets:
+                  - label:
+                      id: alert_icon
+                      text: "\U000F002A"
+                      text_font: materialdesign_icons
+                      clickable: false
+                  - label:
+                      id: alert_title
+                      long_mode: DOT
+                      text: !lambda 'return std::string(screen_text::tr(screen_text::txt::alert_notification));'
+                      text_font: headline
+                      clickable: false
+                  - label:
+                      id: alert_subtitle
+                      long_mode: DOT
+                      text: ""
+                      text_font: sublabel_big
+                      styles: paint_ink_soft
+                      clickable: false
+                  - obj:
+                      id: alert_ok
+                      align: BOTTOM_RIGHT
+                      radius: 999
+                      styles: paint_button_dark
+                      bg_opa: COVER
+                      border_width: 0
+                      shadow_width: 0
+                      pad_all: 0
+                      clickable: true
+                      scrollable: false
+                      pressed:
+                        styles: paint_button_dark_pressed
+                        bg_opa: COVER
+                      on_click:
+                        - if:
+                            condition:
+                              lambda: 'return screen_input::touch_guard.accept(millis(), 13);'
+                            then:
+                              - script.execute:
+                                  id: alert_dismiss
+                                  reason: "ok"
+                      widgets:
+                        - label:
+                            id: alert_ok_label
+                            align: CENTER
+                            long_mode: DOT
+                            text_align: CENTER
+                            text: !lambda 'return std::string(screen_text::tr(screen_text::txt::alert_ok));'
+                            text_font: headline
+                            clickable: false
+                  # The second button (show_alert_choice, firmware 0.3.3+): the left half of the row, the first the right,
+                  # in a quieter key unless the automation names a colour. Hidden on an alert with one button.
+                  - obj:
+                      id: alert_button2
+                      align: BOTTOM_RIGHT
+                      hidden: true
+                      radius: 999
+                      styles: paint_key
+                      bg_opa: COVER
+                      border_width: 0
+                      shadow_width: 0
+                      pad_all: 0
+                      clickable: true
+                      scrollable: false
+                      pressed:
+                        styles: paint_key_pressed
+                        bg_opa: COVER
+                      on_click:
+                        - if:
+                            condition:
+                              lambda: 'return screen_input::touch_guard.accept(millis(), 13);'
+                            then:
+                              - script.execute:
+                                  id: alert_dismiss
+                                  reason: "button2"
+                      widgets:
+                        - label:
+                            id: alert_button2_label
+                            align: CENTER
+                            long_mode: DOT
+                            text_align: CENTER
+                            text: ""
+                            text_font: headline
+                            clickable: false
+
+  pages:
+    - id: home_page
+      styles: style_page
+      pad_all: 0
+      scrollable: false
+      scrollbar_mode: 'OFF'
+      widgets:
+        # Never shown: it only makes ESPHome compile LVGL's spinner, which the busy sheet on a tile draws.
+        - spinner:
+            id: busy_spinner_seed
+            hidden: true
+            width: 2
+            height: 2
+            spin_time: 1s
+            arc_length: 60deg
+        # Never shown either: it makes ESPHome compile LVGL's image widget, which the starting screen's Tessera mark is
+        # drawn with on every board (firmware 0.3.8+).
+        - image:
+            id: brand_mark_seed
+            hidden: true
+            src: tessera_mark
+        # Never shown either: it makes ESPHome compile LVGL's roller, the drum a light's effects page picks from
+        # (firmware 0.2.70+).
+        - roller:
+            id: roller_seed
+            hidden: true
+            width: 2
+            height: 2
+            options: ["-"]
+        - label:
+            id: lbl_room
+            x: ${HEADER_INSET}
+            # page_header::Renderer moves it down until the top bar keeps HEADER_INSET from the top as well.
+            y: 0
+            text: "${ROOM_NAME}"
+            styles: style_room
+
+        # Enables LVGL's line widget for the runtime clock hands and sparklines.
+        - line:
+            id: runtime_line_enable
+            hidden: true
+            points:
+              - 0, 0
+              - 1, 1
+
+        - label:
+            id: lbl_time
+            align: TOP_RIGHT
+            x: -${HEADER_INSET}
+            y: 0
+            text: ""
+            styles: style_time
+
+        # The tile area: the cards of the page on the glass, in the cells of the grid. No dragging on resistive glass.
+        - obj:
+            id: tile_scroll
+            x: 0
+            y: ${SCROLL_Y}
+            # Width and height come from the canvas at boot (runtime_tiles::grid_bind, firmware 0.2.92+): the
+            # area runs the full width and stops where the page bar starts, whichever way the glass hangs.
+            # These two are only the seed LVGL builds the object with.
+            width: 1
+            height: 1
+            bg_opa: TRANSP
+            # The cells of the grid the screen runs on (the board's GRID_COLS x GRID_ROWS, or the one ESP Screens gave
+            # it, firmware 0.53.0+). The rows and columns are free units, so LVGL divides the area over them and keeps
+            # the gaps; runtime_tiles::grid_cells sets the numbers at boot and on a new grid (a layout of one cell here
+            # is enough for LVGL's grid to be built in) and place_page only says which cell a card takes. Every card
+            # starts in the first cell, hence multiple_widgets_per_cell.
+            layout:
+              type: GRID
+              grid_rows: 1
+              grid_columns: 1
+              multiple_widgets_per_cell: true
+              grid_cell_x_align: STRETCH
+              grid_cell_y_align: STRETCH
+              # The gaps between the cards.
+              pad_row: ${GRID_GAP_Y}
+              pad_column: ${GRID_GAP_X}
+            # A tap between two tiles presses this area: without its own pressed style the
+            # theme's 45 % lights it up as a pale panel behind the tiles.
+            pressed:
+              bg_opa: TRANSP
+            border_width: 0
+            # The margin the cards keep from the sides of the glass.
+            pad_left: ${GRID_MARGIN}
+            pad_right: ${GRID_MARGIN}
+            pad_top: 0
+            pad_bottom: 0
+            scrollable: false
+            scrollbar_mode: 'OFF'
+            # The cards themselves are made at boot, one per cell of the grid (runtime_tiles::make_cells); ESPHome
+            # asks a grid for its widgets key all the same.
+            widgets: []
+
+        # ---------- VALUE SLIDER OVERLAY ----------
+        # ---------- PAGE NAVIGATION: the band under the tiles ----------
+        # Each half of the band is one key (firmware 0.2.69+): a chevron in its corner, lit up under a finger, and the
+        # page dots between them. The band reaches from the tile area's end (SCROLL_Y + SCROLL_H) to the bottom edge.
+        - obj:
+            id: page_prev
+            align: BOTTOM_LEFT
+            x: 0
+            y: 0
+            width: 50%
+            height: ${PAGE_BAR_H}
+            pad_all: 0
+            radius: 0
+            bg_opa: TRANSP
+            border_width: 0
+            scrollable: false
+            # Its press shows as a patch around the chevron or "Back" (runtime_tiles nav_key_event), not across
+            # this half of the bar, which runs under the page dots; the half itself stays clear when pressed.
+            pressed:
+              bg_opa: TRANSP
+            # on_click: LVGL sends no short click after a press of 400 ms, so a firm or slow press did nothing
+            # (firmware 0.2.65+). The bar has no hold of its own; accept_repeat still drops bounce and a swipe.
+            on_click:
+              - if:
+                  condition:
+                    lambda: 'return screen_input::touch_guard.accept_repeat(millis(), 11);'
+                  then:
+                    - lambda: 'id(tile_page) = runtime_tiles::previous_button_page(id(tile_page));'
+                    - script.execute: show_tile_page
+            widgets:
+              - label:
+                  align: LEFT_MID
+                  x: ${GRID_MARGIN}   # runtime_tiles::nav_align puts the ink on this line
+                  text: "\U000F0141" # chevron-left
+                  text_font: materialdesign_icons_mini
+                  styles: paint_ink
+                  clickable: false
+        - obj:
+            id: page_number
+            align: BOTTOM_MID
+            y: 0
+            width: ${PAGE_NUMBER_W}
+            height: ${PAGE_BAR_H}
+            pad_all: 0
+            bg_opa: TRANSP
+            border_width: 0
+            clickable: false
+            scrollable: false
+        - obj:
+            id: page_next
+            align: BOTTOM_RIGHT
+            x: 0
+            y: 0
+            width: 50%
+            height: ${PAGE_BAR_H}
+            pad_all: 0
+            radius: 0
+            bg_opa: TRANSP
+            border_width: 0
+            scrollable: false
+            pressed:
+              bg_opa: TRANSP
+            on_click:
+              - if:
+                  condition:
+                    lambda: 'return screen_input::touch_guard.accept_repeat(millis(), 12);'
+                  then:
+                    - lambda: 'id(tile_page) = runtime_tiles::sequential_page(id(tile_page), 1);'
+                    - script.execute: show_tile_page
+            widgets:
+              - label:
+                  align: RIGHT_MID
+                  x: -${GRID_MARGIN}
+                  text: "\U000F0142" # chevron-right
+                  text_font: materialdesign_icons_mini
+                  styles: paint_ink
+                  clickable: false
+
+        # ---------- VACUUM CONTROL ----------
+        # A vacuum is not a switch: start, pause, stop and return to
+        # the dock are separate commands, and suction power is a separate axis.
+
+
+        # ---------- DIM / WAKE OVERLAY ----------
+        - obj:
+            id: dim_wake_overlay
+            x: 0
+            y: 0
+            # The glass it is on, whichever way that hangs (firmware 0.2.92+).
+            width: 100%
+            height: 100%
+            hidden: true
+            bg_opa: TRANSP
+            # The tap that wakes a dimmed screen must not light up a pale sheet over it.
+            pressed:
+              bg_opa: TRANSP
+            border_width: 0
+            scrollable: false
+            scrollbar_mode: 'OFF'
+            clickable: true
+            on_click:
+              - script.execute: wake_display
+              # A page that is one full tile switching something on or off switches with this push as well
+              # (firmware 0.2.65+, runtime_tiles::wake_tap); on every other page the first touch only wakes.
+              - lambda: 'runtime_tiles::wake_tap();'
+
+    - id: touch_cal_page
+      styles: ${TOUCH_TEST_PAGE_PAINT}
+      bg_opa: COVER
+      pad_all: 0
+      border_width: 0
+      scrollable: false
+      widgets:
+        - label:
+            align: TOP_MID
+            y: ${TOUCH_TEST_TITLE_Y}
+            text: !lambda 'return std::string(screen_text::tr(screen_text::txt::${TOUCH_TEST_TITLE}));'
+            text_font: ${TOUCH_TEST_TITLE_FONT}
+        - obj:
+            x: ${TOUCH_TEST_INSET}
+            y: ${TOUCH_TEST_INSET}
+            width: ${TOUCH_TEST_SIZE}
+            height: ${TOUCH_TEST_SIZE}
+            pad_all: 0
+            border_width: 0
+            bg_opa: TRANSP
+            scrollable: false
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "+"
+                  text_font: headline
+                  styles: ${TOUCH_TEST_PAINT}
+        - obj:
+            align: TOP_RIGHT
+            x: -${TOUCH_TEST_INSET}
+            y: ${TOUCH_TEST_INSET}
+            width: ${TOUCH_TEST_SIZE}
+            height: ${TOUCH_TEST_SIZE}
+            pad_all: 0
+            border_width: 0
+            bg_opa: TRANSP
+            scrollable: false
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "+"
+                  text_font: headline
+                  styles: ${TOUCH_TEST_PAINT}
+        - obj:
+            align: BOTTOM_RIGHT
+            x: -${TOUCH_TEST_INSET}
+            y: -${TOUCH_TEST_INSET}
+            width: ${TOUCH_TEST_SIZE}
+            height: ${TOUCH_TEST_SIZE}
+            pad_all: 0
+            border_width: 0
+            bg_opa: TRANSP
+            scrollable: false
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "+"
+                  text_font: headline
+                  styles: ${TOUCH_TEST_PAINT}
+        - obj:
+            align: BOTTOM_LEFT
+            x: ${TOUCH_TEST_INSET}
+            y: -${TOUCH_TEST_INSET}
+            width: ${TOUCH_TEST_SIZE}
+            height: ${TOUCH_TEST_SIZE}
+            pad_all: 0
+            border_width: 0
+            bg_opa: TRANSP
+            scrollable: false
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "+"
+                  text_font: headline
+                  styles: ${TOUCH_TEST_PAINT}
+        - obj:
+            align: CENTER
+            x: 0
+            y: 0
+            width: ${TOUCH_TEST_SIZE}
+            height: ${TOUCH_TEST_SIZE}
+            pad_all: 0
+            border_width: 0
+            bg_opa: TRANSP
+            scrollable: false
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "+"
+                  text_font: headline
+                  styles: ${TOUCH_TEST_PAINT}
+
+script:
+  - id: show_tile_page
+    then:
+      - lambda: |-
+          if(runtime_tiles::enabled){
+            runtime_tiles::show_page(id(tile_page),id(page_prev),id(page_next),id(page_number));
+            return;
+          }
+          // Before ESP Screens has sent a layout there is nothing to place: the grid's cells stay empty and the
+          // page keys stay away. Every card is placed by runtime_tiles::place_page once the first layout arrives.
+          for (auto &w : runtime_tiles::widgets) if (w.tile) lv_obj_add_flag(w.tile, LV_OBJ_FLAG_HIDDEN);
+          for (lv_obj_t *control : {id(page_prev), id(page_next), id(page_number)}) lv_obj_add_flag(control, LV_OBJ_FLAG_HIDDEN);
+
+  # Runtime changes do not count as touches and do not reset the idle timer.
+  - id: apply_screen_settings
+    mode: restart
+    then:
+      - lambda: |-
+          const auto &settings = screen_settings::current;
+          // Dark mode (firmware 0.2.54+): a look the screen already has costs nothing.
+          theme::set_dark(settings_screen::dark_mode != 0);
+          // Turning the screen: the chosen angle on top of the way it hangs (runtime_tiles::base_turn: LVGL_ROTATION, or
+          // the way ESP Screens stood it up or laid it down; a CYD's panel is portrait and starts at 90). LVGL turns the
+          // display and the touch together. Not while the
+          // calibration wizard measures: its crosses are laid out for the board's own orientation, and the next
+          // settings change or restart turns the screen.
+          if (runtime_tiles::enabled && !id(calibration_active)) {
+            const auto wanted = static_cast<esphome::display::DisplayRotation>((runtime_tiles::base_turn + settings_screen::rotation) % 360);
+            if (id(screen_lvgl).get_rotation() != wanted) {
+              screen_input::touch_guard.consume();
+              if (lv_indev_get_act()) lv_indev_wait_release(lv_indev_get_act());
+              id(screen_lvgl).set_rotation(wanted);
+            }
+          }
+          // Auto standby off wakes the screen, but not out of a Sleep pressed in Home Assistant.
+          if (id(display_dimmed) && !settings.standby_enabled && !id(sleep_requested)) {
+            id(display_dimmed) = false;
+          }
+          const int level = id(display_dimmed) ? runtime_tiles::standby_level() : settings.brightness;
+          ${APPLY_BACKLIGHT}
+          // Dark (standby or Sleep at level 0): the power saving of screen_power.h, once the backlight has faded out.
+          // ESPHome puts its own Wi-Fi mode back when it connects again: a dark screen dozes again within the minute.
+          if (id(display_dimmed) && level == 0) { if (screen_power::saving) screen_power::doze_wifi(true); else screen_power::rest(); }
+          else { id(screen_power_wait).stop(); screen_power::leave(); }
+          if (id(display_dimmed)) { lv_obj_clear_flag(id(dim_wake_overlay), LV_OBJ_FLAG_HIDDEN); lv_obj_move_foreground(id(dim_wake_overlay)); }
+          else lv_obj_add_flag(id(dim_wake_overlay), LV_OBJ_FLAG_HIDDEN);
+          // The screensaver (firmware 0.29.0+) in standby, at the standby level: it lies over everything on the top layer
+          // without a tap of its own, so the overlay takes the touch. Sleep pressed in Home Assistant stays without it.
+          runtime_tiles::saver_sync(id(display_dimmed) && !id(sleep_requested) && level > 0);
+          // The setting numbers and times only publish a changed value (HA keeps identical states anyway); the
+          // switches publish their own changes. An open settings page shows a change from Home Assistant too.
+          // A number without a state publishes too: a night brightness of 0 equals the number's initial state and
+          // stayed "unknown" in Home Assistant before firmware 0.2.50.
+          for (auto [entity, value] : {std::make_pair(id(setting_brightness), settings.brightness),
+                                       std::make_pair(id(setting_standby_brightness), settings.standby_brightness),
+                                       std::make_pair(id(setting_night_brightness), settings.night_brightness),
+                                       std::make_pair(id(setting_standby_seconds), settings.standby_seconds),
+                                       std::make_pair(id(setting_auto_home_seconds), settings_screen::auto_home_seconds)}) {
+            if (!entity->has_state() || entity->state != value) entity->publish_state(value);
+          }
+          for (auto [entity, minutes] : {std::make_pair(id(setting_night_start), settings.night_start), std::make_pair(id(setting_night_end), settings.night_end)}) {
+            if (!entity->has_state() || entity->hour * 60 + entity->minute != minutes) entity->update();
+          }
+          // The Rotation entity in Home Assistant follows (every board has one since firmware 0.2.80).
+          {
+            const auto shown = id(setting_rotation)->active_index();
+            const auto wanted = id(setting_rotation)->index_of(std::to_string(settings_screen::rotation) + "°");
+            if (!id(setting_rotation)->has_state() || !shown.has_value() || !wanted.has_value() || *shown != *wanted) id(setting_rotation)->update();
+          }
+          // The Page buttons setting moves the cards into the bar's room or back (firmware 0.2.69+).
+          if (runtime_tiles::enabled) runtime_tiles::page_buttons_changed();
+          settings_screen::refresh();
+          // A display setting (the clock's format, say): drawn like a minute turning (firmware 0.3.2+).
+          runtime_tiles::mark_time();
+          if (!id(ui_refresh).is_running()) id(ui_refresh).execute();
+
+  # Every card closes through runtime_tiles::dismiss (set in on_boot): the runtime detail card, the light,
+  # colour card (runtime_tiles::colour_close, through hide_detail), which the swipe guard reads.
+  - id: close_cards
+    then:
+      - lambda: 'if (runtime_tiles::dismiss) runtime_tiles::dismiss();'
+
+  # Everything back to the overview: the settings page, every card and the first page of tiles.
+  # Used by standby, by the "Back to page 1" timeout and by the Home Assistant action.
+  - id: go_home
+    then:
+      - lambda: 'settings_screen::close();'
+      - script.execute: close_cards
+      - lambda: 'runtime_tiles::navigation_history.clear(); id(tile_page) = runtime_tiles::home_page();'
+      - script.execute: show_tile_page
+
+  # Back to page 1 by itself (0.2.44+). A card, a settings page or a second page left open keeps
+  # showing what someone looked at minutes ago; after this long the screen is a screen again.
+  # Independent of standby, which may be off or much later; paused while the screen is in standby.
+  # The time runs from the last touch (last_use_ms, firmware 0.2.56+): Wake, an alert or Auto standby
+  # light the screen and restart the standby time, but nobody used a page. Checked every second and by Wake.
+  - id: back_to_page_1_when_due
+    then:
+      - if:
+          condition:
+            lambda: |-
+              if (!runtime_tiles::auto_home || id(touch_down) || id(calibration_active) || id(alert_active)) return false;
+              if (id(display_dimmed)) return false;
+              bool away = settings_screen::visible() || screen_hooks::is_away() || runtime_tiles::colour_shown() || id(tile_page) != runtime_tiles::home_page() ||
+                          (runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root, LV_OBJ_FLAG_HIDDEN));
+              return away && (millis() - id(last_use_ms)) > (uint32_t) runtime_tiles::auto_home_seconds * 1000UL;
+          then:
+            - script.execute: go_home
+
+  # ---------- ALERT (HA action show_alert) ----------
+  # The screen wakes, keeps its normal brightness and shows the card until OK or the
+  # timeout (0: until OK); the standby interval waits on alert_active. A new alert
+  # replaces the current one; every ending reports itself as esphome.screen_alert.
+  - id: alert_show
+    mode: restart
+    parameters:
+      title: string
+      subtitle: string
+      icon: string
+      color: string
+      button_text: string
+      button_color: string
+      button2_text: string
+      button2_color: string
+      timeout: int
+      flash: bool
+    then:
+      - lambda: |-
+          if (id(alert_active)) id(alert_report).execute("replaced");
+          // An alert of the screen's own (firmware 0.38.0) reports nothing to Home Assistant when it closes.
+          runtime_tiles::own_alert = runtime_tiles::own_alert_next;
+          runtime_tiles::own_alert_next = false;
+          // An alert is the one thing that outranks the settings page, so that closes first.
+          settings_screen::close();
+          const auto alert = screen_alert::make(title, subtitle, icon, color, button_text, timeout, flash, ${ALERT_TITLE_MAX}, ${ALERT_SUBTITLE_MAX}, ${ALERT_BUTTON_MAX}, button2_text, button_color, button2_color);
+          // One button or two (firmware 0.3.3+), laid out before the hook, which lays the card out again for a picture.
+          runtime_tiles::alert_two_buttons = !alert.button2.empty();
+          lv_label_set_text(id(alert_button2_label), alert.button2.c_str());
+          runtime_tiles::alert_key(id(alert_ok), id(alert_ok_label), alert.button_color);
+          runtime_tiles::alert_key(id(alert_button2), id(alert_button2_label), alert.button2_color);
+          runtime_tiles::alert_place(false);
+          screen_hooks::run_alert_show();
+          id(alert_active) = true;
+          id(alert_title_text) = alert.title;
+          id(alert_timeout_seconds) = alert.timeout_seconds;
+          id(alert_flash_requested) = alert.flash;
+          lv_label_set_text(id(alert_icon), alert.icon.c_str());
+          lv_label_set_text(id(alert_title), alert.title.c_str());
+          lv_label_set_text(id(alert_subtitle), alert.subtitle.c_str());
+          lv_label_set_text(id(alert_ok_label), alert.button.c_str());
+          id(alert_card_color) = alert.color;
+          lv_obj_set_style_bg_color(id(alert_card), lv_color_hex(theme::surface(alert.color)), LV_PART_MAIN);
+          ESP_LOGI("alert", "show \"%s\" timeout=%d flash=%d buttons=%d", alert.title.c_str(), alert.timeout_seconds, (int) alert.flash,
+                   alert.button2.empty() ? 1 : 2);
+      - script.execute: wake_display
+      - lvgl.widget.show: alert_overlay
+      - script.stop: alert_timeout
+      - if:
+          condition:
+            lambda: 'return id(alert_flash_requested);'
+          then:
+            - script.execute: alert_flash
+      - if:
+          condition:
+            lambda: 'return id(alert_timeout_seconds) > 0;'
+          then:
+            - script.execute:
+                id: alert_timeout
+                seconds: !lambda 'return id(alert_timeout_seconds);'
+
+  - id: alert_timeout
+    mode: restart
+    parameters:
+      seconds: int
+    then:
+      - delay: !lambda 'return static_cast<uint32_t>(seconds) * 1000UL;'
+      - script.execute:
+          id: alert_dismiss
+          reason: "timeout"
+
+  # Home Assistant adds device_id; action is ok, button2 (the second button, firmware 0.3.3+), timeout, replaced or remote.
+  - id: alert_report
+    parameters:
+      action: string
+    then:
+      - if:
+          condition:
+            lambda: 'return !runtime_tiles::own_alert;'
+          then:
+            - homeassistant.event:
+                event: esphome.screen_alert
+                data:
+                  action: !lambda 'return action;'
+                  title: !lambda 'return id(alert_title_text);'
+                  screen: !lambda 'return App.get_name();'
+
+  # Standby: the standby time ran out (the 1 s interval checks Auto standby) or Sleep was pressed.
+  # The settings page and every card close; with "also on standby" the screen goes back to page 1 too.
+  # A board whose screen cannot go dark (CAN_STANDBY false, firmware 0.2.91+) has no standby at all: the time
+  # runs out and Sleep is pressed to no effect, and the screen simply stays lit.
+  - id: dim_display
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: 'return settings_screen::can_standby;'
+          then:
+            - lambda: 'id(display_dimmed) = true;'
+            - if:
+                condition:
+                  lambda: 'return screen_settings::current.home_on_standby;'
+                then:
+                  - script.execute: go_home
+                else:
+                  - lambda: 'settings_screen::close();'
+                  - script.execute: close_cards
+            # After the cards closed: the screensaver (firmware 0.29.0+) may open the camera's full view itself.
+            - lambda: 'id(apply_screen_settings).execute();'
+
+  # The power saving's one wait (screen_power.h): after the backlight's fade out, or after a touch on the dark glass.
+  - id: screen_power_wait
+    mode: restart
+    parameters:
+      ms: int
+    then:
+      - delay: !lambda return ms;
+      - lambda: 'screen_power::due();'
+
+  # Isolated 40-second preview; every light commit is suppressed in the helper.
+  - id: light_controls_preview
+    mode: single
+    then:
+      - script.execute: wake_display
+      - lambda: 'runtime_tiles::colour_demo(true);'
+      - delay: 40s
+      - lambda: 'runtime_tiles::colour_demo(false);'
+
+  # ----------------------------------------------------------
+  # do_tile_action
+  #
+  # Centralized handler for executing Home Assistant actions
+  # triggered by tile taps.
+  #
+  # Parameters
+  # - tile_type: light | fan | switch | scene | script | cover
+  # - tap_action: auto | toggle | activate | fan_toggle_preset
+  # - service: optional Home Assistant service override
+  # - entity_id: target entity
+  # - param_key / param_val: optional parameters for custom services
+  # - was_on: previous entity state (pass false for longpress actions)
+  #
+  # Behavior
+  #
+  # toggle
+  #   -> toggles the entity
+  #   light.toggle / fan.toggle / switch.toggle / cover.open_cover|close_cover (based on was_on)
+  #
+  # activate
+  #   -> activates entity
+  #   scene.turn_on / script.turn_on / light.turn_on / fan.turn_on / cover.open_cover
+  #
+  # auto
+  #   -> resolves automatically based on tile_type:
+  #        light/switch/fan/cover -> toggle
+  #        scene/script           -> activate
+  #
+  # fan_toggle_preset
+  #   -> if fan was ON: fan.turn_off
+  #   -> if fan was OFF:
+  #        fan.turn_on
+  #        wait 150ms
+  #        fan.set_preset_mode(param_val)
+  #
+  # Custom service
+  #   If "service" is set, it will be called directly.
+  #   param_key / param_val may be used for parameters
+  #   like preset_mode, brightness_pct, percentage, etc.
+  # ----------------------------------------------------------
+
+  # UI refresh (values + time + styles) + render
+  - id: ui_refresh
+    mode: single
+    then:
+      - delay: 100ms
+      - lambda: |-
+          if (runtime_tiles::enabled) {
+            // The name and the top bar (clock included) draw together.
+            runtime_tiles::render(id(lbl_room));
+            return;
+          }
+
+
+# The screen's texts in the LANGUAGE substitution's language: the build puts that one language in the firmware
+# (components/smart_display).
+smart_display:
+  language: ${LANGUAGE}
+
+# HA blueprint transport; never publishes the JSON command as an HA state.
+text:
+  - platform: smart_display
+    id: dashboard_inbox
+    name: "Tile settings"
+    internal: ${DASHBOARD_INBOX_INTERNAL}
+
+button:
+  # Wake and Sleep for Home Assistant automations (0.2.45+). Wake is light, not a tap (0.2.56+): it
+  # lights a dimmed screen and counts the standby time from now, while Back to page 1 keeps counting
+  # from the last touch, so Wake on every motion no longer holds a card or page 2 up. Sleep is the
+  # standby time running out, right away and also with Auto standby off; it holds until a tap, Wake
+  # or an alert, and closes an alert that is up. Neither saves anything, so an automation may press
+  # them on every motion. No entity_category: they are controls, not settings.
+  - platform: template
+    id: wake_button
+    name: "Wake"
+    icon: "mdi:gesture-tap"
+    on_press:
+      - lambda: 'ESP_LOGI("standby", "Wake from Home Assistant, screen %s", id(display_dimmed) ? "in standby" : "on");'
+      - if:
+          condition:
+            lambda: 'return id(display_dimmed);'
+          then:
+            - script.execute: wake_display
+            # A page whose time ran out during standby: light up on page 1, not on the old page first.
+            - script.execute: back_to_page_1_when_due
+          else:
+            - lambda: 'id(last_touch_ms) = millis();'
+  - platform: template
+    id: sleep_button
+    name: "Sleep"
+    icon: "mdi:power-sleep"
+    on_press:
+      - if:
+          condition:
+            lambda: 'return id(calibration_active);'
+          then:
+            - lambda: 'ESP_LOGI("standby", "Sleep from Home Assistant ignored: touch calibration is running");'
+          else:
+            - lambda: |-
+                ESP_LOGI("standby", "Sleep from Home Assistant");
+                id(sleep_requested) = true;
+            - script.execute:
+                id: alert_dismiss
+                reason: "remote"
+            - script.execute: dim_display
+
+number:
+  # Firmware 0.2.49+: every number goes through settings_screen::set(), like the settings page, so a value the
+  # screen already has writes and reports nothing (an automation may set it on every light change).
+  - platform: template
+    id: setting_brightness
+    name: "Normal brightness"
+    entity_category: config
+    min_value: 5
+    max_value: 100
+    step: 1
+    unit_of_measurement: "%"
+    update_interval: never
+    lambda: return screen_settings::current.brightness;
+    set_action:
+      - lambda: 'settings_screen::set("brightness", (int32_t) lround(x));'
+  - platform: template
+    id: setting_standby_brightness
+    name: "Standby brightness"
+    entity_category: config
+    min_value: 0
+    max_value: 100
+    step: 1
+    unit_of_measurement: "%"
+    update_interval: never
+    lambda: return screen_settings::current.standby_brightness;
+    set_action:
+      - lambda: 'settings_screen::set("standby_brightness", (int32_t) lround(x));'
+  - platform: template
+    id: setting_night_brightness
+    name: "Night brightness"
+    entity_category: config
+    min_value: 0
+    max_value: 100
+    step: 1
+    unit_of_measurement: "%"
+    update_interval: never
+    lambda: return screen_settings::current.night_brightness;
+    set_action:
+      - lambda: 'settings_screen::set("night_brightness", (int32_t) lround(x));'
+  - platform: template
+    id: setting_standby_seconds
+    name: "Standby after"
+    entity_category: config
+    min_value: 60
+    max_value: 86400
+    step: 60
+    unit_of_measurement: "s"
+    update_interval: never
+    lambda: return screen_settings::current.standby_seconds;
+    set_action:
+      - lambda: 'settings_screen::set("standby_seconds", (int32_t) lround(x));'
+  - platform: template
+    id: setting_auto_home_seconds
+    name: "Back to page 1 after"
+    icon: "mdi:timer-outline"
+    entity_category: config
+    min_value: 30
+    max_value: 3600
+    step: 30
+    mode: box
+    unit_of_measurement: "s"
+    update_interval: never
+    lambda: return settings_screen::auto_home_seconds;
+    set_action:
+      - lambda: 'settings_screen::set("auto_home_seconds", (int32_t) lround(x));'

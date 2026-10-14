@@ -1,0 +1,305 @@
+{
+  "_meta": {
+    "name": "English (UK)",
+    "english": "English (UK)",
+    "script": "latin",
+    "plural": "one_other",
+    "clock": "24",
+    "checked": true
+  },
+  "screen": {
+    "light": {
+      "color": "Colour",
+      "color_temperature": "Colour temperature"
+    },
+    "ha": {
+      "on": "On",
+      "off": "Off",
+      "climate": {
+        "off": "Off",
+        "heat": "Heat",
+        "cool": "Cool",
+        "heat_cool": "Heat/Cool",
+        "auto": "Auto",
+        "dry": "Dry",
+        "fan_only": "Fan only"
+      },
+      "hvac_action": {
+        "heating": "Heating",
+        "cooling": "Cooling",
+        "idle": "Idle",
+        "off": "Off",
+        "drying": "Drying",
+        "fan": "Fan",
+        "preheating": "Preheating",
+        "defrosting": "Defrosting"
+      },
+      "cover": {
+        "open": "Open",
+        "closed": "Closed",
+        "opening": "Opening",
+        "closing": "Closing"
+      },
+      "media": {
+        "playing": "Playing",
+        "paused": "Paused",
+        "idle": "Idle",
+        "standby": "Standby"
+      },
+      "person": {
+        "home": "Home",
+        "not_home": "Away"
+      },
+      "sun": {
+        "above_horizon": "Above horizon",
+        "below_horizon": "Below horizon"
+      },
+      "vacuum": {
+        "docked": "Docked",
+        "cleaning": "Cleaning",
+        "paused": "Paused",
+        "returning": "Returning to dock",
+        "idle": "Idle"
+      },
+      "weather": {
+        "sunny": "Sunny",
+        "clear_night": "Clear, night",
+        "cloudy": "Cloudy",
+        "partlycloudy": "Partly cloudy",
+        "rainy": "Rainy",
+        "pouring": "Pouring",
+        "snowy": "Snowy",
+        "snowy_rainy": "Snowy, rainy",
+        "fog": "Fog",
+        "hail": "Hail",
+        "lightning": "Lightning",
+        "lightning_rainy": "Lightning, rainy",
+        "windy": "Windy",
+        "exceptional": "Exceptional"
+      },
+      "binary": {
+        "battery_on": "Low",
+        "battery_off": "Normal",
+        "battery_charging_on": "Charging",
+        "battery_charging_off": "Not charging",
+        "carbon_monoxide_on": "Detected",
+        "carbon_monoxide_off": "Clear",
+        "cold_on": "Cold",
+        "cold_off": "Normal",
+        "connectivity_on": "Connected",
+        "connectivity_off": "Disconnected",
+        "door_on": "Open",
+        "door_off": "Closed",
+        "garage_door_on": "Open",
+        "garage_door_off": "Closed",
+        "gas_on": "Detected",
+        "gas_off": "Clear",
+        "heat_on": "Hot",
+        "heat_off": "Normal",
+        "light_on": "Light detected",
+        "light_off": "No light",
+        "lock_on": "Unlocked",
+        "lock_off": "Locked",
+        "moisture_on": "Wet",
+        "moisture_off": "Dry",
+        "motion_on": "Detected",
+        "motion_off": "Clear",
+        "moving_on": "Moving",
+        "moving_off": "Not moving",
+        "occupancy_on": "Detected",
+        "occupancy_off": "Clear",
+        "opening_on": "Open",
+        "opening_off": "Closed",
+        "plug_on": "Plugged in",
+        "plug_off": "Unplugged",
+        "power_on": "On",
+        "power_off": "Off",
+        "presence_on": "Home",
+        "presence_off": "Away",
+        "problem_on": "Problem",
+        "problem_off": "OK",
+        "running_on": "Running",
+        "running_off": "Not running",
+        "safety_on": "Unsafe",
+        "safety_off": "Safe",
+        "smoke_on": "Detected",
+        "smoke_off": "Clear",
+        "sound_on": "Detected",
+        "sound_off": "Clear",
+        "tamper_on": "Tampering detected",
+        "tamper_off": "Clear",
+        "update_on": "Update available",
+        "update_off": "Up-to-date",
+        "vibration_on": "Detected",
+        "vibration_off": "Clear",
+        "window_on": "Open",
+        "window_off": "Closed"
+      },
+      "unavailable": "Unavailable",
+      "button": {
+        "activate": "Activate",
+        "run": "Run",
+        "press": "Press"
+      },
+      "climate_fan": {
+        "auto": "Auto",
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "middle": "Middle",
+        "focus": "Focus",
+        "diffuse": "Diffuse",
+        "top": "Top",
+        "on": "On",
+        "off": "Off"
+      },
+      "climate_swing": {
+        "on": "On",
+        "off": "Off",
+        "both": "Both",
+        "vertical": "Vertical",
+        "horizontal": "Horizontal"
+      },
+      "alarm": {
+        "disarmed": "Disarmed",
+        "armed_home": "Armed home",
+        "armed_away": "Armed away",
+        "armed_night": "Armed night",
+        "armed_vacation": "Armed holiday",
+        "armed_custom_bypass": "Armed custom bypass",
+        "pending": "Pending",
+        "arming": "Arming",
+        "disarming": "Disarming",
+        "triggered": "Triggered"
+      },
+      "alarm_mode": {
+        "armed_home": "Home",
+        "armed_away": "Away",
+        "armed_night": "Night",
+        "armed_vacation": "Holiday",
+        "armed_custom_bypass": "Custom",
+        "disarmed": "Disarmed"
+      },
+      "alarm_action": {
+        "disarm": "Disarm",
+        "arm_home": "Arm home",
+        "arm_away": "Arm away",
+        "arm_night": "Arm night",
+        "arm_vacation": "Arm holiday",
+        "arm_custom_bypass": "Custom bypass",
+        "enter_code": "Enter code"
+      },
+      "lock": {
+        "locked": "Locked",
+        "unlocked": "Unlocked",
+        "locking": "Locking",
+        "unlocking": "Unlocking",
+        "open": "Open",
+        "opening": "Opening",
+        "jammed": "Jammed"
+      },
+      "lock_action": {
+        "lock": "Lock",
+        "unlock": "Unlock",
+        "open": "Open",
+        "open_door": "Open door",
+        "open_door_confirm": "Really open?"
+      },
+      "humidifier_mode": {
+        "normal": "Normal",
+        "eco": "Eco",
+        "away": "Away",
+        "boost": "Boost",
+        "comfort": "Comfort",
+        "home": "Home",
+        "sleep": "Sleep",
+        "auto": "Auto",
+        "baby": "Baby"
+      },
+      "humidifier_action": {
+        "humidifying": "Humidifying",
+        "drying": "Drying",
+        "idle": "Idle",
+        "off": "Off"
+      },
+      "today": "Today",
+      "weather_view": {
+        "daily": "Daily",
+        "hourly": "Hourly"
+      },
+      "weather_attribute": {
+        "humidity": "Humidity",
+        "wind_speed": "Wind speed",
+        "air_pressure": "Air pressure",
+        "visibility": "Visibility"
+      },
+      "wind_direction": {
+        "n": "N",
+        "nne": "NNE",
+        "ne": "NE",
+        "ene": "ENE",
+        "e": "E",
+        "ese": "ESE",
+        "se": "SE",
+        "sse": "SSE",
+        "s": "S",
+        "ssw": "SSW",
+        "sw": "SW",
+        "wsw": "WSW",
+        "w": "W",
+        "wnw": "WNW",
+        "nw": "NW",
+        "nnw": "NNW"
+      }
+    },
+    "navigation": {
+      "back": "Back"
+    },
+    "plugin": {
+      "missing": "Plugin missing"
+    }
+  },
+  "editor": {
+    "installer": {},
+    "tile": {
+      "controls": {
+        "tall_hint": "",
+        "tilt": "Slat tilt",
+        "tilt_hint": "Adds the supported slat slider or tilt buttons when there is enough room. On smaller tiles, use the detail view. Your open/close selection stays unchanged."
+      },
+      "display": {
+        "tall_cover_hint": ""
+      },
+      "sections": {
+        "style": "Icon and colour"
+      },
+      "tap": {
+        "hold_light": "Hold the tile for brightness and colour, as far as the light has them."
+      },
+      "map": {
+        "distance": {
+          "neighbourhood": "Neighbourhood"
+        }
+      },
+      "calendar": {
+        "calendars": {
+          "hint": "Up to {n} calendars on one card, each in its own colour from Home Assistant."
+        }
+      }
+    },
+    "plugins": {
+      "changes": "What changed"
+    }
+  },
+  "addon": {
+    "labels": {
+      "controls": {
+        "cover": {
+          "tilt": "Slat tilt",
+          "buttons_tilt": "Open, stop, close and slat tilt",
+          "position_tilt": "Position and slat tilt"
+        }
+      }
+    }
+  }
+}

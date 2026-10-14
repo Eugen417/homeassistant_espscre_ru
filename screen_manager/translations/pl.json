@@ -1,0 +1,3705 @@
+{
+  "_meta": {
+    "name": "Polski",
+    "english": "Polish",
+    "script": "latin",
+    "plural": "slavic_pl",
+    "clock": "24",
+    "checked": false
+  },
+  "screen": {
+    "number": {
+      "decimal": ",",
+      "group": " ",
+      "group_min": "2",
+      "percent": "%"
+    },
+    "time": {
+      "just_now": "Przed chwilą",
+      "minutes_ago": "{n} min temu",
+      "hours_ago": "1 godzinę temu | {n} godziny temu | {n} godzin temu",
+      "yesterday": "Wczoraj",
+      "days_ago": "1 dzień temu | {n} dni temu | {n} dni temu",
+      "weeks_ago": "1 tydzień temu | {n} tygodnie temu | {n} tygodni temu",
+      "months_ago": "1 miesiąc temu | {n} miesiące temu | {n} miesięcy temu",
+      "years_ago": "1 rok temu | {n} lata temu | {n} lat temu",
+      "in_minutes": "Za {n} min",
+      "in_hours": "Za 1 godzinę | Za {n} godziny | Za {n} godzin",
+      "tomorrow": "Jutro",
+      "in_days": "Za 1 dzień | Za {n} dni | Za {n} dni",
+      "am": "AM",
+      "pm": "PM"
+    },
+    "date": {
+      "weekdays": [
+        "niedziela",
+        "poniedziałek",
+        "wtorek",
+        "środa",
+        "czwartek",
+        "piątek",
+        "sobota"
+      ],
+      "weekdays_short": [
+        "niedz.",
+        "pon.",
+        "wt.",
+        "śr.",
+        "czw.",
+        "pt.",
+        "sob."
+      ],
+      "weekdays_min": [
+        "nd",
+        "pn",
+        "wt",
+        "śr",
+        "cz",
+        "pt",
+        "sb"
+      ],
+      "months": [
+        "stycznia",
+        "lutego",
+        "marca",
+        "kwietnia",
+        "maja",
+        "czerwca",
+        "lipca",
+        "sierpnia",
+        "września",
+        "października",
+        "listopada",
+        "grudnia"
+      ],
+      "months_short": [
+        "sty",
+        "lut",
+        "mar",
+        "kwi",
+        "maj",
+        "cze",
+        "lip",
+        "sie",
+        "wrz",
+        "paź",
+        "lis",
+        "gru"
+      ],
+      "top_bar": "{weekday}, {day} {month}",
+      "full": "{weekday}, {day} {month}",
+      "day_month": "{day} {month}",
+      "weekday_time": "{weekday}, {time}"
+    },
+    "duration": {
+      "seconds": "{n} s",
+      "minutes": "{n} min",
+      "hours": "{n} godz.",
+      "hours_minutes": "{h} godz. {m} min",
+      "days": "{n} d",
+      "days_hours": "{d} d {h} godz."
+    },
+    "status": {
+      "connecting": "Czekam na Home Assistant",
+      "waiting": "Czekam na Tessera",
+      "loading_tiles": "Ładowanie kafelków...",
+      "preparing_pages": "Przygotowywanie stron {n}/{total}",
+      "ha_not_connected": "HA niepołączony",
+      "manager_not_active": "Tessera nieaktywny",
+      "choose_tiles": "Wybierz kafelki w HA",
+      "home": "Dom",
+      "no_network": "Brak sieci",
+      "configuration_problem": "Błąd konfiguracji.\nZaktualizuj dodatek.",
+      "configuration_version": "Błąd konfiguracji.\nSprawdź wersje ekranu i dodatku.",
+      "wifi_problem": "Problem z połączeniem Wi-Fi",
+      "wifi_hotspot": "Połącz się z hotspotem {name}, aby to naprawić.\nHasło: {password}",
+      "wifi_usb": "Sprawdź nazwę i hasło Wi-Fi, a potem zainstaluj ten ekran ponownie przez USB.",
+      "wifi_connecting": "Łączenie z Wi-Fi",
+      "wifi_address": "Pobieranie adresu",
+      "wifi_not_found": "Nie znaleziono sieci",
+      "wifi_password": "Hasło nie zostało przyjęte",
+      "wifi_weak": "Sygnał zbyt słaby ({dbm} dBm)",
+      "wifi_failed": "Nie udało się połączyć, ponawiam",
+      "loading_tiles_count": "Ładowanie kafelków {n}/{total}",
+      "hint_home_assistant": "Tessera doda ten ekran, gdy Home Assistant dotrze do niego pod tym adresem.",
+      "hint_tessera": "Czy aplikacja Tessera Screen Manager działa w Home Assistant?",
+      "first_tiles": "Wybierz kafelki",
+      "first_tiles_open": "Otwórz Tessera w Home Assistant",
+      "first_tiles_pick": "Wybierz kafelki dla {name}",
+      "first_tiles_save": "Naciśnij Zapisz i wyślij",
+      "updating": "Aktualizacja firmware {percent}",
+      "update_restart": "Zaktualizowano, ponowne uruchamianie",
+      "update_failed": "Aktualizacja nie powiodła się",
+      "hint_key": "Odrzucono połączenie z {address}: jego klucz nie pasuje do tego ekranu. Wpisz klucz tego ekranu w integracji ESPHome w Home Assistant.",
+      "no_answer_title": "Brak odpowiedzi z Home Assistant",
+      "no_answer_text": "Często ten ekran nie może jeszcze wykonywać akcji. Włącz to w Home Assistant: ESPHome > ten ekran > Konfiguruj."
+    },
+    "preparing": {
+      "default": "Układanie kafelków",
+      "light": "Zerkamy na twoje lampy",
+      "media": "Odkurzamy okładki albumów",
+      "camera": "Polerujemy obiektywy kamer",
+      "climate": "Zerkamy na termostat",
+      "weather": "Wyglądamy przez okno",
+      "cover": "Zerkamy za zasłony",
+      "vacuum": "Szukamy robota sprzątającego",
+      "sensor": "Odczytujemy wszystkie czujniki",
+      "sun": "Podążamy za słońcem",
+      "clock": "Nakręcamy zegary",
+      "scene": "Próbujemy twoje sceny",
+      "switch": "Liczymy twoje przełączniki"
+    },
+    "settings": {
+      "title": "Ustawienia",
+      "brightness": "Jasność",
+      "night": "Noc",
+      "screen": "Ekran",
+      "this_screen": "Ten ekran",
+      "extras": "Dodatki",
+      "microphone": "Mikrofon",
+      "media_player": "Głośność",
+      "wake_when_moved": "Wybudź przy ruchu",
+      "dark_mode": "Tryb ciemny",
+      "auto_standby": "Auto czuwanie",
+      "standby_after": "Czuwanie po",
+      "standby_brightness": "Jasność czuwania",
+      "standby_lit": "Ekran włączony w czuwaniu",
+      "night_mode": "Tryb nocny",
+      "starts": "Początek",
+      "ends": "Koniec",
+      "night_brightness": "Jasność nocna",
+      "night_lit": "Ekran włączony w nocy",
+      "back_to_page_1": "Powrót do strony głównej",
+      "after": "Po",
+      "also_on_standby": "Także w czuwaniu",
+      "swipe_between_pages": "Przesuwanie stron",
+      "page_buttons": "Przyciski stron",
+      "home_button": "Pokaż przycisk strony głównej",
+      "rotation": "Obrót",
+      "address": "Adres",
+      "firmware": "Firmware",
+      "home_assistant": "Home Assistant",
+      "restart": "Uruchom ponownie",
+      "calibrate_touch": "Kalibruj dotyk",
+      "connected": "Połączono",
+      "not_connected": "Brak połączenia",
+      "tap_again_to_restart": "Dotknij ponownie, aby uruchomić ponownie",
+      "tap_again_to_calibrate": "Dotknij ponownie, aby kalibrować",
+      "seconds": "{n} s",
+      "minutes": "{n} min",
+      "hours": "{n} godz.",
+      "hours_minutes": "{h} godz. {m}",
+      "wifi": "Wi-Fi",
+      "tessera": "Tessera",
+      "plugins": "Wtyczki"
+    },
+    "tile": {
+      "tap_to_open": "Otwórz",
+      "page": "Strona {n}",
+      "refused": "Odrzucono",
+      "command_sent": "Wysłano polecenie...",
+      "updating": "Aktualizowanie...",
+      "confirmed": "Potwierdzone przez Home Assistant",
+      "no_answer": "Brak odpowiedzi"
+    },
+    "alert": {
+      "notification": "Powiadomienie",
+      "ok": "OK"
+    },
+    "light": {
+      "color": "Kolor",
+      "color_temperature": "Temperatura barwy",
+      "brightness": "Jasność",
+      "waiting": "Czekam..."
+    },
+    "effects": {
+      "effect": "Efekt",
+      "nothing": "Brak wyboru",
+      "loading": "Ładowanie...",
+      "not_connected": "Brak połączenia"
+    },
+    "climate": {
+      "target": "Cel",
+      "mode": "Tryb",
+      "fan": "Wentylator",
+      "swing": "Wahadło",
+      "now": "Teraz {value}"
+    },
+    "vacuum": {
+      "check_robot": "Sprawdź robota w HA",
+      "auto_suction": "Automatyczna siła ssania",
+      "robot_chooses": "Robot wybiera ssanie i wodę",
+      "per_room": "Ssanie i woda według pokoju",
+      "speed_quiet": "Cichy",
+      "speed_balanced": "Normalny",
+      "speed_turbo": "Turbo",
+      "speed_max": "Maks.",
+      "pause_cleaning": "Wstrzymaj sprzątanie",
+      "pause": "Pauza",
+      "resume": "Wznów",
+      "start_cleaning": "Rozpocznij sprzątanie",
+      "clean": "Sprzątaj",
+      "dock": "Stacja"
+    },
+    "cover": {
+      "position": "Pozycja",
+      "tilt": "Nachylenie",
+      "tilt_value": "Nachylenie {n}%"
+    },
+    "weather": {
+      "feels_like": "Odczuwalna {n}°",
+      "no_forecast": "Brak prognozy dziennej z Home Assistant",
+      "coming_days": "Najbliższe dni"
+    },
+    "history": {
+      "no_data": "Brak danych",
+      "average": "średnia",
+      "average_of": "średnia z {duration}",
+      "now": "Teraz",
+      "range_hour": "1 godzina",
+      "range_day": "24 godziny",
+      "range_week": "1 tydzień",
+      "high": "Maks. {value}",
+      "low": "Min. {value}",
+      "times": "raz | {n} razy | {n} razy",
+      "loading": "Ładowanie historii...",
+      "empty": "Brak historii w tym okresie",
+      "unavailable": "Brak dostępnej historii"
+    },
+    "media": {
+      "muted": "Wyciszony",
+      "not_playing": "Nic nie gra",
+      "loading": "Ładowanie",
+      "library": "Biblioteka",
+      "choose_speaker": "Wybierz głośnik",
+      "library_hint": "Dotknij okładki w bibliotece",
+      "library_failed": "Biblioteka nie odpowiada",
+      "library_empty": "Nic tu nie ma",
+      "starting_on": "Uruchamianie na {speaker}"
+    },
+    "timer": {
+      "running": "Działa",
+      "paused": "Wstrzymany",
+      "stopped": "Zatrzymany",
+      "pause": "Pauza",
+      "start": "Start",
+      "cancel": "Anuluj",
+      "paused_left": "Wstrzymany {time}"
+    },
+    "sun": {
+      "name": "Słońce",
+      "sunrise": "Wschód {time}",
+      "sunset": "Zachód {time}",
+      "rise": "wschód {time}",
+      "set": "zachód {time}"
+    },
+    "script": {
+      "running": "Działa...",
+      "never_run": "Nie uruchamiano",
+      "last_time": "Ostatnio {time}",
+      "yesterday_time": "Wczoraj {time}",
+      "yesterday_time_short": "Wczoraj {time}",
+      "last_date": "Ostatnio {date}"
+    },
+    "camera": {
+      "no_image": "Brak obrazu z tej kamery",
+      "loading": "Ładowanie obrazu",
+      "live": "Na żywo",
+      "recording": "Nagrywanie",
+      "tap_to_view": "Zobacz",
+      "no_image_yet": "Brak obrazu"
+    },
+    "calibration": {
+      "title": "Postępuj według kalibracji",
+      "touch_check": "Test dotyku GT911",
+      "hold": "Przytrzymaj każde dotknięcie chwilę",
+      "crosshair": "Dotknij krzyżyka\nPunkt {point}/5 - dotknięcie {tap}/3",
+      "gently": "Dotykaj delikatnie, nieco dłużej",
+      "same": "Dotknij 3 razy ten sam krzyżyk",
+      "rejected": "Pomiar odrzucony; spróbuj ponownie",
+      "save_failed": "Zapis nieudany; spróbuj ponownie"
+    },
+    "alarm": {
+      "wrong_code": "Błędny kod",
+      "nothing_changed": "Nic się nie zmieniło. Sprawdź kod.",
+      "try_again": "Spróbuj ponownie za {time}",
+      "too_many": "Zbyt wiele błędnych kodów",
+      "letters": "Ten kod zawiera litery. Wprowadź go w Home Assistant."
+    },
+    "lock": {
+      "confirm": "Potwierdź",
+      "really_unlock": "Na pewno odblokować?",
+      "lock_only": "Tylko blokowanie na tym ekranie",
+      "lock_only_short": "Tylko blokada"
+    },
+    "ha": {
+      "on": "włączono",
+      "off": "wyłączono",
+      "unavailable": "niedostępny",
+      "climate": {
+        "off": "wyłączono",
+        "heat": "grzanie",
+        "cool": "chłodzenie",
+        "heat_cool": "grzanie/chłodzenie",
+        "auto": "Auto",
+        "dry": "osuszanie",
+        "fan_only": "tylko wentylator"
+      },
+      "hvac_action": {
+        "heating": "grzanie",
+        "cooling": "chłodzenie",
+        "idle": "brak aktywności",
+        "off": "wyłączono",
+        "drying": "osuszanie",
+        "fan": "wentylator",
+        "preheating": "podgrzewanie wstępne",
+        "defrosting": "rozmrażanie"
+      },
+      "cover": {
+        "open": "otwarto",
+        "closed": "zamknięto",
+        "opening": "otwieranie",
+        "closing": "zamykanie"
+      },
+      "media": {
+        "playing": "odtwarzanie",
+        "paused": "wstrzymano",
+        "idle": "brak aktywności",
+        "standby": "tryb czuwania"
+      },
+      "person": {
+        "home": "w domu",
+        "not_home": "poza domem"
+      },
+      "sun": {
+        "above_horizon": "powyżej horyzontu",
+        "below_horizon": "poniżej horyzontu"
+      },
+      "vacuum": {
+        "docked": "zadokowany",
+        "cleaning": "sprzątanie",
+        "paused": "wstrzymano",
+        "returning": "wraca do stacji dokującej",
+        "idle": "brak aktywności"
+      },
+      "weather": {
+        "sunny": "słonecznie",
+        "clear_night": "pogodna noc",
+        "cloudy": "pochmurno",
+        "partlycloudy": "częściowe zachmurzenie",
+        "rainy": "deszczowo",
+        "pouring": "ulewa",
+        "snowy": "opady śniegu",
+        "snowy_rainy": "deszcz ze śniegiem",
+        "fog": "mgła",
+        "hail": "grad",
+        "lightning": "wyładowania atmosferyczne",
+        "lightning_rainy": "burza",
+        "windy": "wietrznie",
+        "exceptional": "warunki nadzwyczajne"
+      },
+      "binary": {
+        "battery_on": "Low",
+        "battery_off": "Normal",
+        "battery_charging_on": "Charging",
+        "battery_charging_off": "brak ładowania",
+        "carbon_monoxide_on": "wykryto",
+        "carbon_monoxide_off": "brak",
+        "cold_on": "zimno",
+        "cold_off": "Normal",
+        "connectivity_on": "połączono",
+        "connectivity_off": "rozłączono",
+        "door_on": "otwarto",
+        "door_off": "zamknięto",
+        "garage_door_on": "otwarto",
+        "garage_door_off": "zamknięto",
+        "gas_on": "wykryto",
+        "gas_off": "brak",
+        "heat_on": "gorąco",
+        "heat_off": "Normal",
+        "light_on": "wykryto",
+        "light_off": "brak",
+        "lock_on": "odblokowano",
+        "lock_off": "zablokowano",
+        "moisture_on": "wykryto",
+        "moisture_off": "brak",
+        "motion_on": "wykryto",
+        "motion_off": "brak",
+        "moving_on": "w ruchu",
+        "moving_off": "brak ruchu",
+        "occupancy_on": "wykryto",
+        "occupancy_off": "brak",
+        "opening_on": "otwarto",
+        "opening_off": "zamknięto",
+        "plug_on": "podłączono",
+        "plug_off": "odłączono",
+        "power_on": "włączono",
+        "power_off": "wyłączono",
+        "presence_on": "Home",
+        "presence_off": "Away",
+        "problem_on": "problem",
+        "problem_off": "ok",
+        "running_on": "działa",
+        "running_off": "nie działa",
+        "safety_on": "zagrożenie",
+        "safety_off": "brak zagrożenia",
+        "smoke_on": "wykryto",
+        "smoke_off": "brak",
+        "sound_on": "wykryto",
+        "sound_off": "brak",
+        "tamper_on": "Tampering detected",
+        "tamper_off": "brak",
+        "update_on": "dostępna aktualizacja",
+        "update_off": "brak aktualizacji",
+        "vibration_on": "wykryto",
+        "vibration_off": "brak",
+        "window_on": "otwarto",
+        "window_off": "zamknięto"
+      },
+      "button": {
+        "activate": "Aktywuj",
+        "run": "Uruchom",
+        "press": "Naciśnij"
+      },
+      "climate_fan": {
+        "auto": "Auto",
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "middle": "pośredni",
+        "focus": "skupiony nawiew",
+        "diffuse": "rozproszony nawiew",
+        "top": "nawiew górny",
+        "on": "włączono",
+        "off": "wyłączono"
+      },
+      "climate_swing": {
+        "on": "włączono",
+        "off": "wyłączono",
+        "both": "ruch w obu płaszczyznach",
+        "vertical": "ruch pionowy",
+        "horizontal": "ruch poziomy"
+      },
+      "alarm": {
+        "disarmed": "rozbrojony",
+        "armed_home": "uzbrojony (w domu)",
+        "armed_away": "uzbrojony (poza domem)",
+        "armed_night": "uzbrojony (noc)",
+        "armed_vacation": "uzbrojony (wakacje)",
+        "armed_custom_bypass": "uzbrojony (własny bypass)",
+        "pending": "oczekiwanie",
+        "arming": "uzbrajanie",
+        "disarming": "rozbrajanie",
+        "triggered": "wyzwolony"
+      },
+      "alarm_mode": {
+        "armed_home": "W domu",
+        "armed_away": "Poza domem",
+        "armed_night": "Noc",
+        "armed_vacation": "Wakacje",
+        "armed_custom_bypass": "Niestandardowy",
+        "disarmed": "Rozbrojony"
+      },
+      "alarm_action": {
+        "disarm": "Rozbrój",
+        "arm_home": "Uzbrój (w domu)",
+        "arm_away": "Uzbrój (poza domem)",
+        "arm_night": "Uzbrój (noc)",
+        "arm_vacation": "Uzbrój (tryb wakacyjny)",
+        "arm_custom_bypass": "Niestandardowy bypass",
+        "enter_code": "Wprowadź kod"
+      },
+      "lock": {
+        "locked": "zablokowano",
+        "unlocked": "odblokowano",
+        "locking": "blokowanie",
+        "unlocking": "odblokowywanie",
+        "open": "otwarto",
+        "opening": "otwieranie",
+        "jammed": "zacięcie"
+      },
+      "lock_action": {
+        "lock": "Zablokuj",
+        "unlock": "Odblokuj",
+        "open": "O",
+        "open_door": "Otwórz drzwi",
+        "open_door_confirm": "Naprawdę otworzyć?"
+      },
+      "humidifier_mode": {
+        "normal": "Normal",
+        "eco": "Eco",
+        "away": "Away",
+        "boost": "Zwiększyć",
+        "comfort": "Komfort",
+        "home": "w domu",
+        "sleep": "Spać",
+        "auto": "Auto",
+        "baby": "Dziecko"
+      },
+      "humidifier_action": {
+        "humidifying": "Humidifying",
+        "drying": "Drying",
+        "idle": "brak aktywności",
+        "off": "wyłączono"
+      },
+      "today": "Dzisiaj",
+      "weather_view": {
+        "daily": "Dzienna",
+        "hourly": "Godzinowa"
+      },
+      "weather_attribute": {
+        "humidity": "Wilgotność powietrza",
+        "wind_speed": "Prędkość wiatru",
+        "air_pressure": "Ciśnienie atmosferyczne",
+        "visibility": "Widzialność"
+      },
+      "wind_direction": {
+        "n": "płn.",
+        "nne": "płn. płn.-wsch.",
+        "ne": "płn.-wsch.",
+        "ene": "wsch. płn.-wsch.",
+        "e": "wsch.",
+        "ese": "wsch. płd.-wsch.",
+        "se": "płd.-wsch.",
+        "sse": "płd. płd.-wsch.",
+        "s": "płd.",
+        "ssw": "płd. płd.-zach.",
+        "sw": "płd.-zach.",
+        "wsw": "zach. płd.-zach.",
+        "w": "zach.",
+        "wnw": "zach. płn.-zach.",
+        "nw": "płn.-zach.",
+        "nnw": "płn. płn.-zach."
+      }
+    },
+    "navigation": {
+      "back": "Wstecz"
+    },
+    "energy": {
+      "solar": "Słońce",
+      "grid": "Sieć",
+      "battery": "Bateria",
+      "home": "Dom",
+      "other": "Inne",
+      "untracked": "Nieśledzone",
+      "no_power": "Brak czujników mocy w ustawieniach energii Home Assistant"
+    },
+    "plugin": {
+      "missing": "Brak wtyczki"
+    },
+    "calendar": {
+      "free": "Wolne",
+      "busy": "Zajęte",
+      "starts_soon": "Zaraz się zaczyna",
+      "private": "Zajęte",
+      "all_day": "Cały dzień",
+      "today": "Dziś",
+      "tomorrow": "Jutro",
+      "nothing": "Nic nie zaplanowano",
+      "nothing_more": "Nic więcej w tym tygodniu",
+      "until": "Do {x}",
+      "next": "Następne {x}",
+      "left": "Jeszcze {x}",
+      "in": "Za {x}",
+      "more": "{x} więcej",
+      "earlier": "{x} wcześniej",
+      "later": "{x} później",
+      "more_week": "{x} więcej w tym tygodniu",
+      "days_view": "{x} dni",
+      "views": [
+        "Następne",
+        "Dzień",
+        "Tydzień",
+        "Miesiąc"
+      ],
+      "view_notes": [
+        "Co trwa teraz, potem kolejne",
+        "Jeden dzień, dotknij paska, by go wybrać",
+        "Dni obok siebie, godziny w dół",
+        "Miesiąc w skrócie, dotknij, by otworzyć dzień"
+      ],
+      "today_key": "Dziś",
+      "booking": "Rezerwacja…",
+      "calendars": "Kalendarze",
+      "also": "+{x} teraz",
+      "booked": "Zarezerwowano na ekranie"
+    }
+  },
+  "addon": {
+    "errors": {
+      "language_choice": "Wybierz język z listy.",
+      "region_choice": "Wybierz z list format czasu i format liczbowy.",
+      "open_through_ha": "Otwórz tę stronę przez Home Assistant.",
+      "refresh_page": "Odśwież tę stronę i spróbuj ponownie.",
+      "ha_refused": "Home Assistant tego nie przyjął: {reason}.",
+      "ha_refused_change": "Home Assistant nie przyjął zmiany: {reason}.",
+      "no_reason": "nie podano powodu",
+      "ha_unreachable": "Home Assistant jest teraz nieosiągalny. Spróbuj ponownie za chwilę.",
+      "too_large": "To żądanie jest za duże.",
+      "invalid_input": "Nieprawidłowe dane. Sprawdź nazwę, płytkę i wybrane kafelki.",
+      "unknown_screen": "Nieznany ekran.",
+      "not_paired": "To nie jest sparowany ekran ESP. Odśwież listę ekranów.",
+      "choose_icon": "Wybierz ikonę z listy.",
+      "skill_not_written": "Nie udało się zapisać umiejętności w {folder} ({reason}).",
+      "settings": {
+        "unknown": "Nieznane ustawienia ekranu; odśwież stronę zarządzania.",
+        "invalid_value": "Nieprawidłowa wartość: {setting}.",
+        "dim_above_normal": "Jasność czuwania i jasność nocna nie mogą być wyższe niż normalna.",
+        "offline": "Ten ekran jest offline. Jego ustawienia zmienisz, gdy wróci.",
+        "unavailable": "Nie można teraz zmienić: {names}. Encja jest wyłączona w Home Assistant albo ekran uruchamia się ponownie.",
+        "rotation": "Obrócenie tego ekranu wymaga firmware {version} lub nowszego.",
+        "rotation_quarter": "Tylko kwadratowy ekran obraca się o ćwierć obrotu; ten obraca się do góry nogami (180°)."
+      },
+      "layout": {
+        "invalid": "Nieprawidłowy układ.",
+        "title": "Nazwa ekranu może mieć najwyżej 96 bajtów.",
+        "page_title": "Nazwa strony może mieć najwyżej 96 bajtów.",
+        "page_titles": "Ekran ma najwyżej 1 stronę. | Ekran ma najwyżej {n} strony. | Ekran ma najwyżej {n} stron.",
+        "tiles_max": "Wybierz najwyżej 1 kafelek. | Wybierz najwyżej {n} kafelki. | Wybierz najwyżej {n} kafelków.",
+        "unsupported": "Ta encja nie jest obsługiwana.",
+        "once": "Zegar przy łóżku może być na ekranie tylko raz.",
+        "tile_name": "Nazwa kafelka może mieć najwyżej 80 bajtów.",
+        "unknown_settings": "Nieznane ustawienia kafelka.",
+        "navigation_size": "Kafelek nawigacji ma pojedynczą lub podwójną szerokość.",
+        "background": "Wybierz pastelowy kolor tła z palety.",
+        "invalid_setting": "Nieprawidłowe ustawienie kafelka: {setting}",
+        "no_toggle": "Ta encja nie obsługuje włączania i wyłączania.",
+        "builtin_action": "Wbudowana karta nie może wykonać akcji.",
+        "no_mini_slider": "Ta encja nie obsługuje małego suwaka.",
+        "history_hours": "Historia: wybierz 1, 6 lub 24 godziny.",
+        "refresh": "Obraz na żywo: odświeżaj co 5, 10, 15 lub 30 sekund.",
+        "watch_or_slider": "Wybierz dużą wartość albo mały suwak.",
+        "no_direct_control": "Ta encja nie obsługuje takiego bezpośredniego sterowania.",
+        "position": "Nieprawidłowa pozycja kafelka; odśwież stronę zarządzania.",
+        "full_page_top": "Kafelek na całą stronę zaczyna się na górze swojej strony.",
+        "wide_left": "Kafelek podwójnej szerokości zaczyna się w lewej kolumnie.",
+        "same_spot": "Dwa kafelki są w tym samym miejscu.",
+        "pages": "Ekran ma 1 stronę. | Ekran ma od 1 do {n} stron. | Ekran ma od 1 do {n} stron.",
+        "eight_pages": "Te kafelki nie mieszczą się na stronach tego ekranu; usuń kafelek albo zmniejsz któryś z nich.",
+        "camera_unsupported": "Ten ekran nie może pokazywać obrazu z kamery.",
+        "map_unsupported": "Ten ekran nie może pokazać mapy.",
+        "map_entities": "Mapa pokazuje najwyżej {n} osób i lokalizatorów, każdy raz, obok osoby z kafelka.",
+        "firmware_first": "Dla tych kafelków najpierw zainstaluj na ekranie firmware {version} lub nowszy.",
+        "entity_gone": "Wybrana encja już nie istnieje. Wyszukaj nową encję.",
+        "ids_too_long": "Identyfikatory encji tych kafelków są razem za długie, by zmieścić się w jednej wiadomości do ekranu; usuń kilka kafelków.",
+        "favorite_play": "Wybierz, co odtwarza ten ulubiony."
+      },
+      "top_bar": {
+        "invalid": "Nieprawidłowy górny pasek; odśwież stronę zarządzania.",
+        "full": "Górny pasek mieści najwyżej 1 element. | Górny pasek mieści najwyżej {n} elementy. | Górny pasek mieści najwyżej {n} elementów.",
+        "invalid_setting": "Nieprawidłowe ustawienie górnego paska.",
+        "unknown_setting": "Nieznane ustawienie górnego paska; odśwież stronę zarządzania.",
+        "entity": "Tej encji nie można umieścić na górnym pasku.",
+        "unknown_item": "Nieznany element górnego paska; odśwież stronę zarządzania.",
+        "twice": "Ten element już jest na górnym pasku.",
+        "entity_gone": "Encja z górnego paska już nie istnieje. Wybierz inną."
+      },
+      "tap_action": {
+        "choose": "Wybierz akcję z listy.",
+        "fields_max": "Akcja po dotknięciu ustawia najwyżej 1 pole. | Akcja po dotknięciu ustawia najwyżej {n} pola. | Akcja po dotknięciu ustawia najwyżej {n} pól.",
+        "field_not_allowed": "Akcja po dotknięciu nie może ustawić pola {field}.",
+        "unsendable": "Ekran nie może wysłać jednej z wartości tej akcji.",
+        "too_long": "Wartości tej akcji są za długie dla ekranu."
+      },
+      "events": {
+        "none_paired": "jeszcze brak",
+        "name_the_screen": "Podaj nazwę ekranu. Sparowane: {screens}.",
+        "no_such_screen": "Nie ma ekranu o nazwie „{name}”. Sparowane: {screens}.",
+        "several_screens": "„{name}” pasuje do więcej niż jednego ekranu: {screens}.",
+        "name_the_entity": "Podaj encję.",
+        "not_for_a_screen": "{entity} nie może trafić na ekran.",
+        "not_on_screen": "Encji {entity} nie ma na tym ekranie.",
+        "add_it_first": "Encji {entity} nie ma na tym ekranie; najpierw ją dodaj.",
+        "key_stays": "Encja {entity} jest pod zegarem przy łóżku; przenieś ją tam w edytorze.",
+        "not_on_spot": "Encji {entity} nie ma w miejscu {slot}.",
+        "not_on_page": "Encji {entity} nie ma na stronie {page}.",
+        "move_where": "Podaj stronę lub miejsce, do którego ją przenieść.",
+        "spot_taken": "To miejsce zajmuje {entity}; podaj inne miejsce albo najpierw przenieś tamtą encję.",
+        "page_not_empty": "Strona {page} nie jest pusta; kafelek na całą stronę potrzebuje własnej strony.",
+        "no_empty_page": "Żadna strona nie jest pusta; kafelek na całą stronę potrzebuje własnej strony.",
+        "page_full": "Strona {page} jest pełna.",
+        "no_room": "Na tym ekranie nie ma już miejsca.",
+        "screen_full": "Ten ekran ma już 1 kafelek; najpierw go usuń. | Ten ekran ma już {n} kafelki; najpierw usuń jeden z nich. | Ten ekran ma już {n} kafelków; najpierw usuń jeden z nich.",
+        "page_range": "Wybierz stronę od 1 do {last}.",
+        "spot_range": "Wybierz miejsce od 0 do {last}.",
+        "row_needs_page": "Podaj stronę dla tego wiersza lub kolumny.",
+        "row_range": "Wybierz wiersz od 1 do {last}.",
+        "column": "Kolumna musi być left albo right.",
+        "column_range": "Wybierz kolumnę od 1 do {last}; left i right to pierwsza i ostatnia.",
+        "full_page_alone": "Kafelek na całą stronę zajmuje całą stronę {page}; nic więcej się tam nie zmieści.",
+        "does_not_fit": "To nie mieści się na stronie {page}; kafelek podwójnej szerokości zajmuje dwa miejsca.",
+        "size": "Ten ekran nie ma kafelka {size}. Dostępne: {sizes}.",
+        "order_needed": "Podaj encje w kolejności, w jakiej mają być.",
+        "order_not_on_screen": "Brak na tym ekranie: {entities}.",
+        "order_not_on_page": "Brak na stronie {page}: {entities}. Najpierw je tam przenieś.",
+        "named_too_often": "Podane więcej razy, niż są na tym ekranie: {entities}.",
+        "named_too_often_page": "Podane więcej razy, niż są na stronie {page}: {entities}."
+      },
+      "home_assistant": {
+        "action_not_offered": "Home Assistant nie oferuje akcji {action} dla {name}. Wybierz akcję z listy.",
+        "action_answers_only": "Akcja {action} tylko zwraca dane, których ekran nie umie pokazać.",
+        "no_such_field": "Home Assistant nie ma pola {field} w akcji {action} dla {name}.",
+        "field_needed": "Akcja {action} wymaga wartości pola {field}.",
+        "no_on_off": "Home Assistant nie może włączać ani wyłączać {name}, więc „Włącz / wyłącz” nic by nie dało. Wybierz inną opcję w „Po dotknięciu”.",
+        "no_small_slider": "{name} nie ma w Home Assistant niczego, co mógłby zmieniać mały suwak.",
+        "no_graph": "{name} nie ma wartości liczbowych, z których można narysować wykres.",
+        "no_forecast": "{name} nie ma prognozy dziennej w Home Assistant.",
+        "no_meter": "{name} nie ma wartości liczbowych do pokazania na wskaźniku.",
+        "no_control": "Home Assistant nie oferuje takiego bezpośredniego sterowania dla {name}."
+      },
+      "alerts": {
+        "invalid": "Nieprawidłowy alert.",
+        "cannot_show": "{name} nie może pokazać alertu: {reason}.",
+        "no_device_name": "nieznana nazwa urządzenia",
+        "offline": "offline",
+        "firmware": "firmware {version}",
+        "unknown_version": "nieznany",
+        "not_ready": "niegotowy"
+      },
+      "firmware": {
+        "board_and_name": "Wybierz płytkę i unikalną nazwę (małe litery, cyfry, myślniki; najwyżej 30 znaków).",
+        "choice": "Wybierz jedną z opcji, które oferuje ta płytka.",
+        "friendly_name": "Nadaj ekranowi rozpoznawalną nazwę (najwyżej 60 znaków).",
+        "choose_profile": "Wybierz istniejący profil YAML.",
+        "profile_missing": "Tego profilu nie ma w folderze ESPHome.",
+        "secrets_invalid": "Plik secrets.yaml w folderze ESPHome nie jest poprawnym YAML. Najpierw popraw plik; nie zostanie nadpisany.",
+        "wifi_needed": "Wpisz nazwę sieci Wi-Fi i hasło; zostaną zapisane w pliku secrets.yaml ESPHome.",
+        "wifi_not_set": "Nie udało się ustawić Wi-Fi w secrets.yaml. Wpisz tam samodzielnie wifi_ssid i wifi_password.",
+        "name_exists": "Ta nazwa już istnieje. Do aktualizacji użyj istniejącego profilu.",
+        "name_taken": "Inny ekran ma już nazwę urządzenia {name}. Home Assistant nie odróżni dwóch urządzeń o tej samej nazwie, więc ten ekran potrzebuje własnej nazwy.",
+        "friendly_taken": "Inny ekran nazywa się już {name}. Home Assistant ponumerowałby nazwy encji tego ekranu, a automatyzacje trafiałyby do niewłaściwego. Nadaj mu własną nazwę.",
+        "override_exists": "Ta nazwa ma już lokalne nadpisanie. Przywróć je lub usuń, zanim utworzysz nowy ekran o tej nazwie.",
+        "override_symlink": "Lokalne nadpisanie jest dowiązaniem symbolicznym; najpierw zastąp je zwykłym plikiem.",
+        "other_include": "Ten profil ma już inne dołączenie local_overrides.",
+        "profile_invalid": "Profil ekranu nie jest poprawnym YAML; popraw go przed dodaniem nadpisania.",
+        "no_packages": "Ten profil nie ma sekcji packages, którą Tessera może rozszerzyć.",
+        "override_invalid": "Nieprawidłowe dane nadpisania.",
+        "yaml_needed": "Najpierw wpisz tekst YAML.",
+        "override_too_large": "Nadpisanie jest za duże. Musi mieć mniej niż 12 KB.",
+        "yaml_error_line": "Błąd YAML w wierszu {line}: {problem}.",
+        "yaml_error": "Błąd YAML: {problem}.",
+        "invalid_yaml": "nieprawidłowy YAML",
+        "override_object": "Nadpisanie musi zawierać obiekt YAML, na przykład display: lub substitutions:.",
+        "sections_managed": "Tymi sekcjami nadal zarządza Tessera: {names}.",
+        "substitutions_managed": "Tymi podstawieniami (substitutions) nadal zarządza Tessera: {names}.",
+        "substitutions_in_profile": "{names} jest ustawione we własnym YAML tego ekranu (wybrane w Nowy ekran), który ma pierwszeństwo przed override. Zmień to tam.",
+        "orientation": "Wybierz, czy ekran wisi poziomo, czy pionowo.",
+        "orientation_managed": "To, jak ekran wisi, wybiera się w edytorze, w „Siatka” obok stron, albo przy jego kompilacji, w sekcji „Nowy ekran”; dlatego LVGL_ROTATION nadal jest zarządzany przez Tessera.",
+        "usb_port": "Wybierz z listy podłączony port USB.",
+        "busy_wait": "Kompilacja lub instalacja już trwa. Poczekaj, aż się zakończy.",
+        "busy": "Kompilacja lub instalacja już trwa.",
+        "no_esphome": "W tej instalacji brakuje narzędzia ESPHome CLI.",
+        "still_building": "Firmware jest jeszcze kompilowany. Pobierz go, gdy kompilacja się zakończy.",
+        "build_first": "Najpierw skompiluj firmware; pobieranie pojawi się po zakończeniu kompilacji.",
+        "unknown_action": "Nieznana operacja firmware.",
+        "host": "Wpisz adres IP lub nazwę hosta właściwego ekranu.",
+        "grid": "Wybierz siatkę, którą ten ekran przyjmuje.",
+        "build_gone": "Ta kompilacja nie jest już znana. Najnowsze są w sekcji Firmware i USB."
+      },
+      "updates": {
+        "automatic": "Włącz lub wyłącz automatyczne aktualizacje.",
+        "busy": "Aktualizacja już trwa. Poczekaj, aż się zakończy.",
+        "unknown_screen": "Nieznany ekran. Odśwież listę ekranów.",
+        "offline": "Ten ekran jest offline; aktualizacja będzie możliwa, gdy wróci.",
+        "latest": "Ten ekran ma już najnowszy firmware.",
+        "enter_ip": "Wpisz adres IP tego ekranu.",
+        "no_profile": "Nie znaleziono profilu ESPHome dla tego ekranu. Sprawdź nazwę w folderze ESPHome.",
+        "ip_unknown": "Nieznany adres IP. Wpisz go raz; potem nowy firmware sam go zgłasza.",
+        "all_updated": "Wszystkie osiągalne ekrany są już zaktualizowane.",
+        "reinstall_dev": "Ponowna instalacja tego samego firmware jest możliwa tylko w kanale dev.",
+        "all_on_the_way": "Każdy ekran z aktualizacją ma ją już w drodze.",
+        "nothing_to_reinstall": "Teraz nie można ponownie zainstalować żadnego ekranu: każdy jest offline, już w drodze albo nie ma profilu w tej aplikacji."
+      },
+      "remove": {
+        "not_allowed": "Ta aplikacja nie może usunąć integracji z Home Assistant. Usuń ekran w samym Home Assistant, w sekcji Ustawienia → Urządzenia oraz usługi.",
+        "gone": "Home Assistant już nie zna tego ekranu.",
+        "no_entry": "Home Assistant nie ma tego ekranu jako urządzenia ESPHome, więc można go usunąć tylko w samym Home Assistant."
+      },
+      "calibrate": {
+        "no_wizard": "{name} nie ma kalibracji: jego panel dotykowy sam podaje, gdzie go dotknięto, więc nie ma czego mierzyć.",
+        "offline": "{name} jest offline. Kalibracja może się zacząć, gdy ekran wróci."
+      },
+      "editor_reload": "Odśwież edytor przed zapisem. Ta karta używa starszego formatu układu.",
+      "pages": {
+        "footprint": "Ten format kafelka wymaga przyszłej funkcji ekranu",
+        "pages_full": "Na tym ekranie nie ma miejsca na kolejną stronę",
+        "page_missing": "Ta strona już nie istnieje",
+        "tile_missing": "Ten kafelek już nie istnieje",
+        "home_invalid": "Strona główna musi istnieć",
+        "identity": "Nieprawidłowy lub powielony identyfikator instancji",
+        "navigation": "Nieprawidłowe ustawienie nawigacji między stronami",
+        "arrangement": "Układ musi zachować wszystkie istniejące kafelki",
+        "order": "Nieprawidłowa kolejność stron",
+        "delete": "Nie można usunąć tej strony",
+        "size": "Nieobsługiwany rozmiar kafelka",
+        "adapt_pages": "Ten układ ma więcej stron, niż obsługuje ekran docelowy",
+        "adapt_full": "Strona zawiera więcej kafelków, niż mieści siatka docelowa. Żadne kafelki nie zostały usunięte.",
+        "select_link": "Wybierz kafelek nawigacji, aby zmienić jego cel",
+        "import_grid": "Ten starszy eksport nie zawiera siatki. Zaimportować jako {columns} × {rows} komórek na stronę?",
+        "source_grid": "Siatka źródłowa jest nieznana; najpierw połącz ten ekran",
+        "migration_pending": "Dokończ migrację tego ekranu przed jego edycją lub aktualizacją",
+        "migration_unreadable": "Nie można odczytać starego układu. Przywróć kopię zapasową lub zacznij od nowa dla tego ekranu.",
+        "storage_json": "Nieprawidłowy zapisany JSON; dane pozostają bez zmian",
+        "storage_duplicate": "Powielone klucze w zapisanym JSON",
+        "storage_nonfinite": "Wartość nieskończona lub nieokreślona w zapisanym JSON",
+        "backup_conflict": "Konflikt kopii zapasowej migracji; dane pozostają bez zmian",
+        "storage_version": "Nieznana wersja zapisu; dane pozostają bez zmian",
+        "storage_record": "Nieprawidłowy zapis danych ekranu",
+        "storage_metadata": "Nieprawidłowe metadane odzyskiwania migracji",
+        "fields": "Nieprawidłowe lub nieobsługiwane pola konfiguracji strony",
+        "workspace_refs": "Nieprawidłowe odwołania do stron na mapie",
+        "workspace_position": "Nieprawidłowa pozycja na mapie",
+        "workspace_conflict": "Mapa została zmieniona w innym edytorze",
+        "layout_conflict": "Układ został zmieniony w innym edytorze; wczytaj go ponownie i porównaj wersję roboczą",
+        "adaptation": "Siatka ekranu uległa zmianie; wymagane jest jawne dostosowanie układu",
+        "normalization": "Opcje kafelków wymagają normalizacji przed zapisaniem strony",
+        "ambiguous_tile": "Zdarzenie kafelka ma niejednoznaczne źródło; podaj jego stronę",
+        "save_first": "Zapisz układ stron przed zapisaniem ustawień",
+        "destination_exists": "Ekran docelowy ma już zapisany układ",
+        "update_tall": "Zaktualizuj ekran, aby używać tych rozmiarów kafelków",
+        "memory": "Ekran nie ma wystarczającej ilości wolnej pamięci dla tego układu. Użyj mniejszej liczby kafelków.",
+        "grid_range": "Ten ekran nie przyjmuje siatki tej wielkości. Wybierz inną siatkę obok podglądu."
+      },
+      "feedback": {
+        "invalid": "Tej odpowiedzi nie można udostępnić. Wybierz tak lub nie do końca i tylko wymienione problemy.",
+        "comment": "Notatka może mieć najwyżej 1000 znaków.",
+        "unknown_board": "Opinie nie są jeszcze dostępne dla tej płytki.",
+        "deleting": "Twoja udostępniona odpowiedź jest jeszcze usuwana. Odpowiedz ponownie, gdy to się zakończy.",
+        "storage": "Opinie są wyłączone: zapisane dane pochodzą z innej wersji Tessera."
+      },
+      "media": {
+        "browse": "{name} nie udostępnił swojej biblioteki.",
+        "link_invalid": "To nie jest link do Spotify. Skopiuj go w aplikacji Spotify przez Udostępnij > Kopiuj link.",
+        "link_short": "Adres spotify.link tylko przekierowuje. Otwórz go w przeglądarce i skopiuj długi adres, do którego prowadzi.",
+        "link_player": "{name} nie odtwarza linków do Spotify."
+      },
+      "allow_actions": {
+        "not_allowed": "Home Assistant nie pozwala tej aplikacji zmieniać swoich integracji. Zrób to w samym Home Assistant, w sekcji Ustawienia → Urządzenia oraz usługi.",
+        "no_entry": "Home Assistant nie ma tego ekranu jako urządzenia ESPHome.",
+        "failed": "Home Assistant tego nie przyjął. W Home Assistant otwórz Ustawienia → Urządzenia oraz usługi → ESPHome, wybierz ten ekran, potem Konfiguruj, i włącz „Zezwalaj urządzeniu na wykonywanie akcji Home Assistant”."
+      },
+      "plugins": {
+        "request": "To żądanie wtyczki jest niekompletne.",
+        "unknown": "Nie ma wtyczki {id}.",
+        "misfit_api": "{name} napisano dla innego API wtyczek niż API tej aplikacji.",
+        "misfit_board": "{name} jest przeznaczona dla innych płytek.",
+        "misfit_psram": "{name} wymaga płytki z PSRAM.",
+        "misfit_blocked": "{name} jest zablokowana: ta wersja jest szkodliwa lub uszkodzona.",
+        "firmware": "Firmware tego ekranu nie zna jeszcze wtyczek. Zaktualizuj go, a pojawią się kafelki wtyczki.",
+        "file": "Plik wtyczek jest nieprawidłowy.",
+        "other_include": "YAML tego ekranu ma już inny include tessera_plugins.",
+        "link_invalid": "To nie jest link do repozytorium GitHub (https://github.com/wlasciciel/repozytorium).",
+        "link_not_found": "Nie znaleziono tam wtyczki: brak wydania lub brak pliku tessera-plugin.yaml w tym folderze.",
+        "link_rate": "GitHub teraz nie odpowiada (za dużo zapytań w ciągu godziny). Spróbuj później.",
+        "folder": "Folder {folder} w tessera-plugins nie jest jeszcze wtyczką: {why}",
+        "manifest": "Opis wtyczki jest nieprawidłowy: {why}",
+        "consent": "{name} prosi o inne uprawnienia niż wcześniej. Sprawdź, co może teraz robić, zgódź się, a potem zaktualizuj.",
+        "requires_unknown": "{name} potrzebuje wtyczki {other}, której nie ma na liście wtyczek.",
+        "requires_misfit": "{name} potrzebuje {other}, która nie pasuje do tego ekranu.",
+        "feature_missing": "{name} potrzebuje: {feature}, a nic, co to zapewnia, nie pasuje do tego ekranu.",
+        "feature_conflict": "Ekran ma jeden {feature}, a {names} zapewniłyby każda swój.",
+        "needed_by": "{others} potrzebuje {name}: usuń je razem.",
+        "choose": "Wybierz, która wtyczka zapewnia {feature} dla {name}.",
+        "other_origin": "Ten ekran używa innej wtyczki o nazwie {name}, z {origin}. Przejdź na tę w jej szczegółach.",
+        "misfit_esphome": "{name} do kompilacji potrzebuje ESPHome {version} lub nowszego.",
+        "like_not_installed": "Najpierw dodaj wtyczkę do jednego z ekranów, potem możesz ją polubić.",
+        "like_consent": "Najpierw zgódź się, aby polubienie liczyło się w publicznej liczbie.",
+        "like_off": "Polubienia są wyłączone: obsługuje je nowsza wersja aplikacji.",
+        "like_failed": "Polubienie nie zostało wysłane. Spróbuj za chwilę.",
+        "misfit_built_in": "{name} daje to, co ta płytka ma już sama.",
+        "offline": "Aplikacja nie wie jeszcze, gdzie w sieci jest {screen}. Włącz go, poczekaj, aż będzie online, i spróbuj ponownie."
+      },
+      "extras": {
+        "request": "Tej zmiany dodatku nie można wprowadzić na tym ekranie."
+      },
+      "display_precision_unregistered": "Home Assistant nie przechowuje ustawień tego czujnika, ponieważ nie ma on unikalnego identyfikatora, więc jego precyzję można ustawić tylko w jego YAML."
+    },
+    "status": {
+      "first_tiles": "Wybierz pierwsze kafelki",
+      "saved": "Zapisano; oczekiwanie na synchronizację",
+      "firmware_needed": "Układ zapisany; te kafelki wymagają firmware {version}+",
+      "too_large": "Układ zapisany; za duży na jedną wiadomość do ekranu, usuń kilka kafelków",
+      "sent": "Wysłano do Home Assistant",
+      "offline": "Ekran offline; zmiany zapisane",
+      "retrying": "Wysyłanie nieudane; automatyczne ponawianie",
+      "screen": {
+        "synced": "Zsynchronizowano",
+        "loading_tiles": "Ładowanie kafelków",
+        "layout_received": "Odebrano układ",
+        "resend_needed": "Wymagane ponowne wysłanie",
+        "ready": "Gotowy na kafelki",
+        "error": "Błąd: {reason}"
+      },
+      "applying": "Stosowanie układu",
+      "applied": "Układ zastosowany"
+    },
+    "updates": {
+      "offline": "Ekran był offline; kolejna próba następnym razem.",
+      "unknown_target": "Nieznany profil lub adres IP; zaktualizuj ten ekran ręcznie.",
+      "build_failed": "Kompilacja lub instalacja nieudana; zobacz log w sekcji „Firmware i USB”.",
+      "build_memory": "Za mało pamięci, aby skompilować firmware: wolne musi być około {need}, a jest {free}. Zatrzymaj na chwilę kilka dodatków albo daj maszynie więcej pamięci; zobacz „Firmware i USB”.",
+      "build_memory_limit": "Za mało pamięci, aby skompilować firmware, także z jednym kompilatorem naraz. Zatrzymaj na chwilę kilka dodatków albo daj maszynie więcej pamięci; zobacz „Firmware i USB”.",
+      "no_report": "Ekran nie zgłosił się z firmware {version}; sprawdź ekran.",
+      "dropped_off": "Ekran rozłączył się po aktualizacji; sprawdź ekran.",
+      "updated": "Zaktualizowano do firmware {version}."
+    },
+    "notify": {
+      "update_stopped": "Automatyczna aktualizacja zatrzymała się na ekranie {name}: {reason} Pozostałe ekrany pozostały bez zmian."
+    },
+    "labels": {
+      "built_into_screen": "Wbudowane w ekran",
+      "backgrounds": {
+        "auto": "Domyślne",
+        "none": "Brak",
+        "red": "Czerwony",
+        "orange": "Pomarańczowy",
+        "yellow": "Żółty",
+        "green": "Zielony",
+        "mint": "Miętowy",
+        "blue": "Niebieski",
+        "purple": "Fioletowy",
+        "pink": "Różowy",
+        "gray": "Szary"
+      },
+      "controls": {
+        "none": "Brak",
+        "climate": {
+          "setpoint": "Temperatura − / +",
+          "mode": "Przyciski trybu",
+          "setpoint_mode": "Temperatura − / + i przyciski trybu"
+        },
+        "switch": {
+          "toggle": "Przełącznik wł./wył."
+        },
+        "input_boolean": {
+          "toggle": "Przełącznik wł./wył."
+        },
+        "automation": {
+          "toggle": "Przełącznik wł./wył.",
+          "run": "Przycisk Uruchom"
+        },
+        "light": {
+          "toggle": "Przełącznik wł./wył.",
+          "brightness": "Suwak jasności"
+        },
+        "fan": {
+          "toggle": "Przełącznik wł./wył.",
+          "speed": "Suwak prędkości"
+        },
+        "vacuum": {
+          "buttons": "Start, stop, stacja"
+        },
+        "cover": {
+          "buttons": "Otwórz, stop, zamknij",
+          "position": "Suwak pozycji",
+          "tilt": "",
+          "buttons_tilt": "",
+          "position_tilt": ""
+        },
+        "media_player": {
+          "volume": "Głośność i wyciszenie",
+          "playback": "Poprzedni, odtwórz/pauza, następny"
+        },
+        "number": {
+          "stepper": "Wartość − / +",
+          "slider": "Suwak"
+        },
+        "input_number": {
+          "stepper": "Wartość − / +",
+          "slider": "Suwak"
+        },
+        "select": {
+          "stepper": "Poprzednia / następna opcja"
+        },
+        "input_select": {
+          "stepper": "Poprzednia / następna opcja"
+        },
+        "timer": {
+          "buttons": "Start/pauza i anuluj"
+        },
+        "scene": {
+          "run": "Przycisk Aktywuj"
+        },
+        "script": {
+          "run": "Przycisk Uruchom"
+        },
+        "button": {
+          "run": "Przycisk Naciśnij"
+        },
+        "input_button": {
+          "run": "Przycisk Naciśnij"
+        },
+        "remote": {
+          "toggle": "Przełącznik wł./wył."
+        },
+        "humidifier": {
+          "setpoint": "Wilgotność − / +",
+          "slider": "Suwak wilgotności",
+          "mode": "Przyciski trybu",
+          "setpoint_mode": "Wilgotność − / + i przyciski trybu",
+          "toggle": "Przełącznik wł./wył."
+        }
+      },
+      "top_bar": {
+        "builtin": {
+          "clock": "Godzina",
+          "analog": "Zegar analogowy",
+          "date": "Data",
+          "wifi": "Sygnał Wi-Fi",
+          "link": "Ostrzeżenie o połączeniu",
+          "battery": "Bateria"
+        },
+        "contents": {
+          "state": "Stan",
+          "last_changed": "Ostatnia zmiana",
+          "icon": "Tylko ikona"
+        },
+        "shows": {
+          "always": "Zawsze",
+          "active": "Tylko gdy aktywne"
+        },
+        "suggestions": {
+          "temperature": "Temperatura",
+          "humidity": "Wilgotność",
+          "power": "Pobór mocy",
+          "motion": "Ostatni ruch",
+          "weather": "Pogoda",
+          "people_home": "Osoby w domu",
+          "sun": "Wschód i zachód słońca",
+          "co2": "CO₂"
+        },
+        "wifi_contents": {
+          "icon": "Tylko ikona",
+          "percent": "Procent",
+          "dbm": "dBm"
+        },
+        "wifi_shows": {
+          "always": "Zawsze",
+          "weak": "Tylko gdy słaby"
+        },
+        "battery_contents": {
+          "icon": "Tylko ikona",
+          "percent": "Procent"
+        },
+        "plugin_contents": {
+          "all": "Ikona i tekst",
+          "icon": "Tylko ikona"
+        },
+        "battery_shows": {
+          "always": "Zawsze",
+          "low": "Tylko gdy słaba"
+        }
+      },
+      "extras": {
+        "microphone": {
+          "label": "Mikrofon",
+          "hint": "Wyłączony wycisza mikrofon dla wszystkiego, co słucha. Ekran pamięta to po ponownym uruchomieniu."
+        },
+        "media_player": {
+          "label": "Głośność",
+          "hint": "Jak głośno ekran mówi i gra: odpowiedzi, komunikaty i muzyka. Ta sama głośność co odtwarzacz multimediów ekranu w Home Assistant."
+        },
+        "wake_when_moved": {
+          "label": "Wybudź przy ruchu",
+          "hint": "Ekran wybudza się ze stanu czuwania, gdy ktoś go podniesie, przesunie lub w niego stuknie. Czuje sam ekran, nie kogoś, kto przechodzi obok."
+        }
+      }
+    },
+    "alerts": {
+      "fields": {
+        "title": {
+          "label": "Tytuł",
+          "help": "Jeden wiersz na górze karty; to, co się nie zmieści, kończy się wielokropkiem. Pusty daje „Powiadomienie”.",
+          "example": "Ktoś jest przy drzwiach"
+        },
+        "subtitle": {
+          "label": "Podtytuł",
+          "help": "Objaśnienie pod tytułem, w kilku wierszach; można przejść do nowego wiersza. Może być pusty.",
+          "example": "Drzwi 3, tylne"
+        },
+        "icon": {
+          "label": "Ikona",
+          "help": "Nazwa z listy, także jako mdi:nazwa albo kod szesnastkowy (F12E6). Nieznana lub pusta daje trójkąt ostrzegawczy."
+        },
+        "color": {
+          "label": "Kolor",
+          "help": "Jeden z dziewięciu pastelowych kolorów kafelków. Pusty daje białą kartę."
+        },
+        "button_text": {
+          "label": "Tekst przycisku",
+          "help": "Tekst na przycisku. Pusty to „OK”.",
+          "example": "Idę"
+        },
+        "timeout": {
+          "label": "Limit czasu",
+          "help": "Liczba sekund, po której karta sama znika. 0 czeka na przycisk bez względu na to, jak długo to trwa. Przycisk zawsze zamyka ją od razu, także przy limicie czasu."
+        },
+        "flash": {
+          "label": "Miganie",
+          "help": "Włączone sprawia, że podświetlenie mignie cztery razy, gdy przychodzi alert; potem ekran po prostu pozostaje włączony."
+        },
+        "camera": {
+          "label": "Kamera",
+          "help": "Encja kamery lub obrazu. Każdy ekran poza CYD z firmware 0.2.57+ pokazuje jej zdjęcie z tej chwili na karcie, w proporcjach samej kamery (nad tekstem albo obok niego na szerokim, niskim ekranie); dotknięcie go otwiera kamerę na pełnym ekranie. CYD pokazuje alert bez zdjęcia. Tylko przez zdarzenie esp_screens_show_alert."
+        },
+        "action": {
+          "label": "Akcja",
+          "help": "Akcja Home Assistant, na przykład script.open_gate lub light.turn_off, wykonywana raz po naciśnięciu przycisku na dowolnym ekranie. `data` podaje jej pola (entity_id, brightness, ...). Po upływie czasu lub przy nowym alercie pozostaje niewykonana. Tylko przez zdarzenie esp_screens_show_alert."
+        },
+        "screen": {
+          "label": "Ekran",
+          "help": "Który ekran dostaje alert: jego nazwa urządzenia (np. kitchen-screen), nazwa wyświetlana w Home Assistant albo pomieszczenie, które obejmuje każdy ekran w nim. Lista, np. [kitchen-screen, hallway], obejmuje kilka. Pomiń, aby wysłać na wszystkie ekrany. Nazwa, która nie pasuje do żadnego ekranu, nie wysyła niczego; dziennik Tessera Screen Manager podaje wtedy znane mu ekrany. Tylko przez zdarzenia esp_screens_show_alert i esp_screens_dismiss_alert."
+        },
+        "button_color": {
+          "label": "Kolor przycisku",
+          "help": "Przycisk we własnym kolorze: red, orange, yellow, green, mint, blue, purple, pink lub gray, jako pełny kolor z białym napisem. Puste zostawia ciemny przycisk."
+        },
+        "button2_text": {
+          "label": "Tekst drugiego przycisku",
+          "help": "Drugi przycisk na lewo od pierwszego, do wyboru, np. Odrzuć i Akceptuj. Puste daje jeden przycisk.",
+          "example": "Nie teraz"
+        },
+        "button2_color": {
+          "label": "Kolor drugiego przycisku",
+          "help": "Drugi przycisk w jednym z tych samych kolorów. Puste zostawia jasny przycisk."
+        },
+        "button2_action": {
+          "label": "Akcja drugiego przycisku",
+          "help": "Akcja Home Assistant wykonywana raz, gdy drugi przycisk zostanie naciśnięty na dowolnym ekranie, jak `action` dla pierwszego. `button2_data` podaje jej pola. Tylko przez zdarzenie esp_screens_show_alert."
+        }
+      },
+      "endings": {
+        "ok": "Naciśnięto przycisk",
+        "button2": "Naciśnięto drugi przycisk",
+        "timeout": "Upłynął limit czasu",
+        "replaced": "Zastąpił go nowy alert",
+        "remote": "dismiss_alert z Home Assistant"
+      }
+    },
+    "icons": {
+      "groups": {
+        "lighting": "Oświetlenie",
+        "rooms": "Pomieszczenia",
+        "climate": "Klimat",
+        "weather": "Pogoda",
+        "media_and_music": "Media i muzyka",
+        "security": "Bezpieczeństwo",
+        "appliances": "Sprzęt domowy",
+        "energy": "Energia",
+        "window_coverings": "Osłony okienne",
+        "garden_and_pets": "Ogród i zwierzęta",
+        "people_and_travel": "Ludzie i podróże",
+        "other": "Inne"
+      },
+      "names": {
+        "lightbulb": "Żarówka",
+        "lightbulb_group": "Światła",
+        "ceiling_light": "Lampa sufitowa",
+        "chandelier": "Żyrandol",
+        "lamp": "Lampa stołowa",
+        "floor_lamp": "Lampa stojąca",
+        "desk_lamp": "Lampa biurkowa",
+        "wall_sconce_flat": "Kinkiet",
+        "light_recessed": "Oczko sufitowe",
+        "spotlight_beam": "Reflektor",
+        "led_strip_variant": "Taśma LED",
+        "outdoor_lamp": "Lampa zewnętrzna",
+        "home": "Dom",
+        "sofa": "Salon",
+        "bed": "Sypialnia",
+        "silverware_fork_knife": "Jadalnia",
+        "chef_hat": "Kuchnia",
+        "shower": "Prysznic",
+        "bathtub": "Łazienka",
+        "toilet": "Toaleta",
+        "desk": "Gabinet",
+        "garage": "Garaż",
+        "fireplace": "Kominek",
+        "thermometer": "Temperatura",
+        "thermostat": "Termostat",
+        "air_conditioner": "Klimatyzacja",
+        "radiator": "Grzejnik",
+        "heat_pump": "Pompa ciepła",
+        "fire": "Ogrzewanie",
+        "snowflake": "Chłodzenie",
+        "water_percent": "Wilgotność",
+        "fan": "Wentylator",
+        "ceiling_fan": "Wentylator sufitowy",
+        "air_purifier": "Oczyszczacz powietrza",
+        "molecule_co2": "CO₂",
+        "weather_sunny": "Słońce",
+        "weather_partly_cloudy": "Częściowe zachmurzenie",
+        "weather_cloudy": "Pochmurno",
+        "weather_rainy": "Deszcz",
+        "weather_snowy": "Śnieg",
+        "weather_windy": "Wiatr",
+        "weather_night": "Noc",
+        "weather_sunset_up": "Wschód słońca",
+        "music_note": "Muzyka",
+        "music": "Nuty",
+        "playlist_music": "Playlista",
+        "album": "Album",
+        "record_player": "Gramofon",
+        "spotify": "Spotify",
+        "radio": "Radio",
+        "podcast": "Podcast",
+        "speaker": "Głośnik",
+        "speaker_multiple": "Głośniki",
+        "soundbar": "Soundbar",
+        "headphones": "Słuchawki",
+        "microphone": "Mikrofon",
+        "piano": "Pianino",
+        "guitar_acoustic": "Gitara",
+        "television": "Telewizor",
+        "projector": "Projektor",
+        "movie_open": "Film",
+        "cast": "Przesyłanie",
+        "gamepad_variant": "Konsola do gier",
+        "remote_tv": "Pilot",
+        "lock": "Zamek",
+        "lock_open_variant": "Zamek otwarty",
+        "shield_home": "Alarm",
+        "alarm_light": "Lampa alarmowa",
+        "bell": "Dzwonek",
+        "doorbell": "Dzwonek do drzwi",
+        "cctv": "Kamera",
+        "motion_sensor": "Czujnik ruchu",
+        "door_closed": "Drzwi",
+        "door_open": "Drzwi otwarte",
+        "window_closed_variant": "Okno",
+        "smoke_detector": "Czujnik dymu",
+        "water_alert": "Wyciek wody",
+        "washing_machine": "Pralka",
+        "tumble_dryer": "Suszarka",
+        "dishwasher": "Zmywarka",
+        "fridge": "Lodówka",
+        "stove": "Kuchenka",
+        "microwave": "Mikrofalówka",
+        "toaster_oven": "Piekarnik",
+        "coffee_maker": "Kawa",
+        "kettle": "Czajnik",
+        "robot_vacuum": "Robot sprzątający",
+        "robot_mower": "Robot koszący",
+        "printer_3d": "Drukarka 3D",
+        "power_plug": "Wtyczka",
+        "power_socket_eu": "Gniazdko",
+        "laptop": "Laptop",
+        "router_wireless": "Router",
+        "flash": "Prąd",
+        "solar_power": "Energia słoneczna",
+        "solar_panel": "Panele słoneczne",
+        "home_battery": "Magazyn energii",
+        "battery_high": "Bateria",
+        "ev_station": "Stacja ładowania",
+        "car_electric": "Samochód elektryczny",
+        "meter_electric": "Licznik prądu",
+        "meter_gas": "Licznik gazu",
+        "water": "Woda",
+        "water_boiler": "Bojler",
+        "gauge": "Wskaźnik",
+        "window_shutter": "Roleta zewnętrzna",
+        "window_shutter_open": "Roleta zewnętrzna otwarta",
+        "blinds": "Żaluzje",
+        "blinds_open": "Żaluzje otwarte",
+        "roller_shade_closed": "Roleta",
+        "curtains": "Zasłony",
+        "curtains_closed": "Zasłony zasunięte",
+        "awning_outline": "Markiza",
+        "flower": "Kwiat",
+        "tree": "Drzewo",
+        "sprout": "Roślina",
+        "grass": "Trawnik",
+        "sprinkler": "Zraszacz",
+        "pool": "Basen",
+        "grill": "Grill",
+        "mailbox": "Skrzynka na listy",
+        "trash_can": "Śmieci",
+        "recycle": "Recykling",
+        "dog": "Pies",
+        "cat": "Kot",
+        "account": "Osoba",
+        "account_group": "Rodzina",
+        "account_child": "Dziecko",
+        "home_account": "W domu",
+        "sleep": "Sen",
+        "run": "Ćwiczenia",
+        "briefcase": "Praca",
+        "car": "Samochód",
+        "bike": "Rower",
+        "bus": "Autobus",
+        "train": "Pociąg",
+        "airplane": "Wakacje",
+        "map_marker": "Lokalizacja",
+        "power": "Wł./wył.",
+        "toggle_switch": "Przełącznik",
+        "gesture_tap_button": "Przycisk",
+        "play": "Start",
+        "script_text": "Skrypt",
+        "palette": "Scena",
+        "alarm": "Budzik",
+        "clock_outline": "Zegar",
+        "timer_outline": "Minutnik",
+        "calendar": "Kalendarz",
+        "bell_ring": "Powiadomienie",
+        "heart": "Ulubione",
+        "alert_outline": "Ostrzeżenie",
+        "cog": "Ustawienia",
+        "broom": "Sprzątanie",
+        "diabetes": "Cukrzyca"
+      }
+    },
+    "screen": {
+      "builtin": {
+        "clock": "Zegar",
+        "nightstand": "Zegar przy łóżku",
+        "page": "Przejdź do strony {page}",
+        "map": "Mapa",
+        "energy": "Energia"
+      },
+      "identify": {
+        "title": "To jest {name}",
+        "subtitle": "Identyfikacja z Tessera"
+      },
+      "script_running": "Działa",
+      "states": {
+        "locking": "blokowanie",
+        "unlocking": "odblokowywanie",
+        "jammed": "zacięcie",
+        "buffering": "buforowanie",
+        "returning": "wraca",
+        "error": "błąd",
+        "disarmed": "rozbrojony",
+        "armed_home": "uzbrojony (w domu)",
+        "armed_away": "uzbrojony (poza domem)",
+        "armed_night": "uzbrojony (noc)",
+        "armed_vacation": "uzbrojony (wakacje)",
+        "armed": "uzbrojony",
+        "arming": "uzbrajanie",
+        "pending": "oczekiwanie",
+        "triggered": "wyzwolony",
+        "active": "aktywny",
+        "up": "wzeszło",
+        "down": "zaszło",
+        "unknown": "nieznany"
+      },
+      "history": {
+        "other": "Inne"
+      },
+      "vacuum": {
+        "vacuum": "Odkurzanie",
+        "vac_and_mop": "Z mopem",
+        "vac_then_mop": "Mop na końcu",
+        "mop": "Mop",
+        "custom": "Własny",
+        "smart": "Smart",
+        "min": "Min.",
+        "slight": "Lekki",
+        "low": "Niski",
+        "mild": "Łagodny",
+        "medium": "Średni",
+        "moderate": "Umiarkowany",
+        "standard": "Standard",
+        "high": "Wysoki",
+        "intense": "Intensywny",
+        "extreme": "Ekstremalny",
+        "ultra_high": "Ultrawysoki",
+        "silent": "Wyciszony",
+        "gentle": "Delikatny",
+        "strong": "Mocny",
+        "max_plus": "Maks.+",
+        "auto": "Auto"
+      },
+      "map": {
+        "since_time": "od {time}",
+        "battery": "Bateria"
+      },
+      "media": {
+        "playlist": "Playlista",
+        "album": "Album",
+        "artist": "Wykonawca",
+        "track": "Utwór",
+        "podcast": "Podcast",
+        "episode": "Odcinek",
+        "channel": "Kanał",
+        "genre": "Gatunek",
+        "directory": "Folder",
+        "music": "Muzyka"
+      }
+    }
+  },
+  "editor": {
+    "common": {
+      "undo": "Cofnij",
+      "online": "Online",
+      "offline": "Offline",
+      "unknown": "nieznany",
+      "unsaved": "Niezapisane zmiany",
+      "cancel": "Anuluj",
+      "ok": "OK",
+      "open_integrations": "Otwórz Urządzenia oraz usługi",
+      "save_send": "Zapisz i wyślij",
+      "saving": "Zapisywanie…",
+      "read_current_data": "Odczytaj bieżące dane",
+      "results": "1 wynik. Pisz dalej, aby zawęzić. | {n} wyniki. Pisz dalej, aby zawęzić. | {n} wyników. Pisz dalej, aby zawęzić.",
+      "close": "Zamknij",
+      "remove": "Usuń",
+      "loading": "Ładowanie…",
+      "back": "← Wstecz",
+      "copy": "Kopiuj"
+    },
+    "nav": {
+      "plugins": "Wtyczki",
+      "new_screen": "Nowy ekran",
+      "firmware": "Firmware i USB",
+      "alerts": "Alerty",
+      "settings": "Ustawienia",
+      "new_screen_detail": "Podłącz i zainstaluj"
+    },
+    "api": {
+      "failed": "Nie udało się. Odśwież stronę i spróbuj ponownie."
+    },
+    "copy": {
+      "api_key": {
+        "copied": "Skopiowano klucz API.",
+        "selected": "Klucz API jest zaznaczony. Skopiuj skrótem Ctrl+C lub Command+C."
+      },
+      "layout_json": {
+        "copied": "Skopiowano JSON układu.",
+        "selected": "JSON układu jest zaznaczony. Skopiuj skrótem Ctrl+C lub Command+C."
+      },
+      "action_name": {
+        "copied": "Skopiowano nazwę akcji.",
+        "selected": "Nazwa akcji jest zaznaczona. Skopiuj skrótem Ctrl+C lub Command+C."
+      },
+      "yaml": {
+        "copied": "Skopiowano YAML.",
+        "selected": "YAML jest zaznaczony. Skopiuj skrótem Ctrl+C lub Command+C."
+      },
+      "icon_name": {
+        "copied": "Skopiowano nazwę ikony.",
+        "selected": "Nazwa ikony jest zaznaczona. Skopiuj skrótem Ctrl+C lub Command+C."
+      },
+      "empty_color": {
+        "copied": "Skopiowano pusty kolor.",
+        "selected": "Pusty kolor jest zaznaczony. Skopiuj skrótem Ctrl+C lub Command+C."
+      },
+      "color_name": {
+        "copied": "Skopiowano nazwę koloru.",
+        "selected": "Nazwa koloru jest zaznaczona. Skopiuj skrótem Ctrl+C lub Command+C."
+      },
+      "screen_name": {
+        "copied": "Skopiowano nazwę ekranu.",
+        "selected": "Nazwa ekranu jest zaznaczona. Skopiuj ją klawiszami Ctrl+C lub Command+C."
+      },
+      "log": {
+        "copied": "Dziennik skopiowany.",
+        "selected": "Dziennik jest zaznaczony. Skopiuj Ctrl+C lub Command+C."
+      }
+    },
+    "sidebar": {
+      "connection": {
+        "reconnecting": "Ponowne łączenie z Home Assistant…"
+      },
+      "search": "Szukaj",
+      "fold": "Zwiń pasek boczny",
+      "unfold": "Rozwiń pasek boczny",
+      "resize": "Szerokość paska bocznego: przeciągnij lub użyj strzałek; kliknij dwukrotnie, aby przywrócić",
+      "screens": "Ekrany",
+      "refresh": "Odśwież",
+      "update": {
+        "button": "Aktualizuj",
+        "available": "Aktualizacja {version}",
+        "no_profile": "Nie znaleziono profilu ESPHome o tej nazwie urządzenia.",
+        "whats_new": "Co nowego",
+        "full_log": "Pełny log",
+        "short": "Aktualizacja",
+        "reinstall": "Zainstaluj ponownie z dev",
+        "reinstall_why": "Buduje ten ekran od nowa z najnowszego dev i instaluje go przez Wi-Fi. Na dev numer wersji się nie zmienia, więc nowy dev nigdy nie jest proponowany jako aktualizacja.",
+        "in_tessera": "Najpierw zaktualizuj w Tessera",
+        "in_tessera_why": "Najpierw zaktualizuj ten ekran tutaj w Tessera. Ma jeszcze układ pamięci flash z pierwszej instalacji, a obecny firmware już się w nim nie mieści, więc ESPHome Device Builder nie może go zaktualizować. Tessera po drodze przestawi go na nowy układ i zachowa jego ustawienia. Potem działają obie drogi.",
+        "reinstall_short": "Kompiluje najnowszą wersję dev i instaluje ją przez Wi-Fi."
+      },
+      "host": {
+        "hint": "Adres IP, tylko ten jeden raz; nowy firmware sam go zgłasza.",
+        "placeholder": "Adres IP, np. 192.168.1.50",
+        "label": "Adres IP",
+        "start": "Rozpocznij"
+      },
+      "pending": {
+        "installed": "Zainstalowany. Czekam, aż połączy się z Wi-Fi...",
+        "downloaded": "Firmware pobrany. Wgraj go na ekran przez ESPHome Web.",
+        "not_flashed": "Jeszcze nie zainstalowany: Firmware i USB → {file}.",
+        "adding": "W Wi-Fi. Przygotowuję...",
+        "failed": "Tessera nie może sama dodać go do Home Assistant. Dodaj go w sekcji Ustawienia → Urządzenia oraz usługi, z kluczem API poniżej."
+      },
+      "copy_api_key": "Kopiuj klucz API",
+      "files": "Pobierz pliki ekranu",
+      "files_hint": "YAML ESPHome ekranu z jego kluczami, Override YAML i secrets.yaml z Wi-Fi, aby zbudować go w ESPHome na własnym komputerze.",
+      "details": {
+        "room": "Obszar",
+        "firmware": "Firmware",
+        "board": "Płytka",
+        "show": "Pokaż szczegóły: {name}",
+        "hide": "Ukryj szczegóły: {name}"
+      },
+      "rename": {
+        "button": "Zmień nazwę",
+        "label": "Nazwa w tej aplikacji",
+        "save": "Zapisz"
+      },
+      "remove": {
+        "button": "Usuń ekran",
+        "title": "Usunąć {name}?",
+        "ha": "Z Home Assistant: urządzenie wraz z encjami, wszędzie tam, gdzie są używane.",
+        "profile": "Z folderu ESPHome: {file} i to, co z niego zbudowano.",
+        "layout": "Z tej aplikacji: kafelki, ustawienia i historia aktualizacji.",
+        "online": "Ten ekran jest jeszcze połączony. Najpierw go wyczyść albo odłącz, inaczej Home Assistant znajdzie go ponownie.",
+        "confirm": "Usuń",
+        "done": "Ekran {name} został usunięty.",
+        "kept": "Ekran {name} został usunięty. Jego profil {file} pozostaje w folderze ESPHome."
+      },
+      "home": "Przegląd twoich ekranów",
+      "dev_chip": "To wersja dev aplikacji: każdy ekran, który kompiluje, pochodzi z gałęzi dev."
+    },
+    "palette": {
+      "groups": {
+        "screens": "Ekrany",
+        "actions": "Polecenia",
+        "add": "Dodaj do tego ekranu"
+      },
+      "alerts_detail": "Ściąga i alert testowy",
+      "settings_detail": "Aktualizacje, Claude",
+      "nothing_to_save": "Nic do zapisania",
+      "identify": "Zidentyfikuj ten ekran",
+      "identify_detail": "Miga podświetleniem i pokazuje kartę",
+      "identify_needs": "Wymaga nowszej wersji firmware",
+      "export": "Eksportuj układ",
+      "export_detail": "Pobierz i skopiuj jako JSON",
+      "placeholder": "Szukaj ekranów, encji, poleceń…",
+      "empty": "Brak wyników. Wpisz część nazwy ekranu, encji lub polecenia."
+    },
+    "search": {
+      "groups": {
+        "recent": "Ostatnie",
+        "settings": "Ustawienia ekranu",
+        "tiles": "Na twoich ekranach",
+        "plugins": "Wtyczki"
+      },
+      "hint": {
+        "open": "Otwórz",
+        "run": "Uruchom",
+        "show": "Pokaż",
+        "add": "Dodaj"
+      },
+      "keys": {
+        "move": "Przejdź",
+        "choose": "Wybierz",
+        "close": "Zamknij"
+      },
+      "identify": "Zidentyfikuj {name}",
+      "update": "Zaktualizuj {name}",
+      "update_detail": "Do {version}",
+      "update_all": "Zaktualizuj wszystkie ekrany",
+      "update_all_detail": "1 ekran czeka | {n} ekrany czekają | {n} ekranów czeka",
+      "update_all_confirm": "Zaktualizować teraz 1 ekran? Uruchomi się ponownie po instalacji aktualizacji. | Zaktualizować teraz {n} ekrany? Jeden po drugim, każdy uruchomi się ponownie po instalacji aktualizacji. | Zaktualizować teraz {n} ekranów? Jeden po drugim, każdy uruchomi się ponownie po instalacji aktualizacji.",
+      "update_all_go": "Aktualizuj teraz",
+      "install": "Zainstaluj odłożone wtyczki",
+      "install_detail": "1 wtyczka | {n} wtyczki | {n} wtyczek",
+      "add_plugin": "Dodaj {plugin} do {screen}",
+      "add_plugin_detail": "Odłożona, gotowa do instalacji",
+      "on": "Wł.",
+      "off": "Wył."
+    },
+    "empty": {
+      "choose": {
+        "title": "Wybierz ekran",
+        "text": "Wybierz jeden ze swoich ekranów po lewej, aby zmienić jego kafelki, górny pasek i ustawienia."
+      },
+      "start": {
+        "title": "Zacznij od ekranu",
+        "text": "Podłącz swój ekran przez USB do komputera z Home Assistant. Profil, firmware i pierwsze wgranie za jednym razem.",
+        "button": "Zainstaluj nowy ekran"
+      }
+    },
+    "home": {
+      "title": "Twoje ekrany",
+      "summary": "{online} z {count} online",
+      "open": "Otwórz {name}",
+      "no_layout": "Jeszcze bez układu",
+      "in_tessera": "Najpierw zaktualizuj w Tessera"
+    },
+    "broken": {
+      "screens": "1 ekranie | {n} ekranach | {n} ekranach",
+      "summary": {
+        "missing": "1 kafelek na {screens} pokazuje encję, która już nie istnieje | {n} kafelki na {screens} pokazują encję, która już nie istnieje | {n} kafelków na {screens} pokazuje encję, która już nie istnieje",
+        "unavailable": "1 kafelek na {screens} pokazuje encję niedostępną od dłuższego czasu | {n} kafelki na {screens} pokazują encję niedostępną od dłuższego czasu | {n} kafelków na {screens} pokazuje encję niedostępną od dłuższego czasu",
+        "mixed": "1 kafelek na {screens} pokazuje encję, której brak lub jest niedostępna | {n} kafelki na {screens} pokazują encję, której brak lub jest niedostępna | {n} kafelków na {screens} pokazuje encję, której brak lub jest niedostępna"
+      },
+      "short": "1 kafelek do sprawdzenia | {n} kafelki do sprawdzenia | {n} kafelków do sprawdzenia",
+      "review": "Pokaż",
+      "hide": "Ukryj",
+      "missing": "Nie ma jej już w Home Assistant",
+      "unavailable_minutes": "Niedostępna od 1 minuty | Niedostępna od {n} minut | Niedostępna od {n} minut",
+      "unavailable_hours": "Niedostępna od 1 godziny | Niedostępna od {n} godzin | Niedostępna od {n} godzin",
+      "unavailable_days": "Niedostępna od 1 dnia | Niedostępna od {n} dni | Niedostępna od {n} dni",
+      "change": "Pokaż inną encję",
+      "on_screen": "Ta encja jest już na tym ekranie.",
+      "replaced": "Teraz pokazuje {name}",
+      "fix": {
+        "choose": "Wybierz inną encję",
+        "missing": "Home Assistant nie ma już tej encji",
+        "missing_hint": "Została usunięta lub przemianowana. Wybierz, co ten kafelek ma teraz pokazywać.",
+        "unavailable_hint": "Home Assistant od dłuższego czasu nie ma z nią kontaktu. Wybierz inną encję albo poczekaj, aż wróci.",
+        "search": "Szukaj encji"
+      }
+    },
+    "screen_view": {
+      "confirm": {
+        "switch": "Masz niezapisane zmiany. Mimo to otworzyć inny ekran?",
+        "copy": "Zastąpić niezapisany układ kopią układu innego ekranu?",
+        "import": "Zastąpić niezapisany układ zaimportowanym?"
+      },
+      "saved": {
+        "current": "Zapisano. Twój ekran jest aktualizowany.",
+        "other": "Zapisano. Trwa aktualizacja: {name}.",
+        "newer_edit": "Zapisano. Twoja najnowsza zmiana nie została jeszcze wysłana: naciśnij ponownie „Zapisz i wyślij”."
+      },
+      "identified": "{name} miga i przez kilka sekund pokazuje kartę.",
+      "offline": "Offline · zmiany są zapisywane",
+      "tabs": {
+        "plugins": "Wtyczki",
+        "layout": "Układ",
+        "settings": "Ustawienia ekranu"
+      },
+      "sent": "Zapisano · wysłano na ekran",
+      "all_saved": "Wszystko zapisane",
+      "more": "Więcej",
+      "menu": {
+        "identify": "Identyfikuj",
+        "identify_hint": "mignij ekranem",
+        "identify_needs": "Wymaga wersji firmware 0.2.31 lub nowszej",
+        "copy": "Kopiuj układ z…",
+        "copy_screens": "{n} ekran | {n} ekrany | {n} ekranów",
+        "copy_none": "brak innych ekranów",
+        "copy_tiles": "{n} kafelek | {n} kafelki | {n} kafelków",
+        "export": "Eksportuj układ",
+        "import": "Importuj układ…",
+        "override": "Nadpisanie YAML",
+        "override_none": "Nie znaleziono profilu ESPHome dla tego ekranu",
+        "update": "Aktualizuj firmware",
+        "group_screen": "Ten ekran",
+        "group_layout": "Układ",
+        "group_advanced": "Zaawansowane"
+      },
+      "sending": "Wysyłanie"
+    },
+    "layout": {
+      "removed": "Usunięto: {name}",
+      "no_room": "Na stronie {page} nie ma miejsca na ten kafelek.",
+      "no_free_page": "Brak wolnej strony dla kafelka na całą stronę. Najpierw zwolnij stronę.",
+      "page_taken": "Ten ekran ma już kafelek, który prowadzi do strony {page}.",
+      "copied": "Skopiowano układ ekranu {name}. Gdy wygląda dobrze, naciśnij „Zapisz i wyślij”.",
+      "imported": "Zaimportowano układ. Gdy wygląda dobrze, naciśnij „Zapisz i wyślij”.",
+      "not_json": "To nie jest JSON. Najpierw wyeksportuj układ albo wklej układ z innej instalacji Tessera.",
+      "count": "{n} strona · kafelki: {tiles} / {limit} | {n} strony · kafelki: {tiles} / {limit} | {n} stron · kafelki: {tiles} / {limit}",
+      "no_tiles": "Dodaj pierwsze światło, scenę lub urządzenie z biblioteki.",
+      "page_removed": "Strona {page} zniknęła.",
+      "page_removed_tiles": "Strona {page} i jeden kafelek zniknęły. | Strona {page} i {n} kafelki zniknęły. | Strona {page} i {n} kafelków zniknęło.",
+      "positions_hint": "Puste miejsca i stałe pozycje działają od wersji firmware 0.2.26. Do czasu tej aktualizacji ten ekran (firmware {firmware}) przesuwa kafelki w górę, na pierwsze wolne miejsce.",
+      "aria": "Układ ekranu",
+      "add_page": "Dodaj stronę",
+      "max_pages": "Maksymalnie 1 strona | Maksymalnie {n} strony | Maksymalnie {n} stron",
+      "help": {
+        "title": "Jak to działa",
+        "change_label": "Zmiana",
+        "change": "Kliknij kafelek albo górny pasek.",
+        "add_label": "Dodawanie",
+        "add": "Kliknij puste miejsce, a potem coś w bibliotece. Albo przeciągnij to na stronę.",
+        "move_label": "Przenoszenie",
+        "move": "Przeciągnij kafelek. Upuść go na następnej stronie, aby utworzyć nową.",
+        "copy_label": "Kopiuj",
+        "copy": "Przytrzymaj {mod} lub Shift i klikaj kafelki albo przeciągnij ramkę obok nich. {copy}, a potem {paste} na innej stronie lub ekranie.",
+        "pages_label": "Strony",
+        "pages": "Przeciągnij stronę za jej numer. Resztę znajdziesz w jej menu ···.",
+        "map_label": "Mapa",
+        "map": "Pokazuje, dokąd prowadzi każdy kafelek Przejdź do strony.",
+        "preview_label": "Podgląd",
+        "preview": "Wypróbuj przesuwanie i kafelki stron. W domu nic się nie przełącza."
+      },
+      "copy_needs_migration": "Otwórz raz ekran źródłowy, aby jego układ przeszedł na strony, a potem go skopiuj.",
+      "removed_several": "Usunięto 1 kafelek | Usunięto {n} kafelki | Usunięto {n} kafelków"
+    },
+    "page": {
+      "label": "Strona {page}",
+      "remove": "Usuń stronę",
+      "edit_bar": "Edytuj górny pasek",
+      "move_title": "Przeciągnij tę stronę w inne miejsce w rzędzie albo użyj ← i →",
+      "move_aria": "Przenieś stronę {page}",
+      "cell": {
+        "title": "Puste miejsce. Kliknij, aby dodać tu kafelek, albo przeciągnij go tutaj.",
+        "aria": "Puste miejsce {slot} na stronie {page}: dodaj tu następny kafelek",
+        "next": "Tu trafi następny kafelek",
+        "empty": "Puste"
+      }
+    },
+    "library": {
+      "plugins": "Wtyczki",
+      "title": "Biblioteka",
+      "entities": "{n} encja | {n} encje | {n} encji",
+      "search": "Szukaj po nazwie, urządzeniu lub obszarze…",
+      "search_label": "Dodaj encję",
+      "filters": {
+        "all": "Wszystkie",
+        "light": "Światła",
+        "climate": "Klimat",
+        "switch": "Przełączniki",
+        "binary_sensor": "Stan",
+        "button": "Akcje",
+        "script": "Skrypty",
+        "automation": "Automatyzacje",
+        "remote": "Piloty",
+        "fan": "Wentylatory",
+        "cover": "Osłony",
+        "scene": "Sceny",
+        "vacuum": "Odkurzacze",
+        "sensor": "Sensory",
+        "media_player": "Media",
+        "weather": "Pogoda",
+        "number": "Wartości",
+        "select": "Selektory",
+        "person": "Osoby",
+        "timer": "Minutniki",
+        "screen": "Ekran",
+        "alarm_control_panel": "Alarm",
+        "lock": "Zamki",
+        "humidifier": "Nawilżacze",
+        "calendar": "Kalendarze"
+      },
+      "room": "Obszar",
+      "hide_placed": "Ukryj dodane",
+      "hide_placed_title": "Ukryj to, co już jest na tym ekranie",
+      "again": "Już jest na tym ekranie; dodaj ponownie, aby mieć kolejny kafelek",
+      "all_placed": "Wszystko z tej listy jest już na tym ekranie.",
+      "none_found": "Nie znaleziono encji. Spróbuj innej nazwy, obszaru lub filtra.",
+      "full": "Ten ekran mieści 1 kafelek. | Ten ekran mieści {n} kafelki. | Ten ekran mieści {n} kafelków.",
+      "full_update": "Ten ekran mieści 1 kafelek; zaktualizuj jego firmware, aby zmieścić 48. | Ten ekran mieści {n} kafelki; zaktualizuj jego firmware, aby zmieścić 48. | Ten ekran mieści {n} kafelków; zaktualizuj jego firmware, aby zmieścić 48.",
+      "hint": "Przeciągnij na stronę albo kliknij +, aby dodać w pierwszym wolnym miejscu. ⌘K przeszukuje wszystko.",
+      "resize": "Przeciągnij, aby zmienić rozmiar biblioteki",
+      "filter_label": "Filtruj według typu",
+      "no_room": "Bez pomieszczenia"
+    },
+    "plugins": {
+      "title": "Wtyczki",
+      "intro": "Dodatki do ekranów: kafelki na stronę, coś więcej dla całego ekranu albo sprzęt na płytce. Wtyczka jest wbudowywana w firmware ekranu, więc dla każdego ekranu wybierasz, które dostaje.",
+      "search": "Szukaj po nazwie, autorze lub funkcji",
+      "filter": "Pokaż",
+      "from_tessera": "Od Tessera",
+      "by": "Autor: {maker}",
+      "label": {
+        "tessera": "Od Tessera",
+        "community": "Społeczność",
+        "test": "Test"
+      },
+      "state": {
+        "building": "Kompilowanie…",
+        "installed": "Zainstalowana",
+        "update": "Aktualizacja {version}",
+        "test_on": "Test na {name}",
+        "updates": "Aktualizacja na {n} ekranie | Aktualizacja na {n} ekranach | Aktualizacja na {n} ekranach",
+        "on_screens": "Na {n} ekranie | Na {n} ekranach | Na {n} ekranach",
+        "fits_none": "Nie pasuje do żadnego z Twoich ekranów",
+        "failed": "Kompilacja nie powiodła się",
+        "queued": "Czeka na swoją kolej"
+      },
+      "source": {
+        "link": "Z linku",
+        "branch": "Test z gałęzi",
+        "folder": "Test z folderu"
+      },
+      "misfit_short": {
+        "board": "Nie dla tej płytki",
+        "psram": "Wymaga PSRAM",
+        "firmware": "Wymaga nowszego firmware",
+        "flash": "Za duża dla tego ekranu",
+        "blocked": "Zablokowana",
+        "esphome": "Potrzebny nowszy ESPHome",
+        "feature": "Brak sprzętu tutaj",
+        "needs": "Potrzebna niepasująca wtyczka",
+        "built_in": "Wbudowane w tę płytkę"
+      },
+      "misfit": {
+        "board": "Ta wtyczka jest przeznaczona dla innych płytek niż płytka ekranu {screen}.",
+        "psram": "Ta wtyczka wymaga płytki z PSRAM, a {screen} jej nie ma.",
+        "firmware": "{screen} potrzebuje aktualizacji firmware, zanim przyjmie tę wtyczkę.",
+        "flash": "{screen} ma miejsce na około {kb} KB więcej, a ta wtyczka jest większa.",
+        "blocked": "Ta wersja wtyczki jest zablokowana: wiadomo, że jest szkodliwa lub uszkodzona.",
+        "esphome": "Ta wtyczka potrzebuje nowszego ESPHome niż ten, którym kompiluje ta aplikacja.",
+        "feature": "{screen} nie ma niczego, czego potrzebuje ta wtyczka, i żadna wtyczka, która to zapewnia, nie pasuje.",
+        "needs": "Ta wtyczka potrzebuje innej wtyczki, która nie pasuje do {screen}.",
+        "built_in": "Płytka {screen} ma to już sama, więc wtyczka nie jest tam potrzebna."
+      },
+      "none_installed": "Na tym ekranie nie ma jeszcze wtyczek.",
+      "none_found": "Żadna wtyczka nie pasuje do „{query}”.",
+      "version": "wersja {version}",
+      "stage": {
+        "beta": "Beta",
+        "example": "Przykład"
+      },
+      "stage_hint": {
+        "beta": "Beta: działa, ale wciąż jest dopracowywana. Napisz autorowi, jak działa.",
+        "example": "Przykład: pokazuje, co potrafi wtyczka. Wypróbuj go i przeczytaj kod, aby zrobić własną."
+      },
+      "attribute": {
+        "cloud": "Korzysta z usługi w chmurze",
+        "commercial": "Komercyjna",
+        "ai-developed": "Stworzona z pomocą AI"
+      },
+      "test_note": "Test: ekran zostaje na commicie, z którego go zbudowano, a nowszy commit pojawia się tu jako aktualizacja. Folder jest budowany taki, jaki jest teraz.",
+      "remove": "Usuń z {screen}",
+      "building": "Kompilowanie firmware dla {screen}…",
+      "installed_on": "Na {screen}, wersja {version}",
+      "update": "Zaktualizuj do {version}",
+      "trust": {
+        "title": "Ufam temu autorowi"
+      },
+      "adds": {
+        "title": "Co dodaje",
+        "tile": "Kafelek „{name}”",
+        "tile_sizes": "Od {min} do {max} na stronie",
+        "tap": "Akcja po dotknięciu „{name}”",
+        "tap_on": "Na kafelkach {domains}",
+        "card": "„{name}”, własny widok na ekranie",
+        "bar": "Element górnego paska „{name}”",
+        "settings": "Ustawienia",
+        "settings_where": "Na stronie ustawień ekranu i tutaj, w szczegółach na karcie Wtyczki"
+      },
+      "may": {
+        "title": "Co może robić",
+        "ha": "Używa tych poleceń Home Assistant",
+        "ha_none": "Nie wykonuje żadnych akcji w Home Assistant",
+        "network": "Łączy się z {hosts}",
+        "network_none": "Nie łączy się z niczym poza Home Assistant",
+        "read": "Odczytuje te encje z Home Assistant"
+      },
+      "warning": "Wtyczka działa na Twoim ekranie z pełnym dostępem do niego, także do jego Wi-Fi i akcji, które ekran może wykonywać w Home Assistant. Dodawaj tylko wtyczki od autorów, którym ufasz, albo najpierw przeczytaj kod.",
+      "room": {
+        "title": "Miejsce na {screen}",
+        "small": "{kb} KB więcej: firmware zajmie {after} zamiast {before} swojego miejsca.",
+        "large": "{kb} KB, z dużym zapasem w miejscu, które ma ten ekran.",
+        "title_all": "Miejsce",
+        "per_screen": "{kb} KB na każdym ekranie, na który trafi. Przy płytce z 4 MB widać tutaj, czy jest na nią miejsce."
+      },
+      "works": {
+        "title": "Działa na:",
+        "any": "każdej płytce",
+        "any_psram": "każdej płytce z PSRAM"
+      },
+      "source_code": "Kod źródłowy",
+      "issues": "Zgłoś problem",
+      "add_link": "Dodaj przez link",
+      "link": {
+        "title": "Dodaj przez link",
+        "intro": "Wtyczka, której nie ma na liście, albo taka, którą tworzysz. Tessera najpierw czyta jej opis i mówi, czy pasuje, zanim cokolwiek zostanie skompilowane.",
+        "sources": {
+          "link": "Wydanie",
+          "branch": "Testuj gałąź",
+          "folder": "Testuj folder"
+        },
+        "url": "Link do GitHuba",
+        "branch": "Gałąź",
+        "folder": "Folder na tym komputerze",
+        "hints": {
+          "link": "Tessera bierze najnowsze wydanie (bez wydania najnowszy commit) i trzyma na nim ekran. Coś nowszego pojawia się jako aktualizacja.",
+          "branch": "Tessera bierze najnowszy commit tej gałęzi i trzyma na nim ekran; nowszy commit pojawia się jako aktualizacja. Do wypróbowania.",
+          "folder": "Dla wtyczki, którą tworzysz: zapisz, a następna kompilacja ją uwzględni. Folder znajduje się w konfiguracji Home Assistant."
+        },
+        "fetch": "Odczytaj wtyczkę",
+        "test": "Dodaj do {screen} jako test",
+        "not_found": "Pod tym linkiem nie ma opisu wtyczki.",
+        "on_screen": "Na ekranie"
+      },
+      "none_in_use": "Żaden z Twoich ekranów nie ma jeszcze wtyczki.",
+      "screen_update": "Wersja {from}, aktualizacja do {to}",
+      "screen_version": "Wersja {version}",
+      "on_screens": "Na których ekranach",
+      "apply": {
+        "add": "Dodaj do {n} ekranu | Dodaj do {n} ekranów | Dodaj do {n} ekranów",
+        "remove": "Usuń z {n} ekranu | Usuń z {n} ekranów | Usuń z {n} ekranów",
+        "both": "Zastosuj na {n} ekranie | Zastosuj na {n} ekranach | Zastosuj na {n} ekranach",
+        "none": "Zastosuj"
+      },
+      "update_all": "Zaktualizuj {n} ekran do {version} | Zaktualizuj {n} ekrany do {version} | Zaktualizuj {n} ekranów do {version}",
+      "tab": {
+        "intro": "Wtyczki, których używa {screen}, i co jeszcze można dodać. Każda zmiana kompiluje nowy firmware dla tego ekranu.",
+        "all": "Wszystkie wtyczki",
+        "here": "Na tym ekranie",
+        "add": "Dodaj",
+        "misfits": "Nie pasuje do tego ekranu ({n}) | Nie pasują do tego ekranu ({n}) | Nie pasują do tego ekranu ({n})",
+        "updates": "Aktualizacja dla {n} wtyczki | Aktualizacje dla {n} wtyczek | Aktualizacje dla {n} wtyczek",
+        "updates_note": "Jedna kompilacja dla {screen}: {names}.",
+        "updates_rights": "{names} prosi o inne uprawnienia niż wcześniej. | {names} proszą o inne uprawnienia niż wcześniej. | {names} proszą o inne uprawnienia niż wcześniej.",
+        "update_all": "Zaktualizuj wszystko na tym ekranie"
+      },
+      "pending": {
+        "add": "Zostanie dodana po zastosowaniu",
+        "remove": "Zostanie usunięta po zastosowaniu"
+      },
+      "setup": {
+        "on_screen": "{label} na {screen}",
+        "choose_pin": "Wybierz pin",
+        "part_kb": "{kb} KB więcej",
+        "secret_set": "Ustawiono. Wpisz nową wartość, aby ją zastąpić.",
+        "part_needs": "Potrzebuje na ekranie: {what}"
+      },
+      "readme": {
+        "title": "Przeczytaj"
+      },
+      "english_only": "Tylko po angielsku",
+      "build_note": "Instalacja ponownie kompiluje firmware tego ekranu i wysyła go przez Wi-Fi, kilka minut na ekran. Wtyczka jest w YAML ekranu, więc kompilacja w ESPHome Device Builder też ją zawiera.",
+      "attach": {
+        "row": "Podłącz raz, w karcie ekranu",
+        "text": "{screen} jest kompilowany z własnego YAML. Dodaj do niego tę linię jeden raz; potem Tessera trzyma jego wtyczki we własnym pliku, a ESPHome Device Builder kompiluje je jak zawsze, także po aktualizacji.",
+        "copy": "Kopiuj linię",
+        "done": "Gotowe, dodano",
+        "file": "Co Tessera zapisuje w {file}"
+      },
+      "folder_error": "Folder {folder} nie jest jeszcze wtyczką: {why}",
+      "rebuild": "Skompiluj ponownie",
+      "failed": "Firmware dla {screen} nie skompilował się z tą wtyczką. Log znajdziesz w sekcji „Firmware i USB”.",
+      "retry": "Spróbuj ponownie",
+      "privacy": "Prywatność",
+      "consent": {
+        "title": "Ta aktualizacja prosi o inne uprawnienia",
+        "agree": "Zgadzam się na to, co może teraz robić"
+      },
+      "settings_missing": "Jeszcze nie na tym ekranie: pojawi się z następną kompilacją wtyczki.",
+      "changes": "Co się zmieniło",
+      "tray": {
+        "title": "Gotowe do instalacji",
+        "count": "{n} wtyczka | {n} wtyczki | {n} wtyczek",
+        "add": "Dodaj",
+        "added": "Dodano",
+        "setup": "Skonfiguruj",
+        "remove": "Usuń {name} z listy",
+        "room": "{kb} KB z {room} KB wolnych na tym ekranie",
+        "too_much": "Razem {kb} KB, wolne {room} KB: usuń jedną",
+        "trust": "{names} pochodzi od społeczności i nie została sprawdzona przez Tessera. | {names} pochodzą od społeczności i nie zostały sprawdzone przez Tessera. | {names} pochodzą od społeczności i nie zostały sprawdzone przez Tessera.",
+        "install": "Zainstaluj {n} wtyczkę | Zainstaluj {n} wtyczki | Zainstaluj {n} wtyczek",
+        "one_build": "{screen} zostanie zbudowany raz, ze wszystkim.",
+        "builds": "{n} ekrany zostaną zbudowane jeden po drugim.",
+        "stage": "Dodaj do {screen}",
+        "in_tray": "Gotowe do instalacji",
+        "in_tray_note": "Zainstaluj ją z karty w rogu, samą lub razem z innymi.",
+        "along": "dochodzi z {names}",
+        "title_changes": "Gotowe do kompilacji",
+        "changes": "{n} zmiana | {n} zmiany | {n} zmian",
+        "build": "Skompiluj {n} zmianę | Skompiluj {n} zmiany | Skompiluj {n} zmian",
+        "off": "zostanie usunięta z tego ekranu",
+        "off_note": "Przygotowana do usunięcia. Stanie się to przy następnej kompilacji z karty w rogu, razem z resztą dla tego ekranu.",
+        "keep": "Zostaw",
+        "keep_named": "Zostaw {name}",
+        "minutes": "Każda kompilacja trwa kilka minut.",
+        "off_set": "Przygotowana do usunięcia"
+      },
+      "maker": {
+        "title": "Stwórz własną wtyczkę",
+        "lead": "Wtyczka to folder z opisem i odrobiną kodu ESPHome, we własnym repozytorium GitHub. Ty ją tworzysz i Ty publikujesz jej aktualizacje.",
+        "guide": "Jak stworzyć wtyczkę",
+        "start": {
+          "title": "Zacznij od szablonu",
+          "text": "Zrób z niego repozytorium na swoim GitHubie, z nazwą i ikoną.",
+          "action": "Otwórz szablon"
+        },
+        "test": {
+          "title": "Wypróbuj na swoim ekranie",
+          "text": "Dodaj swoje repozytorium linkiem. Wypchnij zmiany, a każdy nowy commit lub wydanie pojawi się tu jako aktualizacja.",
+          "folder": "Albo umieść jej folder w {path}, aby testować bez wydania."
+        },
+        "share": {
+          "title": "Udostępnij wszystkim",
+          "text": "Działa dobrze? Zgłoś ją do społeczności, a pojawi się tu u wszystkich, prosto z Twojego repozytorium. Pozostajesz jej autorem.",
+          "action": "Zgłoś"
+        }
+      },
+      "settings": {
+        "title": "Ustawienia",
+        "live": "Na tym ekranie",
+        "live_note": "Zmiana działa od razu.",
+        "shared": "Dla wszystkich ekranów",
+        "shared_note": "Wypełniane raz, dla każdego ekranu z tą wtyczką.",
+        "build": "Przy kompilacji",
+        "build_note": "Zmiana kompiluje {screen} ponownie.",
+        "save_build": "Zapisz i skompiluj",
+        "run": "Uruchom",
+        "too_short": "Co najmniej {n} znaków."
+      },
+      "tabs": {
+        "tiles": "Kafelki",
+        "functions": "Funkcje",
+        "hardware": "Sprzęt",
+        "in_use": "W użyciu"
+      },
+      "types": {
+        "tiles": "Kafelki",
+        "functions": "Funkcja",
+        "hardware": "Sprzęt"
+      },
+      "topics": {
+        "time": "Czas i odliczanie",
+        "weather": "Pogoda i niebo",
+        "calendar": "Kalendarz i zadania",
+        "home": "Dom",
+        "energy": "Energia",
+        "travel": "W drodze",
+        "money": "Pieniądze",
+        "sports": "Sport",
+        "news": "Wiadomości i ciekawostki",
+        "media": "Muzyka i media",
+        "photos": "Zdjęcia i sztuka",
+        "fun": "Gry i zabawa",
+        "voice": "Głos i dźwięk",
+        "tech": "Technika"
+      },
+      "topic_filter": "Tematy",
+      "sort": {
+        "label": "Sortuj według",
+        "popular": "Najbardziej lubiane",
+        "new": "Najnowsze",
+        "name": "Nazwa"
+      },
+      "none_in_tab": {
+        "tiles": "Nie ma jeszcze wtyczek z kafelkami.",
+        "functions": "Nie ma jeszcze wtyczek dla całego ekranu.",
+        "hardware": "Nie ma jeszcze wtyczek sprzętowych."
+      },
+      "fits_none_group": "{n} wtyczka nie pasuje do żadnego ekranu | {n} wtyczki nie pasują do żadnego ekranu | {n} wtyczek nie pasuje do żadnego ekranu",
+      "likes": {
+        "count": "Lubi to {n} osoba | Lubią to {n} osoby | Lubi to {n} osób",
+        "like": "Lubię to",
+        "unlike": "Cofnij polubienie",
+        "install_first": "Najpierw dodaj ją do ekranu, potem możesz ją polubić",
+        "ask": "Twoje polubienie liczy się w publicznej liczbie dla wtyczki. Publiczna jest tylko liczba: nic o tobie, Home Assistant ani twoich ekranach nie jest wysyłane."
+      },
+      "along": {
+        "title": "Dochodzi",
+        "brings": "zapewnia {what}",
+        "needed_by": "potrzebne dla {name}",
+        "came_with": "Doszła z {names}.",
+        "needed_now": "{names} potrzebuje tej wtyczki.",
+        "choose": "Która wtyczka zapewnia {what}?"
+      },
+      "remove_ask": {
+        "needed": "{names} potrzebuje {name}, więc też zostanie usunięte.",
+        "orphans": "Usuń też {names}",
+        "orphans_note": "Doszła tylko z {name}; nic innego na ekranie jej nie potrzebuje.",
+        "both": "Usuń razem",
+        "go": "Usuń"
+      },
+      "blocked_now": "Ta wersja jest zablokowana ({why}) i wypadnie przy następnej kompilacji. Zaktualizuj do nowszej.",
+      "other_origin": "Ten ekran używa innej wtyczki o tej nazwie, z {origin}. Nie jest stąd aktualizowana.",
+      "switch": "Przejdź na tę z {origin}",
+      "needs": {
+        "title": "Potrzebuje i zapewnia",
+        "plugin": "Inna wtyczka; dochodzi, gdy dodasz tę.",
+        "feature": "{what}",
+        "feature_note": "Z płytki ekranu albo z wtyczki, która to zapewnia: dochodzi, gdy jest tylko jedna.",
+        "brings": "Zapewnia: {what}",
+        "brings_note": "Dla innych wtyczek, które tego potrzebują, na tym samym ekranie."
+      },
+      "features": {
+        "speaker": "głośnik",
+        "microphone": "mikrofon",
+        "media_player": "odtwarzacz multimediów",
+        "camera": "obraz kamery w Home Assistant",
+        "camera_sensor": "czujnik kamery",
+        "bluetooth": "Bluetooth"
+      },
+      "fitting_only": "Tylko to, co pasuje do moich ekranów",
+      "made_by": {
+        "label": "Autor",
+        "all": "Wszyscy",
+        "tessera": "Tessera",
+        "community": "Społeczność"
+      },
+      "filter_button": "Filtruj",
+      "filter_remove": "Usuń {what}",
+      "filter_clear": "Wyczyść filtry",
+      "fitting_all": "Też to, co nie pasuje",
+      "news": {
+        "title": "Nowości w {version}",
+        "none": "Autor nie napisał notatek do tej aktualizacji.",
+        "history": "Wszystkie wersje"
+      },
+      "failed_update": "Wersja {version} nie skompilowała się dla {screen}, więc wrócił do {current}, którą uruchamia. Log znajdziesz w sekcji „Firmware i USB”.",
+      "interrupted": "Aplikacja uruchomiła się ponownie podczas kompilacji."
+    },
+    "plugin_tile": {
+      "from": "Kafelek wtyczki {plugin}",
+      "details": "Szczegóły wtyczki",
+      "options": "Opcje",
+      "choose": "Wybierz…",
+      "less": "Mniej",
+      "more": "Więcej",
+      "from_fetch": "Opcje pochodzą z własnego źródła danych wtyczki, przez Tessera.",
+      "on_screen": "Na ekranie",
+      "sizes": "Od {min} do {max}; przeciągnij krawędź kafelka, aby zmienić jego rozmiar.",
+      "placeholder": "Edytor pokazuje symbol zastępczy: to, co rysuje wtyczka, widać na samym ekranie.",
+      "now": "teraz",
+      "minutes": "{n} min",
+      "live": "Edytor rysuje go z danych wtyczki; ekran rysuje go sam i odlicza czas według własnego zegara.",
+      "entity": "Encja"
+    },
+    "memory": {
+      "label": "Pamięć na kafelki",
+      "share": "{n} %",
+      "title": "Te kafelki zajmują {need} z {room} KB, które ten ekran ma na kafelki. Prognoza, termostat lub odtwarzacz zajmuje więcej niż światło lub przełącznik.",
+      "over": "To więcej, niż ekran zmierzył dla kafelków. Zapisać nadal można: gdy ekranowi zabraknie pamięci, niektóre kafelki pokażą mniej albo ekran odrzuci układ.",
+      "short": "Niektóre kafelki pokazują teraz mniej: ekranowi zabrakło pamięci.",
+      "last_known": "Tak, jak ekran podał, gdy ostatnio był online.",
+      "full_library": "Pamięć ekranu na kafelki jest prawie pełna. Nadal możesz dodawać kafelki.",
+      "confirm_close": "Z tym kafelkiem pamięć ekranu na kafelki jest pełna w {n} %. Dodać mimo to?",
+      "confirm_over": "Z tym kafelkiem układ potrzebuje więcej pamięci, niż ekran zmierzył dla kafelków ({n} %). Gdy jej zabraknie, niektóre kafelki pokażą mniej albo ekran odrzuci układ. Dodać mimo to?",
+      "measuring": "Pomiar",
+      "measuring_title": "Ekran mierzy pamięć na kafelki, gdy kafelki są już na miejscu, mniej więcej minutę po starcie albo po nowym układzie.",
+      "none": "Brak miejsca",
+      "none_title": "Ekran nie ma teraz wolnej pamięci na kafelki. Zapisać nadal można: gdy zabraknie pamięci, niektóre kafelki pokażą mniej albo ekran odrzuci układ.",
+      "confirm_none": "Ekran nie ma teraz wolnej pamięci na kafelki. Gdy jej zabraknie, niektóre kafelki pokażą mniej albo ekran odrzuci układ. Dodać mimo to ten kafelek?"
+    },
+    "domains": {
+      "light": "Światło",
+      "climate": "Klimat",
+      "vacuum": "Odkurzacz",
+      "fan": "Wentylator",
+      "cover": "Osłona",
+      "media_player": "Media",
+      "sensor": "Sensor",
+      "binary_sensor": "Stan",
+      "switch": "Przełącznik",
+      "input_boolean": "Przełącznik",
+      "automation": "Automatyzacja",
+      "remote": "Pilot",
+      "scene": "Scena",
+      "script": "Skrypt",
+      "weather": "Pogoda",
+      "number": "Wartość",
+      "input_number": "Wartość",
+      "select": "Selektor",
+      "input_select": "Selektor",
+      "button": "Akcja",
+      "input_button": "Akcja",
+      "screen": "Ekran",
+      "sun": "Słońce",
+      "timer": "Minutnik",
+      "person": "Osoba",
+      "camera": "Kamera",
+      "image": "Obraz",
+      "entity": "Encja",
+      "alarm_control_panel": "Panel alarmowy",
+      "lock": "Zamek",
+      "humidifier": "Nawilżacz",
+      "calendar": "Kalendarz"
+    },
+    "displays": {
+      "standard": "standardowy",
+      "watch": "duża wartość",
+      "forecast": "prognoza pogody",
+      "graph": "wykres",
+      "meter": "wskaźnik",
+      "digital": "zegar cyfrowy",
+      "analog": "zegar analogowy",
+      "dial": "prosta tarcza",
+      "flip": "zegar klapkowy",
+      "sunpath": "tor słońca",
+      "live": "obraz na żywo",
+      "cover": "okładka albumu",
+      "map": "mapa",
+      "favorite": "ulubione"
+    },
+    "sizes": {
+      "single": "normalny",
+      "wide": "podwójny",
+      "full": "cała strona"
+    },
+    "tile": {
+      "name": "Nazwa na ekranie",
+      "icon": {
+        "auto_ha": "Automatycznie (z Home Assistant)",
+        "auto_default": "Automatycznie (domyślna)",
+        "needs_firmware": "Ekran pokazuje wybraną ikonę od wersji firmware 0.2.18."
+      },
+      "goes_to": {
+        "label": "Przechodzi do strony",
+        "empty": "{page} (pusta)",
+        "needs_firmware": "Kafelki nawigacji wymagają wersji firmware 0.2.62: najpierw naciśnij „Aktualizuj” przy tym ekranie.",
+        "no_page": "Ten ekran nie ma strony {page}, więc dotknięcie otwiera jego ostatnią stronę. Wybierz inną stronę.",
+        "hint": "Dotknięcie kafelka otwiera tę stronę."
+      },
+      "display": {
+        "label": "Widok",
+        "digital": "Zegar cyfrowy",
+        "analog": "Zegar analogowy",
+        "dial": "Prosta tarcza",
+        "flip": "Zegar klapkowy",
+        "standard": "Nazwa i stan",
+        "watch": "Duża wartość",
+        "forecast": "Prognoza pogody",
+        "graph": "Wykres",
+        "meter": "Wskaźnik",
+        "sunpath": "Tor słońca",
+        "live": "Obraz na żywo",
+        "live_needs_firmware": "Obraz na żywo wymaga firmware 0.2.77 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie.",
+        "live_card_hint": "Obraz wypełnia kafelek i odświeża się w tempie poniżej, dopóki strona jest na ekranie. Dotknięcie nadal otwiera go na pełnym ekranie.",
+        "live_card_needs_firmware": "Obraz wypełniający kafelek wymaga firmware 0.3.7 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie. Do tego czasu ekran pokazuje mały obraz w miejscu ikony.",
+        "cover": "Okładka albumu",
+        "cover_hint": "Okładka albumu tego, co gra, w miejscu ikony, jak na kafelku Home Assistant; odtwarzacz bez obrazu zachowuje ikonę. Dotknięcie nadal otwiera kartę.",
+        "cover_needs_firmware": "Okładka albumu na kafelku wymaga firmware 0.2.78 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie.",
+        "map": "Mapa",
+        "map_hint": "Gdzie jest ta osoba i osoby, które dodasz, na spokojnej mapie w kolorach ekranu. Home Assistant dostarcza ulice z OpenStreetMap; ekran dostaje tylko obraz, nigdy lokalizację. Mapa jest rysowana od nowa, gdy ktoś się przemieści. Dotknięcie otwiera ją na cały ekran.",
+        "map_needs_firmware": "Mapa wymaga oprogramowania 0.20.0 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie.",
+        "no_graph": "Home Assistant nie ma wartości liczbowych dla tej encji, więc wykres pozostanie pusty. Wybierz inny widok.",
+        "no_forecast": "Ta usługa pogodowa nie ma prognozy dziennej w Home Assistant. Wybierz inny widok.",
+        "no_meter": "Home Assistant nie ma wartości liczbowych dla tej encji, więc wskaźnik pozostanie pusty. Wybierz inny widok.",
+        "meter_needs_firmware": "Wskaźnik wymaga oprogramowania 0.56.0 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie.",
+        "tall_cover_hint": "",
+        "face_needs_firmware": "Ten zegar wymaga oprogramowania 0.3.6 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie. Do tego czasu ekran pokazuje zegar cyfrowy.",
+        "map_tile_needs_firmware": "Kafelek mapy wymaga oprogramowania 0.21.0 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie.",
+        "favorite": "Ulubione",
+        "favorite_hint": "Jedna playlista, album lub wykonawca tego odtwarzacza, uruchamiany dotknięciem na jego głośniku; dotknięcie podczas odtwarzania wstrzymuje, przytrzymanie otwiera odtwarzacz. Tam, gdzie ekran wyświetla obrazy, okładka wypełnia kafelek.",
+        "favorite_needs_firmware": "Ulubione wymaga firmware 0.24.0 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie."
+      },
+      "refresh": {
+        "label": "Odświeżanie",
+        "seconds": "Co {n} s",
+        "live": "Na żywo"
+      },
+      "picture": {
+        "fit": {
+          "label": "Obraz",
+          "fill": "Wypełnij kafelek",
+          "contain": "Cały obraz"
+        },
+        "overlay": {
+          "label": "Na obrazie",
+          "name": "Nazwa",
+          "none": "Nic"
+        }
+      },
+      "map": {
+        "framing": {
+          "label": "Pokaż",
+          "everyone": "Wszyscy",
+          "home": "Wokół domu",
+          "person": "Wokół tej osoby"
+        },
+        "distance": {
+          "label": "Odległość",
+          "neighbourhood": "Okolica",
+          "street": "Ulica",
+          "town": "Miasto",
+          "region": "Region"
+        },
+        "with": {
+          "label": "Także na mapie",
+          "hint": "Osoby i lokalizatory pokazane obok tej osoby, każdy w swoim kolorze. Lokalizator to telefon, samochód lub tag, którego położenie zna Home Assistant.",
+          "add": "Dodaj osobę lub lokalizator",
+          "remove": "Usuń {name}"
+        },
+        "follow": {
+          "label": "Śledź",
+          "everyone": "Wszystkich",
+          "chosen": "Wybranych",
+          "everyone_hint": "Wszyscy, których położenie zna Home Assistant: każda osoba i każdy lokalizator, który jeszcze do nikogo nie należy."
+        },
+        "markers": {
+          "label": "Znaczniki",
+          "photo": "Zdjęcie",
+          "initials": "Inicjały"
+        },
+        "names": {
+          "label": "Imiona",
+          "auto": "Gdy jest miejsce",
+          "always": "Zawsze",
+          "never": "Nigdy"
+        },
+        "zones": {
+          "label": "Strefy",
+          "show": "Pokaż",
+          "hide": "Ukryj"
+        },
+        "streets": {
+          "label": "Ulice",
+          "show": "Pokaż",
+          "hide": "Gładkie"
+        },
+        "look": {
+          "label": "Wygląd",
+          "auto": "Jak ekran",
+          "light": "Jasny",
+          "dark": "Ciemny"
+        },
+        "chosen": {
+          "label": "Na mapie",
+          "hint": "Kogo śledzi ta mapa, każdy w swoim kolorze. Lokalizator to telefon, samochód lub tag, którego położenie zna Home Assistant."
+        }
+      },
+      "controls": {
+        "label": "Bezpośrednie sterowanie na kafelku",
+        "not_offered": "Home Assistant nie oferuje tego sterowania dla tej encji, więc na ekranie to miejsce pozostanie puste. Wybierz inne.",
+        "full_hint": "Na dole kafelka na całą stronę; dotknięcie w innym miejscu działa zgodnie z ustawieniem poniżej.",
+        "wide_hint": "Po prawej stronie kafelka podwójnej szerokości, jak w wierszach encji w Home Assistant. Dotknięcie nazwy działa zgodnie z ustawieniem poniżej.",
+        "needs_firmware": "Ekran pokazuje bezpośrednie sterowanie od wersji firmware 0.2.19; do tego czasu kafelek pozostaje bez zmian.",
+        "tall_hint": "",
+        "tilt": "",
+        "tilt_hint": ""
+      },
+      "tap": {
+        "label": "Po dotknięciu",
+        "auto": "Automatycznie",
+        "detail": "Otwórz sterowanie",
+        "none": "Tylko podgląd",
+        "toggle": "Włącz / wyłącz",
+        "run": "Uruchom akcje automatyzacji",
+        "action": "Wykonaj akcję",
+        "no_toggle": "Home Assistant nie może tego włączać ani wyłączać, więc dotknięcie nic nie robi. Wybierz inną opcję.",
+        "toggle_needs_firmware": "Włączanie i wyłączanie dotknięciem działa od wersji firmware 0.2.58: naciśnij „Aktualizuj” przy tym ekranie. Do tego czasu dotknięcie otwiera kartę.",
+        "automation_needs_firmware": "Automatyzacje wymagają firmware ekranu 0.7.0: najpierw naciśnij „Aktualizuj” przy tym ekranie.",
+        "hold": "Przytrzymaj kafelek, aby otworzyć jego kartę.",
+        "hold_run": "Przytrzymaj kafelek, aby uruchomić jego akcje.",
+        "hold_toggle": "Przytrzymaj kafelek, aby ją włączyć lub wyłączyć.",
+        "hold_light": "Przytrzymaj kafelek, aby ustawić jasność i kolor, o ile światło je obsługuje.",
+        "hold_fan": "Przytrzymaj kafelek, aby ustawić prędkość, jeśli wentylator ją ma.",
+        "hold_history": "Przytrzymaj kafelek, aby zobaczyć jego historię.",
+        "hold_timer": "Przytrzymaj kafelek, aby anulować minutnik.",
+        "detail_no_toggle": "Dotknięcie otwiera kartę i już nie włącza ani nie wyłącza. Przy opcji {auto} dotknięcie włącza lub wyłącza, a przytrzymanie otwiera kartę."
+      },
+      "guard": {
+        "label": "Odblokowanie tutaj",
+        "confirm": "Po potwierdzeniu",
+        "lock_only": "Nigdy",
+        "confirm_hint": "Zablokowany zamek otwiera się dopiero po drugim dotknięciu kafelka lub przycisku. Blokowanie to zawsze jedno dotknięcie.",
+        "lock_only_hint": "Ten ekran może blokować, ale nigdy nie odblokuje ani nie otworzy. Dobre dla ekranu w przedsionku, garażu lub pokoju dziecka."
+      },
+      "sub": {
+        "label": "Druga linia",
+        "auto": "Automatycznie",
+        "none": "Nic",
+        "attr": "Wartość",
+        "text": "Własny tekst",
+        "value_aria": "Jaką wartość pokazuje druga linia",
+        "text_aria": "Co mówi druga linia",
+        "text_placeholder": "Twoje własne słowa",
+        "hint_auto": "To, co ekran wyliczy sam: jasność, temperatura, kiedy ostatnio uruchomiono skrypt.",
+        "hint_none": "Kafelek pokazuje swoją nazwę i nic pod nią.",
+        "hint_attr": "Wartość tej encji, nazwana i zapisana tak jak w Home Assistant.",
+        "hint_text": "Te same słowa, cokolwiek robi encja."
+      },
+      "slider": {
+        "label": "Mały suwak na kafelku",
+        "nothing": "Home Assistant nie ma dla tej encji niczego, co suwak mógłby zmieniać. Wybierz „Nie”."
+      },
+      "history": {
+        "label": "Historia",
+        "hours": "{n} godzina | {n} godziny | {n} godzin"
+      },
+      "background": {
+        "label": "Pastelowe tło",
+        "aria": "Tło: {name}"
+      },
+      "resize": {
+        "columns": "Zmień szerokość (strzałki w lewo/prawo)",
+        "rows": "Zmień wysokość (strzałki w górę/dół)"
+      },
+      "sections": {
+        "look": "Wygląd",
+        "controls": "Sterowanie",
+        "style": "Ikona i kolor"
+      },
+      "keys": {
+        "hint": "Przeciągnij lampę, temperaturę lub zamek na okrągłe miejsca pod godziną albo dotknij miejsca i wybierz. To kafelki: dotknij jednego, aby go ustawić.",
+        "under": "Pod zegarem przy łóżku: kafelek w okrągłej formie. Dotknięcie działa jak na kafelku, a przytrzymanie otwiera jego kartę.",
+        "name_shown": "Nazwa pod przyciskiem",
+        "name_shown_hint": "Wyłączone pokazuje sam okrąg."
+      },
+      "favorite": {
+        "plays": "Odtwarza",
+        "none": "Jeszcze nic nie wybrano",
+        "choose": "Wybierz",
+        "done": "Gotowe",
+        "back": "Wstecz",
+        "loading": "Wczytywanie biblioteki…",
+        "empty": "Nic tu nie ma",
+        "open": "Otwórz {name}",
+        "speaker": "Głośnik",
+        "speaker_now": "Tam, gdzie gra",
+        "speaker_hint": "Gdzie startuje. „Tam, gdzie gra” prosi na ekranie o głośnik, gdy odtwarzacz nigdzie nie gra.",
+        "link": "Albo wklej link do Spotify",
+        "link_hint": "Link lub URI z aplikacji Spotify, przez Udostępnij > Kopiuj link: playlista, album, wykonawca, utwór lub podcast.",
+        "link_add": "Dodaj",
+        "shuffle": "Losowo",
+        "shuffle_hint": "Ustawiane przy starcie. Przy odtwarzaniu losowym pomija jeden utwór, aby już pierwszy był losowy. \"Bez zmian\" zostawia odtwarzacz tak, jak jest.",
+        "shuffle_keep": "Bez zmian",
+        "shuffle_on": "Wł.",
+        "shuffle_off": "Wył.",
+        "repeat": "Powtarzanie",
+        "repeat_hint": "Ustawiane przy starcie. \"Bez zmian\" zostawia odtwarzacz tak, jak jest.",
+        "repeat_off": "Wył.",
+        "repeat_all": "Powtarzaj wszystko",
+        "repeat_one": "Powtarzaj jeden",
+        "repeat_keep": "Bez zmian"
+      },
+      "energy": {
+        "hint": "Moc domu w tej chwili, narysowana tak, jak rysuje ją widok Energia w Home Assistant: słońce, sieć, bateria i twoje urządzenia, z ustawień Energii w Home Assistant. Dotknięcie koła otwiera historię tego czujnika.",
+        "needs_firmware": "Karta energii wymaga oprogramowania 0.47.0 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie.",
+        "flow": {
+          "label": "Przepływ",
+          "hint": "Kropki biegną wzdłuż każdej linii, tym szybciej, im więcej mocy płynie. Linie i strzałki są spokojniejsze: linia grubieje wraz z mocą, a strzałka pokazuje kierunek. Ekran ze starszym firmware zachowuje kropki.",
+          "dots": "Ruchome kropki",
+          "lines": "Linie i strzałki"
+        }
+      },
+      "calendar": {
+        "title": "Kalendarz",
+        "needs_firmware": "Karta kalendarza wymaga oprogramowania 0.56.0 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie.",
+        "show": {
+          "label": "Pokaż",
+          "events": "Wydarzenia",
+          "events_hint": "Tytuły, co dalej, tydzień i miesiąc",
+          "busy_free": "Wolne lub zajęte",
+          "busy_free_hint": "Wolne, Zaraz się zaczyna lub Zajęte dużymi literami, następna rezerwacja i jak długo trwa",
+          "room": "Stan i rezerwacja",
+          "room_hint": "Wolne lub Zajęte dużymi literami na zielono lub czerwono, do kiedy, i przyciski, które rezerwują salę teraz"
+        },
+        "calendars": {
+          "label": "Kalendarze",
+          "hint": "Do {n} kalendarzy na jednej karcie, każdy we własnym kolorze z Home Assistant.",
+          "count": "{n} kalendarz | {n} kalendarze | {n} kalendarzy",
+          "own": "Ten kafelek",
+          "none": "Home Assistant nie ma innych kalendarzy."
+        },
+        "filter": {
+          "title": "Które wydarzenia",
+          "found": "{n} wydarzenie | {n} wydarzenia | {n} wydarzeń"
+        },
+        "places": {
+          "label": "Miejsce",
+          "hint": "Tylko wydarzenia w tych miejscach, np. w jednej sali spotkań. Miejsca pochodzą z wydarzeń samych kalendarzy; wpisz inne, aby je dodać.",
+          "add": "Dodaj miejsce"
+        },
+        "words": {
+          "label": "Słowa w tytule",
+          "hint": "Tylko wydarzenia z jednym z tych słów w tytule i żadne z jednym ze słów do pominięcia.",
+          "only": "Tylko z",
+          "hide": "Pomiń",
+          "add": "Dodaj słowo"
+        },
+        "all_day": "Wydarzenia całodniowe",
+        "tentative": "Wydarzenia wstępne",
+        "tentative_hint": "Wydarzenia jeszcze niepotwierdzone, tak jak oznacza je kalendarz.",
+        "private": "Ukryj tytuły",
+        "private_hint": "Każde wydarzenie wyświetla się jako Zajęte, bez tytułu i miejsca: dla ekranu na korytarzu lub we wspólnym pomieszczeniu.",
+        "time": {
+          "title": "Czas"
+        },
+        "ahead": "Dni naprzód",
+        "ahead_hint": "Ile dni wydarzeń karta pokazuje od dziś.",
+        "days": "{n} dzień | {n} dni | {n} dni",
+        "soon": "Zaraz się zaczyna",
+        "soon_hint": "Ile czasu przed wydarzeniem karta pokazuje Zaraz się zaczyna.",
+        "soon_off": "Wyłączone",
+        "minutes": "{n} min | {n} min | {n} min",
+        "start_view": "Pełny ekran otwiera się na",
+        "start_view_hint": "Dotknięcie karty otwiera jej pełny ekran. Automatycznie pokazuje tydzień, jeśli ekran ma na niego miejsce, a w przeciwnym razie dzień.",
+        "view": {
+          "auto": "Automatycznie",
+          "up_next": "Następne",
+          "day": "Dzień",
+          "week": "Tydzień",
+          "month": "Miesiąc"
+        },
+        "week_start": "Tydzień zaczyna się",
+        "week_start_hint": "Dziś trzyma w widoku najbliższe dni; poniedziałek pokazuje tydzień kalendarzowy.",
+        "week_start_today": "Dziś",
+        "week_start_monday": "Poniedziałek",
+        "hours": "Godziny",
+        "hours_hint": "Godziny, które pokazuje tydzień. Automatycznie podąża za wydarzeniami, co najmniej od ósmej do ósmej; to, co wypada poza nimi, jest liczone.",
+        "hours_auto": "Automatycznie",
+        "week_numbers": "Numery tygodni",
+        "week_numbers_hint": "W miesiącu, po lewej stronie każdego tygodnia.",
+        "book": {
+          "title": "Rezerwacja",
+          "on": "Rezerwuj w",
+          "on_hint": "Kalendarz, do którego trafia rezerwacja z ekranu. Tylko kalendarze, które przyjmują nowe wydarzenia z Home Assistant, takie jak Local Calendar, Google i CalDAV.",
+          "none": "Żaden z kalendarzy tej karty nie przyjmuje nowych wydarzeń z Home Assistant, więc karta nie pokazuje przycisków rezerwacji.",
+          "place": "Miejsce",
+          "place_hint": "Wpisywane jako miejsce rezerwacji, na przykład nazwa sali.",
+          "place_add": "Dodaj miejsce",
+          "name": "Tytuł",
+          "name_hint": "Tytuł rezerwacji w kalendarzu.",
+          "name_placeholder": "Zarezerwowano na ekranie"
+        }
+      },
+      "meter": {
+        "title": "Wskaźnik",
+        "look": "Kształt",
+        "styles": {
+          "ring": "Pierścień",
+          "tape": "Skala",
+          "bar": "Pasek"
+        },
+        "range": "Zakres",
+        "range_hint": "Gdzie wskaźnik się zaczyna i kończy. Z Home Assistant czujnik ma zakres od 0 do 100, jak na jego karcie wskaźnika; dla temperatury, CO2 lub mocy ustaw własny.",
+        "range_ha": "Z Home Assistant",
+        "range_own": "Własny",
+        "min": "Min",
+        "max": "Maks",
+        "outside": "{value} jest poza zakresem {min} – {max}.",
+        "set_own": "Ustaw zakres samodzielnie",
+        "range_wrong": "Minimum musi być mniejsze niż maksimum.",
+        "color": "Kolor",
+        "segments": "Segmenty",
+        "segments_hint": "Jeden kolor dla całego wskaźnika albo dwa lub trzy, które zmieniają się na progu. Próg to wartość w jednostce czujnika.",
+        "whole": "cały wskaźnik",
+        "up_to": "do",
+        "above": "powyżej",
+        "swatch_aria": "Kolor segmentu {n}: {color}",
+        "own_color": "Własny kolor kafelka",
+        "threshold_aria": "Próg {n}",
+        "thresholds_wrong": "Każdy próg musi być wyższy niż poprzedni.",
+        "reset": "Przywróć domyślne",
+        "colors": {
+          "red": "Czerwony",
+          "pink": "Różowy",
+          "purple": "Fioletowy",
+          "deep-purple": "Ciemnofioletowy",
+          "indigo": "Indygo",
+          "blue": "Niebieski",
+          "light-blue": "Jasnoniebieski",
+          "cyan": "Cyjan",
+          "teal": "Morski",
+          "green": "Zielony",
+          "light-green": "Jasnozielony",
+          "lime": "Limonkowy",
+          "yellow": "Żółty",
+          "amber": "Bursztynowy",
+          "orange": "Pomarańczowy",
+          "deep-orange": "Ciemnopomarańczowy",
+          "brown": "Brązowy",
+          "grey": "Szary",
+          "blue-grey": "Niebieskoszary"
+        }
+      }
+    },
+    "precision": {
+      "label": "Precyzja",
+      "default": "Domyślna ({value})",
+      "note": "To ustawienie samego Home Assistant dla tego czujnika, więc zmienia się także tam.",
+      "unregistered": "Ten czujnik nie ma unikalnego identyfikatora, więc Home Assistant nie przechowuje dla niego ustawień."
+    },
+    "tile_card": {
+      "label": "{name}, miejsce {slot} na stronie {page}. Enter: konfiguruj, strzałki: przenieś",
+      "remove": "Usuń kafelek",
+      "remove_named": "Usuń {name}"
+    },
+    "action": {
+      "label": "Akcja",
+      "asking": "Pobieranie akcji tej encji z Home Assistant…",
+      "not_answering": "Home Assistant teraz nie odpowiada. Spróbuj ponownie za chwilę.",
+      "choose": "Wybierz akcję",
+      "search": "Szukaj, na przykład toggle, position lub play",
+      "search_label": "Szukaj akcji",
+      "none_found": "Nie znaleziono akcji.",
+      "gone": "Home Assistant nie oferuje już tej akcji dla tej encji, więc dotknięcie nic nie robi. Wybierz inną.",
+      "optional": "{name} (opcjonalnie)",
+      "not_set": "Nie ustawiono",
+      "on": "Włączone",
+      "off": "Wyłączone",
+      "needs": "Home Assistant wymaga: {fields}.",
+      "needs_firmware": "Ekran wykonuje akcje od wersji firmware 0.2.58: naciśnij „Aktualizuj” przy tym ekranie. Do tego czasu dotknięcie działa jak „Automatycznie”."
+    },
+    "icon": {
+      "label": "Ikona",
+      "none": "Bez ikony",
+      "search": "Szukaj, na przykład lampa, muzyka lub drzwi",
+      "search_label": "Szukaj ikony",
+      "none_text_only": "Bez ikony, tylko tekst",
+      "aria": "Ikona: {name}",
+      "none_found": "Nie znaleziono ikony."
+    },
+    "inspect": {
+      "title": "Bieżące dane",
+      "subtitle": "Połączenie, stan i obsługiwane właściwości",
+      "reading": "Odczytywanie…",
+      "fetching": "Pobieranie bieżącego stanu z HA…",
+      "status": "Stan: {status}",
+      "options": "Mały suwak: {slider} · Widok: {display} · Rozmiar: {size} · Sterowanie: {control} · Tło: {background}",
+      "yes": "tak",
+      "no": "nie",
+      "control_none": "brak",
+      "background_default": "Domyślne",
+      "read_again": "Odczytaj ponownie"
+    },
+    "topbar": {
+      "removed": "Usunięto z górnego paska: {name}",
+      "full": "Górny pasek mieści 1 element. | Górny pasek mieści {n} elementy. | Górny pasek mieści {n} elementów.",
+      "already": "To już jest na górnym pasku.",
+      "title": "Górny pasek",
+      "aria": "Górny pasek: {name}",
+      "items": "{used} z {n} elementu | {used} z {n} elementów | {used} z {n} elementów",
+      "name": "Tytuł nad stroną",
+      "name_placeholder": "Na przykład: Salon",
+      "screen_name": "Tytuł ekranu",
+      "screen_name_hint": "Każda strona bez własnego tytułu pokazuje ten tytuł.",
+      "no_title_hint": "Zostaw puste, aby pokazać tylko logo.",
+      "right": "Po prawej: godzina, sensory lub zegar",
+      "item_label": "{name}, miejsce {slot}. Enter: konfiguruj, strzałki: przenieś",
+      "remove_named": "Usuń {name} z górnego paska",
+      "max": "Maksymalnie 1 element | Maksymalnie {n} elementy | Maksymalnie {n} elementów",
+      "add_title": "Dodaj godzinę, datę, zegar analogowy lub encję",
+      "add_button": "Dodaj godzinę, datę lub encję",
+      "hint": {
+        "overflow": "Nie wszystko mieści się obok nazwy: ekran pomija elementy z przerywaną ramką. Usuń jeden z nich albo wybierz krótszą nazwę.",
+        "reorder": "Przeciągnij, aby zmienić kolejność; kliknij element, aby go skonfigurować.",
+        "needs_firmware": "Sensory, data i zegar analogowy pojawiają się od wersji firmware {version}; do tej aktualizacji ekran pokazuje nazwę oraz zegar, jeśli godzina jest na pasku."
+      },
+      "detail": {
+        "hidden": "Ukryty: teraz nieaktywny",
+        "overflow": "Nie mieści się obok nazwy",
+        "dial": "Tarcza",
+        "hidden_signal": "Ukryty, dopóki sygnał jest dobry",
+        "hidden_link": "Ukryty, dopóki wszystko jest połączone",
+        "hidden_battery": "Ukryte, dopóki bateria ma ponad 20 %"
+      },
+      "live": {
+        "hidden": "Teraz ukryty: nieaktywny",
+        "overflow": "Obecnie nie mieści się obok nazwy",
+        "looks": "Tak wygląda na ekranie"
+      },
+      "analog_sample": "Mała tarcza z godziną",
+      "content": {
+        "label": "Co pokazać",
+        "hint": "„Ostatnia zmiana” aktualizuje się na samym ekranie: „Przed chwilą”, „5 min temu”, „Wczoraj”."
+      },
+      "auto_icon": "Automatycznie (jak w Home Assistant)",
+      "show": {
+        "label": "Pokazuj",
+        "hint": "„Tylko gdy aktywne” ukrywa element, dopóki jest wyłączony, zamknięty, poza domem albo równy 0. Przydatne dla otwartych drzwi, pracującej pralki albo tego, kto jest w domu."
+      },
+      "clock_24": "Zegar 24-godzinny · zmiana: {settings}",
+      "clock_12": "Zegar 12-godzinny · zmiana: {settings}",
+      "clock_settings": "Ustawienia → Język i region",
+      "date_hint": "Dziś: {date}. Data pochodzi z zegara samego ekranu.",
+      "up": "W górę",
+      "down": "W dół",
+      "add": {
+        "title": "Dodaj do górnego paska",
+        "slots": "Zajęto {used} z {n} miejsca | Zajęto {used} z {n} miejsc | Zajęto {used} z {n} miejsc",
+        "builtin": "Z samego ekranu",
+        "added": "Już dodano",
+        "suggestions": "Propozycje z Home Assistant",
+        "entity": "Encja",
+        "search": "Szukaj po nazwie, obszarze lub encji, np. temperatura albo drzwi",
+        "search_label": "Szukaj encji dla górnego paska",
+        "none_found": "Nie znaleziono encji.",
+        "plugins": "Z wtyczek"
+      },
+      "left": "Lewa strona",
+      "left_hint": "Tytuł i przycisk strony głównej: w ustawieniach strony",
+      "wifi_sample": "Sygnał tego ekranu",
+      "link_sample": "Tylko gdy brakuje Home Assistant lub Tessera",
+      "battery_sample": "Bateria tego ekranu",
+      "wifi_hint": "Ekran odczytuje własny sygnał, więc ten element zostaje na pasku, gdy Home Assistant jest niedostępny. Od czterech kresek do jednej, przekreślony bez sieci.",
+      "wifi_show_hint": "Tylko gdy słaby zostawia pasek pusty, dopóki sygnał nie spadnie do jednej kreski lub sieć nie zniknie.",
+      "link_hint": "Pojawia się tylko, gdy brakuje Home Assistant lub Tessera, żeby od razu było widać, dlaczego brakuje wartości.",
+      "battery_hint": "Ekran sam odczytuje swoją baterię, więc ten element zostaje na pasku, gdy Home Assistant jest niedostępny. Ikona pokazuje poziom tak, jak rysuje go Home Assistant, z błyskawicą podczas ładowania.",
+      "battery_show_hint": "Tylko gdy słaba zostawia pasek pusty, dopóki bateria nie spadnie do 20 % lub mniej.",
+      "status_firmware": "Ten element pojawia się od firmware {version}. Do tej aktualizacji ekran go pomija.",
+      "plugin_item": "Pokazuje to, co mówi jego wtyczka, tylko gdy ma coś do powiedzenia. Na ekranie bez tej wtyczki się nie pojawia."
+    },
+    "screen_settings": {
+      "groups": {
+        "brightness": "Jasność",
+        "night": "Noc",
+        "screen": "Ekran",
+        "this_screen": "Ten ekran"
+      },
+      "rows": {
+        "brightness": "Jasność",
+        "dark_mode": "Tryb ciemny",
+        "standby_enabled": "Auto czuwanie",
+        "standby_seconds": "Czuwanie po",
+        "standby_brightness": "Jasność czuwania",
+        "standby_lit": "Ekran włączony w czuwaniu",
+        "night_enabled": "Tryb nocny",
+        "night_start": "Początek",
+        "night_end": "Koniec",
+        "night_brightness": "Jasność nocna",
+        "night_lit": "Ekran włączony w nocy",
+        "auto_home": "Powrót do strony głównej",
+        "auto_home_seconds": "Po",
+        "home_on_standby": "Także w czuwaniu",
+        "swipe_pages": "Przesuwanie stron",
+        "page_buttons": "Przyciski stron",
+        "home_button": "Pokaż przycisk strony głównej",
+        "rotation": "Obrót"
+      },
+      "actions": {
+        "calibrate": {
+          "button": "Kalibruj dotyk",
+          "hint": "Ekran pokazuje pięć krzyżyków i na nich czeka. Kto przed nim stoi, dotyka każdego krzyżyka trzy razy.",
+          "confirm": "Zacząć kalibrację na {name}?",
+          "done": "{name} pokazuje krzyżyki."
+        }
+      },
+      "duration": {
+        "seconds": "{n} s",
+        "minutes": "{n} min",
+        "hours": "{n} godz.",
+        "hours_minutes": "{h} godz. {m}"
+      },
+      "time": {
+        "am": "{time} AM",
+        "pm": "{time} PM"
+      },
+      "other_screen_busy": "Trwa jeszcze zapisywanie ustawień innego ekranu. Spróbuj ponownie za chwilę.",
+      "reach": {
+        "pages": "strony {list} | stron {list} | stron {list}"
+      },
+      "status": {
+        "offline": "Ten ekran jest offline. Jego ustawienia można zmienić, gdy wróci.",
+        "screen": "Zmiany działają na ekranie od razu, a gdy zmienisz coś na ekranie, zobaczysz to tutaj.",
+        "app": "Zmiany działają od razu. Od wersji firmware 0.2.49 ekran przechowuje je sam."
+      },
+      "unavailable": "Ta encja jest wyłączona w Home Assistant albo ekran uruchamia się ponownie.",
+      "lower": "{name}: zmniejsz",
+      "higher": "{name}: zwiększ",
+      "screensaver": {
+        "title": "Wygaszacz ekranu",
+        "show": "Pokazuj w trybie czuwania",
+        "standby_off": "Włącz Auto czuwanie, aby go używać.",
+        "needs_firmware": "Zaktualizuj ten ekran do firmware {version}, aby używać wygaszacza.",
+        "no_pictures": "Ten ekran nie ma pamięci na obrazy, więc pokazuje zegar.",
+        "lead": "Pokazuje pierwszy dostępny",
+        "use": "Użyj: {name}",
+        "kinds": {
+          "media": "Odtwarzana muzyka",
+          "camera": "Kamera",
+          "clock": "Zegar"
+        },
+        "summary": {
+          "media_none": "Jeszcze brak odtwarzacza",
+          "camera_none": "Jeszcze brak kamery",
+          "temperature": "Temperatura zewnętrzna",
+          "time_date": "Godzina i data",
+          "off": "Wył."
+        },
+        "on": "Pokazuj na wygaszaczu",
+        "place": "{n} z {count}",
+        "earlier": "Próbuj wcześniej",
+        "later": "Próbuj później",
+        "players_title": "Odtwarzacze",
+        "players": "Odtwarzacze, pierwszy na górze",
+        "players_hint": "Pierwszy, który odtwarza, pojawia się z okładką.",
+        "player_add": "Dodaj odtwarzacz",
+        "remove_player": "Usuń: {name}",
+        "keys_hint": "Odtwarzanie, pauza i głośność działają na wygaszaczu. Dotknięcie w innym miejscu budzi ekran.",
+        "choose_camera": "Wybierz kamerę",
+        "camera_hint": "Jej obraz co 15 sekund",
+        "glass": "Na ekranie",
+        "temperature": "Temperatura",
+        "weather_auto": "Automatycznie",
+        "weather_none": "Bez temperatury",
+        "beside": "Obok",
+        "items_add": "Dodaj encję",
+        "items_hint": "Obok temperatury, w jednej linii: czujnik, drzwi, lampa.",
+        "items_full": "Zegar ma miejsce na {n} encje.",
+        "items_already": "To już jest na zegarze.",
+        "items_removed": "Usunięto {name} z zegara",
+        "items_title": "Encje zegara",
+        "items_slots": "{used} z {n}",
+        "item_text": "Tekst",
+        "item_icon": "Ikona",
+        "item_both": "Oba",
+        "item_look": "Pokazuje",
+        "item_hint": "Czarno-biało na wygaszaczu, niezależnie od koloru encji.",
+        "items_add_title": "Dodaj do zegara"
+      },
+      "plugins": {
+        "title": "Wtyczki",
+        "note": "Ustawienia każdej wtyczki są w jej szczegółach na karcie Wtyczki."
+      },
+      "extras": {
+        "title": "Dodatki",
+        "note": "Ustawienia, które ma tylko ten ekran, z jego płytki. Te same przełączniki są na stronie ustawień samego ekranu i w Home Assistant."
+      }
+    },
+    "update": {
+      "starting": "Rozpoczynanie aktualizacji…",
+      "building": "Kompilowanie firmware…",
+      "writing": "Wgrywanie firmware przez Wi-Fi…",
+      "phases": {
+        "install": "Kompilowanie i instalowanie…",
+        "verify": "Oczekiwanie na powrót ekranu…",
+        "settle": "Sprawdzanie, czy działa stabilnie…"
+      },
+      "new_language": "Nowy język: {name}"
+    },
+    "settings": {
+      "updates": {
+        "auto_on": "Ekrany będą teraz aktualizowane automatycznie w nocy.",
+        "auto_off": "Automatyczne aktualizacje są wyłączone.",
+        "title": "Aktualizacje firmware",
+        "busy": "Aktualizowanie do firmware {version}…",
+        "no_screens": "Nie sparowano jeszcze żadnego ekranu. Nowe ekrany dostaną firmware {version}.",
+        "available": "Firmware {version} jest dostępny dla {n} ekranu. | Firmware {version} jest dostępny dla {n} ekranów. | Firmware {version} jest dostępny dla {n} ekranów.",
+        "current": "Wszystkie ekrany mają firmware {version}.",
+        "available_mixed": "Aktualizacja jest dostępna dla {n} ekranu. | Aktualizacja jest dostępna dla {n} ekranów. | Aktualizacja jest dostępna dla {n} ekranów.",
+        "current_mixed": "Wszystkie ekrany są aktualne.",
+        "all": "Aktualizuj 1 ekran | Aktualizuj wszystkie ekrany ({n}) | Aktualizuj wszystkie ekrany ({n})",
+        "whats_new": "Co nowego w firmware {version}",
+        "auto_label": "Aktualizuj automatycznie co noc",
+        "auto_hint": "Między 03:00 a 06:00, po jednym ekranie naraz. Przy błędzie zatrzymuje się i zgłasza go w Home Assistant.",
+        "reinstall_all": "Zainstaluj ponownie 1 ekran z dev | Zainstaluj ponownie {n} ekrany z dev | Zainstaluj ponownie {n} ekranów z dev",
+        "reinstall_all_hint": "Kompiluje najnowszą wersję dev dla każdego ekranu, jeden po drugim, i instaluje ją przez Wi-Fi. Na dev numer wersji się nie zmienia, więc nowa wersja dev nigdy nie pojawia się jako aktualizacja.",
+        "reinstall_all_confirm": "Zainstalować ponownie 1 ekran z najnowszej wersji dev? Uruchomi się ponownie, gdy dostanie firmware. | Zainstalować ponownie {n} ekrany z najnowszej wersji dev? Kompilują się po kolei i każdy uruchamia się ponownie, gdy dostanie firmware. | Zainstalować ponownie {n} ekranów z najnowszej wersji dev? Kompilują się po kolei i każdy uruchamia się ponownie, gdy dostanie firmware.",
+        "reinstall_all_go": "Zainstaluj ponownie"
+      },
+      "claude": {
+        "installed": "Umiejętność zainstalowana. Claude Code od razu ją wykrywa.",
+        "installed_restart": "Umiejętność zainstalowana. Uruchom ponownie Claude Code jeden raz, aby znalazł nowy folder umiejętności.",
+        "text": "Dzięki tej umiejętności Claude pozna Tessera. Potem poproś: „Pokaż alert na wszystkich moich ekranach, gdy skrzynka na listy jest pełna”. Claude zna zdarzenia alertów, każde pole, kolor i ikonę.",
+        "install": "Zainstaluj dla Claude Code",
+        "install_again": "Zainstaluj ponownie",
+        "update": "Zaktualizuj umiejętność",
+        "not_installed": "Nie zainstalowano",
+        "installed_chip": "● Zainstalowano",
+        "newer": "Zainstalowano · dostępna jest nowsza wersja",
+        "writes": "Dla Claude Code w Home Assistant. Zapisuje jeden plik w {path}; ponowna instalacja go zastępuje.",
+        "download": "Pobierz dla claude.ai",
+        "upload": "Prześlij plik zip w Claude: Customize → Skills."
+      },
+      "title": "Wszystko wokół Twoich ekranów.",
+      "back": "← Moje ekrany",
+      "screens": {
+        "title": "Ekrany",
+        "text": "Dodaj ekran albo skompiluj i ponownie zainstaluj firmware ekranu, który już masz.",
+        "firmware_detail": "Kompiluj i instaluj przez USB lub Wi-Fi"
+      },
+      "language": {
+        "title": "Język i region",
+        "screen_language": "Język ekranów",
+        "auto": "Język Home Assistant ({name})",
+        "auto_plain": "Język Home Assistant",
+        "ha_missing": "Ekrany używają angielskiego, dopóki język Home Assistant nie będzie dostępny.",
+        "unchecked": "{name} · jeszcze niesprawdzony, pomoc mile widziana",
+        "help": "{name} nie jest jeszcze sprawdzony, pomoc mile widziana: {guide}",
+        "guide": "jak tłumaczyć",
+        "update_hint": "Po zmianie każdy ekran wymaga aktualizacji firmware, po jednej kompilacji na ekran: przyciskiem „Aktualizuj” albo w nocnych aktualizacjach.",
+        "time": "Format czasu",
+        "time_auto": "Automatycznie, według języka ({clock})",
+        "clock_24": "24-godzinny",
+        "clock_12": "12-godzinny",
+        "numbers": "Format liczbowy",
+        "numbers_auto": "Automatycznie, według języka ({example})",
+        "profile": "Twój profil Home Assistant: {formats}",
+        "use_profile": "Użyj tych",
+        "editor_hint": "Sam edytor używa języka Twojego profilu Home Assistant.",
+        "saved": "Zapisano.",
+        "saved_language": "Zapisano. Każdy ekran przejdzie na nowy język przy najbliższej aktualizacji."
+      },
+      "alerts": {
+        "text": "Karta na cały ekran uruchamiana z automatyzacji, na jednym ekranie lub na wszystkich. Ściąga zawiera nazwy akcji, pola, ikony i kolory oraz formularz do wypróbowania alertu.",
+        "detail": "Powiadomienia na cały ekran, z automatyzacji"
+      }
+    },
+    "firmware": {
+      "title": "Kompiluj i instaluj firmware ekranu",
+      "intro": "Wbudowane narzędzie ESPHome CLI korzysta z Twojego własnego profilu (YAML z kluczami) i sekretów. Wybierz profil ekranu, a potem port USB (ekran podłączony do komputera z Home Assistant), {ota} z nazwą hosta albo {download}, aby wgrać firmware na ekran z własnego komputera. {check} tylko sprawdza poprawność, {build} kompiluje, {install} wgrywa firmware na ekran. Twoje kafelki w Tessera zostają bez zmian. Pierwsza kompilacja trwa kilka minut.",
+      "ota": "Wi-Fi / OTA",
+      "download": "Pobierz",
+      "check": "Sprawdź",
+      "build": "Tylko kompiluj",
+      "install": "Kompiluj i zainstaluj",
+      "build_download": "Kompiluj i pobierz",
+      "no_cli": "Brak narzędzia ESPHome CLI. Zaktualizuj aplikację do wersji 0.2.0.",
+      "choose": "Wybierz właściwy profil, a potem port USB, adres IP lub „Pobierz”.",
+      "profile": "Profil ESPHome",
+      "install_to": "Zainstaluj na",
+      "no_board": "Nie podłączono tam jeszcze ekranu",
+      "download_target": "Pobierz plik i wgraj go samodzielnie",
+      "host": "Adres IP lub nazwa hosta",
+      "download_file": "Pobierz {name}",
+      "download_how": "Wgraj go na ekran przez {esphome_web} w Chrome lub Edge: „Connect”, wybierz port USB ekranu, „Install” i wskaż ten plik. Zawiera Twoje hasło Wi-Fi i klucze ekranu: nie udostępniaj go nikomu.",
+      "waiting": "czeka, najpierw 1 kompilacja | czeka, najpierw {n} kompilacje | czeka, najpierw {n} kompilacji"
+    },
+    "installer": {
+      "board": "Jaki masz ekran?",
+      "board_title": "{name} · {inch} cala",
+      "status": {
+        "new": "Nowość",
+        "experimental": "Eksperymentalny"
+      },
+      "status_hint": {
+        "new": "Nowość: na razie wypróbowana na kilku ekranach. Napisz, jak działa.",
+        "experimental": "Eksperymentalny: jeszcze nie wypróbowany na tym sprzęcie. Napisz, jak działa."
+      },
+      "abilities": {
+        "camera": "Obrazy z kamer",
+        "no_camera": "Bez obrazów z kamer",
+        "dimming": "Regulowane podświetlenie",
+        "no_dimming": "Podświetlenie zawsze włączone",
+        "standby": "Czuwanie i tryb nocny",
+        "no_standby": "Bez czuwania",
+        "tiles": "Do {n} kafelków na {pages} stronach",
+        "calibration": "Kalibracja dotyku przy pierwszym uruchomieniu"
+      },
+      "choice": {
+        "DISPLAY_MODEL": "Kontroler wyświetlacza"
+      },
+      "choice_hint": {
+        "DISPLAY_MODEL": "Większość tych płytek ma pierwszy. Wybierz drugi, gdy ekran pokazuje szum lub zniekształcony obraz."
+      },
+      "choice_usual": "większość",
+      "orientation_landscape": "Poziomo",
+      "orientation_portrait": "Pionowo",
+      "name": "Nazwa",
+      "name_placeholder": "Ekran w salonie",
+      "device_name": "Nazwa urządzenia",
+      "name_hint": "Każdy ekran dostaje własny profil z własnymi kluczami. Cztery ekrany? Przejdź przez to cztery razy, za każdym razem z inną nazwą.",
+      "name_taken": "Inny ekran nazywa się już tak samo. Home Assistant ponumerowałby nazwy encji tego ekranu, a automatyzacje trafiałyby do niewłaściwego.",
+      "device_name_hint": "Małe litery, cyfry i myślniki. Inna nazwa dla każdego ekranu.",
+      "node_taken": "Inny ekran ma już tę nazwę urządzenia. Home Assistant nie odróżni dwóch urządzeń o tej samej nazwie.",
+      "wifi": {
+        "title": "Wi-Fi",
+        "ssid": "Nazwa sieci Wi-Fi (2,4 GHz)",
+        "password": "Hasło Wi-Fi",
+        "new": "Wypełnij raz: Tessera zapisze to w pliku secrets.yaml ESPHome, a kolejne ekrany użyją tego automatycznie.",
+        "missing": "W Twoim pliku secrets.yaml ESPHome wciąż brakuje danych Wi-Fi. Tessera uzupełni tylko brakujące wiersze.",
+        "ready": "Dane Wi-Fi pochodzą z Twojego pliku secrets.yaml ESPHome.",
+        "invalid": "Plik secrets.yaml w folderze ESPHome nie jest poprawnym YAML. Najpierw popraw plik; nie zostanie nadpisany.",
+        "other": "Inna sieć",
+        "other_note": "Każdy ekran jest budowany z tą siecią Wi-Fi; istniejące przejmą ją przy następnej aktualizacji."
+      },
+      "install_via": "Zainstaluj przez",
+      "target": {
+        "usb": "Podłącz ekran kablem USB do transmisji danych do komputera z Home Assistant; pojawi się tu sam. Jest podłączony do komputera, przy którym teraz siedzisz? Wybierz „Z tego komputera”.",
+        "download": "Pobierz firmware i wgraj go na ekran z własnego komputera, w Chrome lub Edge. Potem aktualizacje idą przez Wi-Fi.",
+        "later": "Profil trafi do folderu ESPHome. Zainstalujesz go później w sekcji „Firmware i USB” albo w ESPHome Device Builder.",
+        "several": "Podłączono więcej niż jedną płytkę: wybierz port tego ekranu.",
+        "once": "Raz przez USB; potem wszystko bezprzewodowo."
+      },
+      "install": "Zainstaluj",
+      "save_profile": "Zapisz profil",
+      "no_cli": "W tej instalacji brakuje narzędzia ESPHome CLI; można tylko zapisać profil.",
+      "progress": {
+        "saved": "{file} jest w folderze ESPHome",
+        "writing": "Wgrywanie firmware: {name}…",
+        "building": "Kompilowanie firmware…",
+        "ready": "Firmware gotowy: {name}",
+        "installed": "Firmware wgrany: {name}",
+        "build_failed": "Kompilacja nieudana",
+        "install_failed": "Instalacja nieudana",
+        "waiting": "Czeka na swoją kolej…"
+      },
+      "detail": {
+        "saved": "Zainstaluj go później w sekcji „Firmware i USB”: wybierz ten profil, a potem port USB komputera z Home Assistant albo „Pobierz”, aby wgrać firmware na ekran z własnego komputera. Zachowaj klucz API do parowania:",
+        "uploading": "Nie odłączaj jeszcze kabla USB.",
+        "building": "Budowanie na komputerze z Home Assistant, takim jak Raspberry Pi, może trwać 20 minut lub dłużej, zwłaszcza za pierwszym razem. To normalne. Możesz opuścić tę stronę: instalacja trwa dalej, a znajdziesz ją ponownie w sekcji „Nowy ekran”.",
+        "building_download": "Budowanie na komputerze z Home Assistant, takim jak Raspberry Pi, może trwać 20 minut lub dłużej, zwłaszcza za pierwszym razem. To normalne. Możesz opuścić tę stronę: kompilacja trwa dalej, a znajdziesz ją ponownie w sekcji „Nowy ekran”.",
+        "downloaded": "Wgraj go na ekran z własnego komputera. Pojawi się tutaj, gdy tylko połączy się z Wi-Fi.",
+        "booted": "Ekran uruchamia się, łączy z Wi-Fi i sam dołącza do Home Assistant.",
+        "booted_calibrate": "Ekran uruchamia się i łączy z Wi-Fi. Najpierw prosi o kalibrację dotyku: dotknij krzyżyków. Potem sam dołącza do Home Assistant.",
+        "see_log": "Zobacz log poniżej.",
+        "waiting": "Przed nią jest 1 kompilacja. Ta zacznie sama zaraz potem i możesz opuścić tę stronę. | Przed nią są {n} kompilacje. Ta zacznie sama zaraz potem i możesz opuścić tę stronę. | Przed nią jest {n} kompilacji. Ta zacznie sama zaraz potem i możesz opuścić tę stronę.",
+        "waiting_browser": "Przed nią jest 1 kompilacja. Ta zacznie sama zaraz potem. Nie zamykaj tej strony: zapisze ekran, gdy tylko firmware będzie gotowy. | Przed nią są {n} kompilacje. Ta zacznie sama zaraz potem. Nie zamykaj tej strony: zapisze ekran, gdy tylko firmware będzie gotowy. | Przed nią jest {n} kompilacji. Ta zacznie sama zaraz potem. Nie zamykaj tej strony: zapisze ekran, gdy tylko firmware będzie gotowy."
+      },
+      "download_steps": {
+        "plug": "{bold} kablem USB do transmisji danych.",
+        "plug_bold": "Podłącz ekran do komputera",
+        "open": "{bold} w Chrome lub Edge, kliknij „Connect” i wybierz port USB ekranu.",
+        "open_bold": "Otwórz {esphome_web}",
+        "install": "{bold} i wskaż plik {file}. Ekran uruchomi się ponownie i połączy z Twoją siecią Wi-Fi.",
+        "install_calibrate": "{bold} i wskaż plik {file}. Ekran uruchomi się ponownie i połączy z Twoją siecią Wi-Fi. Najpierw poprosi o kalibrację dotyku: dotykaj krzyżyków.",
+        "install_bold": "Kliknij „Install”"
+      },
+      "download_keep": "Plik zawiera Twoje hasło Wi-Fi i klucze ekranu: nie udostępniaj go nikomu.",
+      "api_key": "Klucz API",
+      "pairing": {
+        "ha": "{bold} Home Assistant pokazuje {name} jako wykryte urządzenie ESPHome; kliknij „Dodaj”. Nie wykryto? Dodaj ESPHome ręcznie, podając adres IP ekranu.",
+        "ha_bold": "Przejdź do Home Assistant → Ustawienia → Urządzenia oraz usługi.",
+        "key": "{bold} poniżej, jeśli Home Assistant poprosi o klucz szyfrowania.",
+        "key_bold": "Wklej klucz API",
+        "actions": "{bold} integracja ESPHome → Konfiguruj → „Zezwól urządzeniu na wykonywanie akcji Home Assistant”. Bez tego ekran widzi wszystko, ale niczym nie steruje.",
+        "actions_bold": "Zezwól na akcje HA:",
+        "tiles": "{bold} Po powrocie do Tessera ekran pojawi się na liście po lewej w ciągu około trzydziestu sekund; do tego czasu jest tam opisany jako „jeszcze nie w Home Assistant”.",
+        "tiles_bold": "Wybierz kafelki."
+      },
+      "retry": "Ponów",
+      "another": "Zainstaluj kolejny ekran",
+      "start_over": "Zacznij od nowa",
+      "done": "Gotowe",
+      "key_more": "Pokaż klucz API",
+      "steps": {
+        "board": "Ekran",
+        "setup": "Ustawienia",
+        "install": "Instalacja"
+      },
+      "pick_title": "Jaki masz ekran?",
+      "pick_intro": "Wybierz płytkę. Szukaj po marce, rozmiarze lub nadruku.",
+      "search": "Szukaj po marce, rozmiarze lub modelu",
+      "sizes": {
+        "all": "Wszystkie",
+        "small": "Do 4 cali",
+        "medium": "4–6 cali",
+        "large": "7 cali i więcej"
+      },
+      "none_found": "Brak ekranu pasującego do „{query}”.",
+      "try_virtual": "Nie masz jeszcze ekranu? Wypróbuj ekran podglądu",
+      "setup_title": "Dopasuj go do siebie",
+      "install_title": "Jak chcesz zainstalować?",
+      "next": "Dalej",
+      "advanced": "Zaawansowane",
+      "ways": {
+        "ha_title": "USB w Home Assistant",
+        "ha_found": "Znaleziono: {port}",
+        "ha_waiting": "Podłącz ekran do komputera, na którym działa Home Assistant",
+        "browser_title": "Z tego komputera",
+        "browser_detail": "Chrome lub Edge, z ekranem podłączonym do USB tego komputera",
+        "download_title": "Pobierz plik",
+        "download_detail": "Wgraj go sam przez ESPHome Web",
+        "later_title": "Później",
+        "later_detail": "Zapisz tylko ustawienia"
+      },
+      "steps_done": {
+        "prepare": "Przygotowanie",
+        "build": "Budowanie firmware",
+        "write": "Zapisywanie na ekranie",
+        "restart": "Uruchamianie",
+        "done": "Gotowe",
+        "download": "Gotowe do pobrania"
+      },
+      "elapsed": "{time} trwa",
+      "show_log": "Pokaż szczegóły",
+      "hide_log": "Ukryj szczegóły",
+      "next_title": "Co dalej",
+      "model": "Jaki to model?",
+      "model_hint": "Jest nadrukowany z tyłu płytki. Wyglądają podobnie, ale każdy wymaga własnego firmware.",
+      "models": "{n} model | {n} modele | {n} modeli",
+      "arrive": {
+        "waiting": "Czekam, aż {name} pojawi się w Wi-Fi...",
+        "seen": "{name} jest w Wi-Fi. Przygotowuję...",
+        "paired": "{name} jest sparowany z Home Assistant.",
+        "missing": "{name} nie ma jeszcze w Wi-Fi",
+        "hotspot": "Spójrz na ekran: pokazuje hotspot i jego hasło. Połącz się z nim telefonem i wybierz tam właściwą sieć Wi-Fi. Albo ustaw tu właściwą sieć i zainstaluj ponownie.",
+        "no_hotspot": "Prawdopodobnie nazwa lub hasło Wi-Fi są błędne. Ustaw tu właściwą sieć i zainstaluj ponownie, z ekranem wciąż podłączonym kablem.",
+        "change": "Zmień Wi-Fi i zainstaluj ponownie",
+        "failed": "Tessera nie może sama dodać {name} do Home Assistant. Dodaj go samodzielnie poniżej."
+      },
+      "memory": {
+        "low_title": "Mało wolnej pamięci na maszynie Home Assistant",
+        "low": "Wolne jest {free} pamięci, więc firmware kompiluje się mniejszą liczbą kompilatorów naraz ({jobs} zamiast {cores}). Trwa to dłużej, ale się mieści.",
+        "tight_title": "Maszynie Home Assistant może brakować pamięci",
+        "tight": "Kompilacja firmware wymaga około {need} wolnej pamięci, a wolne jest {free}. Próbuje z jednym kompilatorem naraz. Jeśli kompilacja się zatrzyma, zatrzymaj na chwilę kilka dodatków albo daj maszynie więcej pamięci i spróbuj ponownie.",
+        "retry_title": "Skończyła się pamięć; kompilacja trwa dalej z jednym kompilatorem",
+        "retry": "System zatrzymał kompilator, bo skończyła się pamięć (na początku kompilacji wolne było {free}). Kompilacja trwa dalej z jednym kompilatorem naraz, od miejsca, w którym stanęła. Trwa to dłużej, ale się mieści.",
+        "out_title": "Za mało pamięci, aby skompilować firmware",
+        "out": "Kompilacja firmware wymaga około {need} wolnej pamięci, a ta maszyna Home Assistant ma {free}. Zatrzymaj na chwilę kilka dodatków albo daj maszynie więcej pamięci, potem spróbuj ponownie.",
+        "limit_title": "Za mało pamięci, aby skompilować firmware",
+        "limit": "Skończyła się pamięć, także z jednym kompilatorem naraz. Zatrzymaj na chwilę kilka dodatków albo daj maszynie więcej pamięci, potem spróbuj ponownie."
+      },
+      "pair_yourself": "Dodaj go samodzielnie w Home Assistant",
+      "grid": "Siatka",
+      "grid_hint": "Proponowana siatka jest najlepsza dla tego ekranu. Możesz ją zmienić, wraz z orientacją, później obok stron w edytorze, bez ponownej kompilacji.",
+      "grid_best": "Wróć do najlepszej",
+      "waits_turn": "Teraz kompilowany jest inny ekran. Ten czeka na swoją kolej i zacznie sam zaraz potem."
+    },
+    "alerts": {
+      "eyebrow": "Alerty · ściąga",
+      "title": "Powiadomienie na cały ekran, z automatyzacji.",
+      "intro": "Każdy ekran ma akcję {action}. Wyświetla ona kartę nad wszystkim, budzi ekran i utrzymuje normalną jasność podświetlenia, dopóki ktoś nie dotknie przycisku albo nie upłynie limit czasu. Sam Home Assistant nie pokazuje dla akcji ESPHome żadnych objaśnień ani list rozwijanych; wszystko, co możesz wypełnić, znajdziesz tutaj.",
+      "loading": "Ściąga wciąż się ładuje; chwileczkę.",
+      "example": {
+        "title": "Ktoś jest przy drzwiach",
+        "subtitle": "Drzwi 3, tylne",
+        "button": "Idę"
+      },
+      "sections": "Sekcje",
+      "nav": {
+        "try": "Wypróbuj",
+        "screens": "Twoje ekrany",
+        "howto": "W automatyzacji",
+        "all": "Wszystkie ekrany",
+        "fields": "Pola",
+        "icons": "Ikony",
+        "colors": "Kolory",
+        "behaviour": "Działanie",
+        "events": "Zdarzenia",
+        "tips": "Wskazówki",
+        "one": "Jeden ekran",
+        "choice": "Dwa przyciski"
+      },
+      "try": {
+        "text": "Wyślij teraz jeden alert z tymi samymi polami, które wysyła automatyzacja. Ekran pokaże kartę, a przy włączonym miganiu mignie podświetleniem.",
+        "screen": "Ekran",
+        "all": "Wszystkie ekrany (gotowe: {ready})",
+        "not_ready": "{name} · niegotowy",
+        "title": "Tytuł",
+        "subtitle": "Podtytuł",
+        "icon": "Ikona",
+        "color": "Kolor",
+        "button": "Tekst przycisku",
+        "timeout": "Limit czasu (sekundy, 0 czeka na przycisk)",
+        "flash": "Migaj podświetleniem",
+        "flash_hint": "Cztery razy, gdy przychodzi alert.",
+        "sending": "Wysyłanie…",
+        "send": "Wyślij alert",
+        "sent_all": "Wysłano na {n} ekran. | Wysłano na {n} ekrany. | Wysłano na {n} ekranów.",
+        "sent_to": "Wysłano na ekran {name}.",
+        "sent_one": "Wysłano na ekran.",
+        "skipped": "Pominięto 1 ekran (offline lub stary firmware). | Pominięto {n} ekrany (offline lub stary firmware). | Pominięto {n} ekranów (offline lub stary firmware).",
+        "left_empty": "Puste pola: {fields}.",
+        "nothing": "Żaden ekran nie mógł go pokazać: sprawdź, czy któryś ekran jest online i ma firmware {version} lub nowszy."
+      },
+      "white": "Biały (domyślny)",
+      "screens": {
+        "text": "Każdy ekran ma własną akcję, której nazwa zawiera nazwę urządzenia. Od wersji firmware {version}; starszy ekran zaktualizuj przyciskiem „Aktualizuj” na liście ekranów.",
+        "none": "Nie sparowano jeszcze żadnego ekranu. Zainstaluj go w sekcji „Nowy ekran”; akcja pojawi się, gdy Home Assistant zobaczy ekran.",
+        "ready": "● firmware {version}",
+        "update": "Potrzebna aktualizacja · firmware {version}",
+        "unknown": "Nieznana nazwa urządzenia · zaktualizuj ekran",
+        "show": "Pokaż alert",
+        "dismiss": "Zamknij alert"
+      },
+      "howto": {
+        "add": "{add} i wyszukaj {esphome}. Wybierz akcję swojego ekranu: Home Assistant opisuje ją po angielsku jako „Performs the action show_alert of the node {device}”.",
+        "add_bold": "Dodaj akcję",
+        "device": "nazwa urządzenia",
+        "fields": "{bold} Home Assistant pyta o wszystkie siedem; to, czego nie używasz, zostaw puste ({empty}, {zero}, wyłączone).",
+        "fields_bold": "Wypełnij pola.",
+        "yaml": "Wolisz YAML? Wybierz {edit} w menu akcji i wklej poniższy przykład.",
+        "example_for": "Przykład dla",
+        "no_screen": "ekranu (jeszcze niesparowanego)"
+      },
+      "edit_yaml": "Edytuj w YAML",
+      "copy_yaml": "Kopiuj YAML",
+      "all": {
+        "title": "Wszystkie ekrany naraz",
+        "text": "Wywołaj zdarzenie {show} z tymi samymi polami, a Tessera przekaże alert każdemu ekranowi, który jest online, także ekranom dodanym później. {dismiss} usuwa go wszędzie. W automatyzacji dodaj akcję {event} albo wybierz {edit} i wklej przykład. Pomiń pola, których nie używasz. Tessera musi przy tym działać.",
+        "event": "Uruchom zdarzenie ręcznie"
+      },
+      "fields": {
+        "text": "Tekst jest dowolny; limit liczy się w bajtach, a litera ze znakiem diakrytycznym (np. ą, ł, ś) liczy się jako dwa. Co się nie zmieści, kończy się wielokropkiem (tytuł) lub zostaje pominięte (podtytuł).",
+        "field": "Pole",
+        "type": "Typ",
+        "what": "Co robi",
+        "example": "Przykład",
+        "limit": "Limit",
+        "types": {
+          "string": "tekst",
+          "int": "liczba",
+          "bool": "wł. / wył.",
+          "entity": "encja"
+        },
+        "bytes": "{limits} B",
+        "seconds": "od 0 do 86400 s",
+        "camera_limit": "Każdy ekran poza CYD, firmware 0.2.57+",
+        "screen_limit": "Aplikacja 0.2.133+"
+      },
+      "icons": {
+        "text": "Wpisz nazwę w polu {field}, na przykład {example}. Działa też {mdi} i kod szesnastkowy ({hex}). Firmware zawiera tylko te ikony; każda inna nazwa pokazuje trójkąt ostrzegawczy. Kliknij ikonę, aby skopiować jej nazwę.",
+        "handy": "Przydatne do powiadomień",
+        "search_label": "Szukaj ikony",
+        "search": "Szukaj po nazwie lub opisie…",
+        "extra": "Dostępne też: ikony sterowania i pogody",
+        "copy": "Kopiuj {name}",
+        "none": "Brak ikony dla „{query}”. Nieznane nazwy pokazują trójkąt ostrzegawczy ({fallback})."
+      },
+      "colors": {
+        "text": "Wpisz nazwę w polu {field}. To pastelowe odcienie kafelków, z ciemnym tekstem. Pusta lub nieznana nazwa daje białą kartę. Kliknij, aby skopiować."
+      },
+      "behaviour": {
+        "wakes": "{bold} Alert od razu budzi przyciemniony lub wygaszony ekran i pojawia się nad każdą stroną, każdą otwartą kartą światła i warstwą czuwania.",
+        "wakes_bold": "Budzi ekran.",
+        "on": "{bold} Dopóki karta jest widoczna, podświetlenie ma normalną jasność. Czuwanie i godziny nocne czekają. Po naciśnięciu przycisku zwykły czas do czuwania biegnie od nowa.",
+        "on_bold": "Świeci do naciśnięcia przycisku.",
+        "timeout": "{bold} {zero} czeka na przycisk bez względu na to, jak długo to trwa. Przy {minute} karta znika po minucie, ale przycisk zamyka ją wcześniej.",
+        "timeout_bold": "Limit czasu.",
+        "blinking": "{bold} {flash} miga podświetleniem cztery razy, gdy przychodzi alert (około sekundy), a potem zostawia ekran włączony.",
+        "blinking_bold": "Miganie.",
+        "replacing": "{bold} Nowy alert zastępuje bieżący; alerty się nie kumulują. Zastąpiony alert zgłasza się jako {replaced}.",
+        "replacing_bold": "Zastępowanie.",
+        "closing": "{bold} {dismiss} usuwa kartę, na przykład gdy drzwi są już otwarte. Gdy nie ma alertu, ta akcja nic nie robi.",
+        "closing_bold": "Zdalne zamykanie.",
+        "beside": "{bold} nic nie robi; kartę zamyka tylko przycisk. Dzięki temu dotknięcie budzące ekran nigdy przypadkiem nie zamknie alertu.",
+        "beside_bold": "Dotknięcie obok karty"
+      },
+      "events": {
+        "text": "Każde zakończenie alertu wywołuje zdarzenie {event} z polami {action}, {title}, {screen} (nazwa urządzenia) i {device_id}, które dodaje Home Assistant. Zobaczysz je w sekcji Ustawienia → Narzędzia → Zdarzenia.",
+        "when": "Kiedy",
+        "wait": "Czekanie, aż ktoś naciśnie przycisk"
+      },
+      "tips": {
+        "color": "Użyj {bold}: pomarańczowy dla drzwi, czerwony dla dymu lub wody, zielony dla „gotowe”. Tekst zawsze pozostaje ciemny i czytelny.",
+        "color_bold": "osobnego koloru dla każdego rodzaju powiadomienia",
+        "short": "Tytuł niech będzie {bold}; ekran pokazuje około dwudziestu znaków w jednym wierszu, a dłuższy tytuł kończy wielokropkiem. Szczegóły umieść w podtytule.",
+        "short_bold": "krótki",
+        "button": "{bold} zamienia powiadomienie w pytanie: „Idę”, „Widzę”, „Wyłącz”. Zdarzenie powie Ci potem, kto odpowiedział.",
+        "button_bold": "Własny tekst przycisku",
+        "resolve": "Alert, który sam się rozwiązuje (drzwi się otwierają, ktoś wyjmuje pranie), zamknij w tej samej automatyzacji akcją {dismiss}.",
+        "every": "Wszystkie ekrany? Wywołaj {event} raz (zobacz „Wszystkie ekrany naraz”). Ekrany nadal działają niezależnie i każdy zgłasza się z własnym polem {screen}.",
+        "claude": "Wolisz {bold} o automatyzację? Zainstaluj umiejętność Tessera w sekcji Ustawienia → Claude.",
+        "claude_bold": "poprosić Claude"
+      },
+      "wait_yaml": {
+        "comment": "Dzwonek: pokaż alert i poczekaj, aż ktoś naciśnie przycisk.",
+        "message": "Ktoś idzie do drzwi."
+      },
+      "one": {
+        "title": "Jeden ekran, z kamerą lub akcją przycisku",
+        "text": "Dodaj {screen} do tego samego zdarzenia, a alert dostanie tylko ten ekran. Tak pojedynczy ekran pokazuje obraz z {camera} albo wykonuje {action} z przycisku: własna akcja ekranu nie ma na to pól. Po {screen} wpisz jedną z wartości z listy poniżej.",
+        "more": "Kilka ekranów? Podaj listę, np. {list}. Pomieszczenie też działa i obejmuje każdy ekran w nim. Nazwa, która nie pasuje do żadnego ekranu, nie wysyła niczego; dziennik Tessera Screen Manager podaje wtedy znane mu ekrany.",
+        "value": "Po screen:",
+        "name": "Nazwa w Home Assistant",
+        "room": "Pomieszczenie",
+        "picture": "Obraz z kamery",
+        "picture_yes": "Tak",
+        "picture_no": "Nie, alert przychodzi bez niego",
+        "none": "Nie sparowano jeszcze żadnego ekranu. Gdy ekran zostanie sparowany, tutaj pojawi się, co dla niego wpisać."
+      },
+      "choice": {
+        "title": "Dwa przyciski i kolory przycisków",
+        "text": "Dodaj {second}, aby uzyskać drugi przycisk na lewo od pierwszego, żeby osoba przy ekranie mogła wybrać, np. Nie teraz i Otwórz. {first_color} i {second_color} nadają przyciskowi własny kolor, zielony na tak i czerwony na nie. Która odpowiedź jest po której stronie, decydujesz ty: pierwszy przycisk jest zawsze po prawej.",
+        "event": "Przez zdarzenie każde z tych pól jest opcjonalne, a {second_action} z {second_data} uruchamia akcję z drugiego przycisku, tak jak {action} z pierwszego. Ekran z oprogramowaniem starszym niż {version} pokazuje alert z jednym przyciskiem.",
+        "direct": "Wywołujesz ekran bezpośrednio? Jego akcja {choice} przyjmuje pola show_alert oraz te trzy; drugi przycisk kończy alert z {ending}."
+      }
+    },
+    "override": {
+      "eyebrow": "Zaawansowane · lokalne nadpisanie",
+      "title": "Nadpisanie YAML",
+      "title_named": "Nadpisanie YAML · {name}",
+      "intro": "Ten mały plik należy do Ciebie. Jest wczytywany po wspólnym pakiecie ekranu i zostaje na miejscu, gdy Tessera się aktualizuje. Zmieniaj tu szczegóły sprzętu, na przykład model wyświetlacza.",
+      "safe_title": "Co można bezpiecznie zmieniać?",
+      "safe_text": "Wyświetlacz, ekran dotykowy, substitutions, piny i inne szczegóły urządzenia. Nazwa, Wi-Fi, API, OTA i odnośniki do pakietów pozostają zarządzane przez aplikację.",
+      "active": "Aktywne",
+      "ready": "Gotowe do dołączenia",
+      "editor_label": "Lokalne nadpisanie YAML",
+      "use_example": "Użyj przykładu",
+      "clear": "Wyczyść",
+      "characters": "1 znak | {n} znaki | {n} znaków",
+      "lines": "1 wiersz | {n} wiersze | {n} wierszy",
+      "save_check": "Zapisz i sprawdź",
+      "save": "Zapisz nadpisanie",
+      "no_profile": "Nie znaleziono profilu ESPHome dla tego ekranu.",
+      "attached": "Zmiany tutaj zadziałają przy następnej kompilacji.",
+      "not_attached": "Zapisz raz, aby dołączyć ten plik do profilu.",
+      "saving": "Sprawdzanie i zapisywanie…",
+      "saved": "Zapisano. Nadpisanie zostaje zachowane podczas aktualizacji firmware.",
+      "saved_toast": "Zapisano nadpisanie YAML.",
+      "checking": "Zapisano. ESPHome sprawdza cały profil…",
+      "checking_profile": "ESPHome sprawdza profil…",
+      "checking_stage": "ESPHome sprawdza profil… {stage}",
+      "valid": "Cały profil jest poprawny. Można bezpiecznie kompilować i instalować.",
+      "rejected": "ESPHome odrzucił cały profil. Pełny log znajdziesz w sekcji „Firmware i USB”.",
+      "confirm_example": "Zastąpić obecny tekst przykładem?",
+      "example_loaded": "Wczytano przykład. Zapisz go, kiedy zechcesz.",
+      "confirm_clear": "Wyczyścić lokalne nadpisanie?",
+      "cleared": "Po zapisaniu nadpisanie będzie puste.",
+      "checking_waits": "Czeka na trwającą kompilację, potem sprawdza…"
+    },
+    "mockup": {
+      "home": "Dom",
+      "unknown": "Nieznany",
+      "calendar_free": "Wolne"
+    },
+    "pages": {
+      "mode": "Tryb edytora",
+      "simple": "Prosty",
+      "advanced": "Zaawansowany",
+      "redo": "Ponów",
+      "title": "Tytuł strony",
+      "title_hint": "Pozostaw puste, aby użyć tytułu ekranu.",
+      "is_home": "Strona główna",
+      "set_home": "Ustaw jako główną",
+      "drag_home": "Strona główna. Przeciągnij na inną stronę, aby zmienić stronę główną.",
+      "include_navigation": "Pokaż w kropkach stron i nawigacji gestami",
+      "migration_dropped": "Nie udało się przenieść {count} kafelków: {names}. Oryginalny układ pozostaje w screens.v1.backup.json.",
+      "dismiss_migration": "Zamknij powiadomienie",
+      "start_fresh": "Zacznij od nowa dla tego ekranu",
+      "start_fresh_confirm": "Zacząć od jednej pustej strony na tym ekranie? Oryginalny układ pozostaje w kopii migracji. Pozostałe ekrany nie zmienią się.",
+      "offline_notice": "Oczekiwanie na ponowne połączenie ekranu. Edytor używa ostatnio sprawdzonych możliwości.",
+      "include_navigation_hint": "Po wyłączeniu stronę nadal otwierają bezpośrednie linki. Wstecz pojawia się na dolnym pasku lub zastępuje przycisk strony głównej, gdy pasek jest ukryty.",
+      "home_control": "Pokaż przycisk strony głównej na tej stronie",
+      "clock_control": "Godzina",
+      "edit_topbar": "Edytuj górny pasek tej strony",
+      "order": "Kolejność stron",
+      "order_hint": "Polecenia z numerami stron używają tej kolejności. Nazwane linki zachowują cel.",
+      "map_position": "Pozycja na mapie",
+      "left": "Przesuń w lewo",
+      "up": "Przesuń w górę",
+      "down": "Przesuń w dół",
+      "right": "Przesuń w prawo",
+      "routes": "Połączenia stron",
+      "no_routes": "Żaden kafelek nawigacyjny nie prowadzi do ani z tej strony.",
+      "edit_page": "Edytuj stronę",
+      "copy_conflict": "Pełna kopia powieliłaby encje na tym ekranie. Możesz utworzyć pustą stronę z takim samym górnym paskiem.",
+      "duplicate": "Duplikuj stronę",
+      "empty_copy": "Nowa pusta strona z tym górnym paskiem",
+      "position_occupied": "W tej pozycji na mapie jest już strona.",
+      "map_hint": "Przesuwaj strony, aby uporządkować mapę. Kolejność stron pozostaje bez zmian.",
+      "arrange": "Ułóż od strony głównej",
+      "zoom_out": "Oddal",
+      "zoom_in": "Przybliż",
+      "zoom": "Rozmiar stron",
+      "zoom_reset": "Wróć do 100%",
+      "choose_destination": "Wybierz stronę docelową.",
+      "move_map": "Przesuń {name} na mapie",
+      "change_destination": "Zmień cel kafelka nawigacyjnego na {name}",
+      "deeplink": "Link bezpośredni",
+      "page_settings": "Ustawienia strony",
+      "back_map": "Wróć do mapy",
+      "wait_grid": "Połącz ekran, aby przed edycją wczytać sprawdzoną siatkę.",
+      "update_notice": "Zaktualizuj ekran, aby używać nowego paska tytułu i układu",
+      "conflict": "Inny edytor zapisał zmiany. Wczytaj zapisaną wersję, aby odrzucić szkic, lub zachowaj własny układ i zastąp zapisany.",
+      "reload_saved": "Wczytaj zapisaną wersję",
+      "keep_mine": "Zachowaj mój układ i zapisz",
+      "shared_bar": "Ten ekran nadal używa wspólnych elementów górnego paska. Zmiany dotyczą wszystkich stron do czasu aktualizacji oprogramowania.",
+      "unreachable": "Ze strony głównej nie ma drogi do {pages}. Dodaj kafelek nawigacyjny lub włącz stronę w nawigacji.",
+      "no_way_home": "Z {pages} nie ma drogi do strony głównej. Dodaj kafelek powrotu lub włącz przycisk strony głównej.",
+      "navigation": "Nawigacja stron",
+      "previous": "Poprzednia strona",
+      "next": "Następna strona",
+      "go_home": "Przejdź do strony głównej",
+      "try_navigation": "Wypróbuj nawigację",
+      "preview_hint": "Tylko podgląd. Linki stron działają tutaj, ale kontrolki encji nie sterują urządzeniami.",
+      "swipe_previous": "Przesuń do poprzedniej strony",
+      "swipe_next": "Przesuń do następnej strony",
+      "copy_bar": "Kopiuj górny pasek",
+      "copy_from": "Ze strony",
+      "copy_to": "Do wybranych stron",
+      "copy_content": "Kopiuj",
+      "copy_items": "Tylko elementy, zachowaj tytuły i przyciski strony głównej",
+      "copy_whole": "Cały pasek, wraz z tytułem i przyciskiem strony głównej",
+      "copy_apply": "Kopiuj do wybranych stron",
+      "history_label": "Zapisana historia, {hours} godzin",
+      "history_loading": "Wczytywanie historii…",
+      "history_empty": "Brak zapisanej historii",
+      "grid_changed": "Siatka ekranu się zmieniła. Sprawdź pozycje kafelków przed zapisem lub wysłaniem.",
+      "grid_review": "Sprawdź dostosowanie siatki",
+      "grid_review_hint": "Porównaj zapisane pozycje po lewej z proponowanymi po prawej. Kafelki, które się nie mieszczą, przechodzą na nową stronę zaraz za swoją. Nic nie zostanie wysłane przed zapisem.",
+      "grid_accept": "Użyj tych pozycji",
+      "selected_full": "Ta strona jest pełna. Wybierz pustą komórkę na innej stronie.",
+      "choose_page": "Strona",
+      "all_connections": "Wszystkie połączenia",
+      "migration_adjusted": "Nieprawidłowe stare ustawienia zastąpiono domyślnymi: {fields}. Oryginały pozostają w kopii migracji.",
+      "view_row": "Rząd",
+      "view_map": "Mapa",
+      "preview": "Podgląd",
+      "page_menu": "Strona {page}: więcej",
+      "home_chip": "Główna",
+      "detail_chip": "Przez kafelek",
+      "cells_used": "Zajęte miejsca",
+      "tiles_go": "Znika 1 kafelek | Znikają {n} kafelki | Znika {n} kafelków",
+      "connections": "Połączenia",
+      "connections_selected": "Zaznaczone",
+      "sections": {
+        "title": "Tytuł",
+        "navigation": "Nawigacja"
+      },
+      "home_hint": "Przycisk strony głównej i przesunięcie w górę prowadzą tutaj.",
+      "bar_entities": "Także po prawej",
+      "actions_blocked": "Home Assistant jeszcze nie pozwala temu ekranowi wykonywać akcji, więc dotknięcie kafelka nic nie robi.",
+      "allow_actions": "Zezwól na akcje",
+      "actions_allowed": "{name} może teraz sterować twoimi urządzeniami."
+    },
+    "feedback": {
+      "question": "Czy ekran działa tak, jak oczekujesz?",
+      "intro": "Pomóż nam ulepszyć ten model. Twoja odpowiedź i model ekranu trafiają do Tessera, bez konta i bez ustawień Home Assistant.",
+      "yes": "Tak, działa dobrze",
+      "no": "Nie do końca",
+      "later": "Później",
+      "never": "Nie pytaj więcej",
+      "add_something": "Dodaj coś",
+      "issues_question": "Z czym masz problem?",
+      "issues": {
+        "display": "Ekran",
+        "touch": "Dotyk",
+        "connection": "Połączenie",
+        "installation": "Instalacja",
+        "other": "Inne"
+      },
+      "comment_label": "Notatka (opcjonalnie)",
+      "comment_hint": "Nie podawaj danych osobowych, logów, haseł ani kluczy API.",
+      "report_title": "Chcesz, żeby to naprawić?",
+      "report_text": "Otwórz zgłoszenie na GitHubie. Twoja płytka, wersje i to, co nam napisałeś, są już wpisane. Dodaj log, a będziemy mogli to zbadać i o to dopytać.",
+      "report_open": "Otwórz zgłoszenie na GitHubie",
+      "add_details": "Dodaj szczegóły",
+      "done": "Gotowe",
+      "settings_title": "Opinia",
+      "shared": {
+        "working": "Udostępniono: działa dobrze",
+        "not_working": "Udostępniono: nie do końca"
+      },
+      "none_yet": "Nie udostępniono jeszcze odpowiedzi dla tego ekranu.",
+      "none_now": "Z tego ekranu nic nie jest teraz udostępnione.",
+      "share": "Udostępnij odpowiedź",
+      "change": "Zmień odpowiedź",
+      "delete": "Usuń moją udostępnioną odpowiedź",
+      "retry": "Spróbuj ponownie",
+      "status": {
+        "sending": "Wysyłanie…",
+        "received": "Dziękujemy, odpowiedź dotarła.",
+        "waiting": "Jeszcze nie wysłano; spróbujemy ponownie później.",
+        "failed": "Nie wysłano: Tessera była niedostępna przez dobę.",
+        "deleting": "Jeszcze nie usunięto; spróbujemy ponownie później.",
+        "delete_failed": "Jeszcze nie usunięto: Tessera była niedostępna przez dobę.",
+        "deleted": "Twoja udostępniona odpowiedź została usunięta.",
+        "conflict": "Tessera ma inną odpowiedź dla tego ekranu. Zmień odpowiedź, aby udostępnić ją ponownie.",
+        "rejected": "Tessera nie przyjęła tej odpowiedzi."
+      },
+      "what_title": "Co jest udostępniane?",
+      "what": {
+        "model": "Model ekranu: {model}",
+        "answer": "Twoja odpowiedź, wybrane problemy i notatka",
+        "firmware": "Wersja firmware ekranu: {version}",
+        "addon": "Wersja Tessera: {version}",
+        "nothing_else": "Nic więcej: bez nazwy, konta, encji, logów ani ustawień Home Assistant. Każdy ekran udostępnia pod własnym losowym kluczem."
+      },
+      "privacy": "Prywatność"
+    },
+    "webflash": {
+      "target": "Zainstaluj z tej przeglądarki (Chrome lub Edge)",
+      "hint": "Podłącz ekran do tego komputera kablem USB do transmisji danych. Tessera kompiluje firmware, a potem ta strona wgrywa go na ekran, w Chrome lub Edge. Później aktualizacje idą przez Wi-Fi.",
+      "firmware_hint": "Podłącz ekran do tego komputera kablem USB do transmisji danych. Tessera kompiluje firmware, a potem ta strona wgrywa go na ekran, w Chrome lub Edge. Ekran zachowuje ustawienia i kalibrację dotyku. Tak uratujesz też ekran, który ciągle się restartuje i nigdy nie łączy się z siecią.",
+      "go": "Połącz i zainstaluj",
+      "building": "Budowanie na komputerze z Home Assistant, takim jak Raspberry Pi, może trwać 20 minut lub dłużej, zwłaszcza za pierwszym razem. To normalne. Zostaw tę kartę otwartą i ekran podłączony: ta strona zainstaluje firmware, gdy tylko będzie gotowy.",
+      "keep_open": "Zostaw tę kartę otwartą i kabel USB podłączony do końca.",
+      "unavailable": {
+        "insecure": "Instalacja z przeglądarki wymaga Home Assistant otwartego przez https, na przykład przez adres Home Assistant Cloud, w Chrome lub Edge. Ta strona została otwarta przez zwykłe http. Wybierz „Pobierz” albo otwórz Home Assistant przez https.",
+        "browser": "Ta przeglądarka nie ma dostępu do portów USB. Użyj Chrome lub Edge na komputerze albo wybierz „Pobierz”."
+      },
+      "phase": {
+        "picking": "Wybierz port USB ekranu w oknie, które pokazuje przeglądarka.",
+        "connecting": "Łączenie z płytką…",
+        "waiting": "Połączono z płytką ({chip}). Firmware zostanie wgrany, gdy tylko się skompiluje.",
+        "downloading": "Pobieranie firmware z Tessera…",
+        "erasing": "Kasowanie pamięci płytki…",
+        "writing": "Instalowanie… {percent}%",
+        "restarting": "Restartowanie ekranu…",
+        "done": "Zainstalowano. Ekran się restartuje."
+      },
+      "errors": {
+        "no_port": "Nie wybrano portu. Jeśli ekranu nie było na liście:",
+        "blocked": "Przeglądarka nie pozwala tej stronie używać portów USB. Sprawdź uprawnienia witryny w przeglądarce albo wybierz „Pobierz”.",
+        "busy": "Port ekranu jest zajęty przez inny program lub kartę, na przykład monitor portu szeregowego albo ESPHome Web. Zamknij go i spróbuj ponownie.",
+        "connect": "Płytka nie odpowiedziała. Przytrzymaj przycisk BOOT na płytce podczas wybierania portu, aż zacznie się instalacja, i spróbuj ponownie. Odłączenie i ponowne podłączenie kabla też może pomóc.",
+        "wrong_chip": "Podłączona płytka ma układ {found}, a firmware tego ekranu jest dla {expected}. Podłącz właściwy ekran albo wybierz jego płytkę.",
+        "wrong_image": "Firmware skompilowany przez Tessera jest dla {expected}, a podłączona płytka ma {found}. Nic nie zostało zapisane.",
+        "disconnected": "Ekran został odłączony. Podłącz go ponownie i spróbuj jeszcze raz.",
+        "download": "Nie udało się pobrać firmware z Tessera: {error}",
+        "failed": "Instalacja się nie udała: {error}"
+      },
+      "hints": {
+        "computer": "Podłącz ekran do tego komputera, tego, na którym działa ta przeglądarka.",
+        "power": "Sprawdź, czy płytka ma zasilanie: większość ma małą diodę.",
+        "cable": "Użyj kabla USB, który przesyła dane. Niektóre kable tylko ładują.",
+        "driver": "Zainstaluj sterownik układu USB płytki, jeśli komputer go potrzebuje (CP210x, CH340 lub CH9102)."
+      },
+      "group_ha": "Podłączony do komputera z Home Assistant",
+      "group_here": "Podłączony do tego komputera",
+      "group_wifi": "Przez Wi-Fi"
+    },
+    "preview": {
+      "type": "Typ nowego ekranu",
+      "physical": "Ekran fizyczny",
+      "virtual": "Podgląd wirtualny",
+      "intro": "Zaprojektuj ekran z encjami Home Assistant bez parowania sprzętu. Podglądy są zapisywane w tej przeglądarce. W podglądzie firmware dotknięcia docierają do Home Assistant tylko wtedy, gdy to włączysz.",
+      "profile": "Płytka / profil",
+      "design_only": "Tylko profil podglądu. Nie dodaje obsługi firmware dla fizycznej płytki.",
+      "override": "Zmień rozdzielczość lub siatkę",
+      "width": "Szerokość (piksele)",
+      "height": "Wysokość (piksele)",
+      "columns": "Kolumny",
+      "rows": "Wiersze",
+      "name": "Nazwa podglądu",
+      "name_placeholder": "Podgląd Waveshare 4B",
+      "create": "Utwórz urządzenie wirtualne",
+      "created": "Utworzono urządzenie wirtualne \"{name}\".",
+      "invalid_shape": "Wybierz nazwę, obsługiwany profil, siatkę 1–8 kolumn/wierszy i obszar 160–2560 pikseli.",
+      "canvas": "Podgląd firmware LVGL",
+      "packet_error": "Firmware odrzuciło pakiet podglądu: {message}",
+      "stopped": "Podgląd firmware zatrzymany: {message}",
+      "action_error": "Polecenie Home Assistant nie powiodło się: {message}",
+      "remove": "Podgląd i jego układ zapisany w tej przeglądarce.",
+      "save": "Zapisz podgląd",
+      "saved": "Zapisano w tej przeglądarce",
+      "hint": "Własny firmware ekranu, narysowany z układu, który edytujesz. Dotykaj, przytrzymuj i przesuwaj jak na ekranie. Nic nie jest zapisywane.",
+      "control": "Dotknięcia sterują urządzeniami",
+      "control_hint": "Włączone: dotknięcie kafelka wykonuje jego akcję w Home Assistant, jak na ekranie. Wyłączone: podgląd pokazuje tylko, co robi dotknięcie.",
+      "skipped": "Nie udało się wczytać ekranu podglądu {names}; został pominięty.",
+      "not_kept": "Ta przeglądarka nie mogła zapisać ekranu podglądu: jej pamięć jest pełna lub zablokowana."
+    },
+    "inspector": {
+      "kind": {
+        "tile": "Kafelek",
+        "page": "Strona",
+        "bar": "Górny pasek"
+      }
+    },
+    "confirm": {
+      "leave_question": "Masz niezapisane zmiany. Mimo to przejść do przeglądu?",
+      "discard_open": "Odrzuć i otwórz",
+      "discard_leave": "Odrzuć i wyjdź",
+      "replace_layout": "Zastąp układ",
+      "import": "Importuj",
+      "start_fresh": "Zacznij od nowa",
+      "calibrate": "Rozpocznij kalibrację",
+      "add_anyway": "Dodaj mimo to",
+      "use_example": "Zastąp przykładem",
+      "clear_override": "Wyczyść nadpisanie"
+    },
+    "undo": {
+      "undo": "Cofnij: {what}",
+      "redo": "Ponów: {what}",
+      "undone": "Cofnięto: {what}",
+      "redone": "Ponowiono: {what}",
+      "a_tile": "kafelek",
+      "what": {
+        "grid": "zmieniono siatkę na {grid}",
+        "page_added": "dodano stronę {page}",
+        "page_copied": "dodano stronę {page} jako kopię",
+        "page_removed": "usunięto stronę {page}",
+        "page_moved": "przeniesiono stronę na miejsce {page}",
+        "pages_moved": "zmieniono kolejność stron",
+        "tile_added": "dodano: {name}",
+        "tiles_added": "dodano 1 kafelek | dodano {n} kafelki | dodano {n} kafelków",
+        "tile_removed": "usunięto: {name}",
+        "tiles_removed": "usunięto 1 kafelek | usunięto {n} kafelki | usunięto {n} kafelków",
+        "tile_moved": "przeniesiono: {name}",
+        "tile_moved_page": "przeniesiono na stronę {page}: {name}",
+        "tiles_moved": "przeniesiono 1 kafelek | przeniesiono {n} kafelki | przeniesiono {n} kafelków",
+        "tile_link": "{name} otwiera teraz stronę {page}",
+        "tile_renamed": "zmieniono nazwę: {name}",
+        "tile_look": "zmieniono widok: {name}",
+        "tile_resized": "zmieniono rozmiar: {name}",
+        "tile_icon": "zmieniono ikonę: {name}",
+        "tile_color": "zmieniono tło: {name}",
+        "tile_tap": "zmieniono dotknięcie: {name}",
+        "tile_option": "zmieniono ustawienia: {name}",
+        "tiles_changed": "zmieniono 1 kafelek | zmieniono {n} kafelki | zmieniono {n} kafelków",
+        "screen_title": "zmieniono tytuł ekranu",
+        "page_title": "zmieniono tytuł strony {page}",
+        "home_page": "strona {page} jest teraz stroną główną",
+        "page_buttons": "zmieniono przyciski stron dla strony {page}",
+        "home_key": "zmieniono przycisk strony głównej na stronie {page}",
+        "top_bar": "zmieniono górny pasek strony {page}",
+        "top_bars": "zmieniono górne paski",
+        "map_moved": "przeniesiono stronę {page} na mapie",
+        "map_arranged": "ułożono mapę od strony głównej",
+        "stood_up": "ekran ustawiony pionowo",
+        "laid_down": "ekran ustawiony poziomo",
+        "layout_copied": "skopiowano układ z ekranu {name}",
+        "layout_imported": "zaimportowano układ",
+        "changed": "zmieniono układ",
+        "restored": "przywrócono niezapisane zmiany",
+        "taken_over": "przejęto zmiany z innej karty"
+      }
+    },
+    "draft": {
+      "kept": "Niezapisane zmiany z {time}",
+      "kept_hint": "Zachowane w tej przeglądarce, jeszcze nie na ekranie.",
+      "restore": "Przywróć",
+      "discard": "Odrzuć"
+    },
+    "tabs": {
+      "elsewhere": "Ten ekran jest edytowany w innej karcie",
+      "elsewhere_hint": "Jego zmiany nie są jeszcze zapisane.",
+      "take_over": "Przejmij tutaj",
+      "keep_mine": "Zachowaj moje"
+    },
+    "connection": {
+      "lost": "Brak połączenia z ESP Screen Manager.",
+      "lost_hint": "Twoje zmiany zostają tutaj. Ponawianie…",
+      "restored": "Połączenie przywrócone"
+    },
+    "naming": {
+      "rename": "Zmień nazwę",
+      "reset": "Wróć do: {name}"
+    },
+    "phone": {
+      "menu": "Menu",
+      "screens": "Ekrany",
+      "add_tile": "Dodaj kafelek",
+      "add_to_cell": "Trafi na miejsce {cell} na stronie {page}",
+      "add_to_page": "Trafi na pierwsze wolne miejsce na stronie {page}",
+      "added": "Dodano: {name}",
+      "page_of": "{n} z {total}",
+      "pages": "Strony",
+      "page_tiles": "{n} kafelek | {n} kafelki | {n} kafelków",
+      "pages_order": "Strony i kolejność",
+      "hint": "Dotknij kafelka, aby go zmienić.",
+      "hint_pages": "Dotknij kafelka, aby go zmienić. Przesuń, aby przejść do następnej strony.",
+      "on_screen": "Wszystko jest na ekranie",
+      "not_sent": "Zmieniono, jeszcze nie wysłano",
+      "more_settings": "Więcej ustawień",
+      "more_settings_hint": "Widok, druga linia i działanie dotknięcia",
+      "move": "Przenieś",
+      "full_editor": "Pełny edytor",
+      "simple_editor": "Prosty widok"
+    },
+    "donate": {
+      "title": "Wesprzyj Tesserę",
+      "body": "Tessera jest darmowa i taka pozostanie. Kieruję rozwojem i utrzymaniem projektu, przy wsparciu społeczności. Twoja pomoc daje mi więcej czasu na rozwijanie, przeglądanie i testowanie zmian. Mile widziana jest zarówno comiesięczna wpłata, jak i jednorazowa kawa.",
+      "monthly": "Wspieraj co miesiąc",
+      "once": "albo postaw mi kawę jednorazowo",
+      "later": "Może później",
+      "donated": "Już wpłaciłem",
+      "thanks": "Dziękuję! Ta wiadomość już nie wróci."
+    },
+    "build": {
+      "plugins": "Kompiluje z wtyczkami",
+      "install": "Instaluje",
+      "failed": "Ostatnia kompilacja {screen} się nie powiodła. Dziennik mówi dlaczego.",
+      "title": "Trwa budowanie",
+      "count": "1 kompilacja w toku | {n} kompilacje w toku | {n} kompilacji w toku",
+      "ready": "{name} jest gotowy",
+      "ready_several": "{names} są gotowe",
+      "update_failed": "Aktualizacja {name} nie powiodła się",
+      "build_failed": "Kompilacja {name} nie powiodła się",
+      "show_log": "Pokaż log",
+      "waiting_place": "Czeka, najpierw 1 kompilacja | Czeka, najpierw {n} kompilacje | Czeka, najpierw {n} kompilacji"
+    },
+    "grid": {
+      "title": "Siatka",
+      "columns": "Kolumny",
+      "rows": "Wiersze",
+      "columns_less": "Mniej kolumn",
+      "columns_more": "Więcej kolumn",
+      "rows_less": "Mniej wierszy",
+      "rows_more": "Więcej wierszy",
+      "hint": "Kafelki, które nie mieszczą się już na stronie, przechodzą na nową stronę zaraz za nią. Ekran dostaje nową siatkę po zapisaniu.",
+      "update_first": "Zaktualizuj ten ekran, aby wybrać tu jego siatkę.",
+      "pages_added": "Dodano 1 stronę na kafelki, które się nie mieściły | Dodano {n} strony na kafelki, które się nie mieściły | Dodano {n} stron na kafelki, które się nie mieściły",
+      "new_page": "Nowa strona na to, co się nie zmieściło",
+      "too_many_pages": "Na siatce {grid} te kafelki potrzebują {needed} stron, a ten ekran przyjmuje {most}. Usuń kafelki lub wybierz inną siatkę; nic nie zostało zmienione.",
+      "way": "Orientacja",
+      "landscape": "Poziomo",
+      "portrait": "Pionowo",
+      "turn_hint": "Po obróceniu ekran raz uruchamia się ponownie, aby zmierzyć nowy obraz."
+    },
+    "clipboard": {
+      "copied": "Skopiowano 1 kafelek. Wklej go skrótem {key} na dowolnej stronie lub ekranie | Skopiowano {n} kafelki. Wklej je skrótem {key} na dowolnej stronie lub ekranie | Skopiowano {n} kafelków. Wklej je skrótem {key} na dowolnej stronie lub ekranie",
+      "cut": "Wycięto 1 kafelek | Wycięto {n} kafelki | Wycięto {n} kafelków",
+      "pasted": "Wklejono 1 kafelek | Wklejono {n} kafelki | Wklejono {n} kafelków",
+      "pasted_pages": "Wklejono {n} kafelków, resztę na nowej stronie | Wklejono {n} kafelków, resztę na {pages} nowych stronach | Wklejono {n} kafelków, resztę na {pages} nowych stronach",
+      "pasted_some": "Wklejono {n} z {total} kafelków. Ten ekran nie ma miejsca na pozostałe",
+      "none_fit": "Nic nie wklejono. Ten ekran nie ma miejsca na te kafelki",
+      "empty": "Nic jeszcze nie skopiowano"
+    },
+    "selection": {
+      "title": "1 kafelek | {n} kafelki | {n} kafelków",
+      "leave": "Pomiń {name}",
+      "copy": "Kopiuj",
+      "hint": "{copy} kopiuje kafelki ze wszystkimi ustawieniami. Wybierz stronę lub komórkę, tutaj lub na innym ekranie, i naciśnij {paste}.",
+      "remove": "Usuń kafelek | Usuń {n} kafelki | Usuń {n} kafelków"
+    }
+  }
+}

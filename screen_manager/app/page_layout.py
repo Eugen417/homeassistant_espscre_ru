@@ -1,0 +1,570 @@
+"""Page-owned configuration, independent of HA state and firmware delivery.
+
+This module is the current document boundary. Historic storage readers live in
+layout_migrations.py and never run during normal document edits. Renderers may use the compiled tile list, but it is not another
+editable layout. The board's Grid remains the authority for all capacity.
+"""
+from copy import deepcopy
+from collections.abc import Mapping
+import hashlib
+import json
+import re
+import secrets
+
+from i18n import t
+from core import (entity_id, plugin_entity, plugin_tile, FIRMWARE_MAX_PAGES, FIRMWARE_MAX_TILES, HEADER_MAX_ITEMS, KEY_HOLDERS, STORE_MAX_BAR_ITEMS, STORE_MAX_PAGES,
+                  STORE_MAX_TILES, Grid, is_key, span_of,
+                  span_offered, placed, header_items, page_target, tile_size, validate_header, validate_layout)
+
+FORMAT = "pages-v2"
+PAGE_ID = re.compile(r"[0-9a-f]{16}\Z")
+INSTANCE_ID = re.compile(r"[a-zA-Z0-9_-]{1,64}\Z")
+APPEARANCE = {
+    "display": "display", "icon": "icon", "background": "background",
+    "historyHours": "history_hours", "refresh": "refresh", "subtitle": "sub", "fit": "fit", "overlay": "overlay",
+    # A map card (app 0.4.33): who rides along and how it frames them. None of the three ever reaches a screen.
+    "mapEntities": "map", "mapFraming": "framing", "mapDistance": "distance",
+    # How a map looks and, on the map tile, whom it follows (app 0.4.36).
+    "mapFollow": "follow", "mapMarkers": "markers", "mapNames": "names", "mapZones": "zones", "mapStreets": "streets",
+    "mapLook": "look",
+    # How the energy card shows power along a line: running dots or calm lines (catalogue/screen.yaml `energy`).
+    "energyFlow": "flow",
+    # A calendar card (firmware 0.56.0, calendar_feed.py): its look, its calendars and filters, how far it looks, when an
+    # event starts soon and its full screen's first view. The calendars and filters stay in the app.
+    "calendarStyle": "style", "calendarEntities": "calendars", "calendarPlaces": "places", "calendarWords": "words",
+    "calendarHideWords": "hide_words", "calendarAllDay": "all_day", "calendarTentative": "tentative",
+    "calendarPrivate": "private", "calendarAhead": "ahead", "calendarSoon": "soon", "calendarStartView": "start_view",
+    "calendarWeekStart": "week_start", "calendarHours": "hours", "calendarWeekNumbers": "week_numbers",
+    "calendarBookOn": "book_on", "calendarBookPlace": "book_place", "calendarBookTitle": "book_title",
+    # A sensor's meter (firmware 0.56.0, meter.py): a ring, a tape or a bar, its own range and its colours.
+    "meterStyle": "meter", "meterMin": "min", "meterMax": "max", "meterSegments": "segments", "meterColors": "colors",
+    "meterThresholds": "thresholds",
+}
+# A favourite (app 0.4.42) keeps what it plays (`play`, Home Assistant's own ids) and on which speaker (`speaker`), and
+# since app 0.4.84 its own shuffle and repeat.
+INTERACTION = {"tap": "tap", "inline": "inline", "controls": "controls", "action": "action", "guard": "guard", "play": "play", "speaker": "speaker",
+               "shuffle": "shuffle", "repeat": "repeat"}
+
+
+class LayoutError(ValueError):
+    """A document cannot be represented without losing the user's choices."""
+
+
+class CompiledLayouts(Mapping):
+    """Immutable derived inputs for existing tile formatting/card functions.
+
+    Construct once per committed content revision. Callers get their own values,
+    so mutating an old API projection cannot edit the document or this cache.
+    """
+    def __init__(self, records):
+        self._values = {key: legacy_projection(record, require_representable=False)
+                        for key, record in records.items() if record['format'] == FORMAT}
+        self._legacy = {key for key, record in records.items()
+                        if record['format'] == FORMAT and legacy_compatible(record['layout'], grid_of_record(record))}
+
+    def __getitem__(self, key): return deepcopy(self._values[key])
+    def __iter__(self): return iter(self._values)
+    def __len__(self): return len(self._values)
+
+    def legacy(self, key):
+        if key not in self._legacy:
+            raise LayoutError(t('editor.pages.update_notice'))
+        return self[key]
+
+
+def new_id():
+    return secrets.token_hex(8)
+
+
+def fingerprint(value):
+    """Content revision only; callers must not include live values or credentials."""
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"),
+                                    ensure_ascii=False, allow_nan=False).encode()).hexdigest()[:16]
+
+
+def legacy_edit(record, data):
+    """Preserve identities for unambiguous edits from an already-open old client.
+
+    Old clients identify tiles by entity/slot and cannot safely express structural
+    page edits. Keep page-specific fields verbatim and require a reload for those.
+    """
+    before = legacy_projection(record, require_representable=False)
+    grid = grid_of_record(record)
+    after = validate_layout(data, grid=grid)
+    structure = lambda value: [(tile["entity"], tile.get("slot"), tile.get("in"), tile.get("key")) for tile in value["tiles"]]
+    if structure(after) != structure(before) or after.get("pages", before["pages"]) != before["pages"]:
+        raise LayoutError(t('addon.errors.editor_reload'))
+    for field in ("header", "page_titles"):
+        if field in after and after[field] != before.get(field):
+            raise LayoutError(t('addon.errors.editor_reload'))
+    result = deepcopy(record["layout"])
+    result["title"] = after["title"]
+    page_ids = [page["id"] for page in result["pages"]]
+    children = [child for page in result["pages"] for tile in page["tiles"] for child in tile.get("children", ())]
+    for wire in placed(after["tiles"]):
+        page = result["pages"][wire["slot"] // grid.slots]
+        local = wire["slot"] % grid.slots
+        saved = next(tile for tile in page["tiles"] if
+                     tile["placement"]["row"] * grid.columns + tile["placement"]["column"] == local)
+        changed = tile_from_fields(wire, grid, page_ids, lambda: saved["id"])
+        for key in ("appearance", "interaction", "placement"): saved[key] = changed[key]
+    return validate_document(attach_keys(result, [tile for tile in after["tiles"] if is_key(tile)], previous=children), grid)
+
+
+def replace_tiles(record, flat):
+    """Apply a validated entity-addressed tile event without rewriting pages.
+
+    These events edit tiles and their cells, never the page order or bars. Stable
+    IDs follow an existing tile. A tile of an entity on several tiles (firmware
+    0.16.0+) that moved takes the id of a copy that moved too: one on its own
+    page first, else the first in page order. The event carries every setting
+    of the tile, so which copy's id it keeps changes nothing on the screen.
+    """
+    grid = grid_of_record(record)
+    flat = validate_layout(flat, grid=grid)
+    keys, flat = [tile for tile in flat['tiles'] if is_key(tile)], {**flat, 'tiles': placed(flat['tiles'])}
+    children = [child for page in record['layout']['pages'] for tile in page['tiles'] for child in tile.get('children', ())]
+    result = deepcopy(record['layout'])
+    used = max((tile['slot'] + grid.cells(tile_size(tile)) for tile in flat['tiles']), default=0)
+    count = max(1, flat.get('pages', 1), (used + grid.slots - 1) // grid.slots)
+    while len(result['pages']) < count:
+        result = copy_page(result, result['pages'][-1]['id'], grid, empty=True)
+    existing = []
+    indexes = {page['id']: i for i, page in enumerate(result['pages'])}
+    for p, page in enumerate(result['pages']):
+        for tile in page['tiles']:
+            existing.append((tile, _tile(tile, p, grid, indexes, result['homePageId'], set())[0]))
+        page['tiles'] = []
+    page_ids = [page['id'] for page in result['pages']]
+    incoming = [(wire['slot'] // grid.slots, tile_from_fields(wire, grid, page_ids), wire) for wire in flat['tiles']]
+    used, assigned = set(), {}
+    # Unchanged positions consume their own IDs before a moved duplicate is considered.
+    for n, (_, _, wire) in enumerate(incoming):
+        match = next((old for old, view in existing if view['entity'] == wire['entity'] and view['slot'] == wire['slot']), None)
+        if match is not None:
+            assigned[n] = match
+            used.add(match['id'])
+    for n, (p, tile, wire) in enumerate(incoming):
+        old = assigned.get(n)
+        if old is None:
+            candidates = [(old, view) for old, view in existing if old['id'] not in used and view['entity'] == wire['entity']]
+            here = [old for old, view in candidates if view['slot'] // grid.slots == p]
+            old = here[0] if here else candidates[0][0] if candidates else None
+        if old is not None:
+            tile['id'] = old['id']
+            used.add(old['id'])
+            # A Home tile follows the designation, rather than becoming a fixed link.
+            if old['content'] == {'kind': 'navigation', 'target': {'kind': 'home'}}:
+                tile['content'] = deepcopy(old['content'])
+        result['pages'][p]['tiles'].append(tile)
+    return validate_document(attach_keys(result, keys, previous=children), grid)
+
+
+def _object(value, allowed, required=()):
+    if not isinstance(value, dict) or set(value) - set(allowed) or set(required) - set(value):
+        raise LayoutError(t('addon.errors.pages.fields'))
+    return value
+
+
+def _integer(value, low, high):
+    if type(value) is not int or not low <= value <= high:
+        raise LayoutError(t('addon.errors.layout.position'))
+    return value
+
+
+def _identity(value, seen, page=False):
+    if not isinstance(value, str) or not (PAGE_ID if page else INSTANCE_ID).fullmatch(value) or value in seen:
+        raise LayoutError(t('addon.errors.pages.identity'))
+    seen.add(value)
+    return value
+
+
+def grid_of_record(record):
+    """The grid a stored document was made on, with the ceilings any board may state (core.STORE_MAX_PAGES and
+    STORE_MAX_TILES): a stored layout is held to what a screen could ever take, a save to what its screen takes
+    (Manager.verified_grid, or screen_grid_of_record while the screen has never said)."""
+    source = _object(record.get("sourceGrid"), {"columns", "rows"}, {"columns", "rows"})
+    columns = _integer(source["columns"], 1, 64)
+    rows = _integer(source["rows"], 1, 64)
+    if columns * rows > 64:
+        raise LayoutError(t('addon.errors.layout.position'))
+    return Grid(columns, rows, STORE_MAX_PAGES, STORE_MAX_TILES, STORE_MAX_BAR_ITEMS)
+
+
+def screen_grid_of_record(record):
+    """The grid of a stored document for a screen that never said what it takes: 64 tiles over eight pages."""
+    return grid_of_record(record).with_ceilings(FIRMWARE_MAX_PAGES, FIRMWARE_MAX_TILES)
+
+
+def _entity(content, page_indexes, home):
+    _object(content, {"kind", "entityId", "name", "target", "plugin", "tile", "options"}, {"kind"})
+    if content["kind"] == "plugin":
+        # A plugin's tile (docs/PLUGINS.md): its plugin, its type and its own options, plugin:<plugin>.<tile> flat.
+        _object(content, {"kind", "plugin", "tile", "entityId", "options"}, {"kind", "plugin", "tile"})
+        if "entityId" in content and not plugin_entity(content["entityId"]):
+            raise LayoutError(t('addon.errors.layout.unsupported'))
+        entity = f'plugin:{content["plugin"]}.{content["tile"]}' if isinstance(content["plugin"], str) and isinstance(content["tile"], str) else ""
+        if not plugin_tile(entity):
+            raise LayoutError(t('addon.errors.layout.unsupported'))
+        return entity
+    if content["kind"] == "entity":
+        _object(content, {"kind", "entityId"}, {"kind", "entityId"})
+        entity = content["entityId"]
+        if not isinstance(entity, str) or entity.startswith("screen."):
+            raise LayoutError(t('addon.errors.layout.unsupported'))
+        return entity
+    if content["kind"] == "builtin":
+        _object(content, {"kind", "name"}, {"kind", "name"})
+        if content["name"] not in ("clock", "nightstand", "settings", "map", "energy"):
+            raise LayoutError(t('addon.errors.layout.unsupported'))
+        return "screen." + content["name"]
+    if content["kind"] == "navigation":
+        _object(content, {"kind", "target"}, {"kind", "target"})
+        target = _object(content["target"], {"kind", "pageId"}, {"kind"})
+        if target["kind"] == "home":
+            _object(target, {"kind"}, {"kind"})
+            destination = home
+        elif target["kind"] == "page":
+            _object(target, {"kind", "pageId"}, {"kind", "pageId"})
+            destination = target["pageId"]
+        else:
+            raise LayoutError(t('addon.errors.pages.navigation'))
+        if not isinstance(destination, str) or destination not in page_indexes:
+            raise LayoutError(t('addon.errors.pages.page_missing'))
+        return f"screen.page_{page_indexes[destination] + 1}"
+    raise LayoutError(t('addon.errors.layout.unsupported'))
+
+
+def grown(layout, source, target):
+    """The layout of a grid that only grew (as many columns or more, as many rows or more) on the bigger grid, or None
+    for any other change. Every tile keeps its page, its row and its column, so nothing moves and nothing is lost: a
+    page gains empty cells, and a tile over the whole page covers the whole new one. The editor's adaptGrid gives the
+    same result for such a grid, which is why the app may take it without asking (a 10.1-inch screen went from 5 x 4
+    to 5 x 5 in firmware 0.18.0). A grid that shrank, or grew one way and shrank the other, still waits for a review."""
+    if target == source or target.columns < source.columns or target.rows < source.rows:
+        return None
+    layout = deepcopy(layout)
+    sizes = {"single": (1, 1), "wide": (target.wide_span, 1), "tall": (1, 2), "square": (2, 2), "full": (target.columns, target.rows)}
+    for page in layout["pages"]:
+        for tile in page["tiles"]:
+            placement, appearance = tile["placement"], tile["appearance"]
+            size = footprint_size(placement["columns"], placement["rows"], source, appearance.get("presentation"))
+            # A span keeps its own rectangle on the bigger grid (app 0.4.32).
+            placement["columns"], placement["rows"] = sizes.get(size) or span_of(size)
+            if size != "single":
+                appearance["presentation"] = size
+    return validate_document(layout, target)
+
+
+def footprint_size(columns, rows, grid, presentation=None):
+    """Current rendering capability, separate from the persistent rectangle.
+
+    Future sizes can extend this resolver and the renderer without
+    changing page/tile identity, storage positions or the board's fixed grid.
+    """
+    if presentation is not None:
+        supported = {"single": (1, 1), "wide": (grid.wide_span, 1), "tall": (1, 2), "square": (2, 2), "full": (grid.columns, grid.rows)}
+        # A span ("3x2", app 0.4.32) is its own rectangle, one the grid takes.
+        span = span_of(presentation)
+        if span:
+            if span != (columns, rows) or not span_offered(columns, rows, grid):
+                raise LayoutError(t('addon.errors.pages.footprint'))
+            return presentation
+        if not isinstance(presentation, str) or presentation not in supported or supported[presentation] != (columns, rows):
+            raise LayoutError(t('addon.errors.pages.footprint'))
+        return presentation
+    if (columns, rows) == (1, 1): return "single"
+    if (columns, rows) == (grid.wide_span, 1): return "wide"
+    if (columns, rows) == (grid.columns, grid.rows): return "full"
+    if (columns, rows) == (1, 2): return "tall"
+    if (columns, rows) == (2, 2): return "square"
+    if span_offered(columns, rows, grid): return f"{columns}x{rows}"
+    raise LayoutError(t('addon.errors.pages.footprint'))
+
+
+KEY_APPEARANCE = {"icon": "icon", "overlay": "overlay"}
+KEY_INTERACTION = {"tap": "tap", "action": "action", "guard": "guard"}
+
+
+def _keys(tile, entity, seen):
+    """A bedside clock's keys (app 0.4.12) as the tiles they are: each has a tile's fields but a placement, and in the
+    compiled tiles it names the tile it stands under (`in`) and its place there (`key`) instead of a slot. Only a tile
+    that holds keys (KEY_HOLDERS) has children; the legacy validator checks what each key sets, as for any tile."""
+    children = tile.get("children")
+    if children is None:
+        return []
+    if entity not in KEY_HOLDERS or not isinstance(children, list) or len(children) > KEY_HOLDERS[entity]:
+        raise LayoutError(t('addon.errors.pages.fields'))
+    keys = []
+    for place, child in enumerate(children):
+        _object(child, {"id", "content", "appearance", "interaction"}, {"id", "content", "appearance", "interaction"})
+        _identity(child["id"], seen)
+        content = _object(child["content"], {"kind", "entityId"}, {"kind", "entityId"})
+        if content["kind"] != "entity" or not isinstance(content["entityId"], str) or content["entityId"].startswith("screen."):
+            raise LayoutError(t('addon.errors.layout.unsupported'))
+        appearance = _object(child["appearance"], {"label", *KEY_APPEARANCE}, {"label"})
+        interaction = _object(child["interaction"], KEY_INTERACTION)
+        options = {wire: deepcopy(appearance[name]) for name, wire in KEY_APPEARANCE.items() if name in appearance}
+        options.update({wire: deepcopy(interaction[name]) for name, wire in KEY_INTERACTION.items() if name in interaction})
+        keys.append({"entity": content["entityId"], "name": appearance["label"], "in": entity, "key": place,
+                     **({"options": options} if options else {})})
+    return keys
+
+
+def child_from_key(key, id_factory):
+    """A key tile back as the child of its clock in the page document."""
+    options = key.get("options", {})
+    return {"id": id_factory(), "content": {"kind": "entity", "entityId": key["entity"]},
+            "appearance": {"label": key.get("name", ""), **{name: deepcopy(options[wire]) for name, wire in KEY_APPEARANCE.items() if wire in options}},
+            "interaction": {name: deepcopy(options[wire]) for name, wire in KEY_INTERACTION.items() if wire in options}}
+
+
+def attach_keys(layout, keys, id_factory=None, previous=None):
+    """Put key tiles under the tiles they name, in their order, in place of the children those had. A key keeps its id
+    while its clock keeps that entity as a key (`previous`: the children before), so an edit is not a new key."""
+    id_factory = id_factory or new_id
+    # An entity may stand under the clock more than once (firmware 0.16.0+): its keys take its old ids in their order.
+    old = {}
+    for child in previous or ():
+        old.setdefault(child["content"]["entityId"], []).append(child["id"])
+    holders = {}
+    for p, page in enumerate(layout["pages"]):
+        for tile in page["tiles"]:
+            entity = _entity(tile["content"], {page["id"]: i for i, page in enumerate(layout["pages"])}, layout["homePageId"])
+            tile.pop("children", None)
+            holders[entity] = tile
+    for key in sorted(keys, key=lambda key: key["key"]):
+        holder = holders.get(key["in"])
+        if holder is None:
+            raise LayoutError(t('addon.errors.layout.position'))
+        known = old.get(key["entity"], [None]).pop(0) if old.get(key["entity"]) else None
+        holder.setdefault("children", []).append(child_from_key(key, (lambda: known) if known else id_factory))
+    return layout
+
+
+def _tile(tile, page_index, grid, page_indexes, home, seen):
+    _object(tile, {"id", "content", "placement", "appearance", "interaction", "children"},
+            {"id", "content", "placement", "appearance", "interaction"})
+    _identity(tile["id"], seen)
+    placement = _object(tile["placement"], {"row", "column", "columns", "rows"}, {"row", "column", "columns", "rows"})
+    row = _integer(placement["row"], 0, grid.rows - 1)
+    column = _integer(placement["column"], 0, grid.columns - 1)
+    columns = _integer(placement["columns"], 1, grid.columns)
+    rows = _integer(placement["rows"], 1, grid.rows)
+    appearance = _object(tile["appearance"], {"label", "presentation", *APPEARANCE}, {"label"})
+    if 'presentation' in appearance and not isinstance(appearance['presentation'], str):
+        raise LayoutError(t('addon.errors.pages.size'))
+    size = footprint_size(columns, rows, grid, appearance.get("presentation"))
+    interaction = _object(tile["interaction"], INTERACTION)
+    options = {wire: deepcopy(appearance[key]) for key, wire in APPEARANCE.items() if key in appearance}
+    options.update({wire: deepcopy(interaction[key]) for key, wire in INTERACTION.items() if key in interaction})
+    if size != "single":
+        options["size"] = size
+    entity = _entity(tile["content"], page_indexes, home)
+    if tile["content"]["kind"] == "plugin" and "options" in tile["content"]:
+        options["plugin"] = deepcopy(tile["content"]["options"])
+    # A plugin tile that belongs to an entity (docs/PLUGINS.md): the entity travels beside its options.
+    if tile["content"]["kind"] == "plugin" and "entityId" in tile["content"]:
+        options["plugin_entity"] = tile["content"]["entityId"]
+    return {
+        "entity": entity,
+        "name": appearance["label"],
+        "slot": page_index * grid.slots + row * grid.columns + column,
+        **({"options": options} if options else {}),
+    }, _keys(tile, entity, seen)
+
+
+def tile_from_fields(tile, grid, page_ids, id_factory=new_id):
+    """Map validated entity-addressed tile fields into one page-owned instance.
+
+    Used by HA tile commands and historic import readers. Page identity, order,
+    Home and top bars are owned by the caller and cannot be rewritten here.
+    """
+    entity, options = tile["entity"], tile.get("options", {})
+    target = page_target(entity)
+    if target:
+        if target > len(page_ids):
+            raise LayoutError(t('addon.errors.pages.page_missing'))
+        content = {"kind": "navigation", "target": {"kind": "page", "pageId": page_ids[target - 1]}}
+    elif entity.startswith("screen."):
+        content = {"kind": "builtin", "name": entity.split(".", 1)[1]}
+    elif plugin_tile(entity):
+        plugin, kind = plugin_tile(entity)
+        content = {"kind": "plugin", "plugin": plugin, "tile": kind,
+                   **({"entityId": options["plugin_entity"]} if "plugin_entity" in options else {}),
+                   **({"options": deepcopy(options["plugin"])} if "plugin" in options else {})}
+    else:
+        content = {"kind": "entity", "entityId": entity}
+    local, size = tile["slot"] % grid.slots, tile_size(tile)
+    return {
+        "id": id_factory(), "content": content,
+        "placement": {"row": local // grid.columns, "column": local % grid.columns,
+                      "columns": grid.dimensions(size)[0], "rows": grid.dimensions(size)[1]},
+        "appearance": {"label": tile["name"], **({"presentation": size} if size != "single" else {}),
+                       **{key: deepcopy(options[wire]) for key, wire in APPEARANCE.items() if wire in options}},
+        "interaction": {key: deepcopy(options[wire]) for key, wire in INTERACTION.items() if wire in options},
+    }
+
+
+def bar_items(page, most=STORE_MAX_BAR_ITEMS):
+    """Resolve documented defaults at the formatter boundary, without IDs; at most `most` items (the screen's own when a
+    document is validated for it, the most any board takes for a stored one)."""
+    items = [{key: deepcopy(value) for key, value in item.items() if key != "id"}
+             for item in page["topbar"]["trailing"]]
+    return validate_header({"items": items}, most)['items']
+
+
+def compile_tiles(layout, grid):
+    """Compact render/protocol input; all pages keep their full-order indexes."""
+    indexes = {page["id"]: i for i, page in enumerate(layout["pages"])}
+    seen = set(indexes)
+    tiles, keys = [], []
+    for i, page in enumerate(layout["pages"]):
+        for tile in sorted(page["tiles"], key=lambda t: (t["placement"]["row"], t["placement"]["column"])):
+            compiled, under = _tile(tile, i, grid, indexes, layout["homePageId"], seen)
+            tiles.append(compiled)
+            keys += under
+    # The keys follow the placed tiles, so every placed tile keeps its index on the screen.
+    return tiles + keys
+
+
+def validate_document(data, grid):
+    """Validate once against a verified grid, returning an independent document.
+
+    Existing card validation is reused through a lossless projection. If that
+    validator would change an incompatible combination, refuse it instead of
+    silently changing the canonical document's appearance or footprint.
+    """
+    _object(data, {"title", "homePageId", "pages"}, {"title", "homePageId", "pages"})
+    pages = data["pages"]
+    if not isinstance(pages, list) or not 1 <= len(pages) <= grid.pages:
+        raise LayoutError(t('addon.errors.pages.pages_full'))
+    seen = set()
+    for page in pages:
+        _object(page, {"id", "navigation", "topbar", "tiles"}, {"id", "navigation", "topbar", "tiles"})
+        _identity(page["id"], seen, page=True)
+    page_ids = seen.copy()
+    if not isinstance(data["homePageId"], str) or data["homePageId"] not in page_ids:
+        raise LayoutError(t('addon.errors.pages.home_invalid'))
+    for page in pages:
+        navigation = _object(page["navigation"], {"excludeFromPagination"}, {"excludeFromPagination"})
+        if type(navigation["excludeFromPagination"]) is not bool:
+            raise LayoutError(t('addon.errors.pages.navigation'))
+        bar = _object(page["topbar"], {"leading", "title", "trailing"}, {"leading", "title", "trailing"})
+        title = _object(bar["title"], {"source", "text"}, {"source"})
+        if title["source"] == "screen":
+            _object(title, {"source"}, {"source"})
+        elif title["source"] == "text":
+            _object(title, {"source", "text"}, {"source", "text"})
+            if not isinstance(title["text"], str) or not title["text"].strip() or len(title["text"].encode()) > 96:
+                raise LayoutError(t('addon.errors.layout.page_title'))
+        else:
+            raise LayoutError(t('addon.errors.top_bar.invalid_setting'))
+        if not isinstance(bar["leading"], list) or len(bar["leading"]) > 1:
+            raise LayoutError(t('addon.errors.top_bar.invalid_setting'))
+        for control in bar["leading"]:
+            _object(control, {"id", "kind"}, {"id", "kind"})
+            _identity(control["id"], seen)
+            if control["kind"] != "home":
+                raise LayoutError(t('addon.errors.top_bar.invalid_setting'))
+        if not isinstance(bar["trailing"], list):
+            raise LayoutError(t('addon.errors.top_bar.invalid'))
+        for item in bar["trailing"]:
+            if not isinstance(item, dict):
+                raise LayoutError(t('addon.errors.top_bar.invalid'))
+            _identity(item.get("id"), seen)
+        bar_items(page, grid.bar_items)
+        if not isinstance(page["tiles"], list):
+            raise LayoutError(t('addon.errors.layout.invalid'))
+        for tile in page["tiles"]:
+            _tile(tile, 0, grid, {p["id"]: i for i, p in enumerate(pages)}, data["homePageId"], seen)
+    flat = {"title": data["title"], "tiles": compile_tiles(data, grid), "pages": len(pages)}
+    checked = validate_layout(flat, grid=grid)
+    # The legacy validator sorts by slot and normalizes documented defaults.
+    # Incompatible size/action combinations must not escape into a document.
+    if checked["title"] != data["title"] or checked["tiles"] != flat["tiles"]:
+        raise LayoutError(t('addon.errors.pages.normalization'))
+    return deepcopy(data)
+
+
+
+def legacy_compatible(layout, grid):
+    """Whether a validated page document fits the older firmware's behaviour."""
+    pages = layout['pages']
+    items = bar_items(pages[0])
+    # Older firmware's top bar holds six items, the same on every page.
+    return (len(items) <= HEADER_MAX_ITEMS and layout['homePageId'] == pages[0]['id']
+            and all(not page['navigation']['excludeFromPagination'] and page['topbar']['leading']
+                    and bar_items(page) == items for page in pages)
+            and all(footprint_size(tile['placement']['columns'], tile['placement']['rows'], grid, tile['appearance'].get('presentation'))
+                    not in ('tall', 'square') and not span_of(footprint_size(tile['placement']['columns'], tile['placement']['rows'], grid, tile['appearance'].get('presentation')))
+                    and tile['interaction'].get('controls') not in ('tilt', 'buttons_tilt', 'position_tilt', 'setpoint_mode')
+                    and not tile.get('children')
+                    for page in pages for tile in page['tiles']))
+
+
+def legacy_projection(record, require_representable=True):
+    """Derive v1 input without making it authoritative or silently flattening bars."""
+    grid = grid_of_record(record)
+    layout = validate_document(record["layout"], grid)
+    pages = layout["pages"]
+    items = bar_items(pages[0])
+    if require_representable and not legacy_compatible(layout, grid):
+        raise LayoutError(t('editor.pages.update_notice'))
+    titles = [page["topbar"]["title"].get("text", "") for page in pages]
+    titles += record.get("migration", {}).get("inactivePageTitles", [])
+    while titles and not titles[-1]:
+        titles.pop()
+    return {
+        "title": layout["title"], "pages": len(pages), "tiles": compile_tiles(layout, grid),
+        "header": {"items": items}, **({"page_titles": titles} if titles else {}),
+        **({"settings": deepcopy(record["settings"])} if "settings" in record else {}),
+    }
+
+
+def pagination(layout):
+    return [i for i, page in enumerate(layout["pages"]) if not page["navigation"]["excludeFromPagination"]]
+
+
+def sequential_target(layout, current, direction):
+    sequence = pagination(layout)
+    if current not in sequence or direction not in (-1, 1):
+        return current
+    index = sequence.index(current) + direction
+    return sequence[index] if 0 <= index < len(sequence) else current
+
+
+def delete_page(layout, page_id, grid):
+    """One operation, including incoming links and Home; caller owns undo."""
+    result = deepcopy(layout)
+    if len(result["pages"]) == 1 or page_id not in {p["id"] for p in result["pages"]}:
+        raise LayoutError(t('addon.errors.pages.delete'))
+    result["pages"] = [p for p in result["pages"] if p["id"] != page_id]
+    if result["homePageId"] == page_id:
+        result["homePageId"] = result["pages"][0]["id"]
+    for page in result["pages"]:
+        page["tiles"] = [tile for tile in page["tiles"] if tile["content"].get("target") != {"kind": "page", "pageId": page_id}]
+    return validate_document(result, grid)
+
+
+def copy_page(layout, page_id, grid, empty=False, id_factory=new_id):
+    """Duplicate only if device constraints allow it; never omit conflicts."""
+    result = deepcopy(layout)
+    source = next((p for p in result["pages"] if p["id"] == page_id), None)
+    if source is None:
+        raise LayoutError(t('addon.errors.pages.page_missing'))
+    copied = deepcopy(source)
+    copied["id"] = id_factory()
+    if empty:
+        copied["tiles"] = []
+        copied["navigation"]["excludeFromPagination"] = False
+    for item in copied["topbar"]["leading"] + copied["topbar"]["trailing"] + copied["tiles"]:
+        item["id"] = id_factory()
+    for tile in copied["tiles"]:
+        for child in tile.get("children", ()):
+            child["id"] = id_factory()
+    for tile in copied["tiles"]:
+        if tile["content"].get("target") == {"kind": "page", "pageId": page_id}:
+            tile["content"]["target"]["pageId"] = copied["id"]
+    result["pages"].insert(result["pages"].index(source) + 1, copied)
+    return validate_document(result, grid)
