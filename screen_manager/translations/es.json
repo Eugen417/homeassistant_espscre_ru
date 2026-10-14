@@ -421,8 +421,8 @@
         "light_off": "Sin luz",
         "lock_on": "Desbloqueado",
         "lock_off": "Bloqueado",
-        "moisture_on": "Húmedo",
-        "moisture_off": "Deshumidificar",
+        "moisture_on": "Mojado",
+        "moisture_off": "Seco",
         "motion_on": "Detectado",
         "motion_off": "No detectado",
         "moving_on": "En movimiento",
@@ -459,7 +459,7 @@
       "button": {
         "activate": "Activar",
         "run": "Ejecutar",
-        "press": "Pulsa"
+        "press": "Pulsar"
       },
       "climate_fan": {
         "auto": "Auto",
