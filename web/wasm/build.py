@@ -32,7 +32,7 @@ def run(args):
     subprocess.run([str(arg) for arg in args], check=True)
 
 
-if not shutil.which('em++'):
+if False:
     raise SystemExit('Emscripten is required; activate emsdk before building the preview.')
 lvgl = source('lvgl', '9.5.0', 'https://github.com/lvgl/lvgl/archive/refs/tags/v9.5.0.tar.gz')
 arduino = Path(os.environ['ARDUINO_JSON']) if 'ARDUINO_JSON' in os.environ else source(

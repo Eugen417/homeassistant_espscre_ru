@@ -34,7 +34,7 @@ describe("feedback card", () => {
     expect(report.exists()).toBe(true);
     expect(report.attributes("target")).toBe("_blank");
     const url = new URL(report.attributes("href")!);
-    expect(url.origin + url.pathname).toBe("https://github.com/MaxGramser/homeassistant_espscreen/issues/new");
+    expect(url.origin + url.pathname).toBe("https://github.com/Eugen417/homeassistant_espscre_ru/issues/new");
     expect(url.searchParams.get("template")).toBe("bug_report.yml");
     expect(url.searchParams.get("title")).toBe("[Bug]: Touch on ESP32-S3-4848S040");
     expect(url.searchParams.get("versions")).toBe("add-on 0.4.78, firmware 0.47.0");

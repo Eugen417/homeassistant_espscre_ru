@@ -25,7 +25,7 @@ packages:
   # (features/audio-amplifier.yaml): its hardware below.
   audio: !include ../features/audio.yaml
   audio_amplifier: !include ../features/audio-amplifier.yaml
-  audio_half_duplex: !include ../features/audio-half-duplex.yaml
+  audio_p4: !include ../hardware/audio-p4.yaml
 
 substitutions:
   # The key of this board file; the firmware reports it so ESP Screens knows what board a screen is.
@@ -53,8 +53,9 @@ substitutions:
   # The audio (features/audio.yaml): an ES8311 for the speaker and an ES7210 for the microphones on one I2S bus, which
   # ESPHome lets them take in turns, at one rate for both. The ES8311 turns ESPHome's volume into its DAC register from
   # 0 (-95.5 dB) to 255 (+32 dB), half a decibel a step.
-  AUDIO_HALF_DUPLEX: "true"
-  AUDIO_MIC_BUS: ts_speaker_bus
+  AUDIO_HALF_DUPLEX: "false"
+  AUDIO_MIC_BUS: ts_mic_bus
+  AUDIO_SPEAKER_MODE: secondary
   AUDIO_SAMPLE_RATE: "16000"
   AUDIO_DOUT_PIN: GPIO9
   AUDIO_DIN_PIN: GPIO11
@@ -112,31 +113,6 @@ display:
 
 # The audio, as Waveshare's schematic wires it: both codecs on the touch panel's I2C bus, one I2S bus for both, and the
 # speaker's amplifier on GPIO53.
-i2s_audio:
-  - id: ts_speaker_bus
-    i2s_mclk_pin: GPIO13
-    i2s_bclk_pin: GPIO12
-    i2s_lrclk_pin: GPIO10
-
-audio_adc:
-  - platform: es7210
-    id: ts_audio_adc
-    i2c_id: touch_bus
-    address: 0x40
-    sample_rate: 16000
-    bits_per_sample: 16bit
-    mic_gain: 30db
-
-audio_dac:
-  - platform: es8311
-    id: ts_audio_dac
-    i2c_id: touch_bus
-    address: 0x18
-    sample_rate: 16000
-    bits_per_sample: 16bit
-    use_mclk: true
-    use_microphone: false
-
 switch:
   - platform: gpio
     id: board_speaker_amp

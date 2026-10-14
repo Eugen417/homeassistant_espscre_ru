@@ -60,7 +60,7 @@ class Channel(unittest.TestCase):
 
     def test_the_slug_says_which_url_the_app_came_from(self):
         # The Supervisor's hash (supervisor/store/utils.py): the first eight of sha1 of the URL as added, lower case.
-        url = 'https://github.com/MaxGramser/homeassistant_espscreen'
+        url = 'https://github.com/Eugen417/homeassistant_espscre_ru'
         self.assertEqual(hashlib.sha1(url.lower().encode()).hexdigest()[:8], 'ec8ae0ed')
         self.assertEqual(hashlib.sha1((url + '#dev').lower().encode()).hexdigest()[:8], 'fa6a7b50')
         self.assertEqual(channel_of('ec8ae0ed_esp_screen_manager'), 'main')

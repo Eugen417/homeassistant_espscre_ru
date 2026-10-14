@@ -61,6 +61,7 @@ jc8012p4a1v3:
   name: Guition
   model: JC8012P4A1 V3
   status: experimental
+  settings: [media_player, microphone]
 
 waveshare7:
   file: waveshare-esp32s3-7.yaml

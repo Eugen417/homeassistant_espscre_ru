@@ -73,13 +73,13 @@
   font-display: block;
 }
 @font-face {
-  font-family: "Bar Roboto";
+  font-family: "Roboto", sans-serif;
   font-weight: 400;
   src: url("../assets/bar-roboto-400.woff") format("woff");
   font-display: block;
 }
 @font-face {
-  font-family: "Bar Roboto";
+  font-family: "Roboto", sans-serif;
   font-weight: 500;
   src: url("../assets/bar-roboto-500.woff") format("woff");
   font-display: block;

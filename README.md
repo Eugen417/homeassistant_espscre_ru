@@ -18,8 +18,11 @@
   <a href="https://tessera-maxgramser.on-forge.com/community/share?type=installation">My screen works</a>
 </p>
 
-<p align="center">
-  <a href="https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FMaxGramser%2Fhomeassistant_espscreen"><img src="https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg" alt="Add the Tessera repository to your Home Assistant"></a>
+
+<h1 align="center">Версия с русским языком.</h1>
+
+<p align="center"> 
+  <a href="https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FEugen417%2Fhomeassistant_espscre_ru"><img src="https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg" alt="Add the Tessera repository to your Home Assistant"></a> 
 </p>
 
 <p align="center"><sub>Tessera is not in the standard App store. This button adds its repository to your Home Assistant. After that, Tessera Screen Manager is in the store like any other app.</sub></p>
@@ -127,7 +130,7 @@ beside the pages, without a new build: the 10.1-inch Guition holds up to forty t
   <img src="docs/images/jc8012p4a1-8rows.png" width="49%" alt="The same living room with eight rows, forty cells: a kitchen speaker with its cover and volume, a small live porch camera, the kitchen lights and Alex fill the last row">
   <img src="docs/images/jc8012p4a1-8rows-dark.png" width="49%" alt="The page with eight rows in Dark mode">
 </p>
-<p align="center"><sub>Six, seven and eight rows on the 10.1-inch Guition, from thirty to forty tiles on a page, and eight rows in Dark mode. Rendered from the firmware's own code. The editor changes the rows beside the pages, and the layout moves along by itself: what no longer fits on a page moves on to a new page after it. Thanks to <a href="https://github.com/Heronimonimo">Jeroen Peters</a> for <a href="https://github.com/MaxGramser/homeassistant_espscreen/pull/151">the rows</a>.</sub></p>
+<p align="center"><sub>Six, seven and eight rows on the 10.1-inch Guition, from thirty to forty tiles on a page, and eight rows in Dark mode. Rendered from the firmware's own code. The editor changes the rows beside the pages, and the layout moves along by itself: what no longer fits on a page moves on to a new page after it. Thanks to <a href="https://github.com/Heronimonimo">Jeroen Peters</a> for <a href="https://github.com/Eugen417/homeassistant_espscre_ru/pull/151">the rows</a>.</sub></p>
 
 ## Your house's energy, live
 
@@ -475,7 +478,7 @@ For Home Assistant OS with Apps/Add-ons on **aarch64 or amd64**:
    [![Add the Tessera repository to your Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FMaxGramser%2Fhomeassistant_espscreen)
 
    Or add it by hand: open the App store, choose **Repositories** in the menu in the top right, and add
-   `https://github.com/MaxGramser/homeassistant_espscreen`.
+   `https://github.com/Eugen417/homeassistant_espscre_ru`.
 2. Install **Tessera Screen Manager** from the store, start the app, and open **Tessera** in the sidebar.
    ESPHome Device Builder is optional: the ESPHome CLI is already in this app.
 3. Connect the screen with a USB data cable to the **Home Assistant machine**
