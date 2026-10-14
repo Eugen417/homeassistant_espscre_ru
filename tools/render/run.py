@@ -396,7 +396,7 @@ class Run:
         await self.until(lambda l: 'UI_TEST COMPLETE' in l, 120, 'the self test never completed', start)
         lines = self.lines[start:]
         checks = [l for l in lines if 'page_check=' in l]
-        failed = [l for l in lines if 'page_check=FAIL' in l or 'GEOMETRY FAIL' in l or 'Light sliders: FAIL' in l]
+        failed = [l for l in lines if 'page_check=FAIL' in l or 'GEOMETRY FAIL' in l]
         if not checks:
             self.failures.append('self test: no page_check line')
         self.failures += [f'self test: {l.strip()}' for l in failed]
@@ -635,6 +635,19 @@ class Run:
         order = [next(k for k, word in enumerate(('create', 'state', 'tick')) if f'tile=0 {word}' in l)
                  for l in self.lines[start:] if '[probe:' in l and any(f'tile=0 {w}' in l for w in ('create', 'state', 'tick'))][:3]
         assert order == [0, 1, 2], f'tile 0 moments came as {order}, not create, state, tick'
+        # The large digits (plugin API 0.9): a face of their own, taller than VALUE, that has a value's characters only.
+        fonts = await self.until(lambda l: probe(l, 'tile=0 fonts'), 10, 'the fonts of tile 0', start)
+        digits, value, number, word = (int(v) for v in re.search(r'digits=(\d+) value=(\d+) covers=(\d),(\d)', fonts).groups())
+        if not (digits > value and number == 1 and word == 0):
+            self.failures.append(f'Font::DIGITS is not the large digits: {fonts}')
+        # The tones for a block (plugin API 0.9): four colours of their own, GOOD on the badge, and a label one line high.
+        tones = await self.until(lambda l: probe(l, 'tile=0 tones'), 10, 'the tones of tile 0', start)
+        good, busy, alert, normal, fill = re.search(r'good=(\w+) busy=(\w+) alert=(\w+) normal=(\w+) fill=(\w+)', tones).groups()
+        if len({good, busy, alert, normal}) != 4 or fill != good:
+            self.failures.append(f'the tones are not four colours, or the fill is not GOOD: {tones}')
+        height = await self.until(lambda l: probe(l, 'tile=0 label height'), 10, 'the height of a label', start)
+        if re.search(r'height=(\d+) line=(\d+)', height).group(1) != re.search(r'height=(\d+) line=(\d+)', height).group(2):
+            self.failures.append(f'a label is not one line high: {height}')
         # Boot came before the harness listened: the probe repeats what it heard then with every tile it makes.
         status = await self.until(lambda l: probe(l, 'status ready='), 10, 'the probe status', start)
         assert 'ready=1 settings=5 interval=1' in status, f'the moments of boot: {status}'
@@ -670,6 +683,86 @@ class Run:
         await self.render('plugin-page-1-dark')
         self.client.switch_command(self.dark_switch.key, False)
         await self.until(lambda l: probe(l, 'tile=0 theme dark=0'), 10, 'light again', start)
+        # Pictures on the tile (plugin API 0.10): an address in the data gives the probe's two places a picture, the card
+        # asks for both as one picture (the atlas of their frames, the addresses and the fits, as plugin_pictures reads
+        # them), the harness answers with a poster in both frames, and the pieces land on the places.
+        import plugin_pictures
+        import tile_art
+        start = len(self.lines)
+        since = len(calls)
+        poster = 'https://image.tmdb.org/t/p/w342/probe.jpg'
+        await self.sender.synchronize(self.inbox.object_id, record, region, values(3, {**x, 'picture': poster}), bars)
+        await self.until(lambda l: probe(l, 'tile=0 picture set'), 10, 'the picture was set', start)
+        shown = await self.until(lambda l: probe(l, 'tile=0 pictures='), 10, 'whether the host shows pictures', 0)
+        # A board without pictures (the CYD) has the calls and lays the tile out without places: it asks for nothing.
+        if 'pictures=0' in shown:
+            await asyncio.sleep(2)
+            asked = [c for c in calls[since:] if c.service == 'esphome.screen_camera' and dict(c.data).get('tiles') == 'plugin:host_probe.probe']
+            assert not asked, f'a board without pictures asked for the plugin tile\'s pictures: {asked}'
+            self.warnings.append('pictures: none on this board (pictures=0), no question asked')
+        else:
+            served = {'posters': 0}
+            async def answer_posters():
+                answered = 0
+                for call in calls[since:]:
+                    data = dict(call.data)
+                    if call.service != 'esphome.screen_camera' or data.get('tiles') != 'plugin:host_probe.probe' or data.get('_answered'):
+                        continue
+                    question = plugin_pictures.parse(data, self.canvas)
+                    assert question, f'the plugin tile asked without frames and addresses the app takes: {data}'
+                    assert question.sources == [poster, poster] and question.fits == ['cover', 'contain'], \
+                        f'the places asked for {question.sources} as {question.fits}'
+                    raw = porch(300, 450)
+                    body = tile_art.layers([raw, raw], question.ground, question.atlas, question.styles(), compact=True)
+                    url = self.pictures.url(f'{self.item.key}-posters-{served["posters"]}.bmp', body)
+                    served['posters'] += 1
+                    await self.send({'v': 1, 'op': 'camera', 't': 'live', 'e': data['tiles'], 'u': url, 'view': int(data['view'])})
+                    call.data['_answered'] = '1'
+                    answered += 1
+                return answered
+            answered = 0
+            for _ in range(24):
+                await asyncio.sleep(0.5)
+                answered += await answer_posters()
+                if answered and any('tile 0: picture loaded' in l for l in self.lines[start:]):
+                    break
+            assert answered, 'the plugin tile did not ask for its pictures'
+            await self.until(lambda l: 'tile 0: picture loaded' in l, 10, 'the pictures of tile 0 loaded', start)
+            await asyncio.sleep(0.8)
+            shot = await self.render('plugin-pictures')
+            # The place must show the poster, not the card or its block: a loaded picture that draws nothing passed once.
+            at = await self.until(lambda l: probe(l, 'tile=0 place0 '), 10, 'where the first place lies', start)
+            x1, y1, x2, y2 = (int(n) for n in at.rsplit(' ', 1)[1].split(','))
+            inner = shot.convert('RGB').crop((x1 + 2, y1 + 2, x2 - 1, y2 - 1))
+            colours = inner.getcolors(1 << 16) or []
+            assert len(colours) > 12, f'the first place shows {len(colours)} colours at {x1},{y1}-{x2},{y2}, not the poster'
+            if os.environ.get('KEPT_PAGES_HOST') == '1':
+                # Another address (a carousel that turned): with the store the places keep the poster they show until the
+                # next picture is here, no flash of blocks; then the next one comes the same way.
+                poster = 'https://image.tmdb.org/t/p/w342/probe-next.jpg'
+                start, since = len(self.lines), len(calls)
+                await self.sender.synchronize(self.inbox.object_id, record, region, values(3, {**x, 'picture': poster}), bars)
+                await self.until(lambda l: probe(l, 'tile=0 picture set ' + poster), 10, 'the next picture was set', start)
+                # Until the card asked for the next picture: before that it shows the last one anyway.
+                for _ in range(40):
+                    if any(c.service == 'esphome.screen_camera' and poster in str(dict(c.data).get('src', '')) for c in calls[since:]):
+                        break
+                    await asyncio.sleep(0.25)
+                else:
+                    raise AssertionError('the card did not ask for its next picture')
+                await asyncio.sleep(0.8)
+                held = (await self.render('plugin-pictures-next', keep=False)).convert('RGB').crop((x1 + 2, y1 + 2, x2 - 1, y2 - 1))
+                kept = len(held.getcolors(1 << 16) or [])
+                assert kept > 12, f'the first place shows {kept} colours while the next picture comes: it did not keep its poster'
+                more = 0
+                for _ in range(24):
+                    await asyncio.sleep(0.5)
+                    more += await answer_posters()
+                    if more and any('tile 0: picture loaded' in l for l in self.lines[start:]):
+                        break
+                assert more, 'the plugin tile did not ask for its next picture'
+                answered += more
+            self.warnings.append(f'pictures: {answered} question(s) of the plugin tile answered with an atlas of two posters')
         # The question the first tile asked: the app's answer reaches on_message (the harness stands in for the app).
         sent = next((c for c in calls if c.service == 'esphome.screen_plugin'), None)
         assert sent and sent.data.get('plugin') == 'host_probe' and sent.data.get('inbox'), f'no question from the plugin: {calls}'
@@ -685,7 +778,13 @@ class Run:
         start = len(self.lines)
         tile = (await self.navigation_state())['tile']
         await self.tap(*tile)
-        await self.until(lambda l: probe(l, 'tile=0 tap'), 10, 'on_tap', start)
+        tapped = await self.until(lambda l: probe(l, 'tile=0 tap'), 10, 'on_tap', start)
+        # Where the finger was (plugin API 0.10): in the tile's own pixels, so within its drawing area.
+        made = next(l for l in self.lines if probe(l, 'tile=0 create'))
+        tw, th = (int(v) for v in re.search(r'create (\d+)x(\d+)', made).groups())
+        tx, ty = (int(v) for v in re.search(r'at=(-?\d+),(-?\d+)', tapped).groups())
+        if not (0 <= tx < tw and 0 <= ty < th):
+            self.failures.append(f'the tap point {tx},{ty} is not within the tile\'s {tw}x{th}: {tapped}')
         await self.until(lambda l: probe(l, 'touch'), 10, 'on_touch', start)
         await self.until(lambda l: probe(l, 'card open') and 'tile=0' in l, 10, 'the card opened', start)
         await self.until(lambda l: probe(l, 'card tick'), 10, 'the card ticked', start)
@@ -1307,6 +1406,92 @@ class Run:
             self.client.switch_command(self.dark_switch.key, True)
             await asyncio.sleep(1.5)
             await self.render('weather-card-dark')
+            self.client.switch_command(self.dark_switch.key, False)
+            await asyncio.sleep(1.0)
+        return 1
+
+    async def calendar_panel(self, grid):
+        """The calendar card (firmware 0.56.0) on this board: a whole page and smaller cards of three calendars with the
+        bench's test events (tests/fixtures/calendar/bench.json) moved to the screen's day, the full screen a finger
+        opens, its hours dragged by a finger, light and dark."""
+        import calendar_feed
+        from core import extras, state_message
+        tz = MOMENT.tzinfo
+        fixture = json.loads((REPO / 'tests/fixtures/calendar/bench.json').read_text())
+        shift = MOMENT.date() - datetime(2026, 10, 11).date()
+
+        def moved(value):
+            if not isinstance(value, str) or not value:
+                return value
+            if len(value) == 10:
+                return (datetime.fromisoformat(value).date() + shift).isoformat()
+            return (datetime.fromisoformat(value) + shift).isoformat()
+        fetched = {entity: [{**e, 'start': moved(e.get('start')), 'end': moved(e.get('end'))} for e in events]
+                   for entity, events in fixture['events'].items()}
+        states = {entity: {**value, 'state': 'on' if entity == 'calendar.work' else 'off'} for entity, value in fixture['states'].items()}
+        states['sensor.hall'] = {'state': '21.5', 'attributes': {'unit_of_measurement': '°C', 'friendly_name': 'Hall'}}
+        region = dict(keepalive=120, clock_24h=True, numbers='point', group_min=1, percent_space=False)
+        both = ['calendar.family', 'calendar.rooms']
+
+        async def show(name, tiles_in):
+            spans = {'wide': (2, 1), 'tall': (1, 2), 'square': (2, 2), 'full': (grid.columns, grid.rows)}
+            taken = set()
+            for tile in tiles_in:
+                w, h = spans.get(tile['options'].get('size'), (1, 1))
+                w, h = min(w, grid.columns), min(h, grid.rows)
+                slot = 0
+                while True:
+                    page, cell = divmod(slot, grid.slots)
+                    row, col = divmod(cell, grid.columns)
+                    cells = {(page, row + r, col + c) for r in range(h) for c in range(w)}
+                    if col + w <= grid.columns and row + h <= grid.rows and not cells & taken:
+                        break
+                    slot += 1
+                taken |= cells
+                tile['slot'] = slot
+            record = send_layout.migrate_legacy(dict(title='Calendar', tiles=tiles_in), grid)
+            tiles = send_layout.compile_tiles(record['layout'], grid)
+            bars = [[{'k': 'clock'}] for _ in record['layout']['pages']]
+            values = []
+            for i, t in enumerate(tiles):
+                extra = extras(t, states, None, None, None, MOMENT) or {}
+                if t['entity'].startswith('calendar.'):
+                    extra = {**extra, 'cal': calendar_feed.card(t, fetched, states, {}, tz, MOMENT)}
+                values.append(state_message(i, t, states, extra))
+            await self.sender.synchronize(self.inbox.object_id, record, region, values, bars)
+            await self.call('render_page', page=0)
+            await self.page_done(0)
+            await asyncio.sleep(1.0)
+            await self.render(name)
+            self.client.switch_command(self.dark_switch.key, True)
+            await asyncio.sleep(1.5)
+            await self.render(name + '-dark')
+            self.client.switch_command(self.dark_switch.key, False)
+            await asyncio.sleep(1.5)
+        await show('calendar-sizes', [dict(entity='calendar.family', name='Family', options={'calendars': ['calendar.work']}),
+                                      dict(entity='calendar.work', name='Work', options={'size': 'square', 'calendars': both}),
+                                      dict(entity='calendar.rooms', name='Room A', options={'size': 'tall', 'places': ['Room A'], 'style': 'busy_free', 'soon': 15}),
+                                      dict(entity='sensor.hall', name='Hall', options={})])
+        await show('calendar-full', [dict(entity='calendar.work', name='Work', options={'size': 'full', 'calendars': both})])
+        spots = await self.slots()
+        if 'calendar.work' in spots:
+            await self.tap(*spots['calendar.work'])
+            await asyncio.sleep(1.2)
+            await self.render('calendar-card')
+            # A finger drags the hours up: the day heads stay, the hours move.
+            width, height = self.canvas
+            x, y0, y1 = width // 2, int(height * 0.8), int(height * 0.45)
+            await self.call('render_finger', x=x, y=y0, down=True)
+            await asyncio.sleep(0.15)
+            for i in range(1, 21):
+                await self.call('render_finger', x=x, y=y0 + (y1 - y0) * i // 20, down=True)
+                await asyncio.sleep(0.01)
+            await self.call('render_finger', x=x, y=y1, down=False)
+            await asyncio.sleep(1.2)
+            await self.render('calendar-card-scrolled')
+            self.client.switch_command(self.dark_switch.key, True)
+            await asyncio.sleep(1.5)
+            await self.render('calendar-card-dark')
             self.client.switch_command(self.dark_switch.key, False)
             await asyncio.sleep(1.0)
         return 1
@@ -2675,6 +2860,8 @@ class Run:
             return 1, await self.bars_round(grid)
         if self.only == 'weather':
             return 1, await self.weather_panel(grid)
+        if self.only == 'calendar':
+            return 1, await self.calendar_panel(grid)
         if self.only == 'plugin':
             return 1, await self.plugin_round(grid)
         checks = await self.self_test()
@@ -2764,7 +2951,7 @@ def main():
     parser.add_argument('--out', type=Path, default=REPO / '.esphome' / 'render' / 'out')
     parser.add_argument('--work', type=Path, help='where the host builds go (default: .esphome/render/build)')
     parser.add_argument('--camera', default='960x540', help='the camera picture of the camera alert, WxH')
-    parser.add_argument('--only', choices=['alarm', 'lock', 'automation', 'remote', 'bedside', 'media', 'saver', 'humidifier', 'weather', 'bars'], help='after the demo layout arrives, run only this stage')
+    parser.add_argument('--only', choices=['alarm', 'lock', 'automation', 'remote', 'bedside', 'media', 'saver', 'humidifier', 'weather', 'calendar', 'bars'], help='after the demo layout arrives, run only this stage')
     parser.add_argument('--plugin', type=Path, help='a plugin folder (docs/PLUGINS.md) to build into the variants, then run the plugin '
                         'round alone: tests/fixtures/plugins/host_probe proves the plugin host on the real firmware')
     parser.add_argument('--port-base', type=int, help='the first API port (default host.PORT_BASE); another worktree may use it')

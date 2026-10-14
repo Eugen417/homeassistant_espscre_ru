@@ -1,9 +1,0 @@
-# Manual alternative: add this block to the ESPHome wizard configuration.
-# Remove the old esp32: block; keep your own esphome:, api:, ota: and wifi:.
-# The easy route generates a complete file of its own: ESP Screen Manager.
-packages:
-  screen:
-    url: https://github.com/MaxGramser/homeassistant_espscreen
-    ref: main
-    files: [packages/guition.yaml]
-    refresh: 0s

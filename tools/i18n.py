@@ -198,9 +198,11 @@ LINT_KEEP = {
     # Only a log line or the rate limiter's reason shows these.
     # The live view's log of what lies over a live tile (runtime_tiles.h, drawn_over).
     'the top layer', 'the system layer', 'something on the page', 'another screen',
+    # Why a live tile stops streaming (runtime_tiles.h, the live tiles' check before LVGL draws).
+    'its card moved', 'nothing over it',
     # The picture loader's log of a picture's steps (picture_loader.h, note()).
     'not wanted now', 'asks again', 'breaks off for the glass', 'load failed',
-    'history range', 'card button ', 'header navigation', 'media key ', 'screensaver play', 'screensaver mute', 'let go', 'too short (', 'already handled in this contact',
+    'history range', 'card button ', 'header navigation', 'header item', 'media key ', 'screensaver play', 'screensaver mute', 'let go', 'too short (', 'already handled in this contact',
     'same button within the debounce window', 'no runtime tiles', 'setting off', 'screen dimmed', 'card open',
     'detail card open', 'camera open', 'a slider is being dragged', 'settings page open', 'alert showing', 'USB calibration ready; no tile actions',
     'GT911 touch test ready; no tile actions', 'ST7121 touch test ready; no tile actions',
@@ -211,7 +213,7 @@ LINT_KEEP = {
     'None', 'Auto', 'Wh',
     # Placeholders of the YAML tree that the runtime tiles replace before a screen shows them, and profile defaults.
     'Lamp', 'Plug', 'Evening', 'All off', 'AC', 'Vacuum', 'Tile 7', 'Tile 8', 'Tile 9', 'Tile 10', 'Light', 'Light Color',
-    'Climate', 'Example lamp', 'My CYD', 'My Guition', 'My Guition 4.3', 'My Guition 5', 'My Guition 10', 'My Guition 10 V3', 'My Guition 10 V2', 'My Guition 7', 'My Guition 7 V2', 'My Waveshare', 'My Waveshare 5', 'My Waveshare 7', 'My Waveshare 7B', 'My Waveshare 4B', 'My Waveshare P4', 'My Hosyond', 'My Guition 3.5', 'My Sunton 7', 'My reTerminal D1001',
+    'Climate', 'Example lamp', 'My CYD', 'My Guition', 'My Guition 4.3', 'My Guition 5', 'My Guition 10', 'My Guition 10 V3', 'My Guition 10 V2', 'My Guition 7', 'My Guition 7 V2', 'My Waveshare', 'My Waveshare 5', 'My Waveshare 7', 'My Waveshare 7B', 'My Waveshare 4B', 'My Waveshare P4', 'My Hosyond', 'My Guition 3.5', 'My Sunton 7', 'My reTerminal D1001', 'My CrowPanel 10',
 }
 LINT_FILES = ('components/smart_display/*.h', 'packages/core.yaml', 'packages/boards/*.yaml', 'packages/looks/*.yaml',
               'packages/features/*.yaml', 'packages/hardware/*.yaml')
