@@ -2,7 +2,7 @@
 firmware, and the data their tiles show.
 
 Where plugins come from:
-- **the index**, github.com/MaxGramser/tessera-plugins `index.json`: every plugin with its manifest, its texts and its
+- **the index**, github.com/Eugen417/tessera-plugins `index.json`: every plugin with its manifest, its texts and its
   README at the commit of its release. Read when the editor opens and at most every ten minutes, kept in
   /data/plugins/ for when the internet is away.
 - **a folder** in Home Assistant's config, `tessera-plugins/<id>/` beside the `esphome/` folder: a plugin someone is
@@ -35,10 +35,10 @@ from plugin_store import PluginSecrets, PluginStore
 
 LOG = logging.getLogger('plugins')
 
-INDEX_URL = 'https://raw.githubusercontent.com/MaxGramser/tessera-plugins/main/index.json'
+INDEX_URL = 'https://raw.githubusercontent.com/Eugen417/tessera-plugins/main/index.json'
 # How many people like each plugin: the website counts the likes, the plugins repository copies the counts every hour, so
 # reading them is a request to GitHub like the index's, never to the website (plugin_likes.py sends a like).
-LIKES_URL = 'https://raw.githubusercontent.com/MaxGramser/tessera-plugins/main/likes.json'
+LIKES_URL = 'https://raw.githubusercontent.com/Eugen417/tessera-plugins/main/likes.json'
 LIKES_MAX = 256 * 1024
 # How old the index may be before the next editor visit asks GitHub again: a conditional request (ETag) that costs
 # nothing when it did not change, so a new release shows as an update within minutes.
@@ -48,7 +48,7 @@ INDEX_TTL = 10 * 60
 LINK_TTL = 60 * 60
 INDEX_MAX = 2 * 1024 * 1024
 INDEX_FORMAT = 1
-TESSERA_OWNER = 'https://github.com/MaxGramser/'
+TESSERA_OWNER = 'https://github.com/Eugen417/'
 GITHUB_LINK = re.compile(r'^https://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?(?:/tree/([^/]+)(?:/(.+?))?)?/?$')
 GITHUB_API = 'https://api.github.com/repos/{owner}/{repo}'
 GITHUB_REPOSITORY = 'https://api.github.com/repositories/{id}'

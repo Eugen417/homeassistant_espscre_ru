@@ -8,7 +8,7 @@ import Icon from "./ui/Icon.vue";
 defineProps<{ folder: string }>();
 defineEmits<{ link: [] }>();
 
-const REPO = "https://github.com/MaxGramser/tessera-plugins";
+const REPO = "https://github.com/Eugen417/tessera-plugins";
 // GitHub's new-file page in community/, filled in with the four lines the list asks for: saving it opens the pull request.
 const LISTING = "repo: https://github.com/<you>/<repository>\npath: .\nmaintainer: <you>\n";
 const submit = `${REPO}/new/main/community?filename=${encodeURIComponent("<plugin-id>.yaml")}&value=${encodeURIComponent(LISTING)}`;
