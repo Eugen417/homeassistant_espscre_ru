@@ -369,7 +369,7 @@ class Plugins:
 
 Фраза активации распознается локально на самом экране; никакие данные не покидают устройство, пока фраза не будет услышана или пока вы не нажмете на плитку. Только после этого ваш вопрос отправляется в Home Assistant и далее в те сервисы распознавания и обработки, которые настроены в пайплайне.
 """
-                    item.setdefault('readme', {})['ru'] = ru_readme_md.strip()
+                    item.setdefault('readme', {}).setdefault('ru', ru_readme_md.strip())
                 # ---------------------------------------------
                 label = 'tessera' if item.get('label') == 'tessera' and repo.lower().startswith(TESSERA_OWNER.lower()) else 'community'
                 release = item.get('release') or {}
