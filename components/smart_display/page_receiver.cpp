@@ -1,0 +1,1046 @@
+// Protocol parsing: what ESP Screens sends a screen, read into the model (runtime_tiles.h declares receive()).
+//
+// Compiled on its own, not inline in main.cpp (firmware 0.3.3+). On Xtensa (the ESP32 and the ESP32-S3) ESP-IDF puts
+// the literal pool of an object file in front of all of that file's code, and an l32r instruction reaches at most
+// 256 KB back to its literal. Every header of this component lands in main.cpp, and with the 0.3.8 features its code
+// grew past that range: the S3 boards failed to link with "dangerous relocation: l32r: literal target out of range",
+// in this very function, and the CYD was 1.5 KB from the same error. Its own file gives it its own literal pool and
+// takes some 30 KB out of main.cpp. docs/RELEASING.md tells how to recognise the limit.
+#include "esphome/core/log.h"
+#include "runtime_tiles.h"
+namespace runtime_tiles {
+static bool parse_bar_item(JsonVariant value, header_bar::Item &item) {
+    if (!value.is<JsonObject>()) return false;
+    item.kind = header_bar::kind(string(value["k"], 8));
+    if (item.kind == header_bar::Kind::none) return false;
+    uint32_t icon = tile_icon::codepoint(string(value["i"], 8));
+    item.icon = icon && has_icon_glyph(icon) ? icon : 0;
+    item.text = string(value["t"], header_bar::TEXT_BYTES);
+    item.epoch = value["e"].is<unsigned>() ? value["e"].as<uint32_t>() : 0;
+    item.has_color = header_bar::color(string(value["c"], 8), item.color);
+    // The Wi-Fi item that shows only while the signal is weak or gone (firmware 0.38.0), and the battery that shows only
+    // while it runs low (firmware 0.41.0).
+    item.only_weak = (item.kind == header_bar::Kind::wifi || item.kind == header_bar::Kind::battery) &&
+                     value["a"].is<unsigned>() && value["a"].as<unsigned>() == 1;
+    item.icon_only = item.kind == header_bar::Kind::plugin && value["o"].is<unsigned>() && value["o"].as<unsigned>() == 1;
+    if (item.kind == header_bar::Kind::ago && item.epoch == 0) return false;
+    // A plugin's item names itself: plugin:<plugin>.<item> (docs/PLUGINS.md).
+    if (item.kind == header_bar::Kind::plugin && !plugin_key(item.text)) return false;
+    return true;
+}
+static bool parse_bar(JsonVariant items, header_bar::Bar &out) {
+  if (!items.is<JsonArray>() || items.as<JsonArray>().size() > header_bar::MAX_ITEMS) return false;
+  for (JsonVariant value : items.as<JsonArray>()) {
+    header_bar::Item item;
+    if (!parse_bar_item(value, item)) return false;
+    out.items[out.count++] = std::move(item);
+  }
+  out.received = true;
+  return true;
+}
+// Reading what Home Assistant sent. Every loop here walks a JsonArray that ArduinoJson hands back from the
+// document, and GCC 14 cannot tell that apart from a reference into the temporary the call was made on:
+// `for (JsonVariant v : root["slots"].as<JsonArray>())` raises -Wdangling-reference, eighteen times in this
+// one function. The array is a handle into the document, which outlives the loop by a long way, so the
+// warning is wrong here - and turning it off for this function only keeps it working everywhere else, where
+// the same warning would be worth reading. Naming each array instead would mean moving braces through the
+// parser of the layout protocol, which is not a trade this is worth.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdangling-reference"
+std::string receive(const std::string &payload) {
+  reply_memory = false;
+  if (!enabled) return "Use the Easy Setup profile";
+  if (payload.size() > 4096) return "Error: message too large";
+  std::string result = "Error: invalid message";
+  Fingerprint packet_hash;
+  packet_hash.add(payload);
+  uint32_t packet_sequence = 0;
+  bool sequenced = false;
+  const bool accepted = esphome::json::parse_json(payload, [&](JsonObject root) -> bool {
+    if (root["v"].as<int>() != page_protocol::VERSION) {
+      const auto problem = root["v"].is<unsigned>() && root["v"].as<unsigned>() == 1 ? ProtocolProblem::old_addon : ProtocolProblem::unsupported;
+      if (protocol_problem != problem) { protocol_problem = problem; cancel_layout_input(false); refresh_all(); }
+      result = problem == ProtocolProblem::old_addon ? "Configuration problem. Update add-on." : "Error: protocol version";
+      return false;
+    }
+    auto op = string(root["op"]);
+    reply_memory = op == "hello" || op == "ping";
+#ifdef SWIPE_PROFILE
+    // Diagnostic builds only, and outside the add-on's session so a bench script can send them (docs/SWIPE_PROFILE.md).
+    if (op == "swipe_test") {
+      // Page switches without a finger, `n` of them `ms` apart; `back` (ms) swipes straight back after each one, like a
+      // quick second swipe.
+      swipe_test(root["n"] | 20u, root["ms"] | 1200u, root["back"] | 0u);
+      result = "Swipe test started";
+      return true;
+    }
+    if (op == "heap_walk") {
+      // How long one walk of each heap holds its lock, the time the panel's bounce-buffer interrupt waits on that core.
+#ifdef USE_ESP32
+      for (const uint32_t caps : {(uint32_t) MALLOC_CAP_INTERNAL, (uint32_t) MALLOC_CAP_SPIRAM}) {
+        multi_heap_info_t info;
+        const int64_t start = esp_timer_get_time();
+        heap_caps_get_info(&info, caps);
+        const int64_t took = esp_timer_get_time() - start;
+        ESP_LOGI("swipe_prof", "heap walk %s: %lld us, %u blocks (%u free), largest %u", caps == MALLOC_CAP_SPIRAM ? "psram" : "internal",
+                 (long long) took, (unsigned) (info.allocated_blocks + info.free_blocks), (unsigned) info.free_blocks,
+                 (unsigned) info.largest_free_block);
+      }
+#endif
+      result = "Heap walked";
+      return true;
+    }
+    if (op == "kept_pages") {
+      // At most `n` pages kept beside the one on the glass (kept_pages.h), -1 for as many as fit: the A/B of that round.
+      kept_limit = root["n"] | -1;
+      forget_kept();
+      ESP_LOGI("swipe_prof", "kept pages: %d", kept_limit);
+      result = "Kept pages set";
+      return true;
+    }
+#endif
+    if (op == "hello") {
+      uint64_t request;
+      if (!page_protocol::key(string(root["request"]), request)) return false;
+      // Tessera says whether it has tiles for this screen yet (app 0.4.74+): without, the starting screen asks for them.
+      awaiting_tiles = root["empty"].is<bool>() && root["empty"].as<bool>();
+      const uint64_t random = (uint64_t{esphome::random_uint32()} << 32) | esphome::random_uint32();
+      result = "Session:" + protocol_key(transfer.grant(request, random));
+      return true;
+    }
+    uint64_t lease, revision;
+    if (!page_protocol::key(string(root["session"]), lease) ||
+        !page_protocol::key(string(root["rev"]), revision) || !root["seq"].is<unsigned>()) return false;
+    packet_sequence = root["seq"].as<unsigned>();
+    const auto packet = transfer.packet(lease, packet_sequence, packet_hash.value);
+    if (packet == page_protocol::Packet::reject) { result = "Error: obsolete message"; return false; }
+    if (packet == page_protocol::Packet::duplicate) {
+      result = transfer.active && model.ready() ? "Synced" : "Loading tiles";
+      return true;
+    }
+    sequenced = true;
+    if (op == "begin") {
+      // The way the glass is to hang and the grid the layout is counted on (firmware 0.53.0+, the hello's "grids"): an
+      // app that sends neither means the way and the grid the screen has. Glass that is not square stands up or lies
+      // down with the grid of that way; a square screen hangs as it is, its Rotation setting turns it without a new
+      // grid. A grid that way of the glass cannot take is refused whole, before anything changes.
+      bool upright = canvas_upright;
+      if (!root["upright"].isNull()) {
+        if (!root["upright"].is<bool>()) return false;
+        if (!square_glass) upright = root["upright"].as<bool>();
+      }
+      Grid target = upright == canvas_upright ? grid : chosen_grids[upright ? 1 : 0];
+      if (!root["grid"].isNull()) {
+        auto cells = root["grid"].as<JsonArray>();
+        if (cells.isNull() || cells.size() != 2 || !cells[0].is<unsigned>() || !cells[1].is<unsigned>() ||
+            !GRID_RANGES[upright ? 1 : 0].takes(cells[0].as<unsigned>(), cells[1].as<unsigned>())) {
+          result = "Error: grid"; return false;
+        }
+        target = Grid{cells[0].as<unsigned>(), cells[1].as<unsigned>()};
+      }
+      const bool regridded = upright != canvas_upright || target.columns != grid.columns || target.rows != grid.rows;
+      if (!root["tiles"].is<unsigned>() || !root["pages"].is<unsigned>() || !root["home"].is<unsigned>() ||
+          !root["title"].is<const char *>() || root["title"].as<std::string>().size() > 96 ||
+          root["pages"].as<unsigned>() == 0 || root["pages"].as<unsigned>() > target.pages() ||
+          root["tiles"].as<unsigned>() > target.max_tiles() || root["home"].as<unsigned>() >= root["pages"].as<unsigned>() ||
+          !root["keepalive"].is<unsigned>() || root["keepalive"].as<unsigned>() < 5 || root["keepalive"].as<unsigned>() > 3600)
+        return false;
+      const bool was_active = transfer.active && model.ready();
+      auto candidate = transfer;
+      const auto begin = candidate.begin(revision, root["pages"].as<unsigned>(), root["tiles"].as<unsigned>());
+      if (begin == page_protocol::Begin::reject) return false;
+      const bool was_problem = protocol_problem != ProtocolProblem::none;
+      if (begin == page_protocol::Begin::unchanged && !regridded) {
+        transfer = candidate;
+        protocol_problem = ProtocolProblem::none;
+        last_received = esphome::millis();
+        keepalive_seconds = root["keepalive"].as<unsigned>();
+        if (was_problem) refresh_all();
+        result = "Synced"; return true;
+      }
+      if (upright != canvas_upright) {
+        // The other way round: the grid it is given that way is kept with it, and the screen starts again (hang).
+        chosen_grids[upright ? 1 : 0] = target;
+        save_grids();
+        hang(upright);
+        result = "Restarting";
+        return true;
+      }
+      if (was_active && shown_page && *shown_page >= 0 && static_cast<size_t>(*shown_page) < model.page_data.records.size()) {
+        previous_page_id = model.page_data.records[*shown_page].id;
+        had_previous_page = true;
+      }
+      // A new grid takes new cards: what was open closes first, as for any new layout, and the old layout goes with the
+      // cards it was drawn on (model.begin below replaces it).
+      if (regridded) {
+        cancel_layout_input();
+        regrid(target.columns, target.rows);
+      }
+      if (!model.begin(root["tiles"].as<unsigned>(), root["pages"].as<unsigned>(), string(root["title"], 96), [] { cancel_layout_input(); })) {
+        // The layout of the old grid cannot stay on the new one: the screen says it has none (the refusal stays).
+        if (regridded) { const std::string refusal = model.refusal; model.begin(0, 1, ""); model.refusal = refusal; transfer.begun = false; }
+        refresh_all(); result = model.refusal.empty() ? "Error: layout" : model.refusal; return false;
+      }
+      transfer = candidate;
+      protocol_problem = ProtocolProblem::none;
+      last_received = esphome::millis();
+      keepalive_seconds = root["keepalive"].as<unsigned>();
+      model.page_data.home = root["home"].as<unsigned>();
+      inbox = string(root["inbox"], 160);
+      layout_rev = protocol_key(revision);
+      if (root["clock_24h"].is<bool>()) settings_screen::set("clock_24h", root["clock_24h"].as<bool>() ? 1 : 0);
+      uint32_t numbers = screen_text_numbers();
+      const int style = root["numbers"].is<const char *>() ? screen_text::number_style_of(root["numbers"].as<std::string>()) : -1;
+      if (style >= 0) numbers = (numbers & ~0xFu) | static_cast<unsigned>(style);
+      if (root["group_min"].is<unsigned>() && root["group_min"].as<unsigned>() >= 1 && root["group_min"].as<unsigned>() <= 2)
+        numbers = (numbers & ~0x30u) | (root["group_min"].as<unsigned>() << 4);
+      if (root["percent_space"].is<bool>()) numbers = (numbers & ~0xC0u) | ((root["percent_space"].as<bool>() ? 2u : 1u) << 6);
+      if (numbers != screen_text_numbers()) { screen_text_numbers(numbers); numbers_preference.save(&numbers); }
+      refresh_all();
+      result = "Loading tiles";
+      return true;
+    }
+    if (op == "appearance") {
+      uint64_t base;
+      if (!transfer.active || !model.ready() || !page_protocol::key(string(root["base"]), base) ||
+          !transfer.matches(base) || !root["title"].is<const char *>() ||
+          root["title"].as<std::string>().size() > 96 || !root["pages"].is<JsonArray>() || !root["tiles"].is<JsonArray>()) return false;
+      const auto pages = root["pages"].as<JsonArray>(), tiles = root["tiles"].as<JsonArray>();
+      if (pages.size() > page_protocol::MAX_PAGES || tiles.size() > page_protocol::MAX_TILES) return false;
+      TileSet seen_tiles;
+      uint32_t seen_pages = 0;
+      // Validate the complete bounded edit before touching the sole live model.
+      // The JSON document is the staging area, not a second set of tile records.
+      for (JsonVariant item : pages) {
+        if (!item.is<JsonObject>() || !item["p"].is<unsigned>() || !item["title"].is<const char *>()) return false;
+        const unsigned page = item["p"].as<unsigned>();
+        if (page >= model.page_data.records.size() || (seen_pages & (uint32_t{1} << page)) ||
+            item["title"].as<std::string>().size() > 96) return false;
+        seen_pages |= uint32_t{1} << page;
+      }
+      for (JsonVariant item : tiles) {
+        if (!item.is<JsonObject>() || !item["i"].is<unsigned>() || !item["name"].is<const char *>() ||
+            !item["background"].is<const char *>()) return false;
+        const unsigned index = item["i"].as<unsigned>();
+        if (index >= model.count || seen_tiles.test(index) ||
+            item["name"].as<std::string>().size() > 80 || item["background"].as<std::string>().size() > 16) return false;
+        seen_tiles.set(index);
+      }
+      const std::string title = string(root["title"], 96);
+      model.title = title;
+      for (JsonVariant item : pages) model.page_data.records[item["p"].as<unsigned>()].title = string(item["title"], 96);
+      transfer.revision = revision;
+      layout_rev = protocol_key(revision);
+      for (JsonVariant item : tiles) {
+        const unsigned index = item["i"].as<unsigned>();
+        auto &tile = model.tiles[index];
+        const std::string name = string(item["name"], 80);
+        // A key's name stands under it on its clock, which draws it (firmware 0.8.0+).
+        if (tile.is_key() && name != tile.name) refresh_tile(tile.parent);
+        tile.name = name;
+        const std::string background = string(item["background"], 16);
+        tile.background = tile_palette::color(background);
+        tile.transparent = tile_palette::transparent(background);
+        refresh_tile(index);
+        if (active_index == static_cast<int>(index)) detail_update(tile);
+        refresh_detail(index);
+      }
+      last_received = esphome::millis();
+      refresh_header_only();
+      result = "Synced";
+      return true;
+    }
+    if (!transfer.matches(revision)) { result = "Resend needed"; return false; }
+    if (op == "ping") {
+      last_received = esphome::millis();
+      result = transfer.active && model.ready() ? "Synced" : "Resend needed";
+      return true;
+    }
+    if (op == "bar_value") {
+      if (!transfer.active || !root["targets"].is<JsonArray>()) return false;
+      const auto targets = root["targets"].as<JsonArray>();
+      if (targets.size() == 0 || targets.size() > page_protocol::MAX_PAGES * header_bar::MAX_ITEMS) return false;
+      header_bar::Item item;
+      if (!parse_bar_item(root["item"], item)) return false;
+      // A target is page * stride + index: six, or what the app says it numbered by (`w`, app 0.4.57+, to a screen whose
+      // hello said it takes more items), so an app and a screen of different ages still mean the same slot.
+      const unsigned stride = root["w"].is<unsigned>() ? root["w"].as<unsigned>() : header_bar::WIRE_ITEMS;
+      if (stride < 1 || stride > header_bar::MAX_ITEMS) return false;
+      std::bitset<page_protocol::MAX_PAGES * header_bar::MAX_ITEMS> seen;
+      // Validate every destination before changing any page. No staging copy
+      // of the page bars or additional persistent firmware storage is needed.
+      for (JsonVariant value : targets) {
+        if (!value.is<unsigned>()) return false;
+        const unsigned target = value.as<unsigned>();
+        const unsigned page = target / stride, index = target % stride;
+        if (page >= model.page_data.records.size() || index >= model.page_data.records[page].bar.count ||
+            target >= seen.size() || seen.test(target)) return false;
+        seen.set(target);
+      }
+      bool visible_changed = false;
+      for (JsonVariant value : targets) {
+        const unsigned target = value.as<unsigned>();
+        const unsigned page = target / stride, index = target % stride;
+        auto &current = model.page_data.records[page].bar.items[index];
+        if (!(current == item)) {
+          current = item;
+          visible_changed |= shown_page && *shown_page == static_cast<int>(page);
+        }
+      }
+      if (visible_changed) refresh_header_only();
+      last_received = esphome::millis();
+      result = "Synced";
+      return true;
+    }
+    if (op == "page" || op == "bar") {
+      if (!root["p"].is<unsigned>() || root["p"].as<unsigned>() >= model.page_data.records.size()) return false;
+      const unsigned index = root["p"].as<unsigned>();
+      if ((op == "page" && (transfer.active || transfer.received_page(index))) ||
+          (op == "bar" && !transfer.active)) return false;
+      page_protocol::Page next;
+      if (!parse_bar(root["items"], next.bar)) return false;
+      if (op == "page") {
+        if (!page_protocol::key(string(root["id"]), next.id) || !root["home_control"].is<bool>() ||
+            !root["excluded"].is<bool>() || !root["title"].is<const char *>() ||
+            root["title"].as<std::string>().size() > 96) return false;
+        for (size_t i = 0; i < model.page_data.records.size(); ++i)
+          if (transfer.received_page(i) && model.page_data.records[i].id == next.id) return false;
+        next.title = string(root["title"], 96);
+        next.home_control = root["home_control"].as<bool>();
+        next.excluded = root["excluded"].as<bool>();
+        if (!transfer.page(index)) return false;
+        model.page_data.records[index] = std::move(next);
+      } else {
+        auto &current = model.page_data.records[index].bar;
+        bool same = current.count == next.bar.count;
+        for (size_t i = 0; same && i < current.count; ++i) same = current.items[i] == next.bar.items[i];
+        current = std::move(next.bar);
+        if (!same && shown_page && *shown_page == static_cast<int>(index)) refresh_header_only();
+      }
+      last_received = esphome::millis();
+      result = transfer.active ? "Synced" : "Loading tiles";
+      return true;
+    }
+    if (op == "commit") {
+      // A retried commit with a new sequence acknowledges the same document.
+      // It must not navigate back to the page shown before the transfer.
+      if (transfer.active && model.ready()) {
+        last_received = esphome::millis(); result = "Synced"; return true;
+      }
+      // Every key stands under a bedside clock of this layout (firmware 0.8.0+): a key of anything else has no place.
+      for (size_t i = 0; i < model.count; ++i)
+        if (model.tiles[i].is_key() && (static_cast<size_t>(model.tiles[i].parent) >= model.count ||
+                                        !model.tiles[model.tiles[i].parent].is_bedside() || !model.tiles[model.tiles[i].parent].full)) {
+          result = "Error: incomplete layout"; return false;
+        }
+      if (!transfer.commit()) { result = "Error: incomplete layout"; return false; }
+      model.configured = true;
+      if (shown_page) *shown_page = model.page_data.restore(previous_page_id, had_previous_page);
+      if (layout_changed) layout_changed();
+      prepare_start();  // every other page built ahead (firmware 0.3.2+)
+      last_received = esphome::millis();
+      // The room is sampled once this layout has settled (tile_memory::SETTLE_MS, firmware 0.51.0).
+      layout_landed_at = std::max<uint32_t>(1, last_received);
+      refresh_all();
+#ifdef USE_ESP32
+      // Building every tile inside the API's call is the deepest the loop task goes; this is the figure the
+      // loop_task_stack_size in hardware/esp-idf.yaml is sized from (firmware 0.3.1+).
+      ESP_LOGI("health", "layout applied, loop_stack_min_free=%u", (unsigned) uxTaskGetStackHighWaterMark(nullptr));
+#endif
+      result = "Synced";
+      return true;
+    }
+    if (op != "tile" && !transfer.active) { result = "Resend needed"; return false; }
+    if (op == "camera") {
+      // A link to a camera's image (app 0.2.66+): the answer to camera_request ("full"), or an alert's image ("alert",
+      // announced with an empty link before show_alert and sent again with the link), or the media card's cover
+      // ("cover", app 0.2.77+). Only ESP Screens' own port.
+      const std::string view = string(root["t"], 8), entity = string(root["e"], view == "live" ? 400 : 120), url = string(root["u"], 240);
+      // "live" (app 0.2.91+): a page's pictures, asked per tile (tile_picture.h); `e` names the tile's entity.
+      // "lib" (app 0.4.42+, firmware 0.24.0+): the covers of a page of a player's library, one picture.
+      // "saver" (app 0.4.48, firmware 0.29.0+): the screensaver's picture of the whole glass, as a full view's.
+      if (view == "live" ? !valid_entity_list(entity) : !valid_entity(entity) || (view != "full" && view != "alert" && view != "cover" && view != "lib" && view != "saver")) return false;
+      if (!url.empty() && url.rfind("http://", 0) != 0) return false;
+      // Every answer but an alert's carries the number of its question; one to an older question is dropped. A tile's
+      // picture is the answer to that tile's last question (tile_picture::Questions).
+      const uint32_t number = root["view"].is<unsigned>() ? root["view"].as<unsigned>() : 0;
+      const bool current = view == "live" ? tile_questions.answered(number) >= 0
+                           : number == (view == "cover" ? cover_view_id : view == "lib" ? library_art_view_id : camera_view_id);
+      if (view != "alert" && (!root["view"].is<unsigned>() || !current)) {
+        ESP_LOGD("picture", "answer %u (%s) to an older question: dropped", (unsigned) number, view.c_str());
+        result = "Synced"; return true;
+      }
+      // A map's full view (app 0.4.36, firmware 0.21.0+): where its markers are on the picture, the one a finger
+      // picked, and that one's card. Pixels and words, never a place; checked whole before it replaces the last.
+      if (view == "full" && root["m"].is<JsonObject>()) {
+        auto m = root["m"];
+        MapSheet next;
+        next.entity = entity;
+        next.focus = string(m["f"], 120);
+        if (m["h"].is<JsonArray>()) for (JsonVariant hit : m["h"].as<JsonArray>()) {
+          if (!hit.is<JsonArray>() || hit.size() != 4 || next.hits.size() >= 16) continue;
+          const std::string id = string(hit[0], 120);
+          if (!valid_entity(id) || !hit[1].is<int>() || !hit[2].is<int>() || !hit[3].is<int>()) continue;
+          next.hits.push_back({id, hit[1].as<int>(), hit[2].as<int>(), std::max(1, std::min(200, hit[3].as<int>()))});
+        }
+        if (m["c"].is<JsonObject>()) {
+          auto c = m["c"];
+          next.title = string(c["t"], 60);
+          // Rows as the effects page draws them: Home Assistant's icon (a codepoint), a name and a value at the right.
+          if (c["r"].is<JsonArray>()) for (JsonVariant row : c["r"].as<JsonArray>()) {
+            if (!row.is<JsonArray>() || row.size() != 3 || next.rows.size() >= 8) continue;
+            const std::string code = string(row[0], 6);
+            next.rows.push_back({code.empty() ? 0u : (uint32_t) strtoul(code.c_str(), nullptr, 16), string(row[1], 40), string(row[2], 24)});
+          }
+        }
+        camera_map_sheet(next);
+      }
+      camera_answer(view, entity, url, number);
+      result = model.ready() ? "Synced" : "Loading tiles";
+      return true;
+    }
+    if (op == "saver") {
+      // What the screensaver shows (app 0.4.48, firmware 0.29.0+, screen_saver.py): "media", "camera", "clock" or ""
+      // for none. A player brings its words and the marks of its picture; the picture is asked for as camera "saver".
+      SaverChoice next;
+      next.kind = string(root["k"], 8);
+      if (!next.kind.empty() && next.kind != "media" && next.kind != "camera" && next.kind != "clock") return false;
+      if (next.kind == "media" || next.kind == "camera") {
+        next.entity = string(root["e"], 120);
+        if (!valid_entity(next.entity)) return false;
+        next.name = string(root["n"], 80);
+      }
+      if (next.kind == "media") {
+        auto extra = root["x"];
+        next.title = string(root["t"], 80);
+        next.artist = string(extra["artist"], 80);
+        next.album = string(extra["album"], 80);
+        next.picture = string(extra["pic"], 16);
+        next.ground = string(extra["g"], 13);
+        // The keys (app 0.4.55, firmware 0.33.0+): "playing" or "paused", and Home Assistant's supported_features.
+        next.state = string(root["s"], 8);
+        next.features = root["f"].is<uint32_t>() ? root["f"].as<uint32_t>() : 0;
+        next.muted = root["m"].is<int>() && root["m"].as<int>() == 1;
+      }
+      // The outside temperature under the clock (app 0.4.52, firmware 0.31.0+), ready to draw: "21°".
+      if (next.kind == "clock") next.weather = string(root["w"], 8);
+      // The row of entities (app 0.4.81, firmware 0.50.0+): the temperature first, as the top bar's text and moment
+      // items; one that is not readable leaves the temperature alone on the glass, as before.
+      if (next.kind == "clock" && root["wi"].is<JsonArray>() && root["wi"].as<JsonArray>().size() <= header_bar::MAX_ITEMS) {
+        std::vector<header_bar::Item> row;
+        for (JsonVariant value : root["wi"].as<JsonArray>()) {
+          header_bar::Item item;
+          if (!parse_bar_item(value, item) || (item.kind != header_bar::Kind::text && item.kind != header_bar::Kind::ago)) { row.clear(); break; }
+          row.push_back(std::move(item));
+        }
+        next.row = std::move(row);
+      }
+      saver_receive(next);
+      result = model.ready() ? "Synced" : "Loading tiles";
+      return true;
+    }
+    if (op == "history") {
+      if (!root["view"].is<unsigned>() || root["view"].as<unsigned>() != history_view_id) {
+        result = "Synced"; return true;
+      }
+      // A detail card's history (app 0.2.59+), the answer to history_request. Checked whole before it replaces
+      // the one the screen holds.
+      History next;
+      next.entity = string(root["entity"], 120);
+      next.hours = root["hours"] | 0u;
+      if (!valid_entity(next.entity) || (next.hours != 1 && next.hours != 24 && next.hours != 168)) return false;
+      // An answer to an earlier question (another card, another range) would push out the one the card waits for.
+      if (next.entity != history_asked_entity || next.hours != history_asked_hours) {
+        result = model.ready() ? "Synced" : "Loading tiles";
+        return true;
+      }
+      next.start = root["start"] | 0u;
+      next.end = root["end"] | 0u;
+      next.offset = std::clamp(root["off"] | 0, -14 * 3600, 14 * 3600);
+      if (next.end <= next.start) return false;
+      next.line = string(root["kind"], 12) != "timeline";
+      if (root["xt"].is<JsonArray>()) for (JsonVariant moment : root["xt"].as<JsonArray>()) {
+        if (next.times.size() == 8) break;
+        if (moment.is<unsigned>()) next.times.push_back(moment.as<uint32_t>());
+      }
+      if (next.line) {
+        unsigned i = 0;
+        if (root["values"].is<JsonArray>()) for (JsonVariant value : root["values"].as<JsonArray>()) {
+          if (i == history_view::PARTS) break;
+          float v = number(value);
+          next.has[i] = std::isfinite(v);
+          next.values[i] = next.has[i] ? v : 0;
+          ++i;
+        }
+        next.bottom = number(root["dom"][0], 0);
+        next.top = number(root["dom"][1], 1);
+        if (!(next.top > next.bottom)) next.top = next.bottom + 1;
+        if (root["yt"].is<JsonArray>()) for (JsonVariant tick : root["yt"].as<JsonArray>()) {
+          if (next.ticks.size() == 6) break;
+          float v = number(tick[0]);
+          if (std::isfinite(v)) next.ticks.emplace_back(v, string(tick[1], 16));
+        }
+        next.high = number(root["hi"][0]);
+        next.has_high = std::isfinite(next.high);
+        next.high_at = root["hi"][1] | 0u;
+        next.low = number(root["lo"][0]);
+        next.has_low = std::isfinite(next.low);
+        next.low_at = root["lo"][1] | 0u;
+        next.decimals = std::clamp(root["dec"] | 1, 0, 4);
+        next.unit = string(root["unit"], 16);
+      } else {
+        next.slots = static_cast<uint16_t>(std::clamp(root["slots"] | 96u, 1u, 96u));
+        if (root["states"].is<JsonArray>()) for (JsonVariant state : root["states"].as<JsonArray>()) {
+          if (next.states.size() == 7) break;
+          HistoryState s;
+          s.label = string(state[0], 24);
+          s.color = std::strtoul(string(state[1], 8).c_str(), nullptr, 16);
+          s.seconds = state[2] | 0u;
+          next.states.push_back(std::move(s));
+        }
+        if (root["seg"].is<JsonArray>()) for (JsonVariant item : root["seg"].as<JsonArray>()) {
+          if (next.runs.size() == 96) break;
+          const unsigned slot = item[0] | 0u;
+          const int state = item[1] | -1;
+          if (slot >= next.slots || state >= static_cast<int>(next.states.size()) || state < -1) return false;
+          history_view::Run run;
+          run.slot = static_cast<uint16_t>(slot);
+          run.state = static_cast<int8_t>(state);
+          run.begin = item[2] | 0u;
+          run.end = std::max<uint32_t>(run.begin, item[3] | 0u);
+          run.seconds = item[4] | 0u;
+          next.runs.push_back(run);
+        }
+        if (root["words"].is<JsonArray>()) for (JsonVariant pair : root["words"].as<JsonArray>()) {
+          if (next.words.size() == 12) break;
+          next.words.emplace_back(string(pair[0], 32), string(pair[1], 24));
+        }
+        next.began = root["began"] | 0u;
+        next.active = root["active"] | -1;
+        if (next.active >= static_cast<int>(next.states.size())) next.active = -1;
+      }
+      history = std::move(next);
+      history_received_at = esphome::millis();
+      history_answered = true;
+      history_received();
+      result = model.ready() ? "Synced" : "Loading tiles";
+      return true;
+    }
+    // An answer of the app to a plugin's request (docs/PLUGINS.md, tessera::send): to that plugin, as it came.
+    if (op == "plugin") {
+      const std::string plugin = string(root["p"], 32);
+      if (plugin.empty() || !root["m"].is<JsonObject>()) return false;
+      plugin_host::message(plugin, root["m"].as<JsonObjectConst>());
+      result = model.ready() ? "Synced" : "Loading tiles";
+      return true;
+    }
+    if (op == "options") {
+      if (!root["view"].is<unsigned>() || root["view"].as<unsigned>() != options_view_id) {
+        result = "Synced"; return true;
+      }
+      // The names a picker on a light's effects page asked for (options_request), one page per message.
+      std::string entity = string(root["e"], 120);
+      if (!valid_entity(entity) || !root["o"].is<JsonArray>()) return false;
+      // Only as many as this screen has memory for, and the room asked for in one go: a list that doubles its
+      // way there leaves the heap in pieces, and the allocation that does not fit aborts the firmware instead
+      // of failing (effects_page::names_room).
+      JsonArray sent = root["o"].as<JsonArray>();
+      const size_t room = effects_page::names_room(heap_room ? heap_room() : 0);
+      std::vector<std::string> names;
+      names.reserve(std::min(room, static_cast<size_t>(sent.size())));
+      for (JsonVariant name : sent) {
+        if (names.size() >= room) break;
+        std::string text = string(name, 48);
+        if (!text.empty()) names.push_back(std::move(text));
+      }
+      if (options_received) options_received(entity, root["i"] | 0u, root["n"] | 1u, std::move(names));
+      result = model.ready() ? "Synced" : "Loading tiles";
+      return true;
+    }
+    if (op == "browse") {
+      // A folder of a player's library (app 0.4.42+, firmware 0.24.0+), the answer to library_request: one page of its
+      // items, each [number, title, what it can do, icon]. Checked whole before the library takes it.
+      if (!root["view"].is<unsigned>() || root["view"].as<unsigned>() != library_view_id) { result = "Synced"; return true; }
+      media_library::Answer answer;
+      answer.entity = string(root["e"], 120);
+      if (!valid_entity(answer.entity) || !root["k"].is<JsonArray>()) return false;
+      answer.folder = root["f"] | 0u;
+      answer.title = string(root["t"], 48);
+      answer.page = root["i"] | 0u;
+      answer.pages = std::max(1u, root["n"] | 1u);
+      answer.count = std::min<unsigned>(root["c"] | 0u, media_library::LIMIT);
+      answer.failed = (root["x"] | 0) == 1;
+      for (JsonVariant item : root["k"].as<JsonArray>()) {
+        if (answer.items.size() >= media_library::LIMIT || !item.is<JsonArray>() || item.size() != 4 || !item[0].is<unsigned>()) continue;
+        media_library::Item next;
+        next.token = item[0].as<uint32_t>();
+        next.title = string(item[1], 48);
+        next.flags = static_cast<uint8_t>(item[2] | 0u);
+        next.icon = tile_icon::codepoint(string(item[3], 8));
+        if (!next.title.empty()) answer.items.push_back(std::move(next));
+      }
+      media_library::received(std::move(answer));
+      result = model.ready() ? "Synced" : "Loading tiles";
+      return true;
+    }
+    const bool initial = op == "tile";
+    if ((!initial && op != "state") || !root["i"].is<unsigned>() || !root["a"].is<JsonObject>() ||
+        !root["state"].is<const char *>() || !root["name"].is<const char *>()) return false;
+    const unsigned index = root["i"].as<unsigned>();
+    const std::string entity = string(root["entity"], 120);
+    if (initial) {
+      // A key of a bedside clock (firmware 0.8.0+) names its clock ("in") and its place under it ("k") instead of a
+      // slot. It is a tile in every other way: its state, its tap, its hold and its card are a tile's.
+      const bool key = root["in"].is<unsigned>();
+      // A layout past this screen's memory (firmware 0.34.0+): an app that does not ask the screen's budget can send more
+      // than it holds, and a screen that runs out halfway loses its Wi-Fi link while it runs on, out of reach until
+      // someone resets it (bench 2026-10-03). Below the floor the transfer stops here: the screen lets go of the tiles it
+      // took, refuses the layout and stays reachable.
+      if (!transfer.active && heap_room && heap_room() < tile_memory::LOW_WATER) {
+        abandon_layout();
+        result = "Error: insufficient layout memory";
+        return false;
+      }
+      if (transfer.active || index >= model.count || model.tiles[index].received || !valid_entity(entity) ||
+          !(key ? root["k"].is<unsigned>() : root["slot"].is<unsigned>()) || !root["o"].is<JsonObject>()) return false;
+      const std::string size = string(root["o"]["size"]);
+      if (key) {
+        const unsigned parent = root["in"].as<unsigned>(), place = root["k"].as<unsigned>();
+        if (parent >= model.count || parent == index || place >= BEDSIDE_KEYS || !size.empty() || page_entity(entity) ||
+            entity.rfind("screen.", 0) == 0) return false;
+        for (size_t i = 0; i < model.count; ++i)
+          if (i != index && model.tiles[i].received && model.tiles[i].parent == static_cast<int16_t>(parent) && model.tiles[i].key == place) return false;
+        model.tiles[index].parent = static_cast<int16_t>(parent);
+        model.tiles[index].key = static_cast<uint8_t>(place);
+      } else {
+        if (!page_protocol::accepts_size(size, grid.columns, grid.rows)) return false;
+        unsigned span_columns = 0, span_rows = 0;
+        const bool spanned = page_protocol::span_of(size, span_columns, span_rows);
+        if (!model.valid_placement(index, root["slot"].as<unsigned>(), size == "full", spanned ? span_columns > 1 : size == "wide" || size == "square",
+                                   spanned ? span_rows : (size == "tall" || size == "square") ? 2 : 1, spanned ? span_columns : 0)) return false;
+        if (page_entity(entity) && page_number(entity) > model.pages) return false;
+        model.slots[index] = root["slot"].as<unsigned>();
+      }
+      // Any entity may stand on several tiles (firmware 0.16.0+), each its own index; the bedside clock stays one, as
+      // its keys name it.
+      if (entity == "screen.nightstand") for (size_t i = 0; i < model.count; ++i)
+        if (i != index && model.tiles[i].received && model.tiles[i].entity == entity) return false;
+      model.tiles[index].entity = entity;
+    } else if (!root["o"].isNull() || !root["slot"].isNull() || !model.accepts(index, entity)) {
+      result = "Error: outdated tile or configuration in state"; return false;
+    }
+    Tile &tile = model.tiles[index];
+    if (!initial) {
+      uint32_t icon = tile_icon::codepoint(string(root["icon"], 8));
+      tile.icon = icon && has_icon_glyph(icon) ? tile_icon::utf8(icon) : "";
+    }
+    auto a = root["a"].as<JsonObject>();
+    // The fingerprint of state, attributes and extras (a vacuum's mode or water select changes only
+    // there), hashed while serializing so no copy of the message stays behind.
+    const std::string word = string(root["state"]);
+    Fingerprint state_hash;
+    state_hash.add(word);
+    state_hash.write('\n');
+    serializeJson(a, state_hash);
+    if (!root["x"].isNull()) serializeJson(root["x"], state_hash);
+    bool was_confirmed=tile.confirmed;
+    tile.observe(state_hash.value);
+    if(tile.pending && !tile.local_feedback && !was_confirmed && tile.confirmed)
+      ESP_LOGI("runtime_action","HA state received entity=%s elapsed=%u ms",entity.c_str(),(unsigned)(esphome::millis()-tile.pending_since));
+    if (initial) {
+    auto options = root["o"];
+    std::string background=string(options["background"],16);
+    tile.background = tile_palette::color(background);
+    tile.transparent = tile_palette::transparent(background);
+    // An icon these fonts lack (a newer set than this firmware) keeps the domain icon.
+    uint32_t icon = tile_icon::codepoint(string(options["icon"], 8));
+    tile.icon = icon && has_icon_glyph(icon) ? tile_icon::utf8(icon) : "";
+    tile.tap = string(options["tap"]); if (tile.tap.empty()) tile.tap="auto";
+    tile.display = string(options["display"]); if (tile.display.empty()) tile.display="standard";
+    // How far a lock's tile may go (firmware 0.5.0+): "confirm" unlocks after a second tap, "lock_only" never unlocks.
+    tile.guard = string(options["guard"], 16); if (tile.guard.empty()) tile.guard="confirm";
+    // A live picture's pace (0.2.91+): 5, 10, 15 or 30 s (5 and 10 from app 0.3.13); a missing or odd value keeps the
+    // default. 0 is Live (firmware dev, live_view.h): a camera that streams on its tile, which only a screen whose hello
+    // says `live` is sent. Firmware before it read 0 as 15.
+    const int refresh = options["refresh"].is<int>() ? options["refresh"].as<int>() : 15;
+    tile.refresh = refresh == 0 || (refresh >= 5 && refresh <= 3600) ? refresh : 15;
+    tile.overlay = string(options["overlay"], 8) != "none";
+    tile.energy_lines = string(options["flow"], 8) == "lines";
+    tile.inline_control = string(options["inline"]); if (tile.inline_control.empty()) tile.inline_control="none";
+    // What the second line says (firmware 0.2.90+); "auto" is the line the screen works out itself, as before.
+    tile.subtitle = string(options["sub"], 96); if (tile.subtitle.empty()) tile.subtitle="auto";
+    // Direct controls (0.2.19+): the manager sends only the set a wide card really shows.
+    tile.controls = string(options["controls"], 16);
+    // Geometry belongs to initialization and never changes in a live value packet.
+    std::string size = string(options["size"]);
+    tile.full = size == "full";
+    tile.wide = tile.full || size == "wide" || size == "square";
+    tile.height = (size == "tall" || size == "square") ? 2 : 1;
+    // A span (firmware 0.19.0) is as wide and as high as it says; more than one column draws the wide layouts.
+    unsigned span_columns = 0, span_rows = 0;
+    tile.span = 0;
+    if (page_protocol::span_of(size, span_columns, span_rows)) {
+      tile.span = static_cast<uint8_t>(span_columns);
+      tile.wide = span_columns > 1;
+      tile.height = static_cast<uint8_t>(span_rows);
+    }
+
+    }
+    // Pre-computed extras: the manager converts time zones and fetches forecasts. What only some tiles
+    // carry is collected in `next` and replaces the tile's Extra at the end (see Tile::set_extra).
+    // Short of memory inside the chip (tile_memory.h, firmware 0.34.0+): the state and its attributes still arrive, but
+    // what only some tiles carry waits, and a tile without a block of extras gets none, so a layout past what the screen
+    // holds makes tiles plainer instead of restarting the screen.
+    const bool lean = heap_room && heap_room() < tile_memory::LOW_WATER;
+    if (lean) {
+      memory_short_at = std::max<uint32_t>(1, esphome::millis());
+      shed_extras();
+    }
+    JsonVariant extra = lean ? JsonVariant() : root["x"].as<JsonVariant>();
+    Extra next;
+    // A tap's own Home Assistant action (app 0.2.67+): {"s": action, "d": [[key, text]], "t": [[key, template]]}.
+    auto act = root["o"]["act"];
+    if (initial && act.is<JsonObject>()) {
+      std::string service = string(act["s"], 64);
+      auto pairs = [](JsonVariant list, std::vector<std::pair<std::string, std::string>> &out) {
+        if (!list.is<JsonArray>()) return;
+        for (JsonVariant pair : list.as<JsonArray>()) {
+          if (out.size() == 8 || !pair.is<JsonArray>() || pair.as<JsonArray>().size() != 2) continue;
+          std::string key = string(pair[0], 32);
+          if (!key.empty()) out.emplace_back(std::move(key), string(pair[1], 400));
+        }
+      };
+      if (valid_action(service)) {
+        next.action = std::move(service);
+        pairs(act["d"], next.action_data);
+        pairs(act["t"], next.action_templates);
+      }
+    }
+    if (!initial) if (auto *saved = tile.extra_ptr()) {
+      next.action = std::move(saved->action);
+      next.action_data = std::move(saved->action_data);
+      next.action_templates = std::move(saved->action_templates);
+      next.plugin_options = std::move(saved->plugin_options);
+      next.plugin_entity = std::move(saved->plugin_entity);
+    }
+    // A plugin tile (docs/PLUGINS.md): its options come with the layout, its data with every state; both stay as the
+    // JSON they came in, for the plugin to read (plugin_host::render). A plugin's data is what the add-on mapped from
+    // the plugin's fetch, bounded there; the 4 KB message bounds it here.
+#ifdef USE_TESSERA_PLUGINS
+    if (tile.is_plugin()) {
+      if (initial && root["o"]["plugin"].is<JsonObject>()) serializeJson(root["o"]["plugin"], next.plugin_options);
+      if (initial) {
+        const std::string bound = string(root["o"]["pe"], 120);
+        if (valid_entity(bound) && bound.rfind("plugin:", 0) != 0 && bound.rfind("screen.", 0) != 0) next.plugin_entity = bound;
+      }
+      if (extra.is<JsonObject>()) serializeJson(extra, next.plugin_state);
+    }
+#endif
+    if (extra["days"].is<JsonArray>()) for (JsonVariant day : extra["days"].as<JsonArray>()) {
+      if (next.forecast.size() == weather_week::DAYS) break;
+      next.forecast.emplace_back(); auto &f = next.forecast.back();
+      f.day = string(day["d"], 8); f.condition = string(day["c"], 20); f.high = number(day["h"]); f.low = number(day["l"]);
+      f.rain = number(day["p"]); f.mm = number(day["r"]);
+      if (day["w"].is<int>()) f.weekday = (int8_t) std::clamp(day["w"].as<int>(), 0, 6);
+    }
+    if (extra["hours"].is<JsonArray>()) for (JsonVariant hour : extra["hours"].as<JsonArray>()) {
+      if (next.hours.size() == weather_week::HOURS) break;
+      next.hours.emplace_back(); auto &h = next.hours.back();
+      h.time = string(hour["t"], 5); h.condition = string(hour["c"], 20); h.temp = number(hour["h"]); h.rain = number(hour["p"]); h.mm = number(hour["r"]);
+      if (hour["o"].is<int>()) h.at = (int16_t) std::clamp(hour["o"].as<int>(), 0, 24 * 8);
+    }
+    tile.last_run = extra["last"].is<unsigned>() ? extra["last"].as<uint32_t>() : 0;
+    // An automation whose actions run right now (firmware 0.7.0+).
+    tile.running = extra["run"].as<bool>();
+    next.sunrise = string(extra["rise"], 5); next.sunset = string(extra["set"], 5);
+    next.timer_end = extra["end"].is<unsigned>() ? extra["end"].as<uint32_t>() : 0;
+    next.duration = string(extra["dur"], 16); next.remaining = string(extra["rem"], 16);
+    tile.has_history=false;
+    if (root["history"]["values"].is<JsonArray>()) {
+      tile.history.assign(24,NAN);unsigned j=0;
+      for (JsonVariant value:root["history"]["values"].as<JsonArray>()) {
+        if(j==24) break; tile.history[j++]=number(value); }
+      tile.has_history=j>0;tile.history_hours=std::clamp(root["history"]["hours"].as<unsigned>(),1u,24u);
+    } else if (!tile.history.empty()) { tile.history.clear(); tile.history.shrink_to_fit(); }
+    // Sixteen options at most (firmware 0.3.3, eight before): the select card pages through what it cannot show at once.
+    if (a["options"].is<JsonArray>()) for(JsonVariant option:a["options"].as<JsonArray>()) {
+      if(next.options.size()==16)break;next.options.push_back(string(option,48)); }
+    // A remote's activities and the one it runs (firmware 0.22.0+): Home Assistant names them only where the remote
+    // supports ACTIVITY, and the card lists them as a select's options.
+    if (a["activity_list"].is<JsonArray>()) for(JsonVariant option:a["activity_list"].as<JsonArray>()) {
+      if(next.options.size()==16)break;next.options.push_back(string(option,48)); }
+    next.activity=string(a["current_activity"],48);
+    // A remote's keypad (firmware 0.22.0+): eleven commands, an empty one for a key the remote lacks.
+    if (extra["keys"].is<JsonArray>()) {
+      for (JsonVariant key : extra["keys"].as<JsonArray>()) { if (next.keypad.size() == 11) break; next.keypad.push_back(string(key, 32)); }
+      if (next.keypad.size() != 11) next.keypad.clear();
+    }
+    tile.battery=number(a["battery_level"]);tile.volume=number(a["volume_level"]);
+    tile.muted=a["is_volume_muted"].is<bool>() && a["is_volume_muted"].as<bool>();
+    tile.device_class=string(a["device_class"],24);next.hvac_action=string(a["hvac_action"],24);
+    next.media_title=string(a["media_title"],80);tile.supported=a["supported_features"].as<uint32_t>();
+    // The media card (firmware 0.2.64+, app 0.2.77+): the artist, the album, the track's length and position, and a
+    // mark of the cover picture; an app from before sends none of them and the card shows what it has.
+    next.media_artist=string(extra["artist"],80);next.media_album=string(extra["album"],80);next.media_picture=string(extra["pic"],16);
+    next.media_duration=extra["dur"].is<unsigned>()?extra["dur"].as<uint32_t>():0;
+    next.media_position=extra["pos"].is<unsigned>()?extra["pos"].as<uint32_t>():0;
+    next.media_position_at=extra["at"].is<unsigned>()?extra["at"].as<uint32_t>():0;
+    // More of a media player (firmware 0.24.0+, app 0.4.42+): its speaker and the ones it may play on, shuffle, repeat,
+    // the features it had at its widest, its cover's two colours and whether its library opens.
+    if (tile.domain() == "media_player") {
+      next.media_source = string(extra["so"], 48);
+      if (extra["sl"].is<JsonArray>()) for (JsonVariant source : extra["sl"].as<JsonArray>()) {
+        if (next.media_sources.size() == 16) break;
+        std::string name = string(source, 48);
+        if (!name.empty()) next.media_sources.push_back(std::move(name));
+      }
+      // Where it plays (firmware 0.26.0+): each speaker's flags and volume, its inputs and the speaker it follows.
+      if (extra["sf"].is<JsonArray>()) {
+        for (JsonVariant flags : extra["sf"].as<JsonArray>()) {
+          if (next.speaker_flags.size() == next.media_sources.size()) break;
+          next.speaker_flags.push_back(static_cast<uint8_t>(flags.as<unsigned>() & 0xFF));
+        }
+        next.speaker_flags.resize(next.media_sources.size(), 0);
+        if (extra["sv"].is<JsonArray>()) for (JsonVariant volume : extra["sv"].as<JsonArray>()) {
+          if (next.speaker_volumes.size() == next.media_sources.size()) break;
+          const int v = volume.is<int>() ? volume.as<int>() : -1;
+          next.speaker_volumes.push_back(static_cast<int8_t>(v < 0 || v > 100 ? -1 : v));
+        }
+        next.speaker_volumes.resize(next.media_sources.size(), -1);
+      }
+      if (extra["in"].is<JsonArray>()) for (JsonVariant input : extra["in"].as<JsonArray>()) {
+        if (next.media_inputs.size() == 16) break;
+        std::string name = string(input, 48);
+        if (!name.empty()) next.media_inputs.push_back(std::move(name));
+      }
+      next.media_input = string(extra["ic"], 48);
+      next.media_target = string(extra["ct"], 64);
+      next.media_shuffle = extra["sh"].is<int>() ? static_cast<int8_t>(extra["sh"].as<int>() ? 1 : 0) : -1;
+      next.media_repeat = string(extra["rp"], 4);
+      if (next.media_repeat != "off" && next.media_repeat != "all" && next.media_repeat != "one") next.media_repeat.clear();
+      next.media_features = extra["mf"].is<uint32_t>() ? extra["mf"].as<uint32_t>() : 0;
+      const std::string ground = string(extra["g"], 13);
+      next.has_ground = media_card::ground(ground, next.ground);
+      next.ground_known = !ground.empty();
+      next.media_library = (extra["lb"] | 0) == 1;
+      // A favourite (firmware 0.24.0+): what its tile says, and its picture's mark.
+      next.fav_kind = string(extra["fk"], 24);
+      next.fav_source = string(extra["fo"], 48);
+      next.fav_mark = string(extra["fm"], 16);
+      next.fav_playing = (extra["fp"] | 0) == 1;
+      const uint32_t glyph = tile_icon::codepoint(string(extra["fi"], 8));
+      if (glyph && has_icon_glyph(glyph)) next.fav_glyph = tile_icon::utf8(glyph);
+    }
+    const std::string name = string(root["name"], 80);
+    if (!initial && tile.is_key() && name != tile.name) refresh_tile(tile.parent);
+    tile.name = name;
+    const std::string before = tile.state;
+    tile.state = word;
+    if (!initial && tile.received && before != tile.state) tile.changed_at = std::max<uint32_t>(1, esphome::millis());
+    tile.unit = string(a["unit_of_measurement"], 20);
+    tile.brightness = number(a["brightness"]);
+    tile.percentage = number(a["percentage"]);
+    tile.position = number(a["current_position"]);
+    next.tilt = number(a["current_tilt_position"]);
+    tile.current = number(a["current_temperature"]);
+    tile.target = number(a["temperature"]);
+    tile.humidity = number(a["current_humidity"]);
+    tile.minimum = number(a["min_temp"], 7);
+    tile.maximum = number(a["max_temp"], 35);
+    tile.step = number(a["target_temp_step"], 0.5f);
+    if(tile.domain()=="number" || tile.domain()=="input_number") {
+      tile.minimum=number(a["min"],0);tile.maximum=number(a["max"],100);tile.step=number(a["step"],1); }
+    if(tile.domain()=="weather") {
+      tile.current=number(a["temperature"]);tile.unit=string(a["temperature_unit"],12);
+      tile.humidity=number(a["humidity"]);next.wind=number(a["wind_speed"]);next.wind_unit=string(a["wind_speed_unit"],8);next.feels=number(a["apparent_temperature"]);
+      // What Home Assistant's more-info dialog shows beside them (the weather card's week): the wind's bearing, the air
+      // pressure, the visibility, and the unit the rain comes in.
+      next.bearing=number(a["wind_bearing"]);next.pressure=number(a["pressure"]);next.visibility=number(a["visibility"]);
+      next.pressure_unit=string(a["pressure_unit"],8);next.visibility_unit=string(a["visibility_unit"],8);next.rain_unit=string(a["precipitation_unit"],8);
+    }
+    tile.modes = list(a["supported_color_modes"]);
+    next.hvac_modes = list(a["hvac_modes"]);
+    next.fan_modes = list(a["fan_modes"]); next.swing_modes = list(a["swing_modes"]);
+    next.fan_mode = string(a["fan_mode"], 48); next.swing_mode = string(a["swing_mode"], 48);
+    next.target_low = number(a["target_temp_low"]); next.target_high = number(a["target_temp_high"]);
+    // A humidifier (firmware 0.42.0+) in a thermostat's fields: the humidity it measures and the one it is set to, its
+    // range (Home Assistant's defaults 0 and 100) and step, its modes and what it is doing.
+    if (tile.domain() == "humidifier") {
+      tile.current = number(a["current_humidity"]); tile.target = number(a["humidity"]); tile.humidity = NAN;
+      tile.minimum = number(a["min_humidity"], 0); tile.maximum = number(a["max_humidity"], 100);
+      tile.step = std::max(1.0f, number(a["target_humidity_step"], 1));
+      next.hvac_modes = list(a["available_modes"]); next.hvac_action = string(a["action"], 24);
+      next.humidifier_mode = string(a["mode"], 48);
+    }
+    float hue = number(a["hs_color"][0]);
+    float saturation = number(a["hs_color"][1]);
+    tile.has_hs_color = std::isfinite(hue) && std::isfinite(saturation);
+    tile.saturation = tile.has_hs_color ? std::lround(std::clamp(saturation, 0.0f, 100.0f)) : 0;
+    if (std::isfinite(hue)) tile.hue = std::lround(std::clamp(hue, 0.0f, 360.0f));
+    float kelvin = number(a["color_temp_kelvin"]);
+    if (std::isfinite(kelvin)) tile.kelvin = std::lround(std::clamp(kelvin, 1000.0f, 15000.0f));
+    tile.min_kelvin = std::clamp(number(a["min_color_temp_kelvin"], 0), 0.0f, 15000.0f);
+    tile.max_kelvin = std::clamp(number(a["max_color_temp_kelvin"], 0), 0.0f, 15000.0f);
+    next.fan_speed = string(a["fan_speed"], 48);
+    if (a["fan_speed_list"].is<JsonArray>()) for (JsonVariant speed : a["fan_speed_list"].as<JsonArray>()) {
+      if (next.fan_speeds.size() == 4) break;
+      next.fan_speeds.push_back(string(speed, 48));
+    }
+    // Vacuum rows (app 0.2.46+): the cleaning mode and water selects of the robot's device and the
+    // suction speeds to offer, each at most six; the battery sensor when the vacuum has no attribute.
+    // A chip just tapped keeps its choice while Home Assistant is still busy with it, so another update
+    // of the robot (its battery, say) does not flip the row back for a moment.
+    auto choice = [&](const char *key, char kind) {
+      auto c = extra[key];
+      if (!c["o"].is<JsonArray>()) return;
+      Choice row; row.kind = kind;
+      row.entity = string(c["e"], 120); row.current = string(c["s"], 48); row.roles = string(c["r"], 6);
+      if (kind != 's' && !valid_entity(row.entity)) return;
+      for (JsonVariant value : c["o"].as<JsonArray>()) { if (row.values.size() == 6) break; row.values.push_back(string(value, 48)); }
+      if (c["l"].is<JsonArray>()) for (JsonVariant label : c["l"].as<JsonArray>()) {
+        if (row.labels.size() == row.values.size()) break; row.labels.push_back(string(label, 24)); }
+      while (row.labels.size() < row.values.size()) row.labels.push_back(row.values[row.labels.size()]);
+      if (!row.values.empty()) next.choices.push_back(std::move(row));
+    };
+    if (tile.domain() == "vacuum") { choice("mode", 'm'); choice("water", 'w'); choice("fan", 's'); tile_controls::settle_suction(next); }
+    // A light's effects page (app 0.2.83+): the effect it runs, and the selects and numbers of its device.
+    next.effect = string(a["effect"], 48);
+    if (extra["rows"].is<JsonArray>()) for (JsonVariant r : extra["rows"].as<JsonArray>()) {
+      if (next.option_rows.size() == 3) break;
+      OptionRow row; row.entity = string(r["e"], 120);
+      if (!valid_entity(row.entity)) continue;
+      row.name = string(r["n"], 32); row.current = string(r["s"], 48); row.count = static_cast<uint16_t>(std::min(r["c"] | 0u, 65535u));
+      row.icon = tile_icon::codepoint(string(r["i"], 8));
+      next.option_rows.push_back(std::move(row));
+    }
+    if (extra["nums"].is<JsonArray>()) for (JsonVariant r : extra["nums"].as<JsonArray>()) {
+      if (next.number_rows.size() == 2) break;
+      NumberRow row; row.entity = string(r["e"], 120);
+      if (!valid_entity(row.entity)) continue;
+      row.name = string(r["n"], 32); row.value = number(r["v"]); row.low = number(r["lo"], 0); row.high = number(r["hi"], 100); row.step = number(r["st"], 1);
+      if (!(row.high > row.low)) continue;
+      row.icon = tile_icon::codepoint(string(r["i"], 8));
+      next.number_rows.push_back(std::move(row));
+    }
+    // A light group's lamps (app 0.3.16+, firmware 0.3.9+): what its lamp page shows, in Home Assistant's order.
+    if (tile.domain() == "light" && extra["lamps"].is<JsonArray>()) for (JsonVariant l : extra["lamps"].as<JsonArray>()) {
+      if (next.lamps.size() == MAX_LAMPS) break;
+      Lamp lamp; lamp.entity = string(l["e"], 120);
+      if (!valid_entity(lamp.entity) || lamp.entity.rfind("light.", 0) != 0) continue;
+      lamp.name = string(l["n"], 32);
+      lamp.on = (l["s"] | 0) == 1;
+      lamp.unavailable = (l["u"] | 0) == 1;
+      lamp.dimmable = (l["d"] | 0) == 1;
+      const unsigned caps = l["c"] | 0u;
+      lamp.color = caps & 1; lamp.temperature = caps & 2;
+      lamp.level = static_cast<uint8_t>(std::min(100u, l["b"] | 0u));
+      lamp.hue = static_cast<uint16_t>(std::min(360u, l["h"] | 0u));
+      lamp.saturation = static_cast<uint8_t>(std::min(100u, l["sa"] | 0u));
+      auto kelvin = [](unsigned k) { return static_cast<uint16_t>(k >= 1000 && k <= 15000 ? k : 0); };
+      lamp.kelvin = kelvin(l["k"] | 0u); lamp.low = kelvin(l["lo"] | 0u); lamp.high = kelvin(l["hi"] | 0u);
+      if (!(lamp.high > lamp.low)) lamp.low = lamp.high = 0;
+      next.lamps.push_back(std::move(lamp));
+    }
+    if (!std::isfinite(tile.battery)) tile.battery = number(extra["bat"]);
+    next.charging = extra["chg"].is<int>() && extra["chg"].as<int>() == 1;
+    next.room = string(extra["room"], 32);
+    next.state_word = string(extra["w"], 32);
+    // A value of this entity the second line was set to: the finished line, or seconds for a moment in time.
+    next.subtitle = string(extra["s"], 64);
+    next.subtitle_at = extra["sm"].is<unsigned>() ? extra["sm"].as<unsigned>() : 0;
+    // A map card's movement mark (app 0.4.33): a hash, never a place. A changed mark is a changed picture.
+    next.map_mark = string(extra["mk"], 16);
+    // The energy card (app 0.4.77, firmware 0.47.0): the house now, split as Home Assistant's own live view splits it
+    // (screen_manager/app/energy_flow.py): which sources it has, their power, the flows between them, the batteries'
+    // charge, the sensor behind each source and the devices drawing power, biggest first.
+    if (tile.is_energy() && extra["p"].is<JsonArray>()) {
+      auto e = std::make_shared<energy_card::Data>();
+      const unsigned has = extra["h"].is<unsigned>() ? extra["h"].as<unsigned>() : 0;
+      e->solar = has & 1; e->grid = has & 2; e->battery = has & 4;
+      auto watts = [](JsonVariant list, unsigned i) { const float v = number(list[i], 0); return std::isfinite(v) ? std::max(0.f, v) : 0.f; };
+      JsonVariant p = extra["p"], f = extra["f"];
+      e->solar_w = watts(p, 0); e->from_grid = watts(p, 1); e->to_grid = watts(p, 2);
+      e->from_battery = watts(p, 3); e->to_battery = watts(p, 4); e->home = watts(p, 5);
+      if (f.is<JsonArray>()) {
+        e->s2h = watts(f, 0); e->s2g = watts(f, 1); e->s2b = watts(f, 2); e->g2h = watts(f, 3);
+        e->g2b = watts(f, 4); e->b2h = watts(f, 5); e->b2g = watts(f, 6);
+      }
+      e->soc = extra["c"].is<int>() ? std::clamp(extra["c"].as<int>(), 0, 100) : -1;
+      if (extra["e"].is<JsonArray>()) {
+        e->solar_entity = string(extra["e"][0], 64); e->grid_entity = string(extra["e"][1], 64); e->battery_entity = string(extra["e"][2], 64);
+        for (auto *id : {&e->solar_entity, &e->grid_entity, &e->battery_entity}) if (!valid_entity(*id)) id->clear();
+      }
+      if (extra["u"].is<JsonArray>()) {
+        const std::string *ids[3] = {&e->solar_entity, &e->grid_entity, &e->battery_entity};
+        for (unsigned i = 0; i < 3; ++i)
+          if (!ids[i]->empty()) e->readings.push_back({*ids[i], string(extra["u"][i][0], 32), string(extra["u"][i][1], 16)});
+      }
+      if (extra["d"].is<JsonArray>()) for (JsonVariant dev : extra["d"].as<JsonArray>()) {
+        if (e->devices.size() == 8) break;
+        energy_card::Device d;
+        d.name = string(dev["n"], 48);
+        d.entity = string(dev["e"], 64);
+        if (!valid_entity(d.entity)) d.entity.clear();
+        const uint32_t icon = tile_icon::codepoint(string(dev["i"], 8));
+        d.icon = icon && has_icon_glyph(icon) ? icon : 0;
+        d.w = std::max(0.f, number(dev["w"], 0));
+        if (d.name.empty() || d.w <= 0) continue;
+        if (!d.entity.empty()) e->readings.push_back({d.entity, string(dev["s"], 32), string(dev["u"], 16)});
+        e->devices.push_back(std::move(d));
+      }
+      e->rest = std::max(0.f, number(extra["o"], 0));
+      e->home_name = string(extra["n"], 32);
+      next.energy = std::move(e);
+    }
+    // An alarm panel (app 0.3.8+, firmware 0.3.3+): how it takes codes, who changed it, and a delay's end.
+    if (tile.domain() == "alarm_control_panel") {
+      next.code_format = string(a["code_format"], 8);
+      next.changed_by = string(a["changed_by"], 48);
+      next.arm_code_free = a["code_arm_required"].is<bool>() && !a["code_arm_required"].as<bool>();
+      next.code_saved = extra["dc"].is<int>() && extra["dc"].as<int>() == 1;
+      next.alarm_end = extra["ae"].is<unsigned>() ? extra["ae"].as<uint32_t>() : 0;
+      next.alarm_delay = extra["ad"].is<unsigned>() ? extra["ad"].as<uint32_t>() : 0;
+    }
+    // A lock (firmware 0.5.0+): its code_format (a regular expression), who changed it, whether Home Assistant keeps a
+    // default code for it (never the code) and whether the integration only assumes its state.
+    if (tile.domain() == "lock") {
+      next.code_format = string(a["code_format"], 48);
+      next.changed_by = string(a["changed_by"], 48);
+      next.code_saved = extra["dc"].is<int>() && extra["dc"].as<int>() == 1;
+      next.assumed = a["assumed_state"].is<bool>() && a["assumed_state"].as<bool>();
+    }
+    const bool wanted = !next.empty();
+    tile.set_extra(std::move(next), !lean);
+    if (wanted && !tile.extra_ptr()) memory_short_at = std::max<uint32_t>(1, esphome::millis());
+    // What a finger changed stays in front of a message from before it, and ends with Home Assistant's own word
+    // (docs/OPTIMISTIC.md).
+    wish_reported(tile);
+    // A held slider keeps its value in front of the fade (after the wish: an off light a slider turned on stays on).
+    tile.slider_reported(esphome::millis());
+    // Home Assistant reports the edited value: the -/+ pill follows its state again.
+    if(tile_controls::climate_range(tile)){
+      // A range: each end follows Home Assistant again once it reports what was sent.
+      if(tile.edit_sent && std::fabs(tile.extra().target_low-tile.edit_value)<0.051f)tile.edit_value=NAN;
+      if(tile.edit_sent && std::fabs(tile.extra().target_high-tile.edit_high)<0.051f)tile.edit_high=NAN;
+    }else if(std::isfinite(tile.edit_value) && tile.edit_sent && std::fabs(tile_controls::edit_target(tile)-tile.edit_value)<0.051f)tile.edit_value=NAN;
+    tile.received = true;
+    for(auto &w:widgets)if(w.index==index)w.cached_active=-1;
+    last_received = esphome::millis();
+    if (initial) {
+      transfer.tile(index);
+      result = "Loading tiles";
+      return true;
+    }
+    refresh_tile(index);
+    if (active_index == static_cast<int>(index)) detail_update(tile);
+    if (tile.domain() == "alarm_control_panel") alarm_state_arrived(index, before);
+    if (tile.domain() == "lock") lock_state_arrived(index, before);
+    refresh_detail(index);
+    result = model.ready() ? "Synced" : "Loading tiles";
+    return true;
+  });
+  if (accepted && sequenced) transfer.accepted(packet_sequence, packet_hash.value);
+  return result;
+}
+#pragma GCC diagnostic pop
+}  // namespace runtime_tiles

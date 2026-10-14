@@ -1,0 +1,807 @@
+#pragma once
+#include "tile_catalogue.h"
+#include <algorithm>
+#include <array>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+#include "screen_text.h"
+#include "ui_scale.h"
+#include "page_protocol.h"
+#include "optimistic.h"
+#include "energy_card.h"
+#include <cmath>
+#include <cstdint>
+#include <cstdlib>
+// The tiles of a screen live on the heap, as many as the layout has (firmware 0.2.62+): a screen with twelve
+// tiles pays for twelve. On a board with PSRAM ESPHome's allocator puts that list, the fixed part of every
+// tile, in PSRAM; without PSRAM it takes the internal heap. What a tile holds beyond it, its strings and its
+// Extra, comes from plain malloc and new, which ESPHome's psram setup (CONFIG_SPIRAM_USE_CAPS_ALLOC) keeps in
+// the internal heap on both boards. The host tests and the host render build have neither, so they take the
+// standard allocator.
+#if __has_include("esphome/core/defines.h")
+#include "esphome/core/defines.h"
+#endif
+#ifdef USE_ESP32
+#include "esp_heap_caps.h"
+#include "esphome/core/helpers.h"
+#include "esphome/core/log.h"
+#endif
+
+namespace runtime_tiles {
+// A board states the cells of a page for each way its glass can hang: GRID_COLS x GRID_ROWS when it lies down,
+// GRID_COLS_PORTRAIT x GRID_ROWS_PORTRAIT when it stands up (firmware 0.2.92+). Both arrive as build flags. The
+// screen picks one at boot from the canvas LVGL hands it (grid_select) and everything below counts with that
+// one, so the same firmware serves a board either way round and nothing here knows which board it is.
+#ifndef GRID_COLS
+#define GRID_COLS 2
+#endif
+#ifndef GRID_ROWS
+#define GRID_ROWS 3
+#endif
+// A square board, or one whose second grid nobody worked out yet, keeps the same cells both ways.
+#ifndef GRID_COLS_PORTRAIT
+#define GRID_COLS_PORTRAIT GRID_COLS
+#endif
+#ifndef GRID_ROWS_PORTRAIT
+#define GRID_ROWS_PORTRAIT GRID_ROWS
+#endif
+// The most tiles one screen holds, whatever its grid (page_protocol.h, a board's SCREEN_MAX_TILES): it sizes the arrays
+// that hold one entry per tile, and the cards the next render draws again are one bit each of a TileSet that size.
+constexpr size_t TILES_MAX = page_protocol::MAX_TILES;
+// The keys under a bedside clock's time (firmware 0.8.0+).
+constexpr unsigned BEDSIDE_KEYS = 3;
+// Explicit grid positions (0.2.26+) address at most PAGES_MAX pages: eight, or what the board states (firmware 0.34.0+,
+// page_protocol.h). Every grid has all of them (firmware 0.18.0+): a page need not be full, so the pages no longer
+// follow from the cells, only the tiles of the whole screen (TILES_MAX) do. Before, a grid had 64 / cells pages, three
+// on a 5 x 4 grid, and a grid that grew lost the pages of a saved layout.
+constexpr size_t PAGES_MAX = page_protocol::MAX_PAGES;
+// The grids a screen may be given (firmware 0.53.0+): ESP Screens sends one with a layout and the screen keeps it, one
+// for each way the glass hangs. The board's own pair is where a screen starts. The least is one cell; the most is what
+// the glass holds at the look's smallest cell (GRID_CELL_MIN_W_MM x GRID_CELL_MIN_H_MM, packages/looks/shared/grid.yaml),
+// wide on purpose: a grid that is too fine is someone's to see and to change back. A screen's own YAML may move both.
+#ifndef GRID_MIN_COLUMNS
+#define GRID_MIN_COLUMNS 1
+#endif
+#ifndef GRID_MIN_ROWS
+#define GRID_MIN_ROWS 1
+#endif
+#ifndef GRID_MAX_COLUMNS
+#define GRID_MAX_COLUMNS GRID_COLS
+#endif
+#ifndef GRID_MAX_ROWS
+#define GRID_MAX_ROWS GRID_ROWS
+#endif
+#ifndef GRID_MAX_COLUMNS_PORTRAIT
+#define GRID_MAX_COLUMNS_PORTRAIT GRID_COLS_PORTRAIT
+#endif
+#ifndef GRID_MAX_ROWS_PORTRAIT
+#define GRID_MAX_ROWS_PORTRAIT GRID_ROWS_PORTRAIT
+#endif
+// The grids one way of the glass takes: from the least to the most columns and rows.
+struct GridRange {
+  size_t min_columns, min_rows, max_columns, max_rows;
+  constexpr bool takes(size_t columns, size_t rows) const {
+    return columns >= min_columns && columns <= max_columns && rows >= min_rows && rows <= max_rows;
+  }
+  constexpr size_t most_cells() const { return max_columns * max_rows; }
+};
+constexpr GridRange GRID_RANGES[2] = {{GRID_MIN_COLUMNS, GRID_MIN_ROWS, GRID_MAX_COLUMNS, GRID_MAX_ROWS},
+                                      {GRID_MIN_COLUMNS, GRID_MIN_ROWS, GRID_MAX_COLUMNS_PORTRAIT, GRID_MAX_ROWS_PORTRAIT}};
+// The biggest grid either way: what the page's own arrays and the grid descriptors are sized for. The cards themselves
+// are made for the grid in use only (make_cells), so a screen pays in cards for the grid it shows, not for the most.
+constexpr size_t CELLS_MAX = GRID_RANGES[0].most_cells() > GRID_RANGES[1].most_cells() ? GRID_RANGES[0].most_cells()
+                                                                                         : GRID_RANGES[1].most_cells();
+constexpr size_t dim_max(size_t a, size_t b, size_t c, size_t d) {
+  size_t most = a;
+  if (b > most) most = b;
+  if (c > most) most = c;
+  if (d > most) most = d;
+  return most;
+}
+constexpr size_t DIM_MAX = dim_max(GRID_MAX_COLUMNS, GRID_MAX_ROWS, GRID_MAX_COLUMNS_PORTRAIT, GRID_MAX_ROWS_PORTRAIT);
+static_assert(GRID_COLS >= 1 && GRID_ROWS >= 1 && GRID_COLS_PORTRAIT >= 1 && GRID_ROWS_PORTRAIT >= 1, "a grid needs a cell");
+// The board's own grid lies between GRID_MIN_* and GRID_MAX_*, each way.
+constexpr bool OWN_GRIDS_TAKEN = GRID_RANGES[0].takes(GRID_COLS, GRID_ROWS) && GRID_RANGES[1].takes(GRID_COLS_PORTRAIT, GRID_ROWS_PORTRAIT);
+static_assert(OWN_GRIDS_TAKEN, "the board's own grid is out of its range");
+// The editor's preview holds eight by eight (web/wasm/build.py), and a size goes as "CxR" with one digit each.
+static_assert(DIM_MAX <= 8, "at most eight columns and eight rows");
+static_assert(CELLS_MAX <= TILES_MAX, "a page holds at most as many cells as a screen holds tiles");
+// A slot (page * cells + cell) is kept in 16 bits (Model::slots): eight pages of a big grid pass 256, 512 on the
+// preview's eight by eight. Within its page (Placement) a cell still fits a byte.
+static_assert(PAGES_MAX * CELLS_MAX <= 65536, "every slot of every page fits in Model::slots");
+static_assert(PAGES_MAX < 255, "a Placement keeps its page in a byte and 0xFF for a tile without a place");
+
+// The cells of one page, and everything that follows from them. ESP Screens counts with the same object
+// (screen_manager/app/core.py, class Grid), method for method, so a slot number means the same thing on both
+// sides of the wire whichever way a screen hangs.
+struct Grid {
+  size_t columns = GRID_COLS;
+  size_t rows = GRID_ROWS;
+  constexpr size_t slots() const { return columns * rows; }
+  constexpr size_t pages() const { return PAGES_MAX; }
+  constexpr size_t max_slots() const { return pages() * slots(); }
+  constexpr size_t max_tiles() const { return max_slots() < TILES_MAX ? max_slots() : TILES_MAX; }
+  // A wide card takes the cell beside it, or the only cell there is on a single-column screen.
+  constexpr size_t wide_span() const { return columns > 1 ? 2 : 1; }
+  // Whether a wide card started here would still stand in the row it starts in.
+  constexpr bool wide_fits(size_t slot) const { return columns == 1 || slot % columns + 2 <= columns; }
+  constexpr size_t page_of(size_t slot) const { return slot / slots(); }
+  constexpr size_t column_of(size_t slot) const { return slot % columns; }
+  constexpr size_t row_of(size_t slot) const { return slot % slots() / columns; }
+};
+// The grid this screen runs on. It stands at the board's landscape grid until grid_select reads the canvas, so a
+// host test or a board that never turns needs no boot step.
+inline Grid grid{GRID_COLS, GRID_ROWS};
+// The grid for each way the glass hangs, lying down first: the board's own until ESP Screens sends another with a layout
+// (firmware 0.53.0+), which the screen keeps (runtime_tiles::load_settings) and reports in its hello.
+inline Grid chosen_grids[2] = {{GRID_COLS, GRID_ROWS}, {GRID_COLS_PORTRAIT, GRID_ROWS_PORTRAIT}};
+// Whether the canvas stands up, as grid_select last read it.
+inline bool canvas_upright = false;
+// Pick the grid from the canvas LVGL draws on. A square canvas counts as lying down, as LVGL's own orientation
+// does, so a square board answers the same grid either way.
+inline void grid_select(int canvas_width, int canvas_height) {
+#ifndef ESP_SCREEN_HOST
+  canvas_upright = canvas_height > canvas_width;
+  grid = chosen_grids[canvas_upright ? 1 : 0];
+#endif
+}
+using page_protocol::TileSet;
+// A navigation tile (screen.page_<n>, firmware 0.2.62+) and the page it goes to, counted from one: one digit, or two
+// without a leading zero on a screen with more than nine pages (firmware 0.34.0+). 0 for anything else.
+inline unsigned page_number(const std::string &entity) {
+  if (entity.size() < 13 || entity.size() > 14 || entity.compare(0, 12, "screen.page_") != 0 || entity[12] < '1' || entity[12] > '9')
+    return 0;
+  if (entity.size() == 13) return static_cast<unsigned>(entity[12] - '0');
+  if (entity[13] < '0' || entity[13] > '9') return 0;
+  return static_cast<unsigned>(entity[12] - '0') * 10 + static_cast<unsigned>(entity[13] - '0');
+}
+inline bool page_entity(const std::string &entity) { return page_number(entity) > 0; }
+// A key of a plugin's part (docs/PLUGINS.md): plugin:<plugin>.<part>, each an id of a-z, 0-9 and _ that starts with a
+// letter; a tile in a layout, an item in a top bar, a tap action. Whether this screen has that plugin decides only how
+// it is drawn (plugin_host::known); any such key is valid. (A plugin tile's Home Assistant entity is Extra::plugin_entity.)
+inline bool plugin_key(const std::string &entity) {
+  if (entity.size() > 72 || entity.rfind("plugin:", 0) != 0) return false;
+  const size_t dot = entity.find('.', 7);
+  if (dot == std::string::npos || dot == 7 || dot + 1 == entity.size() || dot - 7 > 32 || entity.size() - dot - 1 > 32) return false;
+  for (size_t i = 7; i < entity.size(); ++i) {
+    const char c = entity[i];
+    if (i == dot) continue;
+    const bool first = i == 7 || i == dot + 1;
+    if (!((c >= 'a' && c <= 'z') || (!first && ((c >= '0' && c <= '9') || c == '_')))) return false;
+  }
+  return true;
+}
+inline bool valid_entity(const std::string &entity) {
+  if (entity.size() > 120) return false;
+  if (entity.rfind("plugin:", 0) == 0) return plugin_key(entity);
+  auto dot = entity.find('.');
+  if (dot == std::string::npos || dot == 0 || dot + 1 == entity.size()) return false;
+  for (size_t i = 0; i < entity.size(); ++i)
+    if (i != dot && !(entity[i] >= 'a' && entity[i] <= 'z') &&
+        !(entity[i] >= '0' && entity[i] <= '9') && entity[i] != '_') return false;
+  std::string domain = entity.substr(0, dot);
+  // screen.* are built-in cards without a Home Assistant entity behind them; screen.page_<n> (firmware 0.2.62+)
+  // only goes to page n. Several pages may each carry the same one (firmware 0.2.65+, Model::set_layout).
+  if (domain == "screen") {
+    // screen.map (firmware 0.21.0+): the map of the screen's own cards, a picture the app draws. screen.energy
+    // (firmware 0.47.0+): the house's power, Home Assistant's energy distribution live (energy_card.h).
+    if (entity == "screen.clock" || entity == "screen.settings" || entity == "screen.nightstand" || entity == "screen.map" ||
+        entity == "screen.energy") return true;
+    return page_entity(entity) && page_number(entity) <= grid.pages();
+  }
+  // The types the tile catalogue has (catalogue/*.yaml, tile_catalogue.h): the same list the add-on and the editor take.
+  for (const auto *allowed : tile_catalogue::DOMAINS)
+    if (domain == allowed) return true;
+  return false;
+}
+// A comma-separated list of entities (a page's live camera tiles, firmware 0.2.77+); an empty item stands for a tile
+// without a picture.
+inline bool valid_entity_list(const std::string &list) {
+  if (list.empty() || list.size() > 400) return false;
+  for (size_t start = 0;; ) {
+    const size_t comma = list.find(',', start);
+    const std::string item = list.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
+    if (!item.empty() && !valid_entity(item)) return false;
+    if (comma == std::string::npos) return true;
+    start = comma + 1;
+  }
+}
+// An action as Home Assistant names it (domain.action: lowercase letters, digits, underscores), of any integration.
+inline bool valid_action(const std::string &action) {
+  if (action.size() > 64) return false;
+  auto dot = action.find('.');
+  if (dot == std::string::npos || dot == 0 || dot + 1 == action.size() || action.find('.', dot + 1) != std::string::npos) return false;
+  for (size_t i = 0; i < action.size(); ++i)
+    if (i != dot && !(action[i] >= 'a' && action[i] <= 'z') && !(action[i] >= '0' && action[i] <= '9') && action[i] != '_') return false;
+  return true;
+}
+// A tile keeps a fingerprint (FNV-1a) of its last state message instead of a copy of it. It is also an
+// ArduinoJson writer: the firmware hashes the attributes while serializing them, without a string.
+struct Fingerprint {
+  uint32_t value = 2166136261u;
+  size_t write(uint8_t c) { value = (value ^ c) * 16777619u; return 1; }
+  size_t write(const uint8_t *data, size_t size) { for (size_t i = 0; i < size; ++i) write(data[i]); return size; }
+  void add(const std::string &text) { write(reinterpret_cast<const uint8_t *>(text.data()), text.size()); }
+};
+inline uint32_t state_revision(const std::string &state, const std::string &attributes) {
+  Fingerprint f;
+  f.add(state);
+  f.write('\n');
+  f.add(attributes);
+  return f.value;
+}
+// weekday: Sunday 0, from a screen that draws the week (its hello said weather_week); -1 from an older app.
+struct Forecast { std::string day, condition; float high = NAN, low = NAN, rain = NAN, mm = NAN; int8_t weekday = -1; };
+// at: hours since today's midnight, local time (weather_week), -1 from an older app.
+struct Hour { std::string time, condition; float temp = NAN, rain = NAN, mm = NAN; int16_t at = -1; };
+// One row of choices on a vacuum card (firmware 0.2.39+), found by the manager on the robot's device:
+// kind 'm' a cleaning mode select (Roborock: vacuum, mop or both), 'w' a water or mop intensity
+// select, 's' the suction speeds of the vacuum itself. `values` go to Home Assistant, `labels` are
+// shown; a cleaning mode carries one role letter per value (v vacuum only, m mop only, b both,
+// a automatic: the robot or the app decides suction and water). `sent` is the value just tapped.
+struct Choice {
+  char kind = 0;
+  std::string entity, current, roles;
+  std::vector<std::string> values, labels;
+};
+// What only some tiles carry: climate modes, a select's options, weather, sun and timer times, a media
+// title, the vacuum rows. A light or a sensor has none of it, so a tile holds this block only while its
+// state needs one: twenty tiles with these fields inline took 24 KB of the CYD's RAM, mostly empty.
+// A light's effects page (firmware 0.2.70+): a select entity of the light's device with what it is set to and how many
+// options it has, and a number entity with its range; the names and icons are Home Assistant's, through the add-on.
+struct OptionRow { std::string entity, name, current; uint16_t count = 0; uint32_t icon = 0; };
+struct NumberRow { std::string entity, name; float value = NAN, low = 0, high = 100, step = 1; uint32_t icon = 0; };
+// A lamp of a light group (firmware 0.3.9+, app 0.3.16+): what the group's lamp page shows of it and may change. The
+// add-on reads the group's members from Home Assistant and sends at most MAX_LAMPS of them, only to a screen that
+// said it takes them (`group_lamps` in its hello). `level` is 1-100 while it is on; `hue` and the kelvins are the
+// lamp's own, 0 when it has none.
+struct Lamp {
+  std::string entity, name;
+  bool on = false, dimmable = false, color = false, temperature = false, unavailable = false;
+  uint8_t level = 0;
+  // The lamp's colour while it is on (hs_color, app 0.4.0+): saturation 0 when Home Assistant names none.
+  uint8_t saturation = 0;
+  uint16_t hue = 0, kelvin = 0, low = 0, high = 0;
+};
+constexpr size_t MAX_LAMPS = 24;
+struct Extra {
+  // The effect a light runs (its `effect` attribute), and the rows of its effects page.
+  std::string effect;
+  std::vector<OptionRow> option_rows;
+  std::vector<NumberRow> number_rows;
+  // The lamps of a light group, for its lamp page.
+  std::vector<Lamp> lamps;
+  // Climate: the modes as JSON lists, the current fan and swing mode, and what it is doing now.
+  std::string hvac_modes, fan_modes, swing_modes, fan_mode, swing_mode, hvac_action;
+  // A humidifier (firmware 0.42.0+) keeps its modes (available_modes) in hvac_modes and what it does (action) in
+  // hvac_action, as a thermostat; the mode it is in is an attribute of its own, not its state.
+  std::string humidifier_mode;
+  // The range a thermostat keeps the room in (target_temp_low and target_temp_high, firmware 0.19.0), where it has
+  // one instead of a single temperature: heat_cool, and auto on some.
+  float target_low = NAN, target_high = NAN;
+  // A select's options, sixteen at most; a remote's activities (activity_list, firmware 0.22.0+) are these too.
+  std::vector<std::string> options;
+  // The activity a remote runs (current_activity, firmware 0.22.0+): Harmony's and Android TV Remote's.
+  std::string activity;
+  // A remote's keypad (firmware 0.22.0+): the command of each key in the order of catalogue/remote.yaml's keypad (up, down,
+  // left, right, OK, back, home, play, volume up, volume down, mute), empty where the remote has no such key. The add-on
+  // sends it for an integration whose commands it read from Home Assistant; a remote without one has none.
+  std::vector<std::string> keypad;
+  // Weather: up to seven days and the next hours (weather_week::HOURS), and the attributes its card shows as Home
+  // Assistant's more-info dialog does.
+  std::vector<Forecast> forecast;
+  std::vector<Hour> hours;
+  float wind = NAN, feels = NAN, bearing = NAN, pressure = NAN, visibility = NAN;
+  std::string wind_unit, pressure_unit, visibility_unit, rain_unit;
+  std::string sunrise, sunset, duration, remaining;
+  uint32_t timer_end = 0;
+  std::string media_title;
+  // The media card (firmware 0.2.64+, app 0.2.77+): the artist and the album, the track's length and where it was when
+  // Home Assistant last said so (seconds, and that moment as an epoch), and a short mark of the cover picture, empty
+  // when the player shows none. The mark changes with the picture: the card fetches a new cover when it does.
+  std::string media_artist, media_album, media_picture;
+  // A map card's movement mark (firmware 0.20.0+, app 0.4.33): a short hash the app works out of where the card's people
+  // are, their states, the zones and the card's own choices (map_card.fingerprint). The screen never sees a place; it
+  // folds this into the picture it asks for, so a map is drawn again when something moved and never on a clock.
+  std::string map_mark;
+  // The energy card's moment (firmware 0.47.0+): its own block, so no other tile's extras grow by it.
+  std::shared_ptr<const energy_card::Data> energy;
+  uint32_t media_duration = 0, media_position = 0, media_position_at = 0;
+  // More of a media player (firmware 0.24.0+, app 0.4.42+): the speaker it plays on and the ones it may (source_list,
+  // sixteen at most), shuffle (-1 for a player without it) and repeat ("" without it), the features it reported at its
+  // widest when that is more than now (a player at rest keeps the keys it had, faded: GitHub #88), the two colours of
+  // its cover that the card's ground is made of, and whether its library opens.
+  std::string media_source, media_repeat;
+  std::vector<std::string> media_sources;
+  // Where a player plays (firmware 0.26.0+, the app's speakers.py): per speaker of media_sources its flags (SPEAKER_ON,
+  // SPEAKER_GROUPS) and its volume (0 to 100, -1 for none), the inputs Home Assistant lists in source_list for a player
+  // whose sources are inputs (a Sonos's TV input, a TV's ports) with the one in use, and the speaker the card follows:
+  // its media keys act on that player. A media_source here is the pill's words ("Living room + 1").
+  std::vector<uint8_t> speaker_flags;
+  std::vector<int8_t> speaker_volumes;
+  std::vector<std::string> media_inputs;
+  std::string media_input, media_target;
+  int8_t media_shuffle = -1;
+  // ground: the media card's colour, read from the cover by the app (has_ground). ground_known: the app read the cover
+  // (its colour, or that it has none to speak of), so its cover may be asked for.
+  uint32_t media_features = 0, ground = 0;
+  bool has_ground = false, ground_known = false, media_library = false;
+  // A favourite (firmware 0.24.0+, app 0.4.42+): the kind of thing it plays in the screen's words ("Playlist"), the
+  // speaker chosen for it, the mark of its picture, the glyph of its kind, and whether it plays now.
+  std::string fav_kind, fav_source, fav_mark, fav_glyph;
+  bool fav_playing = false;
+  // Vacuum: its own speeds (at most four) and speed, the mode, water and suction rows (see Choice), and
+  // from sensors of its device the room it is in and whether it charges.
+  std::vector<std::string> fan_speeds;
+  std::string fan_speed;
+  std::vector<Choice> choices;
+  std::string room;
+  bool charging = false;
+  // Cover (firmware 0.2.50+): the tilt of its slats, 0 closed to 100 open.
+  float tilt = NAN;
+  // A tap that performs a Home Assistant action of the tile's own choosing (firmware 0.2.58+): the action, its data as
+  // text, and the values Home Assistant renders itself (numbers, lists, true or false) as templates.
+  std::string action;
+  std::vector<std::pair<std::string, std::string>> action_data, action_templates;
+  // Home Assistant's word for the state where the screen has none of its own (app 0.2.67+): "Open", "Playing", "Rinsing".
+  std::string state_word;
+  // A value of this entity that the second line was set to (firmware 0.2.90+, "attr:<name>"): the app reads the
+  // attribute from Home Assistant, writes it the way Home Assistant writes it and sends the finished line. A
+  // moment in time comes as seconds instead, so the screen says it in its own words and its own clock, the way
+  // it already says when a script last ran (last_run_text) - one wording, not a second one in Python.
+  std::string subtitle;
+  uint32_t subtitle_at = 0;
+  // An alarm panel (firmware 0.3.3+): its code_format ("number", "text" or empty), whether arming needs no code
+  // (code_arm_required false), whether Home Assistant keeps a default code for it (app, from the entity's registry
+  // options; never the code itself), who changed it last, and the end of an exit or entry delay with its length in
+  // seconds, where the integration says (Alarmo's `delay`, through the app).
+  std::string code_format, changed_by;
+  bool arm_code_free = false, code_saved = false;
+  uint32_t alarm_end = 0, alarm_delay = 0;
+  // A lock (firmware 0.5.0+) shares code_format, changed_by and code_saved with the alarm panel, and says whether the
+  // integration only assumes its state (assumed_state), which lets every key work as in Home Assistant's dialog.
+  bool assumed = false;
+  // A plugin tile (docs/PLUGINS.md): its options as the editor set them, and what the add-on sent for it (its `x`), each
+  // as the JSON it came in. The plugin reads them when its card is made and when they change (plugin_host::render).
+  std::string plugin_options, plugin_state;
+  // The Home Assistant entity a plugin tile belongs to (its manifest's `entity`), "" for none.
+  std::string plugin_entity;
+  Choice *choice(char kind) { for (auto &c : choices) if (c.kind == kind) return &c; return nullptr; }
+  bool empty() const {
+    return hvac_modes.empty() && fan_modes.empty() && swing_modes.empty() && fan_mode.empty() && swing_mode.empty() &&
+           hvac_action.empty() && humidifier_mode.empty() && std::isnan(target_low) && std::isnan(target_high) && options.empty() && forecast.empty() && hours.empty() && std::isnan(wind) &&
+           std::isnan(feels) && wind_unit.empty() && std::isnan(bearing) && std::isnan(pressure) && std::isnan(visibility) &&
+           pressure_unit.empty() && visibility_unit.empty() && rain_unit.empty() && sunrise.empty() && sunset.empty() && duration.empty() &&
+           remaining.empty() && !timer_end && media_title.empty() && media_artist.empty() && media_album.empty() &&
+           media_picture.empty() && map_mark.empty() && !media_duration && !media_position && !media_position_at && fan_speeds.empty() && fan_speed.empty() &&
+           choices.empty() && room.empty() && !charging && std::isnan(tilt) && action.empty() && action_data.empty() &&
+           action_templates.empty() && state_word.empty() && subtitle.empty() && !subtitle_at && effect.empty() &&
+           option_rows.empty() && number_rows.empty() && lamps.empty() && code_format.empty() && changed_by.empty() && !arm_code_free &&
+           !code_saved && !alarm_end && !alarm_delay && !assumed && activity.empty() && keypad.empty() &&
+           media_source.empty() && media_repeat.empty() && media_sources.empty() && media_shuffle < 0 && !media_features &&
+           speaker_flags.empty() && speaker_volumes.empty() && media_inputs.empty() && media_input.empty() && media_target.empty() &&
+           !has_ground && !ground_known && !media_library && fav_kind.empty() && fav_source.empty() && fav_mark.empty() &&
+           fav_glyph.empty() && !fav_playing && !energy && plugin_options.empty() && plugin_state.empty() && plugin_entity.empty();
+  }
+};
+// The numbers of a clock text ("0:05:00", "07:45"), at most `max` of them, each after optional white space, up to the
+// first character that is not a digit or a colon after one: what sscanf's "%u:%u:%u" reads. Read by hand (firmware
+// 0.2.75+): sscanf brought newlib's whole scanf into the firmware, 9.5 KB on the CYD.
+inline int clock_parts(const std::string &text, unsigned *out, int max) {
+  int n = 0;
+  const char *p = text.c_str();
+  while (n < max) {
+    while (*p == ' ' || (*p >= '\t' && *p <= '\r')) ++p;
+    if (*p < '0' || *p > '9') break;
+    unsigned value = 0;
+    while (*p >= '0' && *p <= '9') value = value * 10 + unsigned(*p++ - '0');
+    out[n++] = value;
+    if (*p != ':') break;
+    ++p;
+  }
+  return n;
+}
+// A timer's duration or remaining time as Home Assistant writes it ("0:05:00", or "5:00") in seconds; 0 when unusable.
+inline uint32_t duration_seconds(const std::string &text) {
+  unsigned v[3] = {0, 0, 0};
+  const int n = clock_parts(text, v, 3);
+  if (n == 3) return v[0] * 3600 + v[1] * 60 + v[2];
+  if (n == 2) return v[0] * 60 + v[1];
+  return 0;
+}
+// Seconds a running timer has left, from Home Assistant's end time and the screen's clock. Both are whole seconds and
+// the clock runs up to a second behind Home Assistant's (it syncs in whole seconds), so the difference can be one more
+// than the timer holds: never more than its duration (firmware 0.2.75+; a 3 s timer started early in a second read 0:04).
+inline uint32_t timer_left(uint32_t end, uint32_t now, const std::string &duration) {
+  const uint32_t left = end > now && now ? end - now : 0;
+  const uint32_t full = duration_seconds(duration);
+  return full && left > full ? full : left;
+}
+// A sun time from the add-on ("06:45") in minutes after midnight; -1 when unusable.
+inline int minutes_of(const std::string &clock) {
+  unsigned v[2] = {0, 0};
+  return clock_parts(clock, v, 2) == 2 && v[0] < 24 && v[1] < 60 ? int(v[0] * 60 + v[1]) : -1;
+}
+// The Extra of a tile on the heap, copied along with the tile like an ordinary member. Its block comes from ESPHome's
+// RAMAllocator (firmware 0.34.0+), which takes PSRAM first on a board that has it, as the tile list itself does: a kilobyte
+// a tile that the memory inside the chip no longer pays (bench 2026-10-03: 1.4 KB inside per tile of weather, media or
+// climate, most of it this block). Its strings and lists still come from the ordinary allocator. A block that cannot be
+// had is no block: the tile then shows what a tile without extras shows, where `new` would have restarted the screen.
+inline Extra *extra_block() {
+#ifdef USE_ESP32
+  return esphome::RAMAllocator<Extra>().allocate(1);
+#else
+  if (layout_memory::allocation_allowed && !layout_memory::allocation_allowed(sizeof(Extra))) return nullptr;  // host fault injection
+  return static_cast<Extra *>(::operator new(sizeof(Extra), std::nothrow));
+#endif
+}
+struct ExtraRelease {
+  void operator()(Extra *extra) const {
+    if (!extra) return;
+    extra->~Extra();
+#ifdef USE_ESP32
+    esphome::RAMAllocator<Extra>().deallocate(extra, 1);
+#else
+    ::operator delete(extra);
+#endif
+  }
+};
+using ExtraPtr = std::unique_ptr<Extra, ExtraRelease>;
+template<class From> inline ExtraPtr make_extra(From &&from) {
+  Extra *block = extra_block();
+  return ExtraPtr(block ? new (block) Extra(std::forward<From>(from)) : nullptr);
+}
+struct ExtraBox {
+  ExtraPtr ptr;
+  ExtraBox() = default;
+  ExtraBox(const ExtraBox &other) : ptr(other.ptr ? make_extra(*other.ptr) : nullptr) {}
+  ExtraBox &operator=(const ExtraBox &other) { if (this != &other) ptr = other.ptr ? make_extra(*other.ptr) : nullptr; return *this; }
+  ExtraBox(ExtraBox &&) noexcept = default;
+  ExtraBox &operator=(ExtraBox &&) noexcept = default;
+};
+struct Tile {
+  std::string entity, name, state, unit, modes;
+  float brightness = NAN, percentage = NAN, position = NAN;
+  float current = NAN, target = NAN, humidity = NAN, minimum = 7, maximum = 35, step = 0.5f;
+  int hue = 0, kelvin = 3000, min_kelvin = 0, max_kelvin = 0;
+  bool received = false;
+  bool has_hs_color = false;
+  int saturation = 0;
+  std::string tap = "auto", display = "standard", inline_control = "none", guard = "confirm";
+  // What the second line says (firmware 0.2.90+), as the option was stored: "auto" is the line the screen works
+  // out itself, "none" leaves it empty, "text:<words>" says those words, and "attr:<name>" says a value of this
+  // entity that Home Assistant itself names. Only the last one needs an answer from the app: the other three
+  // are decided here, so they keep working while Home Assistant is away.
+  std::string subtitle = "auto";
+  // A camera tile's live picture (firmware 0.2.77+): "display": "live" puts a small picture of the camera in the
+  // icon's place, loaded again every `refresh` seconds.
+  uint16_t refresh = 15;
+  // On a 1x2 or 2x2 tile the picture fills the card (firmware 0.3.3+) with the name at the bottom; "overlay": "none"
+  // leaves the picture alone. Fill or contain is the app's: it sends the picture cut the way the tile asks.
+  bool overlay = true;
+  // The energy card drawn calm: lines that grow with the power and an arrow on each, no running dots ("flow": "lines").
+  bool energy_lines = false;
+  bool live() const { const auto d = domain(); return display == "live" && (d == "camera" || d == "image"); }
+  // A media player's album cover in the icon's place (firmware 0.2.78+): "display": "cover" on a single or double-width
+  // tile, while the player has a picture; the tile over the whole page keeps the card's big cover.
+  bool cover_tile() const { return display == "cover" && domain() == "media_player" && !full && !extra().media_picture.empty(); }
+  // A map of where this person and the people with them are (firmware 0.20.0+, app 0.4.33): the app draws the whole
+  // card, its name included, and sends it in the page's strip like a live camera, so no map arithmetic lives here.
+  // The map tile of the screen's own cards (firmware 0.21.0+) is the same picture, following whom the app is told to.
+  bool is_map() const { return display == "map" && (domain() == "person" || entity == "screen.map"); }
+  // The energy card (firmware 0.47.0+): the house's power, drawn from the numbers the app sends (energy_card.h).
+  bool is_energy() const { return entity == "screen.energy"; }
+  // A favourite (firmware 0.24.0+): a player's tile that plays one thing of its library on a tap, with that thing's
+  // picture over the card where the board draws pictures. Never a whole page: the player's card is that.
+  bool favorite() const { return display == "favorite" && domain() == "media_player" && !full; }
+  // A tile that draws its picture out of the page's strip (runtime_tiles.h, live_*).
+  bool pictured() const { return live() || cover_tile() || is_map() || (favorite() && !extra().fav_mark.empty()); }
+  // Double width takes a row; full (firmware 0.2.62+) takes the whole page, all six slots, and is also wide.
+  bool wide = false, full = false;
+  uint8_t height = 1;  // Row span; independent of the card design and page height.
+  // The columns of a span ("3x2", firmware 0.19.0); 0 for the five names, whose width `wide` and `full` say.
+  uint8_t span = 0;
+  // A key of a bedside clock (firmware 0.8.0+): a tile without a place of its own. `parent` is its clock's index, -1
+  // for a tile that has a place; `key` is where it stands under the time, counted from 0.
+  int16_t parent = -1;
+  uint8_t key = 0;
+  bool is_key() const { return parent >= 0; }
+  // Direct control set on a wide card (firmware 0.2.19+); empty keeps the plain card.
+  std::string controls, device_class;
+  bool muted = false;
+  // A -/+ edit shows at once and is sent as one call after a short pause; the
+  // value stays until Home Assistant reports it (or a timeout clears it).
+  float edit_value = NAN; uint32_t edit_since = 0; bool edit_sent = false;
+  // A thermostat set to a range (firmware 0.19.0): edit_value is the low end then, and this the high end; range_end is
+  // the end its -/+ move, on the tile and on its card alike (tile_controls::RANGE_LOW, the heat, or RANGE_HIGH, the cool).
+  float edit_high = NAN;
+  uint8_t range_end = 1;
+  // A slider the finger let go stays where it was put while the light fades towards it (firmware 0.2.60+): the value
+  // sent, in the attribute's own unit (brightness 0-255, a fan's percent, a volume 0-1), the value Home Assistant
+  // reported meanwhile, and when the last of those came.
+  float slider_sent = NAN, slider_real = NAN;
+  uint32_t slider_sent_at = 0, slider_state_at = 0;
+  // A sensor's graph: 24 samples over `history_hours`, empty without one.
+  unsigned history_hours = 24;
+  std::vector<float> history;
+  bool has_history = false;
+  // When a scene, script, automation or button last ran (unix time), pre-computed by the manager.
+  uint32_t last_run = 0;
+  // An automation whose actions run right now (Home Assistant's `current` above 0, firmware 0.7.0+).
+  bool running = false;
+  float battery = NAN, volume = NAN;
+  uint32_t supported = 0, background = 0;
+  bool transparent = false;  // "Background: none": card fill and border hidden, contents unchanged.
+  std::string icon;  // UTF-8 glyph of a chosen icon the icon fonts contain; empty keeps the domain icon.
+  uint32_t revision = 0, pending_revision = 0;  // state_revision() fingerprints
+  uint32_t pending_since = 0;
+  // When Home Assistant answered "it worked" for a watched call (firmware 0.2.59+); 0 while no answer came.
+  uint32_t answered_at = 0;
+  bool pending = false, confirmed = false, local_feedback = false;
+  // When Home Assistant refused the action a tap sent (firmware 0.2.58+); the tile says so for a moment.
+  uint32_t refused_at = 0;
+  bool unanswered = false;  // refused_at by silence: Home Assistant neither answered nor changed the state (firmware 0.38.0)
+  // A lock's "tap again" (firmware 0.16.0+ keeps it on its tile: an entity may stand on several, and a second tap
+  // counts on the tile or the card of the first alone): the action it waits for (a lock_panel::Act, -1 for none), since
+  // when, and whether the card asked. `noted_at`: a lock-only tile tapped while locked says so for a moment.
+  int8_t ask_act = -1;
+  uint32_t ask_since = 0, noted_at = 0;
+  bool ask_card = false;
+  // When the state last changed to another one (firmware 0.3.3+): an alarm panel marks the moment it armed or
+  // disarmed with a short animation.
+  uint32_t changed_at = 0;
+  ExtraBox extra_box;
+  const Extra &extra() const { static const Extra none; return extra_box.ptr ? *extra_box.ptr : none; }
+  Extra *extra_ptr() { return extra_box.ptr.get(); }
+  // The block to change, made when the tile has none; without memory for one, a scratch block nobody reads, so the
+  // change is lost instead of the screen.
+  Extra &edit_extra() {
+    if (!extra_box.ptr) extra_box.ptr = make_extra(Extra());
+    if (extra_box.ptr) return *extra_box.ptr;
+    static Extra scratch;
+    scratch = Extra();
+    return scratch;
+  }
+  // A state message's extras replace the block: it stays allocated while the tile needs one and is freed
+  // when a state brings none. `room` false (memory short, tile_memory.h): a tile without a block gets none.
+  void set_extra(Extra &&next, bool room = true) {
+    if (next.empty()) extra_box.ptr.reset();
+    else if (extra_box.ptr) *extra_box.ptr = std::move(next);
+    else if (room) extra_box.ptr = make_extra(std::move(next));
+  }
+  Choice *choice(char kind) { return extra_box.ptr ? extra_box.ptr->choice(kind) : nullptr; }
+  const Choice *choice(char kind) const { for (auto &c : extra().choices) if (c.kind == kind) return &c; return nullptr; }
+  bool is_switch() const { return domain()=="switch" || domain()=="input_boolean" || domain()=="automation"; }
+  // An automation tile set to run its actions on a tap (the tap option "run", firmware 0.7.0+): it looks like a script's
+  // button, and holding it switches the automation on or off. Set to anything else, a tap switches and holding runs.
+  bool runs() const { return tap == "run" && domain() == "automation"; }
+  // Waiting for Home Assistant. It answered in 342-599 ms for every command measured on a real installation, so the
+  // tile draws nothing for the first 400 ms: a command that lands looks instant (firmware 0.2.59+). After that the busy
+  // sheet shows until the new state arrives, Home Assistant refuses, its "it worked" answer has stood for a moment
+  // without a state following (a stop on a cover that already stands still), or the wait runs out.
+  static constexpr uint32_t BUSY_GRACE = 400, BUSY_AFTER_ANSWER = 800, BUSY_CAP = 3000;
+  bool waiting(uint32_t now) const {
+    if (!pending || confirmed || local_feedback) return false;
+    return now - pending_since < (answered_at ? answered_at - pending_since + BUSY_AFTER_ANSWER : BUSY_CAP);
+  }
+  // What the busy sheet, the card's "Command sent..." and its greyed keys follow: the wait, once it takes long enough
+  // to be worth showing.
+  bool loading(uint32_t now) const { return waiting(now) && now - pending_since >= BUSY_GRACE; }
+  void begin(uint32_t now, bool local=false) { pending=true; pending_since=now; confirmed=false; local_feedback=local; pending_revision=revision; answered_at=0; }
+  // `keep_tap`: the message is stale (below), so it neither ends the tap's stand nor answers the command.
+  void observe(uint32_t next) {
+    revision=next;
+    if (pending && revision!=pending_revision) confirmed=true;
+  }
+  // The attribute a small slider sets: nothing for a cover, whose position slider follows the blind as it moves.
+  float *slider_field() {
+    auto d = domain();
+    return d == "light" ? &brightness : d == "fan" ? &percentage : d == "media_player" ? &volume : nullptr;
+  }
+  // Holding a slider: from the send until Home Assistant reports a value within 3 % of it, reports the entity off or
+  // unavailable, refuses, or reports once and then stays quiet for SLIDER_SETTLE (a fan that only knows 33/66/100
+  // took the nearest step). A hold never outlives SLIDER_HOLD_CAP, and with no report at all it ends with the wait.
+  static constexpr uint32_t SLIDER_HOLD_CAP = 8000, SLIDER_SETTLE = 1500;
+  bool slider_holding(uint32_t now) const {
+    if (!std::isfinite(slider_sent) || refused_at || now - slider_sent_at >= SLIDER_HOLD_CAP) return false;
+    // A slider that switched its lamp on went out as a wish (docs/OPTIMISTIC.md), without a wait of the tile's own.
+    if (!slider_state_at) return pending ? waiting(now) || answered_at : now - slider_sent_at < BUSY_CAP;
+    return now - slider_state_at < SLIDER_SETTLE;
+  }
+  float slider_span() const { return domain() == "light" ? 255 : domain() == "media_player" ? 1 : 100; }
+  // The finger let go: the field shows the value sent from now on.
+  void hold_slider(uint32_t now, float value) {
+    float *field = slider_field();
+    if (!field) return;
+    slider_sent = value; slider_real = *field; slider_sent_at = now; slider_state_at = 0; *field = value;
+  }
+  // A state came in with `field` already parsed: keep the sent value in front while the hold goes on.
+  void slider_reported(uint32_t now) {
+    float *field = slider_field();
+    if (!field || !std::isfinite(slider_sent)) return;
+    float real = *field;
+    bool moved = !std::isfinite(slider_real) ? std::isfinite(real) : std::isfinite(real) && std::fabs(real - slider_real) > 0.5f * slider_span() / 100;
+    slider_real = real;
+    bool reached = std::isfinite(real) && std::fabs(real - slider_sent) <= 3 * slider_span() / 100;
+    bool off = !slider_active();
+    if (reached || off || refused_at) { slider_sent = NAN; return; }
+    if (moved) slider_state_at = std::max<uint32_t>(1, now);
+    if (!slider_holding(now)) { slider_sent = NAN; return; }
+    *field = slider_sent;
+  }
+  // The hold ran out without a report that ended it: what Home Assistant last said shows again.
+  void release_slider() {
+    float *field = slider_field();
+    if (field && std::isfinite(slider_sent)) *field = slider_real;
+    slider_sent = NAN;
+  }
+  std::string domain() const { return is_plugin() ? std::string("plugin") : entity.substr(0, entity.find('.')); }
+  // A tile of a plugin (plugin:<plugin>.<tile>): no Home Assistant entity behind it, it draws itself (plugin_host).
+  bool is_plugin() const { return entity.rfind("plugin:", 0) == 0; }
+  bool builtin() const { return domain() == "screen"; }
+  // Two built-in cards, and only one of them is a clock that has to be redrawn every minute.
+  bool is_clock() const { return entity == "screen.clock"; }
+  bool is_settings() const { return entity == "screen.settings"; }
+  // The bedside clock (firmware 0.8.0+): the time as large as the page allows, with its keys under it.
+  bool is_bedside() const { return entity == "screen.nightstand"; }
+  // A navigation tile (screen.page_<n>, firmware 0.2.62+) and the page it goes to, counted from one.
+  bool is_page() const { return page_entity(entity); }
+  int page_target() const { return static_cast<int>(page_number(entity)); }
+  // Slots a tile takes: one, a row of two, or the six of a page.
+  unsigned column_span() const { return full ? grid.columns : span ? span : wide ? grid.wide_span() : 1u; }
+  unsigned row_span() const { return full ? grid.rows : height; }
+  unsigned cells() const { return column_span() * row_span(); }
+  // A scene, button or input button that never ran is "unknown" in Home Assistant, which still lets you press it
+  // (hui-button-entity-row disables only an unavailable one): its state is the moment it last ran (firmware 0.2.58+).
+  bool available() const {
+    if (builtin()) return true;
+    if (!received || state.empty() || state == "unavailable") return false;
+    auto d = domain();
+    return state != "unknown" || d == "scene" || d == "button" || d == "input_button";
+  }
+  // Home Assistant's stateActive() (frontend src/common/entity/state_active.ts), the rule its cards colour by: an
+  // entity it calls inactive is grey, such as an airco that is off, a closed blind, a docked robot, a player in
+  // standby or a paused timer (firmware 0.2.71+). Only the cases of the domains a tile can show are here. A scene,
+  // button or image states the moment it last ran (TIMESTAMP_STATE_DOMAINS), so only "unavailable" makes it
+  // inactive. A built-in card has no state and is always active.
+  bool active() const {
+    if (builtin()) return true;
+    if (!received || state.empty() || state == "unavailable") return false;
+    auto d = domain();
+    if (d == "scene" || d == "button" || d == "input_button" || d == "image") return true;
+    // An automation that runs on a tap is a script's button: coloured while its actions run, whether it is on or off.
+    if (runs()) return running;
+    if (state == "unknown" || state == "off") return false;
+    if (d == "cover") return state != "closed";
+    if (d == "person") return state != "not_home";
+    if (d == "media_player") return state != "standby";
+    if (d == "vacuum") return state != "idle" && state != "docked" && state != "paused";
+    if (d == "timer") return state == "active";
+    if (d == "camera") return state == "streaming" || state == "recording";
+    if (d == "alarm_control_panel") return state != "disarmed";
+    // Home Assistant calls every lock that is not locked active (state_active.ts); a locked one still has a colour
+    // of its own, green (lock_panel::color), where other inactive things are grey.
+    if (d == "lock") return state != "locked";
+    return true;
+  }
+  // A slider shows the card's colour like Home Assistant's tile sliders: grey only while the entity is inactive
+  // (active() above), such as an off light or fan and a media player that is off or in standby. A number with a
+  // value is active there, and a closed cover's position slider keeps the cover's colour so it never looks
+  // disabled (hui-cover-position-card-feature.ts).
+  bool slider_active() const {
+    if (!available()) return false;
+    return domain() == "cover" || active();
+  }
+};
+// Slot position of a tile within the fixed two-column, three-row pages.
+struct Placement { uint8_t page = 0, slot = 0; };
+using TileList = layout_memory::Vector<Tile>;
+// The largest block the tile list could get: ESPHome's own answer on the ESP32 (PSRAM or the internal heap,
+// whichever has the larger one). Nothing on the host, which has room; the tests put in a figure of their own.
+#ifdef USE_ESP32
+inline size_t largest_tile_block() { return esphome::RAMAllocator<Tile>().get_max_free_block_size(); }
+inline size_t (*tile_room)() = largest_tile_block;
+// What is left of the memory inside the chip. Strings and everything else that goes through the
+// ordinary allocator lands there, PSRAM or no PSRAM, and an allocation that fails is not an error the firmware
+// can catch: it aborts, which a user sees as the screen restarting. Anything that grows with what Home
+// Assistant sends asks this first. Boards differ by a lot: an 800x480 RGB panel keeps two bounce buffers of
+// ten lines in there, where a board with an SPI panel keeps none.
+// Only memory a byte-wise malloc can use (firmware 0.34.0+): on the classic ESP32 the internal heap also counts IRAM that
+// takes 32-bit words only, free to the debug sensors but never to a string.
+inline size_t internal_free() { return heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT); }
+inline size_t (*heap_room)() = internal_free;
+#else
+inline size_t (*tile_room)() = nullptr;
+inline size_t (*heap_room)() = nullptr;
+#endif
+// Every received tile has an explicit page-local placement.
+struct Model;
+inline unsigned place(const Model &m, std::array<Placement, TILES_MAX> &out);
+struct Model {
+  TileList tiles;
+  // Absolute grid slot per tile: gaps and page ownership stay unchanged.
+  std::array<uint16_t, TILES_MAX> slots{};
+  // Pages the manager wants shown even when the last ones are still empty (0.2.26+).
+  uint8_t pages = 1;
+  size_t count = 0;
+  std::string title = screen_text::tr(screen_text::txt::status_choose_tiles);
+  page_protocol::Pages page_data;
+  // What the top bar says on `page`, counted from 0.
+  const std::string &title_of(int page) const {
+    if (page >= 0 && static_cast<size_t>(page) < page_data.records.size() && !page_data.records[page].title.empty())
+      return page_data.records[page].title;
+    return title;
+  }
+  bool configured = false;
+  // Why beginning a configuration failed, reported to the manager.
+  std::string refusal;
+  // Reserve both raw buffers before changing the only configuration store.
+  // Refusal leaves the running layout intact; same-size saves reuse capacity.
+  bool begin(unsigned tile_count, unsigned page_count, const std::string &name, void (*before_replace)() = nullptr) {
+    if (tile_count > grid.max_tiles() || !page_count || page_count > grid.pages() || name.size() > 96) {
+      refusal = "Error: invalid layout"; return false;
+    }
+    const size_t required = (tile_count > tiles.capacity() ? tile_count * sizeof(Tile) : 0) +
+                            (page_count > page_data.records.capacity() ? page_count * sizeof(page_protocol::Page) : 0);
+    if (tile_room && tile_room() < required) {
+      refusal = "Error: insufficient layout memory";
+      return false;
+    }
+    auto tile_storage = tiles.prepare(tile_count);
+    if (!tile_storage) { refusal = "Error: insufficient layout memory"; return false; }
+    auto page_storage = page_data.records.prepare(page_count);
+    if (!page_storage) { refusal = "Error: insufficient layout memory"; return false; }
+    if (before_replace) before_replace();
+    tiles.reset(tile_storage);
+    page_data.records.reset(page_storage);
+    configured = false;
+    slots.fill(0);
+    count = tile_count;
+    pages = page_count;
+    // An empty title stays empty (firmware 0.17.0+): the top bar then shows its home key alone. Before, it said "Home".
+    title = name;
+    refusal.clear();
+    return true;
+  }
+  bool valid_placement(unsigned index, unsigned slot, bool full, bool wide, unsigned height = 1, unsigned span = 0) const {
+    const unsigned columns = full ? grid.columns : span ? span : wide ? grid.wide_span() : 1;
+    const unsigned rows = full ? grid.rows : height;
+    const unsigned x = slot % grid.columns, y = slot % grid.slots() / grid.columns;
+    if (!rows || index >= count || slot >= pages * grid.slots() || (full && slot % grid.slots()) ||
+        x + columns > grid.columns || y + rows > grid.rows) return false;
+    for (size_t i = 0; i < count; ++i) if (i != index && tiles[i].received && !tiles[i].is_key() && slots[i] / grid.slots() == slot / grid.slots()) {
+      const unsigned other_x = slots[i] % grid.columns, other_y = slots[i] % grid.slots() / grid.columns;
+      if (x < other_x + tiles[i].column_span() && other_x < x + columns &&
+          y < other_y + tiles[i].row_span() && other_y < y + rows) return false;
+    }
+    return true;
+  }
+  bool ready() const {
+    if (!configured) return false;
+    for (size_t i = 0; i < count; ++i) if (!tiles[i].received) return false;
+    return true;
+  }
+  bool accepts(size_t index, const std::string &entity) const {
+    return configured && index < count && tiles[index].entity == entity;
+  }
+};
+inline unsigned place(const Model &m, std::array<Placement, TILES_MAX> &out) {
+  unsigned last = 0;
+  for (size_t i = 0; i < m.count && i < grid.max_tiles(); ++i) {
+    // A key has no cell: it is on its clock's page (below), where runtime_tiles::place_page gives it a card.
+    if (m.tiles[i].is_key()) { out[i] = {0xFF, 0xFF}; continue; }
+    unsigned slot = m.slots[i];
+    if (m.tiles[i].full) slot -= slot % grid.slots();
+    else if (m.tiles[i].wide && !m.tiles[i].span && !grid.wide_fits(slot)) --slot;
+    out[i] = {static_cast<uint8_t>(slot / grid.slots()), static_cast<uint8_t>(slot % grid.slots())};
+    last = std::max(last, slot + (m.tiles[i].row_span() - 1) * static_cast<unsigned>(grid.columns) + m.tiles[i].column_span());
+  }
+  // A key is on the page of its clock, so a kept page knows when one of its keys changed (kept_pages.h).
+  for (size_t i = 0; i < m.count && i < grid.max_tiles(); ++i)
+    if (m.tiles[i].is_key() && static_cast<size_t>(m.tiles[i].parent) < m.count) out[i].page = out[m.tiles[i].parent].page;
+  unsigned pages = (last + grid.slots() - 1) / grid.slots();
+  return std::max({pages, 1u, std::min<unsigned>(m.pages, grid.pages())});
+}
+}  // namespace runtime_tiles

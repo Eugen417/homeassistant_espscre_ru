@@ -1,0 +1,279 @@
+"""Check that the packages a screen builds from fit together (app 0.2.84+, layered since 0.2.127; tools/check.sh runs this).
+
+A screen is packages/core.yaml plus one board file under packages/boards/, included by an entry file: packages/<board>.yaml
+for a screen that builds over GitHub, <profile>.yaml in the repository root for a build from a checkout. The board file
+includes one look (packages/looks/) and the features it has (packages/features/); the cards of its grid are made at boot.
+This checks what ESPHome would only tell one build at a time, and what no build tells at all:
+
+- every entry names files that exist, and the published entry and the checkout entry of a board include the same two;
+- nothing under packages/ carries a secret, a local component path or a fixed Home Assistant subscription: a screen
+  gets its values from ESP Screen Manager while it runs, and its keys from its own YAML;
+- every ${NAME} a screen's files use is defined somewhere in its chain: a new board that forgets a size, a hook or its
+  look fails here, not in the first build of a user;
+- a board file holds what is its own: no block or hook that another board file carries word for word (that belongs in
+  a feature, once), no value that only repeats the default of its look, a feature or the core, and nothing that the
+  core or a feature already owns;
+- nothing the shared files define is dead: a substitution nobody reads goes, instead of being copied to the next board.
+"""
+import re
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import firmware_count  # noqa: E402
+import profiles  # noqa: E402
+
+ROOT = profiles.ROOT
+PLACEHOLDER = re.compile(r'\$\{([A-Z_][A-Z0-9_]*)\}')
+# Defined by the entry files (the fonts' place) or by ESP Screen Manager's screen YAML.
+FROM_ENTRY = {'FONT_DIR'}
+# Read by the tools rather than by the YAML: tools/generate_board_shapes.py hands them to the add-on (boards.json).
+READ_BY_TOOLS = {'CAMERA_FULL_W', 'CAMERA_FULL_H'}
+# Boards whose I2C bus keeps a name of its own instead of touch_bus (docs/PROFILES.md, "What an override may rely on").
+OWN_BUS_NAME = {'tab5'}
+# A block of a board file this long that another board file carries word for word is behaviour, not hardware.
+SHARED_BLOCK_LINES = 6
+
+
+def included(path):
+    return [str(p.relative_to(ROOT)) for p in profiles.packages_of(path)]
+
+
+def fail(message):
+    raise SystemExit(f'check_packages: {message}')
+
+
+def without_comments(text):
+    return '\n'.join(line for line in text.split('\n') if not line.lstrip().startswith('#'))
+
+
+def used_names(text):
+    """Every substitution a text reads: `${NAME}` and the names inside a `${ expression }`."""
+    names = set(PLACEHOLDER.findall(text))
+    for match in profiles.EXPRESSION.finditer(text):
+        names |= profiles._names(match[0])
+    return names
+
+
+def own_blocks(path):
+    """A board file's top-level sections, and the items of its lists, as text without comments: what it carries."""
+    text = without_comments(re.sub(r'^substitutions:\n(.*?)(?=^[a-z_0-9]+:|\Z)', '', path.read_text(), count=1,
+                                   flags=re.M | re.S))
+    blocks = {}
+    for section in re.finditer(r'^([a-z_0-9]+):\n(.*?)(?=^[a-z_0-9]+:|\Z)', text, re.M | re.S):
+        key, body = section[1], section[2]
+        if key == 'packages':
+            continue
+        items = re.split(r'(?m)^(?=  - )', body)
+        for item in items:
+            item = item.strip('\n')
+            if len([line for line in item.split('\n') if line.strip()]) >= SHARED_BLOCK_LINES:
+                blocks[f'{key}: {item.strip().splitlines()[0][:60]}'] = item
+    return blocks
+
+
+def firmware_problem(shared, own):
+    """What is wrong with the boards' own firmware versions, or None. `shared` is the core's SCREEN_FIRMWARE_VERSION,
+    `own` maps a board file to the one it sets ('' for none). A board's own version is strict X.Y.Z (the add-on reads
+    nothing else as a firmware): the core's X.Y, the core it is built on, with a board revision Z above the core's.
+    Another core would make the feature gates believe the board has a core it does not have; the same number or lower
+    would report a firmware it does not have (tools/firmware_count.py, docs/BOARD_RELEASES.md)."""
+    core = firmware_count.parse(shared)
+    if not core:
+        return f'packages/core.yaml has SCREEN_FIRMWARE_VERSION "{shared}", not X.Y.Z'
+    for path, value in sorted(own.items()):
+        if not value:
+            continue
+        board = firmware_count.parse(value)
+        if not board:
+            return f'{path} sets SCREEN_FIRMWARE_VERSION "{value}", not X.Y.Z'
+        problem = firmware_count.board_problem(core, board)
+        if problem == 'another core' and board[:2] > core[:2]:
+            return (f'{path} sets SCREEN_FIRMWARE_VERSION "{value}", a newer core than the shared {shared}: a board fix '
+                    f'keeps the shared core, {firmware_count.dotted(firmware_count.next_board(core, [board]))} or higher '
+                    f'(docs/BOARD_RELEASES.md)')
+        if problem == 'another core':
+            return (f'{path} sets SCREEN_FIRMWARE_VERSION "{value}" on an older core than the shared {shared}: a shared '
+                    f'release took the board\'s fix along, so remove the line (docs/BOARD_RELEASES.md)')
+        if problem:
+            return (f'{path} sets SCREEN_FIRMWARE_VERSION "{value}", which is no board revision above the shared '
+                    f'{shared}: remove the line, or raise the last number (docs/BOARD_RELEASES.md)')
+    return None
+
+
+def main():
+    boards = profiles.BOARDS
+    for board in boards:
+        entries = [name for name, b in profiles.ENTRIES.items() if b == board]
+        wanted = {'packages/core.yaml', str(boards[board].relative_to(ROOT))}
+        # A board with a Wi-Fi fallback hotspot also takes its QR code (features/hotspot.yaml, firmware 0.38.0).
+        if profiles.hotspot(board):
+            wanted.add('packages/features/hotspot.yaml')
+        for name in entries:
+            if not (ROOT / name).exists():
+                fail(f'{name} does not exist, but tools/profiles.py lists it for {board}')
+            files = included(ROOT / name)
+            if set(files) != wanted:
+                fail(f'{name} includes {files}, expected {sorted(wanted)}')
+            for file in files:
+                if not (ROOT / file).exists():
+                    fail(f'{name} includes a file that does not exist: {file}')
+    for path in sorted((ROOT / 'packages').rglob('*.yaml')):
+        text = without_comments(path.read_text())
+        for needle, why in (('!secret', 'a secret'), ('type: local', 'a local component path')):
+            if needle in text:
+                fail(f'{path.relative_to(ROOT)} carries {why} ({needle})')
+        # A screen gets its values from ESP Screen Manager while it runs: no fixed subscription (time: is the exception).
+        for section in ('sensor', 'binary_sensor', 'text_sensor'):
+            match = re.search(r'^' + section + r':\n.*?(?=^[a-zA-Z_]+:|\Z)', text, re.M | re.S)
+            if match and re.search(r'^  - platform: homeassistant$', match[0], re.M):
+                fail(f'{path.relative_to(ROOT)}: a {section} subscribes to Home Assistant; runtime tiles bring their own values')
+
+    # The screen starts in the core's `esphome: on_boot:`. ESPHome does not join a package's on_boot to it: the last one
+    # merged takes its place whole, and the screen then starts without its fonts, its settings and its tiles while
+    # the build and the API look fine. Code a board or a feature runs at the start is a hook substitution of the core's
+    # lambda (BOOT_TOUCH), or a component with a setup of its own (components/flash_layout).
+    for path in sorted((ROOT / 'packages').rglob('*.yaml')):
+        block = re.search(r'^esphome:\n(.*?)(?=^[a-zA-Z_]+:|\Z)', without_comments(path.read_text()), re.M | re.S)
+        if path != profiles.CORE and block and re.search(r'^  on_boot:', block[1], re.M):
+            fail(f'{path.relative_to(ROOT)} has an esphome: on_boot: of its own, which would replace the core\'s: '
+                 f'use a hook substitution of the core\'s lambda, or a component')
+
+    # Every name a screen's files read is defined somewhere in its chain.
+    for board, path in boards.items():
+        entry = profiles.PROFILES[list(boards).index(board)]
+        defined = set(profiles.raw_substitutions(ROOT / entry)) | FROM_ENTRY
+        chain = profiles.files(entry)
+        looks = [p for p in chain if p.parent.name == 'looks']
+        if len(looks) != 1:
+            fail(f'{path.relative_to(ROOT)} includes {len(looks)} looks; a board has exactly one (packages/looks/)')
+        for file in chain:
+            text = without_comments(file.read_text())
+            missing = used_names(text) - defined
+            if missing:
+                fail(f'{path.relative_to(ROOT)}: {file.relative_to(ROOT)} uses {sorted(missing)}, which neither the board, '
+                     f'its look and features nor the core define')
+
+    # What the core and the features own stays theirs.
+    core_ids = set(re.findall(r'(?m)^\s+(?:- )?id: (setting_rotation|screen_lvgl)$', profiles.CORE.read_text()))
+    for path in sorted((ROOT / 'packages' / 'boards').glob('*.yaml')):
+        own = without_comments(path.read_text())
+        for name in core_ids:
+            if re.search(r'(?m)^\s+(?:- )?id: ' + name + '$', own):
+                fail(f'{path.relative_to(ROOT)} defines {name}, which packages/core.yaml owns for every board')
+
+    # The names a plugin and an Override YAML hang on (docs/PROFILES.md, "What an override may rely on"): a board with an
+    # I2C bus calls the one its touch panel is on `touch_bus`, so a plugin with a chip on that bus (the P4 panel's audio
+    # codecs) finds it on every board. The Tab5's bus carries a whole row of chips and keeps its own name.
+    for board, path in boards.items():
+        entry = profiles.PROFILES[list(boards).index(board)]
+        ids = []
+        for file in profiles.files(entry):
+            block = re.search(r'^i2c:\n(.*?)(?=^[a-zA-Z_]+:|\Z)', without_comments(file.read_text()), re.M | re.S)
+            if block:
+                ids += re.findall(r'(?m)^\s*(?:- )?id: ([a-z_0-9]+)$', block[1])
+        if ids and 'touch_bus' not in ids and board not in OWN_BUS_NAME:
+            fail(f'{path.relative_to(ROOT)}: its I2C bus is {ids}; a board names the one of its touch panel touch_bus, '
+                 f'the name plugins and Override YAML use (docs/PROFILES.md)')
+
+    # The boot steps are the core's. ESPHome joins two on_boot lists but lets a list replace one trigger whole, so a
+    # board's own on_boot threw away the core's boot block: the Waveshare 4B up to firmware 0.3.9 never took a layout.
+    for path in sorted((ROOT / 'packages' / 'boards').glob('*.yaml')):
+        if re.search(r'(?m)^  on_boot:', without_comments(path.read_text())):
+            fail(f'{path.relative_to(ROOT)} has its own esphome: on_boot:, which replaces the boot block of packages/core.yaml')
+
+    # A board file holds what is its own.
+    blocks = {board: own_blocks(path) for board, path in boards.items()}
+    seen = {}
+    for board, found in blocks.items():
+        for label, body in found.items():
+            if body in seen and seen[body] != board:
+                fail(f'{boards[board].relative_to(ROOT)} and {boards[seen[body]].relative_to(ROOT)} carry the same block '
+                     f'({label}): behaviour two boards share belongs in a feature (packages/features/), once')
+            seen.setdefault(body, board)
+    hooks = {}
+    for board, path in boards.items():
+        for key, value in profiles.substitutions_of(path).items():
+            if '\n' in value or ';' in value:
+                if value in hooks and hooks[value][0] != board:
+                    fail(f'{path.relative_to(ROOT)} and {boards[hooks[value][0]].relative_to(ROOT)} define {key} with the '
+                         f'same code: a hook two boards share belongs in a feature (packages/features/), once')
+                hooks.setdefault(value, (board, key))
+    for board, path in boards.items():
+        entry = profiles.PROFILES[list(boards).index(board)]
+        own = profiles.substitutions_of(path)
+        everything = profiles.raw_substitutions(ROOT / entry)
+        below = dict(everything)
+        for key in own:
+            below.pop(key, None)
+        # What the value would be without the board's own line: its look's, a feature's or the core's.
+        lower = {}
+        for package in reversed(profiles.packages_of(path)):
+            for key, value in profiles.raw_substitutions(package).items():
+                lower.setdefault(key, value)
+        for key, value in profiles.substitutions_of(profiles.CORE).items():
+            lower.setdefault(key, value)
+        for key, value in own.items():
+            if key in lower:
+                mine = profiles.evaluate({**everything})[key]
+                theirs = profiles.evaluate({**everything, key: lower[key]})[key]
+                if mine == theirs:
+                    fail(f'{path.relative_to(ROOT)} states {key}: "{value}", which is what it gets without that line; '
+                         f'leave it out, so a change to the default reaches this board too')
+
+    # Every board file, not only the ones the manager ships: a new panel starts life as packages/boards/lab-*.yaml
+    # (tools/new_board.py) and is flashed and rendered long before it is registered.
+    seen_ids = {}
+    for path in sorted((ROOT / 'packages' / 'boards').glob('*.yaml')):
+        values = profiles.evaluate({**profiles.raw_substitutions(profiles.CORE), **profiles.raw_substitutions(path)})
+        if 'GRID_COLS' not in values or 'GRID_ROWS' not in values:
+            fail(f'{path.relative_to(ROOT)} has no GRID_COLS / GRID_ROWS: every board says what its page holds')
+        # And a word of its own for what it is. The screen reports it and ESP Screens goes by it (boards.json,
+        # camera sizes); a board that kept the word of the board it was copied from would answer for that one.
+        board_id = profiles.substitutions_of(path).get('BOARD_ID', '').strip('"')
+        if not board_id:
+            fail(f'{path.relative_to(ROOT)} does not define BOARD_ID: the screen reports it so the manager '
+                 f'knows which board it is')
+        elif board_id in seen_ids:
+            fail(f'{path.relative_to(ROOT)} and {seen_ids[board_id]} both call themselves "{board_id}": a board '
+                 f'copied from another keeps its word unless tools/new_board.py sets it')
+        else:
+            seen_ids[board_id] = path.relative_to(ROOT)
+    for board, path in boards.items():
+        found = profiles.substitutions_of(path).get('BOARD_ID', '').strip('"')
+        if found and found != board:
+            fail(f'{path.relative_to(ROOT)} says BOARD_ID "{found}" but the manager knows it as "{board}" '
+                 f'(tools/profiles.py): boards.json and the screen would not agree')
+
+    # A board's own firmware version (app 0.3.21, docs/BOARD_RELEASES.md): only a board file sets one, on the shared
+    # core with a higher revision (firmware_problem). The feature gates compare against the core, so a board on another
+    # core, or at or below the core's number, would report a firmware it does not have; the next shared release takes
+    # the line back out.
+    for path in (ROOT / 'packages').rglob('*.yaml'):
+        if path != profiles.CORE and path not in boards.values() and 'SCREEN_FIRMWARE_VERSION' in profiles.substitutions_of(path):
+            fail(f'{path.relative_to(ROOT)} sets SCREEN_FIRMWARE_VERSION: only packages/core.yaml and a board file do')
+    problem = firmware_problem(profiles.substitutions_of(profiles.CORE)['SCREEN_FIRMWARE_VERSION'].strip('"'),
+                               {str(path.relative_to(ROOT)): profiles.substitutions_of(path).get('SCREEN_FIRMWARE_VERSION', '').strip('"')
+                                for path in boards.values()})
+    if problem:
+        fail(problem)
+
+    # Nothing the shared files define is dead.
+    shared = [profiles.CORE, *sorted((ROOT / 'packages' / 'looks').glob('*.yaml')),
+              *sorted((ROOT / 'packages' / 'features').glob('*.yaml'))]
+    everywhere = '\n'.join(without_comments(p.read_text()) for p in (ROOT / 'packages').rglob('*.yaml'))
+    everywhere += '\n'.join(without_comments(p.read_text()) for p in ROOT.glob('*.yaml'))
+    read = used_names(everywhere) | READ_BY_TOOLS
+    for path in shared:
+        dead = set(profiles.substitutions_of(path)) - read
+        if dead:
+            fail(f'{path.relative_to(ROOT)} defines {sorted(dead)}, which nothing reads')
+
+    names = set().union(*(profiles.raw_substitutions(ROOT / entry) for entry in profiles.PROFILES))
+    own = {board: len(profiles.substitutions_of(path)) for board, path in boards.items()}
+    print(f'packages: {len(names)} names across {len(boards)} boards; a board file states '
+          + ', '.join(f'{board} {count}' for board, count in own.items()))
+
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,176 @@
+############################################################
+# ESP Screens - CYD board (ESP32-2432S028, "Cheap Yellow Display")
+# Built-in ILI9341 320x240 display and XPT2046 resistive touch.
+#
+# A board file is the board's hardware, the facts the shared tree takes from it (its glass and its grid), and the
+# features it has; docs/PROFILES.md says how the files of a screen fit together. Its resistive glass is
+# features/resistive-touch.yaml (the calibration wizard, a page swipe by LVGL's gesture), its backlight
+# features/backlight.yaml and its self test features/self-test.yaml, as on the other boards; since app 0.2.129 it
+# has no behaviour of its own. Everything else (the LVGL tree, the cards, the scripts, the entities) is
+# packages/core.yaml, which every board shares.
+#
+# Two entry files include this: checkout/cyd.yaml (a build on this computer)
+# and packages/cyd.yaml (the package a screen builds from over GitHub).
+############################################################
+packages:
+  # How every board's firmware is built (ESP-IDF, as ESPHome recommends it).
+  build: !include ../hardware/esp-idf.yaml
+  # Wide update slots for 4 MB of flash, and the way a screen that is out there gets them.
+  flash: !include ../hardware/flash-4mb.yaml
+  # Every size of the compact look, scaled to DISPLAY_DPI below. This glass is where that look was drawn.
+  look: !include ../looks/compact.yaml
+  touch: !include ../features/resistive-touch.yaml
+  backlight: !include ../features/backlight.yaml
+  self_test: !include ../features/self-test.yaml
+  # The light on the RGB LED on the back of the board (the outputs are below).
+  led: !include ../features/rgb-led.yaml
+
+substitutions:
+  # The key of this board file; the firmware reports it so ESP Screens knows what board a screen is.
+  BOARD_ID: "cyd"
+  DEVICE_NAME: "cyd-new"
+  DEVICE_FRIENDLY_NAME: "My CYD"
+  # The bedside clock draws with the display step this board has anyway: its own digits, a page tall, cost about 40 KB of
+  # a 4 MB board's slot, which is close to full (looks/shared/digits.yaml).
+  BEDSIDE_OWN_DIGITS: "0"
+
+  # The glass: the panel's own pixels, which the display block below always drives; LVGL turns the picture and the
+  # touch together, so nothing else on this board knows which way the glass hangs. The compact look takes 143 dpi
+  # (diagonal pixels / diagonal inches) as its reference, so every size here is the look's own.
+  PANEL_W: "240"
+  PANEL_H: "320"
+  DISPLAY_DPI: "143"
+  # The LVGL angle that lays this panel out lying down (320 x 240). Standing up is a quarter further.
+  ROTATION_LANDSCAPE: "90"
+  # true on this board (resistive XPT2046) — was false on the 032c board
+  # (capacitive GT911). This is the original upstream value for this panel.
+  TOUCH_MIRROR_X: "true"
+  # The tile grid: columns and rows of cells. The shared tree places every cell from these
+  # (runtime_tiles::place_page).
+  GRID_COLS: "2"
+  GRID_ROWS: "3"
+  # The cells of a page when this screen stands up (firmware 0.2.92+).
+  # The 2.8-inch glass is 43 x 57 mm standing up: one column of four cards, each 39 x 10 mm.
+  GRID_COLS_PORTRAIT: "1"
+  GRID_ROWS_PORTRAIT: "4"
+  LVGL_BUFFER_SIZE: "12%"                       # LVGL's draw buffer as a share of the screen
+
+  # Hardware a screen's own YAML may change (docs/EASY_SETUP.md, "Hardware-specific YAML overrides"). Boards sold as
+  # a CYD differ: some carry an ST7789V (GitHub #6), some need a slower bus or other colours (GitHub #12, #15).
+  DISPLAY_MODEL: "ILI9341"                      # ESPHome's mipi_spi model of the display controller
+  DISPLAY_DATA_RATE: "40MHz"                    # the display's SPI clock; 40MHz matches ESPHome's board preset
+  DISPLAY_INVERT_COLORS: "false"
+  BACKLIGHT_FREQUENCY: "1000Hz"                 # the backlight's PWM; see the output block (GitHub #42)
+
+  # Measured on this board: median top-right raw=(523,3390),
+  # bottom-left raw=(3487,482), at screen (299,20) and (20,219).
+  # Extrapolated to panel edges; verify with the isolated corner test.
+  TOUCH_CAL_X_MIN: "280"
+  TOUCH_CAL_X_MAX: "3860"
+  TOUCH_CAL_Y_MIN: "340"
+  TOUCH_CAL_Y_MAX: "3860"
+
+# ============================================================
+# No need to edit below this line.
+# ============================================================
+
+esp32:
+  board: esp32dev
+  framework:
+    advanced:
+      # ESPHome recommends this itself in the boot log. Yields ~40KB extra IRAM
+      # and a smaller binary, and every KB counts on this board.
+      sram1_as_iram: true
+      # minimum_chip_revision deliberately left out: that was here for the
+      # 032c board (rev 3.1 confirmed), but this is a different physical board
+      # with an unknown chip revision. With an unjustifiably high minimum
+      # the firmware simply refuses to boot.
+  variant: esp32
+
+# Two SPI buses used by the CYD:
+# - lcd: built-in display
+# - my_touchscreen: built-in touch controller
+# Two SPI buses on the 2432S028: one for the display, a separate one for the
+# resistive XPT2046 touch (no I2C on this board, unlike the 032c).
+spi:
+  - id: lcd
+    clk_pin: GPIO14
+    mosi_pin: GPIO13
+
+  - id: my_touchscreen
+    clk_pin: GPIO25
+    mosi_pin: GPIO32
+    miso_pin: GPIO39
+
+output:
+  - platform: ledc
+    pin: GPIO21
+    id: gpio_backlight_pwm
+    # 1 kHz, ESPHome's ledc default (GitHub #42, #20): at 20 kHz the transistor that switches the backlight could
+    # not follow the pulses, so 100 % was full and 95 % already almost dark, with little change below. At 1 kHz
+    # every level from 5 to 100 % steps evenly and nothing flickers, also when you move your head (checked on the
+    # bench CYD). The 4-inch Guition went the same way for the same reason (GitHub #5, 150 Hz).
+    frequency: ${BACKLIGHT_FREQUENCY}
+
+  - platform: ledc
+    id: output_red
+    pin: GPIO4
+    inverted: true
+  - platform: ledc
+    id: output_green
+    pin: GPIO16
+    inverted: true
+  - platform: ledc
+    id: output_blue
+    pin: GPIO17
+    inverted: true
+
+
+# Touchscreen configuration (XPT2046, resistive, via SPI)
+# XPT2046 calibration is board-specific. Poll at 50Hz; LVGL rotates touch
+# with the display. GPIO36 IRQ is deliberately unused (driver requests a
+# pull-up that this input-only pin cannot provide).
+touchscreen:
+  - platform: xpt2046
+    id: ts_touch
+    spi_id: my_touchscreen
+    cs_pin: 33
+    # Polling avoids GPIO36 pull-up errors and noisy PENIRQ edges.
+    update_interval: 20ms
+    # Diagnosis caught a false corner contact at pressure 422. Deliberate
+    # contacts measured 936-2643; reject the low-pressure tail on release.
+    threshold: 800
+
+# Display configuration (ILI9341)
+display:
+  - platform: mipi_spi
+    id: my_display
+    spi_id: lcd
+    # Standard single-Micro-USB CYD; 40MHz matches ESPHome's board preset.
+    model: ${DISPLAY_MODEL}
+    data_rate: ${DISPLAY_DATA_RATE}
+    cs_pin: 15
+    dc_pin: 2
+    invert_colors: ${DISPLAY_INVERT_COLORS}
+    update_interval: never
+    auto_clear_enabled: false
+
+    # Panel tuning, appended after ESPHome's built-in ILI9341 sequence. With the
+    # defaults (line inversion, 79 Hz) the cheap CYD panel shows a fine vertical
+    # stripe pattern that flickers when you move your eyes or the board: the
+    # two polarities of adjacent columns differ in brightness. Frame inversion
+    # (0xB4 = 0x07) removes the stripes; the maximum frame rate (0xB1 = 0x10,
+    # 119 Hz) keeps the resulting whole-frame flicker above what the eye sees.
+    # VCOM (0xC5) stayed at the default; sweeping it changed contrast, not the
+    # stripes. Checked on the bench CYD on 2026-09-15.
+    init_sequence:
+      - [0xB4, 0x07]
+      - [0xB1, 0x00, 0x10]
+
+    # Native panel dimensions (portrait). Do NOT swap these per orientation and
+    # do NOT add a display transform — rotation is handled by LVGL below.
+    # ESPHome 2026.6+ rejects a swapped transform here with "Invalid offsets".
+    dimensions:
+      width: 240
+      height: 320
+

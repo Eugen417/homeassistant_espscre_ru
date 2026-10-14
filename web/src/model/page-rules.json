@@ -1,0 +1,469 @@
+{
+  "domains": [
+    "alarm_control_panel",
+    "automation",
+    "binary_sensor",
+    "button",
+    "camera",
+    "climate",
+    "cover",
+    "fan",
+    "humidifier",
+    "image",
+    "input_boolean",
+    "input_button",
+    "input_number",
+    "input_select",
+    "light",
+    "lock",
+    "media_player",
+    "number",
+    "person",
+    "remote",
+    "scene",
+    "script",
+    "select",
+    "sensor",
+    "sun",
+    "switch",
+    "timer",
+    "vacuum",
+    "weather"
+  ],
+  "headerDomains": [
+    "alarm_control_panel",
+    "automation",
+    "binary_sensor",
+    "button",
+    "climate",
+    "counter",
+    "cover",
+    "device_tracker",
+    "event",
+    "fan",
+    "humidifier",
+    "input_boolean",
+    "input_button",
+    "input_datetime",
+    "input_number",
+    "input_select",
+    "input_text",
+    "light",
+    "lock",
+    "media_player",
+    "number",
+    "person",
+    "remote",
+    "scene",
+    "script",
+    "select",
+    "sensor",
+    "sun",
+    "switch",
+    "timer",
+    "vacuum",
+    "water_heater",
+    "weather",
+    "zone"
+  ],
+  "headerBuiltin": [
+    "clock",
+    "analog",
+    "date"
+  ],
+  "headerContents": [
+    "state",
+    "last_changed",
+    "icon"
+  ],
+  "headerShows": [
+    "always",
+    "active"
+  ],
+  "headerLink": "link",
+  "headerWifi": "wifi",
+  "wifiContents": [
+    "icon",
+    "percent",
+    "dbm"
+  ],
+  "wifiShows": [
+    "always",
+    "weak"
+  ],
+  "headerBattery": "battery",
+  "batteryContents": [
+    "icon",
+    "percent"
+  ],
+  "batteryShows": [
+    "always",
+    "low"
+  ],
+  "pluginContents": [
+    "all",
+    "icon"
+  ],
+  "displays": {
+    "camera": [
+      "standard",
+      "live"
+    ],
+    "image": [
+      "standard",
+      "live"
+    ],
+    "media_player": [
+      "standard",
+      "watch",
+      "cover",
+      "favorite"
+    ],
+    "person": [
+      "standard",
+      "watch",
+      "map"
+    ],
+    "screen": [
+      "digital",
+      "analog",
+      "dial",
+      "flip"
+    ],
+    "sensor": [
+      "standard",
+      "watch",
+      "graph"
+    ],
+    "sun": [
+      "standard",
+      "watch",
+      "sunpath"
+    ],
+    "weather": [
+      "standard",
+      "watch",
+      "forecast"
+    ]
+  },
+  "wideOnly": [
+    "forecast",
+    "sunpath"
+  ],
+  "controls": {
+    "automation": [
+      "toggle",
+      "run"
+    ],
+    "button": [
+      "run"
+    ],
+    "climate": [
+      "setpoint",
+      "mode",
+      "setpoint_mode"
+    ],
+    "cover": [
+      "buttons",
+      "position",
+      "tilt",
+      "buttons_tilt",
+      "position_tilt"
+    ],
+    "fan": [
+      "toggle",
+      "speed"
+    ],
+    "humidifier": [
+      "setpoint",
+      "slider",
+      "mode",
+      "setpoint_mode",
+      "toggle"
+    ],
+    "input_boolean": [
+      "toggle"
+    ],
+    "input_button": [
+      "run"
+    ],
+    "input_number": [
+      "stepper",
+      "slider"
+    ],
+    "input_select": [
+      "stepper"
+    ],
+    "light": [
+      "toggle",
+      "brightness"
+    ],
+    "media_player": [
+      "volume",
+      "playback"
+    ],
+    "number": [
+      "stepper",
+      "slider"
+    ],
+    "remote": [
+      "toggle"
+    ],
+    "scene": [
+      "run"
+    ],
+    "script": [
+      "run"
+    ],
+    "select": [
+      "stepper"
+    ],
+    "switch": [
+      "toggle"
+    ],
+    "timer": [
+      "buttons"
+    ],
+    "vacuum": [
+      "buttons"
+    ]
+  },
+  "backgrounds": [
+    "auto",
+    "none",
+    "red",
+    "orange",
+    "yellow",
+    "green",
+    "mint",
+    "blue",
+    "purple",
+    "pink",
+    "gray"
+  ],
+  "refresh": [
+    0,
+    5,
+    10,
+    15,
+    30
+  ],
+  "picture": {
+    "fit": [
+      "fill",
+      "contain"
+    ],
+    "overlay": [
+      "name",
+      "none"
+    ]
+  },
+  "icons": [
+    "account",
+    "account-child",
+    "account-group",
+    "air-conditioner",
+    "air-purifier",
+    "airplane",
+    "alarm",
+    "alarm-light",
+    "album",
+    "alert-outline",
+    "awning-outline",
+    "bathtub",
+    "battery-high",
+    "bed",
+    "bell",
+    "bell-ring",
+    "bike",
+    "blinds",
+    "blinds-open",
+    "briefcase",
+    "broom",
+    "bus",
+    "calendar",
+    "car",
+    "car-electric",
+    "cast",
+    "cat",
+    "cctv",
+    "ceiling-fan",
+    "ceiling-light",
+    "chandelier",
+    "chef-hat",
+    "clock-outline",
+    "coffee-maker",
+    "cog",
+    "curtains",
+    "curtains-closed",
+    "desk",
+    "desk-lamp",
+    "diabetes",
+    "dishwasher",
+    "dog",
+    "door-closed",
+    "door-open",
+    "doorbell",
+    "ev-station",
+    "fan",
+    "fire",
+    "fireplace",
+    "flash",
+    "floor-lamp",
+    "flower",
+    "fridge",
+    "gamepad-variant",
+    "garage",
+    "gauge",
+    "gesture-tap-button",
+    "grass",
+    "grill",
+    "guitar-acoustic",
+    "headphones",
+    "heart",
+    "heat-pump",
+    "home",
+    "home-account",
+    "home-battery",
+    "kettle",
+    "lamp",
+    "laptop",
+    "led-strip-variant",
+    "light-recessed",
+    "lightbulb",
+    "lightbulb-group",
+    "lock",
+    "lock-open-variant",
+    "mailbox",
+    "map-marker",
+    "meter-electric",
+    "meter-gas",
+    "microphone",
+    "microwave",
+    "molecule-co2",
+    "motion-sensor",
+    "movie-open",
+    "music",
+    "music-note",
+    "outdoor-lamp",
+    "palette",
+    "piano",
+    "play",
+    "playlist-music",
+    "podcast",
+    "pool",
+    "power",
+    "power-plug",
+    "power-socket-eu",
+    "printer-3d",
+    "projector",
+    "radiator",
+    "radio",
+    "record-player",
+    "recycle",
+    "remote-tv",
+    "robot-mower",
+    "robot-vacuum",
+    "roller-shade-closed",
+    "router-wireless",
+    "run",
+    "script-text",
+    "shield-home",
+    "shower",
+    "silverware-fork-knife",
+    "sleep",
+    "smoke-detector",
+    "snowflake",
+    "sofa",
+    "solar-panel",
+    "solar-power",
+    "soundbar",
+    "speaker",
+    "speaker-multiple",
+    "spotify",
+    "spotlight-beam",
+    "sprinkler",
+    "sprout",
+    "stove",
+    "television",
+    "thermometer",
+    "thermostat",
+    "timer-outline",
+    "toaster-oven",
+    "toggle-switch",
+    "toilet",
+    "train",
+    "trash-can",
+    "tree",
+    "tumble-dryer",
+    "wall-sconce-flat",
+    "washing-machine",
+    "water",
+    "water-alert",
+    "water-boiler",
+    "water-percent",
+    "weather-cloudy",
+    "weather-night",
+    "weather-partly-cloudy",
+    "weather-rainy",
+    "weather-snowy",
+    "weather-sunny",
+    "weather-sunset-up",
+    "weather-windy",
+    "window-closed-variant",
+    "window-shutter",
+    "window-shutter-open"
+  ],
+  "builtins": [
+    "clock",
+    "energy",
+    "map",
+    "nightstand",
+    "settings"
+  ],
+  "keyHolders": {
+    "screen.nightstand": 3
+  },
+  "keyDomains": [
+    "alarm_control_panel",
+    "automation",
+    "binary_sensor",
+    "button",
+    "climate",
+    "cover",
+    "fan",
+    "humidifier",
+    "input_boolean",
+    "input_button",
+    "input_number",
+    "input_select",
+    "light",
+    "lock",
+    "media_player",
+    "number",
+    "person",
+    "remote",
+    "scene",
+    "script",
+    "select",
+    "sensor",
+    "sun",
+    "switch",
+    "timer",
+    "vacuum",
+    "weather"
+  ],
+  "favoriteShuffles": [
+    "on",
+    "off"
+  ],
+  "favoriteRepeats": [
+    "off",
+    "all",
+    "one"
+  ],
+  "energyFlow": [
+    "dots",
+    "lines"
+  ]
+}

@@ -1,0 +1,151 @@
+# ESP Screens - Guition ESP32-S3-4848S040 board: 4-inch EU wallbox, 480x480 IPS (ST7701S over RGB) + GT911
+# capacitive touch, an ESP32-S3 with 16 MB flash and 8 MB of octal PSRAM.
+#
+# A board file is the board's hardware, the facts the shared tree takes from it (its glass and its grid), and the
+# features it has; docs/PROFILES.md says how the files of a screen fit together, docs/GUITION.md what this board needs.
+# Everything else (the LVGL tree, the cards, the scripts, the entities) is packages/core.yaml, which every board
+# shares. Two entry files include this one: checkout/guition.yaml (a build on this computer) and
+# packages/guition.yaml (the package a screen builds from over GitHub).
+packages:
+  # The chip, its PSRAM and the ESP-IDF settings every ESP32-S3 RGB panel shares (and through it how every board's
+  # firmware is built).
+  hardware: !include ../hardware/esp32s3-rgb.yaml
+  # Every size of the standard look, scaled to DISPLAY_DPI below. This glass is where that look was drawn.
+  look: !include ../looks/standard.yaml
+  touch: !include ../features/capacitive-touch.yaml
+  backlight: !include ../features/backlight.yaml
+  camera: !include ../features/camera.yaml
+  self_test: !include ../features/self-test.yaml
+  snapshot: !include ../features/snapshot.yaml
+
+substitutions:
+  # The key of this board file; the firmware reports it so ESP Screens knows what board a screen is.
+  BOARD_ID: "guition"
+  DEVICE_NAME: "guition-new"
+  DEVICE_FRIENDLY_NAME: "My Guition"
+
+  # The glass: the panel's own pixels, which the display block below always drives, and its density (diagonal
+  # pixels / diagonal inches). The standard look takes 170 as its reference, so every size here is the look's own.
+  PANEL_W: "480"
+  PANEL_H: "480"
+  DISPLAY_DPI: "170"
+  # The tile grid: columns and rows of cells. The shared tree places every cell from these
+  # (runtime_tiles::place_page). Square glass: the same six cells whichever way it hangs.
+  GRID_COLS: "2"
+  # Three rows, or four when the screen is built that way (boards.yaml `choices`, firmware 0.18.1): eight smaller
+  # cells a page, about 11 mm high, for a screen of many switches. A saved layout follows to four rows by itself.
+  GRID_ROWS: "3"
+  # More tiles and pages than the 64 and eight of a board without PSRAM (firmware 0.34.0+): the tile list, the cards and the
+  # extras live in PSRAM here, and the memory budget (tile_memory.h) says how many of them a layout really takes.
+  SCREEN_MAX_TILES: "128"
+  SCREEN_MAX_PAGES: "24"
+  SCREEN_MAX_BAR_ITEMS: "12"                   # a wider top bar where the glass has the width for it
+  LVGL_BUFFER_SIZE: "25%"                       # LVGL's draw buffer as a share of the screen
+
+  # Hardware a screen's own YAML may change (docs/EASY_SETUP.md, "Hardware-specific YAML overrides")
+  BACKLIGHT_FREQUENCY: "150Hz"                  # the backlight's PWM; see the output block (GitHub #5)
+
+# ============================================================
+# No need to edit below this line.
+# ============================================================
+
+esp32:
+  flash_size: 16MB
+
+logger:
+  tx_buffer_size: 2048
+  hardware_uart: UART0
+
+text_sensor:
+  - platform: template
+    name: "Guition screen type"
+    entity_category: diagnostic
+    update_interval: never
+    lambda: 'return {"guition"};'
+
+# Pinout from ESPHome's GUITION-4848S040 preset. No relay outputs are configured.
+spi:
+  id: lcd
+  clk_pin: GPIO48
+  mosi_pin: GPIO47
+
+i2c:
+  id: touch_bus
+  sda: GPIO19
+  scl:
+    number: GPIO45
+    ignore_strapping_warning: true
+  scan: true
+
+output:
+  - platform: ledc
+    pin: GPIO38
+    id: gpio_backlight_pwm
+    # The backlight driver on many of these boards cannot follow a fast PWM: at 20 kHz (firmware before 0.3.5) every
+    # level below 85-95 % looked off, and no marking on the board tells those batches apart. 150 Hz with a small floor
+    # dims every board, as ESPHome's own device page for this board does; 100 Hz shimmers visibly.
+    frequency: ${BACKLIGHT_FREQUENCY}
+    min_power: 0.01
+    zero_means_zero: true
+
+touchscreen:
+  - platform: gt911
+    id: ts_touch
+    i2c_id: touch_bus
+    display: my_display
+    update_interval: 20ms
+    # The GT911 reports pixels, 0 to 479 either way. Without this range ESPHome reads it from the chip's own
+    # configuration, and some panels ship a generic 1024 x 600 there, which squeezes every touch towards the top
+    # left corner (GitHub #78). On a panel that reports 480 x 480 this changes nothing.
+    calibration:
+      x_min: 0
+      x_max: 480
+      y_min: 0
+      y_max: 480
+
+# Native ESPHome driver with the working manufacturer's LVGL demo timings.
+# See docs/GUITION_FACTORY_REFERENCE.md; no custom RGB component is required.
+display:
+  - platform: st7701s
+    id: my_display
+    dimensions: {width: 480, height: 480}
+    spi_id: lcd
+    spi_mode: MODE0
+    data_rate: 2MHz
+    color_order: RGB
+    invert_colors: false
+    cs_pin: 39
+    de_pin: 18
+    hsync_pin: 16
+    vsync_pin: 17
+    pclk_pin: 21
+    pclk_frequency: 16MHz
+    pclk_inverted: false
+    hsync_front_porch: 10
+    hsync_pulse_width: 8
+    hsync_back_porch: 50
+    vsync_front_porch: 10
+    vsync_pulse_width: 8
+    vsync_back_porch: 20
+    transform:
+      mirror_x: false
+      mirror_y: false
+    init_sequence:
+      - 1
+      # Manufacturer's 16-bit bus configuration and normal scan direction.
+      - [0xFF, 0x77, 0x01, 0x00, 0x00, 0x10]
+      - [0xCD, 0x00]
+      - [0xC7, 0x00]
+      # Return to the standard register bank before pixel format / sleep-out.
+      - [0xFF, 0x77, 0x01, 0x00, 0x00, 0x00]
+      - [0x3A, 0x60]
+      - [0x36, 0x00]
+      - [0x20]
+      - [0x11]
+      - delay 120ms
+    data_pins:
+      red: [11, 12, 13, 14, 0]
+      green: [8, 20, 3, 46, 9, 10]
+      blue: [4, 5, 6, 7, 15]
+    update_interval: never
+    auto_clear_enabled: false
